@@ -61,7 +61,7 @@ public class Dish {
     /** 菜品大类：值域由 DishViewConst 派生（单一真源）；
      *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），
      *  仅供「大类视图」筛选与视图字典下发 */
-    @Schema(description = "菜品大类枚举键（值域由 DishViewConst 派生）", example = "noodle")
+    @Schema(description = "菜品分类键（值域 = dish_category_value 分类值字典；自由输入自动登记）", example = "noodle")
     private String mealType;
 
     /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 schema.sql dish 表注释） */

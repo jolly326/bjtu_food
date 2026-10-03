@@ -4,19 +4,22 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.dish.entity.DishAttributeDimension;
+import com.bjtufood.dish.entity.DishAttributeValue;
 import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
-import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.mapper.DishAttributeValueMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 菜品描述属性的<b>目录数据</b>：维度字典 + 编辑候选值。
@@ -32,24 +35,16 @@ import java.util.Map;
  * 缓存名与 TTL 统一取自 {@link CacheConfig}。
  */
 @Component
-@Slf4j
 @RequiredArgsConstructor
 public class DishAttributeCatalog {
 
-    /**
-     * 候选聚合的扫描上限（行）。
-     * <p>
-     * 取 20000：远超当前菜品规模（基准合成 5000 行 ≈14ms），又给内存一个硬边界——本查询是读路径上
-     * 唯一「行数决定返回体积」的查询（每行一段 attributes JSON 全量回传后才在内存里解析聚合），
-     * 不设上限即随菜品表行数线性膨胀。
-     * <p>
-     * 触顶的后果是<b>受控</b>的：候选值在契约里仅为参考、不构成写入约束（{@code DishAttributeEditVO#options}），
-     * 少几个长尾建议不会让任何写入变错；因此这里选择「截断 + WARN」而不是「放开无界」或「直接报错」。
-     */
-    public static final int MAX_SCAN_ROWS = 20_000;
+    // 字段下线（2026-10-03，A4 落地）：dishMapper 与 MAX_SCAN_ROWS 随「扫全库 attributes 聚合候选」
+    // 一并删除 —— 候选值改由取值字典直供后，本类不再有任何「随菜品行数线性增长」的读路径
+    // （原扫描上限与其 WARN 降级策略随之退役，读路径的内存边界问题自然消失）。
 
-    private final DishMapper dishMapper;
     private final DishAttributeDimensionMapper dimensionMapper;
+    /** 取值字典（A4）：候选值真源 */
+    private final DishAttributeValueMapper valueMapper;
     /** 仅用于<b>写侧显式失效</b>；读侧的缓存装配由 {@code @Cacheable} + {@link CacheConfig} 完成 */
     private final CacheManager cacheManager;
 
@@ -66,49 +61,43 @@ public class DishAttributeCatalog {
     }
 
     /**
-     * 编辑候选值（数据驱动）：扫描全库在售菜品的 {@code dish.attributes}，按维度 {@code fieldKey}
-     * 汇总「已用中文值」并按使用频次倒序去重——<b>无独立取值字典表，加值零登记</b>。
+     * 编辑候选值（**取值字典驱动**，A4 落地 2026-10-03）：按维度 {@code fieldKey} 汇总
+     * 该维度下**取值字典**的 `label`，按字典 `order` 升序。
      * <p>
-     * 这是本域读路径上唯一<b>随行数线性增长</b>的计算，也是 P1 缓存的主要目标；
-     * 菜品属性发生写入时由 {@link #invalidateCandidates()} 显式失效。
+     * 原实现是「扫全库在售菜品 attributes、按已用值频次去重」——那套依赖「值即中文」的旧模型
+     * （A4 后 `attributes` 存的是取值 ID，聚合会得出 ID 串，语义已失效），故改为直读字典。
+     * <p>
+     * 候选仅为**参考建议、不构成写入约束**（`DishAttributeEditVO#options`）；字典变更时由
+     * {@link #invalidateCandidates()} 显式失效（管理端 A4 写入口调用）。
      */
     @Cacheable(CacheConfig.ATTRIBUTE_CANDIDATES)
     public Map<String, List<String>> candidateValuesByFieldKey() {
-        List<String> rows = dishMapper.selectAttributesJsonOnSale(MAX_SCAN_ROWS);
-        if (rows.size() >= MAX_SCAN_ROWS) {
-            // 触顶 ⇒ 候选集不完整（长尾取值可能缺失）。**不报错**：候选仅为参考、不约束写入，
-            // 少几个建议远好于让编辑弹层直接 500；但必须留 WARN 并写清下一步动作。
-            log.warn("[ALERT] 在售菜品属性扫描触达上限 {} 行，候选值可能不完整（如需完整候选请提升上限或改分页聚合）",
-                    MAX_SCAN_ROWS);
+        Map<Long, String> fieldKeyById = dimensions().stream()
+                .collect(Collectors.toMap(DishAttributeDimension::getId, DishAttributeDimension::getFieldKey));
+        Map<String, List<String>> result = new HashMap<>();
+        for (DishAttributeValue value : valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
+                .orderByAsc(DishAttributeValue::getOrder))) {
+            String fieldKey = fieldKeyById.get(value.getDimensionId());
+            if (fieldKey != null && StringUtils.hasText(value.getLabel())) {
+                result.computeIfAbsent(fieldKey, k -> new ArrayList<>()).add(value.getLabel());
+            }
         }
-        Map<String, Map<String, Integer>> counter = new HashMap<>();
-        for (String json : rows) {
-            JsonMapUtil.parseObject(json).forEach((key, val) -> {
-                Map<String, Integer> perValue = counter.computeIfAbsent(key, k -> new HashMap<>());
-                if (val instanceof List<?> list) {
-                    for (Object v : list) {
-                        if (v != null) {
-                            String s = String.valueOf(v).trim();
-                            if (!s.isEmpty()) {
-                                perValue.merge(s, 1, Integer::sum);
-                            }
-                        }
-                    }
-                } else if (val != null) {
-                    String s = String.valueOf(val).trim();
-                    if (!s.isEmpty()) {
-                        perValue.merge(s, 1, Integer::sum);
-                    }
-                }
-            });
+        Map<String, List<String>> immutable = new HashMap<>(result.size());
+        result.forEach((key, labels) -> immutable.put(key, Collections.unmodifiableList(labels)));
+        return Collections.unmodifiableMap(immutable);
+    }
+
+    /**
+     * 失效**维度字典**缓存：A4 维度增删改 / 排序后调用（原实现把维度当「只由建表种子维护」，
+     * A4 落地后维度已可由管理端维护）。
+     */
+    public void invalidateDimensions() {
+        Cache cache = cacheManager.getCache(CacheConfig.ATTRIBUTE_DIMENSIONS);
+        if (cache == null) {
+            throw new IllegalStateException(
+                    "缓存未装配：CacheManager 中找不到 " + CacheConfig.ATTRIBUTE_DIMENSIONS + "，检查 CacheConfig");
         }
-        Map<String, List<String>> result = new HashMap<>(counter.size());
-        counter.forEach((key, perValue) -> result.put(key, Collections.unmodifiableList(perValue.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
-                        .thenComparing(Map.Entry.comparingByKey()))
-                .map(Map.Entry::getKey)
-                .toList())));
-        return Collections.unmodifiableMap(result);
+        cache.clear();
     }
 
     /**

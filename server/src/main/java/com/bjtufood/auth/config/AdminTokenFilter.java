@@ -33,7 +33,7 @@ import java.util.List;
  * <ul>
  *   <li>未配置 {@code ADMIN_TOKEN} → **fail-closed 拒绝全部 /admin 请求**（403），避免遗忘配置导致管理端裸奔；</li>
  *   <li>口令比对使用等时比较（MessageDigest.isEqual），降低时序侧信道风险；</li>
- *   <li>仅作用 {@code /admin} 与 {@code /admin/**}（含管理端图片上传 {@code /admin/upload/image}），
+ *   <li>仅作用 {@code /admin} 与 {@code /admin/**}（含管理端图片上传 {@code /admin/upload}），
  *       小程序端接口不受任何影响；校验通过后设置 ROLE_ADMIN 认证供授权层使用。</li>
  * </ul>
  * <p>
@@ -52,15 +52,16 @@ import java.util.List;
  * </ol>
  * <b>根治方向</b>（按投入递增，需产品/运维拍板，不在代码层自行决定）：
  * ① 部署侧限制管理端来源 IP（内网/VPN），口令只在内网可达；② 后端代理的一次性会话
- * （首次换短时 token，之后只带 token）；③ 换回真实管理员账号体系——本类已标
- * {@code @Deprecated(forRemoval=true)}，正是为 ③ 预留的。
+ * （首次换短时 token，之后只带 token）；③ 换回真实管理员账号体系。
+ * <p>
+ * 注：管理端一类原先**整体标过** {@code @Deprecated(since="2026-09", forRemoval=true)}
+ * （含本类）以给 ③ 预留空间；该标记已随「**管理端解除冻结**」在本轮重构中**整体移除**
+ * （2026-10-03）—— ③ 仍作为**演进选项**保留在此，只是不再由注解表达。
  * <p>
  * 在此之前，本类能提供的确定性改进是：fail-closed、等时比较、路径口径统一、以及<b>操作留痕</b>。
  */
 @Component
-@Deprecated(since = "2026-09", forRemoval = true)
 public class AdminTokenFilter extends OncePerRequestFilter {
-    // ⚠️ 冻结：管理端（Web 后台）口令过滤器，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     /**
      * 管理端口令请求头 */
@@ -126,7 +127,7 @@ public class AdminTokenFilter extends OncePerRequestFilter {
         if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {
             uri = uri.substring(contextPath.length());
         }
-        // /admin 与 /admin/** 同等受口令保护（含管理端图片上传 /admin/upload/image）；
+        // /admin 与 /admin/** 同等受口令保护（含管理端图片上传 /admin/upload）；
         // 学生端上传 /upload/cloud-image 走 JWT，不在本过滤器范围内。
         return !(ADMIN_PATH.equals(uri) || uri.startsWith(ADMIN_PATH_PREFIX));
     }

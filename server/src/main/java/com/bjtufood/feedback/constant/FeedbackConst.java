@@ -1,8 +1,6 @@
 package com.bjtufood.feedback.constant;
 
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 用户反馈相关常量（类型/状态值域单一真源）。
@@ -47,39 +45,19 @@ public interface FeedbackConst {
             TYPE_ISSUE, TYPE_REPORT,
             TYPE_SUGGESTION, TYPE_ADD, TYPE_ERROR, TYPE_BUG, TYPE_OTHER);
 
-    /**
-     * 反馈二级分类（sub，DEV-01 补全落库）：当前写入侧仅 {@code type=report}（举报原因）消费 sub；
-     * {@code type=suggestion}（提个想法，历史遗留、禁新增）存量数据的 idea/problem 值仍可读、可筛选。
-     * type 与 sub 不匹配时：未提供（null/空白）按未填处理、落库 NULL；
-     * 一旦提供（非空白）即 400（严格模式，用户拍板，不静默忽略），避免跨类型污染。
-     */
-    // ==================== 举报原因（type=report 的二级分类，字典下发给端上单选） ====================
+    // 反馈二级分类 sub（DEV-01 补全落库）：写入侧仅 `type=report`（举报原因，取值来自 report_reason 表）消费 sub；
+    // `type=suggestion`（提个想法，历史遗留、禁新增）存量数据的 idea/problem 值仍可读、可筛选。
+    // type 与 sub 不匹配时：未提供（null/空白）按未填处理、落库 NULL；一旦提供（非空白）即 400
+    // （严格模式，用户拍板，不静默忽略），避免跨类型污染。
 
-    /** 举报原因项（value = 机器值，label = 中文标签；经 {@code GET /report-reasons} 字典下发） */
-    record ReportReason(String value, String label) {}
+    // ==================== 举报原因 ====================
+    // 举报原因字典**已改为表驱动**（`report_reason` 表，A7 落地 2026-10-03）：
+    // 原先的常量真源（`REPORT_REASONS` / `REPORT_REASON_VALUES` / 6 个机器值常量 / `ReportReason` record）
+    // 已整体删除 —— 口径真源见 docs/schema/report_reason.md 与 docs/web/A-主数据维护/A7-举报原因管理.md。
+    // 读取与校验入口：{@code ReportReasonService#listEnabled()}（公开下发）与 {@code isSubmittable()}（提交白名单）。
+    //
+    // ⚠️ 测试中若需具体机器值，直接用字面量（如 "spam"）或读表，**不要再引入本类常量**。
 
-    String REPORT_SPAM = "spam";
-    String REPORT_ABUSE = "abuse";
-    String REPORT_PORN = "porn";
-    String REPORT_ILLEGAL = "illegal";
-    String REPORT_FAKE = "fake";
-    String REPORT_OTHER = "other";
-
-    /**
-     * 举报原因字典（**唯一真源**，List.of 保序 = 下发展示顺序）：端上单选弹层与管理端原因翻译
-     * 均消费 {@code GET /report-reasons} 下发的同一份，**零硬编码**（PR-12）。
-     */
-    List<ReportReason> REPORT_REASONS = List.of(
-            new ReportReason(REPORT_SPAM, "垃圾广告 / 营销刷屏"),
-            new ReportReason(REPORT_ABUSE, "辱骂攻击"),
-            new ReportReason(REPORT_PORN, "色情低俗"),
-            new ReportReason(REPORT_ILLEGAL, "违法违规"),
-            new ReportReason(REPORT_FAKE, "虚假信息 / 虚假评价"),
-            new ReportReason(REPORT_OTHER, "其他问题"));
-
-    /** 举报原因写入白名单（report 类型 sub **必选**其一，PR-06：非法 / 缺失即 400） */
-    Set<String> REPORT_REASON_VALUES = REPORT_REASONS.stream()
-            .map(ReportReason::value).collect(Collectors.toUnmodifiableSet());
 
     /** 举报关联类型（举报对象：菜品评价） */
     String RELATED_REVIEW = "review";
@@ -98,6 +76,17 @@ public interface FeedbackConst {
     Set<String> QUERY_STATUSES = Set.of(STATUS_PENDING, STATUS_HANDLED);
 
     /**
+     * 板块查询白名单（`GET /admin/feedbacks?category=`）：
+     * <ul>
+     *   <li>{@code feedback} = 意见反馈（B2）→ <b>排除</b> {@code type='report'}</li>
+     *   <li>{@code report} = 举报管理（B3）→ <b>仅</b> {@code type='report'}</li>
+     * </ul>
+     * 不传 = 全部（兼容不区分板块的调用）。口径见
+     * docs/web/B-UGC治理/B2-意见反馈管理.md 与 B3-举报管理.md。
+     */
+    Set<String> QUERY_CATEGORIES = Set.of("feedback", "report");
+
+    /**
      * 处理结论（§7.23 第 5 条）：{@code handled}=通过/已处理（缺省值）；
      * {@code rejected}=不采纳/退回（此时 reject_reason 必填，1~200 字）。
      */
@@ -109,4 +98,12 @@ public interface FeedbackConst {
 
     /** 不采纳原因最大长度（schema user_feedback.reject_reason VARCHAR(200)，§7.23 第 5 条） */
     int REJECT_REASON_MAX_LENGTH = 200;
+
+    /**
+     * 处理回复最大长度（≤600 字，口径见 docs/web/B-UGC治理/B2-意见反馈管理.md）。
+     * <p>
+     * 回执正文 = 固定前缀（≤40 字）+ 本回复全文 ⇒ 构造后必 ≤ 1024（`notification.content` 列宽），
+     * 故**不得**放宽本上限而不改列宽。
+     */
+    int REPLY_MAX_LENGTH = 600;
 }

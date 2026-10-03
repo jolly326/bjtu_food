@@ -12,7 +12,6 @@ import java.util.List;
  * 无匹配食堂时 = 全量档口），供管理端选择既有档口（带 stallId 二次调用）
  * 或确认新建（createIfMissing=true 二次调用）。
  */
-@Deprecated(since = "2026-09", forRemoval = true)
 public record StallConfirmVO(
         @Schema(description = "是否需要档口确认（true = 本次未执行采纳）", example = "true")
         boolean needStallConfirm,

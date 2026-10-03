@@ -3,6 +3,9 @@ package com.bjtufood.dish.service.impl;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.service.DishAttributeAdminService;
+import com.bjtufood.dish.service.DishCategoryAdminService;
+import com.bjtufood.dish.service.DishViewCatalog;
 import com.bjtufood.dish.service.DishAttributeCatalog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +39,9 @@ class DishServiceImplGuessLikeTest {
 
     private DishServiceImpl service() {
         return new DishServiceImpl(dishMapper, mock(StallService.class), mock(ApplicationEventPublisher.class),
-                mock(ImageUrlUtil.class), mock(DishAttributeCatalog.class));
+                mock(ImageUrlUtil.class), mock(DishAttributeCatalog.class),
+                mock(DishAttributeAdminService.class), mock(DishCategoryAdminService.class),
+                mock(DishViewCatalog.class));
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.correction.dto.DishCorrectionReq;
 import com.bjtufood.correction.entity.DishCorrection;
 import com.bjtufood.correction.mapper.DishCorrectionMapper;
+import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
@@ -74,7 +75,8 @@ class CorrectionModerationTest {
         imageUrlUtil = mock(ImageUrlUtil.class);
 
         svc = new CorrectionServiceImpl(correctionMapper, new CorrectionPersister(correctionMapper), dishService,
-                stallService, userService, localSensitiveFilter, contentSecurityService, notificationService, imageUrlUtil);
+                mock(DishAttributeAdminService.class), stallService, userService, localSensitiveFilter,
+                contentSecurityService, notificationService, imageUrlUtil);
 
         when(dishService.existsOnSale(1L)).thenReturn(true);
         when(localSensitiveFilter.containsSensitive(anyString())).thenReturn(false);

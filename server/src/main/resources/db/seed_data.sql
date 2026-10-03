@@ -179,14 +179,15 @@ INSERT INTO user_feedback (user_id, type, sub, content, status, related_type, re
 -- 候选 = 提交食堂名匹配「清真食堂」下的档口）；#3 已拒绝（留痕不采纳原因）；
 -- #4 **仅楼层改动**（name/price/canteen/stall 全 NULL，只有 floor）——演示「仅改楼层也算有改动」，
 --    采纳时把 floor 写回目标档口 stall.floor（该档口下其他菜品一并生效；菜品本身无楼层字段）。
--- 楼层列 floor（2026-09-30 新增）与 stall_name 同为自由文本；#2 为 NULL（该行演示的是档口两段式确认），
--- #1 的 '1F' 与种子档口楼层一致（写回为等值更新），#4 的 '2F' 演示真实改动（清真拉面种子楼层为 1F）。
+-- 楼层列 floor（2026-09-30 新增）：**受控字典、值即汉字**（负一层 / 一层 / 二层 / 三层 / 四层，
+-- 真源见 docs/schema/stall.md 与 FloorDict）；#2 为 NULL（该行演示的是档口两段式确认），
+-- #1 的 '一层' 与种子档口楼层一致（写回为等值更新），#4 的 '二层' 演示真实改动（清真拉面种子楼层为 一层）。
 DELETE FROM dish_correction;
 INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_name, floor, attributes, images, status, reply, reject_reason, created_at) VALUES
-(4,  1,    '番茄炒蛋盖饭', 800,  '学一食堂', '学一基本伙食', '1F',   '{"dietType":"半荤","ingredients":["蛋","米"],"flavorTags":["酸","甜"],"serveTemp":"热食"}', NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
+(4,  1,    '番茄炒蛋盖饭', 800,  '学一食堂', '学一基本伙食', '一层',   '{"dietType":"半荤","ingredients":["蛋","米"],"flavorTags":["酸","甜"],"serveTemp":"热食"}', NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 4 HOUR)),
 (11, 2,    '牛肉拉面',     1200, '清真食堂', '清真面档',     NULL,   '{"dietType":"清真","ingredients":["牛","面"],"flavorTags":["咸"],"serveTemp":"热食"}',   NULL, 'pending',  NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 HOUR)),
 (1,  NULL, '宫保鸡丁',     1600, '学一食堂', '学一基本伙食', NULL,   '{"dietType":"荤","ingredients":["鸡","青菜"],"flavorTags":["辣","酸"],"serveTemp":"热食"}', NULL, 'rejected', NULL, '经核实价格与档口今日公示一致', DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(24, 3,    NULL,           NULL, NULL,       NULL,           '2F',   NULL, NULL, 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 90 MINUTE));
+(24, 3,    NULL,           NULL, NULL,       NULL,           '二层',   NULL, NULL, 'pending', NULL, NULL, DATE_SUB(NOW(), INTERVAL 90 MINUTE));
 
 -- =============================================================
 -- 一期扩展字段补充（新增列后回填；基于默认值的幂等 UPDATE，可重复执行）
@@ -195,20 +196,20 @@ INSERT INTO dish_correction (dish_id, user_id, name, price, canteen_name, stall_
 -- =============================================================
 
 -- 档口：楼层 / 窗口号（营业时间 business_hours 已于 2026-09-14 §7.14 D 随列下线一并删除）
-UPDATE stall SET floor='1F',  window_no='1号窗口'  WHERE id=1;
-UPDATE stall SET floor='1F',  window_no='2号窗口'  WHERE id=2;
-UPDATE stall SET floor='1F',  window_no='3号窗口'  WHERE id=3;
-UPDATE stall SET floor='1F',  window_no='4号窗口'  WHERE id=4;
-UPDATE stall SET floor='2F',  window_no='5号窗口'  WHERE id=5;
-UPDATE stall SET floor='2F',  window_no='6号窗口'  WHERE id=6;
-UPDATE stall SET floor='1F',  window_no='7号窗口'  WHERE id=7;
-UPDATE stall SET floor='1F',  window_no='8号窗口'  WHERE id=8;
-UPDATE stall SET floor='B1',  window_no='9号窗口'  WHERE id=9;
-UPDATE stall SET floor='B1',  window_no='10号窗口' WHERE id=10;
-UPDATE stall SET floor='1F',  window_no='11号窗口' WHERE id=11;
-UPDATE stall SET floor='1F',  window_no='12号窗口' WHERE id=12;
-UPDATE stall SET floor='2F',  window_no='13号窗口' WHERE id=13;
-UPDATE stall SET floor='2F',  window_no='14号窗口' WHERE id=14;
+UPDATE stall SET floor='一层',  window_no='1号窗口'  WHERE id=1;
+UPDATE stall SET floor='一层',  window_no='2号窗口'  WHERE id=2;
+UPDATE stall SET floor='一层',  window_no='3号窗口'  WHERE id=3;
+UPDATE stall SET floor='一层',  window_no='4号窗口'  WHERE id=4;
+UPDATE stall SET floor='二层',  window_no='5号窗口'  WHERE id=5;
+UPDATE stall SET floor='二层',  window_no='6号窗口'  WHERE id=6;
+UPDATE stall SET floor='一层',  window_no='7号窗口'  WHERE id=7;
+UPDATE stall SET floor='一层',  window_no='8号窗口'  WHERE id=8;
+UPDATE stall SET floor='负一层',  window_no='9号窗口'  WHERE id=9;
+UPDATE stall SET floor='负一层',  window_no='10号窗口' WHERE id=10;
+UPDATE stall SET floor='一层',  window_no='11号窗口' WHERE id=11;
+UPDATE stall SET floor='一层',  window_no='12号窗口' WHERE id=12;
+UPDATE stall SET floor='二层',  window_no='13号窗口' WHERE id=13;
+UPDATE stall SET floor='二层',  window_no='14号窗口' WHERE id=14;
 
 -- 菜品：描述属性（dish.attributes JSON）示例值已在上方 `INSERT INTO dish` 内直接写入，
 -- 此处不再以 UPDATE 二次赋值，避免双处维护漂移。

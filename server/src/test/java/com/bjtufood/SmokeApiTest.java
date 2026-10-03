@@ -36,8 +36,10 @@ import com.bjtufood.feedback.controller.ReportController;
 import com.bjtufood.feedback.controller.admin.FeedbackAdminController;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
+import com.bjtufood.feedback.mapper.ReportReasonMapper;
 import com.bjtufood.feedback.service.impl.FeedbackPersister;
 import com.bjtufood.feedback.service.impl.FeedbackServiceImpl;
+import com.bjtufood.feedback.service.impl.ReportReasonServiceImpl;
 import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.review.controller.ReviewController;
 import com.bjtufood.review.controller.admin.ReviewAdminController;
@@ -94,11 +96,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       与路径防回归（旧 {@code /reviews} 不再注册）；</li>
  *   <li>反馈：{@code POST /feedback}（类型白名单 400、other 正常落库 200）、
  *       举报：{@code POST /reviews/{id}/report}（原因缺失/非法 400、评价不存在 4001）；</li>
- *   <li>上传：{@code POST /admin/upload/image}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
+ *   <li>上传：{@code POST /admin/upload}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
  *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）；</li>
  *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）、
  *       {@code PUT /admin/reviews/{id}/sec-state}（sec_state 全链退役，映射表中不得再注册该端点，
- *       保留的 {@code /admin/reviews/{id}/hide} 仍在册作阳性对照）；</li>
+ *       保留的 {@code /admin/reviews/{id}/hidden} 仍在册作阳性对照）；</li>
  *   <li>内容安全检测口径：反馈内容安全检测 risky → 400「内容包含违规信息，请修改后重试」且不落库
  *       。</li>
  * </ol>
@@ -153,8 +155,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // auth 域真实实现：切面经 UserService.requireUgcAuthorized 判定准入（判据与错误码收敛在 auth），
         // 同时供 FeedbackServiceImpl（昵称投影 / 回执认证判据）消费；其 UserMapper 仍打桩，故不查库
         UserServiceImpl.class,
-        // 反馈 / 举报入参校验（type 白名单 / 举报原因白名单）的真实实现
+        // 反馈 / 举报入参校验（type 白名单）的真实实现
         FeedbackServiceImpl.class,
+        // 举报原因字典（A7 表驱动）：FeedbackServiceImpl 依赖其 isSubmittable 做提交白名单
+        ReportReasonServiceImpl.class,
         // 反馈落库事务 Bean
         FeedbackPersister.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
@@ -201,6 +205,9 @@ class SmokeApiTest {
     private UserMapper userMapper;
     @MockBean
     private FeedbackMapper feedbackMapper;
+    /** 举报原因字典表（A7）：打桩避免查库 */
+    @MockBean
+    private ReportReasonMapper reportReasonMapper;
     @MockBean
     private LocalSensitiveFilter localSensitiveFilter;
     @MockBean
@@ -458,6 +465,8 @@ class SmokeApiTest {
     void reportReview_withReason_persistsSubAndEmptyContent() throws Exception {
         // 举报为独立子资源端点（方案 B）：POST /reviews/{id}/report，reason = 结构化原因
         when(reviewService.existsVisibleById(3L)).thenReturn(true);
+        // 举报原因白名单改为查表（A7）：「spam」存在且启用 ⇒ selectCount > 0
+        when(reportReasonMapper.selectCount(any())).thenReturn(1L);
         mockMvc.perform(post("/reviews/3/report")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"spam\"}"))
@@ -540,7 +549,7 @@ class SmokeApiTest {
     @Test
     void uploadImage_withoutAdminToken_returns403() throws Exception {
         // 403 由 AdminTokenFilter 直接写出（口令缺失/无效失败的 fail-closed 行为）
-        mockMvc.perform(multipart("/admin/upload/image").file(jpegFile()))
+        mockMvc.perform(multipart("/admin/upload").file(jpegFile()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403))
                 .andExpect(jsonPath("$.message").value(ADMIN_TOKEN_INVALID_MESSAGE));
@@ -548,7 +557,7 @@ class SmokeApiTest {
 
     @Test
     void uploadImage_wrongAdminToken_returns403() throws Exception {
-        mockMvc.perform(multipart("/admin/upload/image").file(jpegFile())
+        mockMvc.perform(multipart("/admin/upload").file(jpegFile())
                         .header(ADMIN_TOKEN_HEADER, "wrong-token"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403))
@@ -561,7 +570,7 @@ class SmokeApiTest {
                 .thenReturn(new UploadResultVO("http://localhost:8080/api/images/2026/05/a.jpg",
                         "/images/2026/05/a.jpg"));
 
-        mockMvc.perform(multipart("/admin/upload/image").file(jpegFile())
+        mockMvc.perform(multipart("/admin/upload").file(jpegFile())
                         .header(ADMIN_TOKEN_HEADER, TEST_ADMIN_TOKEN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -570,7 +579,8 @@ class SmokeApiTest {
 
     /**
      * 防回归：上传端点命名去混淆后，学生端 {@code /upload/cloud-image} 与管理端
-     * {@code /admin/upload/image} 应在册，旧路径 {@code /upload/images}、{@code /upload/image} 不得残留。
+     * {@code /admin/upload} 应在册（口径见 docs/web/README.md「管理端素材上传」），
+     * 旧路径 {@code /upload/images}、{@code /upload/image}、{@code /admin/upload/image} 不得残留。
      */
     @Test
     void uploadEndpoints_renamedPathsRegistered_legacyPathsRemoved() {
@@ -580,8 +590,10 @@ class SmokeApiTest {
 
         Assertions.assertTrue(patterns.contains("/upload/cloud-image"),
                 "学生端上传路径 /upload/cloud-image 应在册；实际映射：" + patterns);
-        Assertions.assertTrue(patterns.contains("/admin/upload/image"),
-                "管理端上传路径 /admin/upload/image 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/admin/upload"),
+                "管理端上传路径 /admin/upload 应在册；实际映射：" + patterns);
+        Assertions.assertFalse(patterns.contains("/admin/upload/image"),
+                "旧管理端上传路径 /admin/upload/image 应删除；实际映射：" + patterns);
         Assertions.assertFalse(patterns.contains("/upload/images"),
                 "旧学生端路径 /upload/images 应删除；实际映射：" + patterns);
         Assertions.assertFalse(patterns.contains("/upload/image"),
@@ -609,9 +621,12 @@ class SmokeApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.records").isArray())
-                // 分页壳契约：恒为 records 单项（结束判据 = 本页条数 < pageSize，
-                // 页码 / 每页条数为请求侧已知、总数亦不回传）
-                .andExpect(jsonPath("$.data.total").doesNotExist())
+                // 管理端分页契约（AdminPageResult，见 docs/api/README.md）：
+                // records + total（「共 N 条」与总页数 = ceil(total / pageSize)）；
+                // page / pageSize 仍由请求侧掌握、不回传。
+                // ⚠️ 学生端 PageResult 仍只有 records —— 两者不可混用。
+                .andExpect(jsonPath("$.data.total").exists())
+                .andExpect(jsonPath("$.data.total").isNumber())
                 .andExpect(jsonPath("$.data.page").doesNotExist())
                 .andExpect(jsonPath("$.data.pageSize").doesNotExist());
     }
@@ -644,7 +659,7 @@ class SmokeApiTest {
      * <p>
      * 断言手法：直接查切片内 {@link RequestMappingHandlerMapping} 的注册映射（不经请求，
      * 规避「PUT 打到 /** 静态资源处理器」的状态码不确定性）。并以保留的
-     * {@code PUT /admin/reviews/{id}/hide}（举报→下架的事后处置通道）作<b>阳性对照</b>：
+     * {@code PUT /admin/reviews/{id}/hidden}（举报→下架的事后处置通道）作<b>阳性对照</b>：
      * 证明 {@link ReviewAdminController} 确实已注册在本切片，故「无 sec-state 映射」不是空洞断言。
      */
     @Test
@@ -653,8 +668,8 @@ class SmokeApiTest {
                 .flatMap(info -> info.getPatternValues().stream())
                 .collect(Collectors.toSet());
 
-        Assertions.assertTrue(patterns.contains("/admin/reviews/{id}/hide"),
-                "保留端点 /admin/reviews/{id}/hide 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/admin/reviews/{id}/hidden"),
+                "保留端点 /admin/reviews/{id}/hidden 应在册；实际映射：" + patterns);
         Assertions.assertFalse(patterns.stream().anyMatch(p -> p.contains("sec-state")),
                 "sec-state 端点应已随列退役删除；实际映射：" + patterns);
     }

@@ -49,6 +49,7 @@ public class DishCorrectionReq {
             example = "{\"dietType\":\"素\",\"flavorTags\":[\"辣\",\"酸\"]}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品图片 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，传入时：≤3 张）")
+    @Schema(description = "菜品图片 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址；**≤5 张** —— "
+            + "纠错需多张佐证，上限宽于评价 / 反馈的 3 张）")
     private List<String> images;
 }

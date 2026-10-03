@@ -71,7 +71,7 @@ public class SwaggerConfig {
 
                                 ## 图片规则
                                 上传：小程序 UGC 配图走 POST /upload/cloud-image（云存储 fileID → 安检 → COS）；
-                                管理端菜品图走 POST /admin/upload/image（multipart，X-Admin-Token）。
+                                管理端菜品图走 POST /admin/upload（multipart，X-Admin-Token）。
                                 数据库可存 `/images/...` 相对路径，后端按 `app.public-base-url` 拼接为完整 URL。
                                 """)
                         .contact(new Contact()

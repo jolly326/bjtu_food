@@ -11,9 +11,7 @@ import java.util.List;
  */
 @Data
 @Schema(description = "反馈管理端展示信息")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class FeedbackAdminVO {
-    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "反馈ID")
     private Long id;
@@ -83,5 +81,29 @@ public class FeedbackAdminVO {
     private LocalDateTime createdAt;
 
     @Schema(description = "处理时间")
+    /** 处理时间（未处理为 null） */
     private LocalDateTime handledAt;
+
+    /** 最近更新时间（B2 补：管理端列表统一带它；表已有 `updated_at`，无需 DDL） */
+    private LocalDateTime updatedAt;
+
+    // ===== B3 举报私有字段（type=report 时填充；反馈行为 null） =====
+
+    /** 举报原因机器值（= `user_feedback.sub`；反馈行为 null） */
+    private String reason;
+
+    /** 举报原因中文名（由 `report_reason` 字典翻译；字典缺失时回退机器值，端上零硬编码） */
+    private String reasonLabel;
+
+    /** 被举报评价 ID（= `relatedId`；反馈行为 null） */
+    private Long reviewId;
+
+    /** 被举报评价正文（内嵌摘要：管理员不跳页即可看到被举报了什么；评价已删除为 null） */
+    private String reviewContent;
+
+    /** 被举报评价所属菜品名（联表带出；评价已删除时为 null） */
+    private String reviewDishName;
+
+    /** 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰） */
+    private Boolean reviewHidden;
 }

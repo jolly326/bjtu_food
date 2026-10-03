@@ -137,14 +137,58 @@
             OR s.name LIKE CONCAT('%', #{q.keyword}, '%')
             OR c.name LIKE CONCAT('%', #{q.keyword}, '%'))
         </if>
-        <!-- 视图筛选条件（由 DishViewResolver 按视图 Kind 解析后下发；白名单校验在 Service 层，非法值 400、不落 SQL）：
-             mealType 等值（大类视图）/ discountOnly 折扣（原价 > 现价）。 -->
-        <if test="q.mealType != null and q.mealType != ''">
-            AND d.meal_type = #{q.mealType}
-        </if>
-        <if test="q.discountOnly">
-            AND d.original_price IS NOT NULL AND d.original_price &gt; d.price
-        </if>
+        <!-- 视图筛选条件（A6：由 DishViewConditions 按**字段/操作符/值三层白名单**校验后下发；
+             白名单非法值在 Service 层即 400、不落 SQL；全部取值走 #{} 预编译参数，**不拼接 SQL 文本**。
+             组合关系只有 AND（一期不支持 OR）。字段清单见 docs/web/A-主数据维护/A6-首页筛选视图管理.md。
+             与 DishViewConditions#toWrapper（计数 / 预览 / 抽样用）保持**同一套口径**。 -->
+        <foreach collection="q.conditions" item="c">
+            <choose>
+                <when test="c.field == 'mealType'">
+                    <choose>
+                        <when test="c.op == 'in'">
+                            AND d.meal_type IN
+                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
+                        </when>
+                        <otherwise>AND d.meal_type = #{c.value}</otherwise>
+                    </choose>
+                </when>
+                <when test="c.field == 'discount'">
+                    AND d.original_price IS NOT NULL AND d.original_price &gt; d.price
+                </when>
+                <when test="c.field == 'price'">
+                    <choose>
+                        <when test="c.op == 'between'">AND d.price BETWEEN #{c.values[0]} AND #{c.values[1]}</when>
+                        <when test="c.op == '&gt;='">AND d.price &gt;= #{c.value}</when>
+                        <otherwise>AND d.price &lt;= #{c.value}</otherwise>
+                    </choose>
+                </when>
+                <when test="c.field == 'stallId'">
+                    <choose>
+                        <when test="c.op == 'in'">
+                            AND d.stall_id IN
+                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
+                        </when>
+                        <otherwise>AND d.stall_id = #{c.value}</otherwise>
+                    </choose>
+                </when>
+                <when test="c.field == 'canteenId'">
+                    <!-- 复用联表内的 s.canteen_id（FROM 已 JOIN stall s），无需子查询 -->
+                    <choose>
+                        <when test="c.op == 'in'">
+                            AND s.canteen_id IN
+                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
+                        </when>
+                        <otherwise>AND s.canteen_id = #{c.value}</otherwise>
+                    </choose>
+                </when>
+                <when test="c.field == 'avgRating'">
+                    AND COALESCE(d.avg_rating, 0) &gt;= #{c.value}
+                </when>
+                <when test="c.field == 'createdAt'">
+                    AND d.created_at &gt;= DATE_SUB(NOW(), INTERVAL #{c.value} DAY)
+                </when>
+            </choose>
+        </foreach>
         <!-- 排序按视图的 sortKind 分派（端上无排序入口；食堂 / 价格筛选条件已随 2026-09-22 K3「筛选全量下线」删除）：
              ① SEED_RANDOM 且无 keyword（推荐视图）→ CRC32(CONCAT(seed,'-',id)), id 稳定伪随机序
                 —— 同一 seed ⇒ 同一全序（翻页不重不漏），换 seed ⇒ 整体重洗（新鲜度）；
@@ -159,6 +203,20 @@
             <when test="q.sortKind.name() == 'DISCOUNT_DESC'">
                 ORDER BY (d.original_price - d.price) / d.original_price DESC,
                 <include refid="heatScoreExpr"/> DESC
+            </when>
+            <!-- A6 新增：视图可选的四种显式排序（白名单见 DishViewConditions.SORT_KINDS）；
+                 均以热度作决胜键，保证同值行序稳定、翻页不重不漏 -->
+            <when test="q.sortKind.name() == 'PRICE_ASC'">
+                ORDER BY d.price ASC, <include refid="heatScoreExpr"/> DESC
+            </when>
+            <when test="q.sortKind.name() == 'PRICE_DESC'">
+                ORDER BY d.price DESC, <include refid="heatScoreExpr"/> DESC
+            </when>
+            <when test="q.sortKind.name() == 'RATING_DESC'">
+                ORDER BY COALESCE(d.avg_rating, 0) DESC, d.rating_count DESC, d.id DESC
+            </when>
+            <when test="q.sortKind.name() == 'NEWEST'">
+                ORDER BY d.created_at DESC, d.id DESC
             </when>
             <otherwise>
                 ORDER BY <include refid="heatScoreExpr"/> DESC
@@ -177,20 +235,6 @@
         LIMIT 1
     </select>
 
-    <!-- 全部在售菜品的描述属性 JSON 原文（编辑候选值「按维度汇总全库已用中文值」用；NULL 行不返回）。
-         带 ORDER BY + LIMIT：本查询把每行 attributes 全量回传后在内存聚合，是读路径上唯一
-         「行数决定返回体积」的查询；排序不是给用户看的，而是保证**截断点稳定**
-         （同一数据多次调用截到同一批行，不会时多时少）。
-         截断只可能影响「参考候选的完整度」——候选在契约里仅为参考、不构成写入约束。 -->
-    <select id="selectAttributesJsonOnSale" resultType="string">
-        SELECT d.attributes
-        FROM dish d
-        WHERE d.status = 'on'
-          AND d.attributes IS NOT NULL
-        ORDER BY d.id
-        LIMIT #{limit}
-    </select>
-
     <!-- DishAdminVO 结果映射（后台全部菜品） -->
     <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
         <id property="id" column="id"/>
@@ -203,13 +247,68 @@
         <result property="mealType" column="meal_type"/>
     </resultMap>
 
-    <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称）。
+    <!-- 管理端列表行（A3「列表 / 详情 VO 分离」，2026-10-03）：
+         **不含** description / attributes / 全量 images —— 列表是扫视场景，不为 20 行的大字段买单。
+         封面只取 images 首图（SQL 层 JSON_EXTRACT 第 0 项，不在 Java 侧解析整串），无图兜空串。 -->
+    <sql id="adminDishListColumns">
+        d.id,
+        d.stall_id,
+        d.name,
+        d.price,
+        d.original_price,
+        COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.images, '$[0]')), '') AS cover_image,
+        d.status,
+        d.avg_rating,
+        d.rating_count,
+        d.updated_at,
+        COALESCE(d.meal_type, '') AS meal_type,
+        COALESCE(s.name, '') AS stall_name,
+        COALESCE(c.name, '') AS canteen_name
+    </sql>
+
+    <resultMap id="dishAdminListItemMap" type="com.bjtufood.dish.dto.DishAdminListItemVO">
+        <id property="id" column="id"/>
+        <!-- 仅声明下划线列名与属性名不同者，其余按 mapUnderscoreToCamelCase 自动映射 -->
+        <result property="originalPrice" column="original_price"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="mealType" column="meal_type"/>
+        <result property="stallName" column="stall_name"/>
+        <result property="canteenName" column="canteen_name"/>
+    </resultMap>
+
+    <!-- 管理端列表筛选条件（A3）：stallId / canteenId（经档口间接）/ mealType / status / keyword。
+         keyword 与公开列表**同口径**（菜名 / 档口名 / 食堂名三路模糊）—— 该形态无法走索引，
+         属已知取舍（与 client 搜索同源，见本文件顶部「技术债」登记）。 -->
+    <sql id="adminDishWhere">
+        <where>
+            <if test="q.stallId != null">
+                AND d.stall_id = #{q.stallId}
+            </if>
+            <if test="q.canteenId != null">
+                AND s.canteen_id = #{q.canteenId}
+            </if>
+            <if test="q.mealType != null and q.mealType != ''">
+                AND d.meal_type = #{q.mealType}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND d.status = #{q.status}
+            </if>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (d.name LIKE CONCAT('%', #{q.keyword}, '%')
+                OR s.name LIKE CONCAT('%', #{q.keyword}, '%')
+                OR c.name LIKE CONCAT('%', #{q.keyword}, '%'))
+            </if>
+        </where>
+    </sql>
+
+    <!-- 后台全部菜品列表（含已下架，联表档口/食堂名称；**瘦身列表 VO**）。
          分页：避免菜品量增长后单次请求全表加载打满连接/内存。
-         排序固定按 updated_at DESC，与管理端预期一致。 -->
-    <select id="selectAllForAdmin" resultMap="dishAdminVOMap">
+         排序固定按 updated_at DESC（最近维护在前），端上无排序入口。 -->
+    <select id="selectAdminListPage" resultMap="dishAdminListItemMap">
         SELECT
-        <include refid="adminDishColumns"/>
+        <include refid="adminDishListColumns"/>
         <include refid="dishFromJoin"/>
+        <include refid="adminDishWhere"/>
         ORDER BY d.updated_at DESC
     </select>
 
@@ -234,15 +333,6 @@
         WHERE d.status = 'on'
         ORDER BY CRC32(CONCAT(#{seed}, '-', d.id)), d.id
         LIMIT #{limit}
-    </select>
-
-    <!-- 视图字典下发（2026-09-21 §7.34）：只回答「哪些大类当前有在售菜品」（供 MEAL_TYPE 视图做空类自动隐藏）；
-         标签文案与顺序由 DishViewConst 唯一定义，本查询不涉及（单一真源不漂移） -->
-    <select id="selectInStockMealTypes" resultType="string">
-        SELECT DISTINCT d.meal_type
-        FROM dish d
-        WHERE d.status = 'on'
-          AND d.meal_type IS NOT NULL
     </select>
 
     <!--

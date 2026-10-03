@@ -8,15 +8,17 @@ import java.util.List;
 
 @Data
 @Schema(description = "后台食堂列表展示信息")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class CanteenAdminVO {
-    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "食堂ID")
     private Long id;
 
     @Schema(description = "食堂名称", example = "第一食堂")
     private String name;
+
+    /** 其下档口数（联表统计，供删除前判断与列表展示；口径见 docs/web/A-主数据维护/A1-食堂管理.md） */
+    @Schema(description = "其下档口数", example = "3")
+    private Long stallCount;
 
     @Schema(description = "食堂位置")
     private String location;

@@ -9,6 +9,7 @@ import com.bjtufood.banner.service.impl.BannerServiceImpl;
 import com.bjtufood.canteen.dto.CanteenAdminVO;
 import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.mapper.CanteenMapper;
+import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.impl.CanteenServiceImpl;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -118,7 +119,8 @@ class ThinServicesTest {
         Canteen c = new Canteen();
         c.setName("第一食堂");
 
-        assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(ImageUrlUtil.class)).update(c))
+        assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
+                mock(ImageUrlUtil.class)).update(c))
                 .isInstanceOf(BusinessException.class);
         verify(canteenMapper, never()).updateById(any());
     }
@@ -131,7 +133,8 @@ class ThinServicesTest {
         Canteen c = new Canteen();
         c.setId(9L);
 
-        assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(ImageUrlUtil.class)).update(c))
+        assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
+                mock(ImageUrlUtil.class)).update(c))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -143,7 +146,8 @@ class ThinServicesTest {
         Canteen c = new Canteen();
         c.setId(1L);
 
-        assertThatCode(() -> new CanteenServiceImpl(canteenMapper, mock(ImageUrlUtil.class)).update(c))
+        assertThatCode(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
+                mock(ImageUrlUtil.class)).update(c))
                 .doesNotThrowAnyException();
     }
 
@@ -158,7 +162,8 @@ class ThinServicesTest {
         when(canteenMapper.selectList(any())).thenReturn(List.of(c));
         when(imageUrlUtil.parseAndToAbsoluteUrls(any())).thenReturn(List.of("http://host/api/v1/i/1.jpg"));
 
-        List<CanteenAdminVO> vos = new CanteenServiceImpl(canteenMapper, imageUrlUtil).listAllForAdmin();
+        List<CanteenAdminVO> vos = new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
+                imageUrlUtil).listAllForAdmin();
 
         assertThat(vos).hasSize(1);
         assertThat(vos.get(0).getName()).isEqualTo("第一食堂");

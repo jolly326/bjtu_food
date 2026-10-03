@@ -1,5 +1,6 @@
 package com.bjtufood.dish.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -38,4 +39,9 @@ public class DishAttributeDimension {
     @TableField("`order`")
     @Schema(description = "维度展示顺序（升序）", example = "1")
     private Integer order;
+
+    /** 更新时间（管理端列表出参 `updatedAt`；2026-10-02 统一口径） */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @Schema(description = "更新时间")
+    private java.time.LocalDateTime updatedAt;
 }

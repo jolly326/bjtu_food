@@ -8,9 +8,7 @@ import java.util.Map;
 
 @Data
 @Schema(description = "后台菜品新增/编辑请求参数")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class DishAdminReq {
-    // ⚠️ 冻结：管理端（Web 后台）请求对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     /**
      * 所属档口ID。
@@ -59,7 +57,8 @@ public class DishAdminReq {
             example = "{\"dietType\":\"半荤\",\"ingredients\":[\"蛋\"],\"flavorTags\":[\"酸\",\"甜\"],\"serveTemp\":\"热食\"}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品大类枚举键（值域见 GET /dishes/views 的大类视图；可空；服务端白名单校验非法值 400）", example = "noodle")
+    @Schema(description = "菜品分类键（值域 = 分类值字典 /admin/dish-categories；**可填新值，保存时自动登记**；"
+            + "空 / 超 20 字 / 非法字符 → 400；不传 = 不修改）", example = "noodle")
     private String mealType;
 
     @Schema(description = "状态：on=上架，off=下架", example = "on")

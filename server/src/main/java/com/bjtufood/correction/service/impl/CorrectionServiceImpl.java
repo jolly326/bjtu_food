@@ -16,13 +16,18 @@ import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.correction.constant.CorrectionConst;
 import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
 import com.bjtufood.correction.dto.DishCorrectionAdminVO;
+import com.bjtufood.correction.dto.DishCorrectionDetailVO;
+import com.bjtufood.correction.dto.DishCorrectionDifferenceVO;
 import com.bjtufood.correction.dto.DishCorrectionHandleReq;
 import com.bjtufood.correction.dto.DishCorrectionReq;
 import com.bjtufood.correction.dto.StallConfirmVO;
 import com.bjtufood.correction.entity.DishCorrection;
 import com.bjtufood.correction.mapper.DishCorrectionMapper;
 import com.bjtufood.correction.service.CorrectionService;
+import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishCorrectionCmd;
+import com.bjtufood.dish.dto.DishDimensionAdminVO;
+import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.notification.constant.NotificationConst;
 import com.bjtufood.notification.dto.NotificationCmd;
@@ -34,8 +39,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 菜品信息纠错服务实现（独立资源：POST /dishes/{id}/correction + /admin/corrections）。
@@ -61,6 +73,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     private final CorrectionPersister correctionPersister;
     /** 跨域契约：菜品存在性/在售判定、菜品名投影、采纳写回（P0-1，替代 DishMapper 直连） */
     private final DishService dishService;
+    /** 跨域只读契约（dish.service 接口）：维度字典，供差异对照下发**维度中文名**（端上零硬编码） */
+    private final DishAttributeAdminService attributeAdminService;
     /** 按名 upsert 档口 / 档口存在性校验 / 档口名解析 / 候选档口列表（与菜品录入编辑共用同一入口，勿在此复制实现） */
     private final StallService stallService;
     /** 跨域只读契约：管理端「提交人」昵称投影 + 内容安检取 openid（P0-1，替代 UserMapper 直连） */
@@ -271,9 +285,7 @@ public class CorrectionServiceImpl implements CorrectionService {
     // ==================== 管理端列表（GET /admin/corrections） ====================
 
     @Override
-    @Deprecated(since = "2026-09", forRemoval = true)
-    public IPage<DishCorrectionAdminVO> listForAdmin(String status, int page, int pageSize) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
+    public IPage<DishCorrectionAdminVO> listForAdmin(String status, Long dishId, int page, int pageSize) {
         int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
@@ -283,6 +295,8 @@ public class CorrectionServiceImpl implements CorrectionService {
 
         LambdaQueryWrapper<DishCorrection> wrapper = new LambdaQueryWrapper<DishCorrection>()
                 .eq(StringUtils.hasText(status), DishCorrection::getStatus, status)
+                // B4：按目标菜品筛选（从菜品视角看纠错）
+                .eq(dishId != null, DishCorrection::getDishId, dishId)
                 .orderByDesc(DishCorrection::getCreatedAt);
         IPage<DishCorrection> p = correctionMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
@@ -299,8 +313,24 @@ public class CorrectionServiceImpl implements CorrectionService {
         // 管理端仍需看到菜品名回看内容；菜品已物理删除时不在结果集，VO 保持 null。
         Map<Long, String> dishNameMap = batchDishNames(p.getRecords());
 
+        // 楼层连带的「同档口菜品数」：**批量**取（①批查 stallId ②按 stall 去重计数），
+        // 取代此前「逐行 getForAdmin + count」的 N+1（一页最多 20 行 × 2 次查询 ⇒ 现为 1 + 去重档口数）。
+        List<Long> floorDishIds = p.getRecords().stream()
+                .filter(c -> StringUtils.hasText(c.getFloor()))
+                .map(DishCorrection::getDishId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, Long> stallByDish = dishService.mapStallIdByIds(floorDishIds);
+        Map<Long, Long> dishCountByStall = new LinkedHashMap<>();
+        for (Long stallId : new LinkedHashSet<>(stallByDish.values())) {
+            dishCountByStall.put(stallId, dishService.countByStallId(stallId));
+        }
+
         return PageUtil.toVoPage(p,
-                recs -> recs.stream().map(c -> toAdminVO(c, userMap, dishNameMap)).toList());
+                recs -> recs.stream()
+                        .map(c -> toAdminVO(c, userMap, dishNameMap, stallByDish, dishCountByStall))
+                        .toList());
     }
 
     /** 批量查询本页纠错目标菜品名：dishId 去重后一次 IN 查询，空集合返回空 Map（不发起查询） */
@@ -318,7 +348,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     }
 
     /** 管理端 VO 转换：补齐菜品名、提交人昵称、配图（相对路径 → 绝对 URL） */
-    private DishCorrectionAdminVO toAdminVO(DishCorrection c, Map<Long, String> userMap, Map<Long, String> dishNameMap) {
+    private DishCorrectionAdminVO toAdminVO(DishCorrection c, Map<Long, String> userMap, Map<Long, String> dishNameMap,
+                                            Map<Long, Long> stallByDish, Map<Long, Long> dishCountByStall) {
         DishCorrectionAdminVO vo = new DishCorrectionAdminVO();
         vo.setId(c.getId());
         vo.setDishId(c.getDishId());
@@ -337,21 +368,221 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setStatus(c.getStatus());
         vo.setReply(c.getReply());
         vo.setRejectReason(c.getRejectReason());
+        // B4 列表：给「改了几项」（不展开内容 —— 展开是详情的事）+ 是否涉及楼层
+        vo.setChangeCount(changeCountOf(c));
+        if (StringUtils.hasText(c.getFloor())) {
+            Long stallId = stallByDish.get(c.getDishId());
+            long affected = stallId == null ? 0L : dishCountByStall.getOrDefault(stallId, 0L);
+            vo.setFloorImpact("将同步修改该档口下 " + affected + " 个菜品");
+        }
+        vo.setHandledAt(c.getHandledAt());
+        vo.setCreatedAt(c.getCreatedAt());
+        vo.setUpdatedAt(c.getUpdatedAt());
+        return vo;
+    }
+
+    /** 差异项数量：逐「改动项」计（属性按**维度**拆，与 {@link #buildDifferences} 的粒度一致） */
+    private static int changeCountOf(DishCorrection c) {
+        int count = 0;
+        if (StringUtils.hasText(c.getName())) {
+            count++;
+        }
+        if (c.getPrice() != null) {
+            count++;
+        }
+        if (StringUtils.hasText(c.getCanteenName())) {
+            count++;
+        }
+        if (StringUtils.hasText(c.getStallName())) {
+            count++;
+        }
+        if (StringUtils.hasText(c.getFloor())) {
+            count++;
+        }
+        count += JsonMapUtil.parseObject(c.getAttributes()).size();
+        if (c.getImages() != null && !c.getImages().isEmpty()) {
+            count++;
+        }
+        return count;
+    }
+
+    // ==================== 管理端详情（GET /admin/corrections/{id}，B4 差异对照） ====================
+
+    /** 差异项键（= 采纳请求 `acceptedFields` 的取值） */
+    private static final String FIELD_NAME = "name";
+    private static final String FIELD_PRICE = "price";
+    private static final String FIELD_CANTEEN_NAME = "canteenName";
+    private static final String FIELD_STALL_NAME = "stallName";
+    private static final String FIELD_FLOOR = "floor";
+    private static final String FIELD_IMAGES = "images";
+    /** 属性维度项的键前缀（`attributes.<fieldKey>`） */
+    private static final String FIELD_ATTR_PREFIX = "attributes.";
+
+    @Override
+    public DishCorrectionDetailVO getDetail(Long id) {
+        DishCorrection c = correctionMapper.selectById(id);
+        if (c == null) {
+            throw new BusinessException(4001, "纠错不存在");
+        }
+        DishCorrectionDetailVO vo = new DishCorrectionDetailVO();
+        vo.setId(c.getId());
+        vo.setDishId(c.getDishId());
+        vo.setDishName(c.getDishId() == null ? null : dishService.mapNameByIds(List.of(c.getDishId())).get(c.getDishId()));
+        vo.setUserId(c.getUserId());
+        vo.setUserNickname(c.getUserId() == null ? null
+                : userService.mapNicknameByIds(List.of(c.getUserId())).get(c.getUserId()));
+        vo.setStatus(c.getStatus());
+        List<String> rawImages = c.getImages() == null ? List.of() : c.getImages();
+        vo.setImages(rawImages.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(rawImages));
+        vo.setSubmitted(buildSubmitted(c, vo.getImages()));
+        vo.setDifferences(buildDifferences(c));
+        vo.setReply(c.getReply());
+        vo.setRejectReason(c.getRejectReason());
         vo.setHandledAt(c.getHandledAt());
         vo.setCreatedAt(c.getCreatedAt());
         return vo;
+    }
+
+    /** 用户提交的原始快照（**仅改动项**）—— 供「已同步 / 已被改回」等场景回看 */
+    private Map<String, Object> buildSubmitted(DishCorrection c, List<String> images) {
+        Map<String, Object> submitted = new LinkedHashMap<>();
+        putIfPresent(submitted, FIELD_NAME, c.getName());
+        putIfPresent(submitted, FIELD_PRICE, c.getPrice());
+        putIfPresent(submitted, FIELD_CANTEEN_NAME, c.getCanteenName());
+        putIfPresent(submitted, FIELD_STALL_NAME, c.getStallName());
+        putIfPresent(submitted, FIELD_FLOOR, c.getFloor());
+        Map<String, Object> attrs = JsonMapUtil.parseObject(c.getAttributes());
+        if (!attrs.isEmpty()) {
+            submitted.put("attributes", attrs);
+        }
+        if (!images.isEmpty()) {
+            submitted.put(FIELD_IMAGES, images);
+        }
+        return submitted;
+    }
+
+    private static void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (value != null && (!(value instanceof String s) || StringUtils.hasText(s))) {
+            target.put(key, value);
+        }
+    }
+
+    /**
+     * 差异对照清单：**只列「仍有差异」的项**，`oldValue` 取**当前实时值**。
+     * <p>
+     * 快照只存「提交的新值」，原值必须回查 `dish` / `stall`（经 dish / canteen 域 Service 契约）。
+     * 菜品已被物理删除 → 无从对照，返回空列表（采纳本身也会 4001）。
+     */
+    private List<DishCorrectionDifferenceVO> buildDifferences(DishCorrection c) {
+        if (c.getDishId() == null || !dishService.existsById(c.getDishId())) {
+            return List.of();
+        }
+        DishAdminVO live = dishService.getForAdmin(c.getDishId());
+        if (live == null) {
+            return List.of();
+        }
+        List<DishCorrectionDifferenceVO> diffs = new ArrayList<>();
+        addDiff(diffs, FIELD_NAME, "菜品名称", live.getName(), c.getName(), false);
+        // 单位是**分**：label 明写，避免端上与「元」混淆
+        addDiff(diffs, FIELD_PRICE, "现价（分）", live.getPrice(), c.getPrice(), false);
+        addDiff(diffs, FIELD_CANTEEN_NAME, "食堂名称", live.getCanteenName(), c.getCanteenName(), false);
+        addDiff(diffs, FIELD_STALL_NAME, "档口名称", live.getStallName(), c.getStallName(), false);
+        // 楼层归属**档口**：实时值必须回查 stall；采纳会连带同档口所有菜品 ⇒ 端上高亮提示
+        if (StringUtils.hasText(c.getFloor())) {
+            addDiff(diffs, FIELD_FLOOR, "楼层", stallService.getFloorById(live.getStallId()), c.getFloor(), true);
+        }
+        addDiff(diffs, FIELD_IMAGES, "菜品图片", live.getImages(),
+                c.getImages() == null || c.getImages().isEmpty() ? null : c.getImages(), false);
+        // 描述属性：按**维度**拆项（键 = attributes.<fieldKey>，可直接进 acceptedFields）
+        Map<String, String> dimensionNames = dimensionNameByFieldKey();
+        JsonMapUtil.parseObject(c.getAttributes()).forEach((fieldKey, submitted) -> {
+            Object liveValue = live.getAttributes() == null ? null : live.getAttributes().get(fieldKey);
+            String label = dimensionNames.getOrDefault(fieldKey, "描述属性");
+            addDiff(diffs, FIELD_ATTR_PREFIX + fieldKey, label, liveValue, submitted, false);
+        });
+        return diffs;
+    }
+
+    /** 维度中文名映射（fieldKey → name）；字典读失败不阻塞详情（退化为通用文案） */
+    private Map<String, String> dimensionNameByFieldKey() {
+        Map<String, String> names = new LinkedHashMap<>();
+        for (DishDimensionAdminVO dim : attributeAdminService.listDimensions()) {
+            names.put(dim.getFieldKey(), dim.getName());
+        }
+        return names;
+    }
+
+    /** 加一项差异；**值相同则不加**（只列「仍有差异」的项） */
+    private static void addDiff(List<DishCorrectionDifferenceVO> out, String field, String label,
+                                Object oldValue, Object newValue, boolean affectsOthers) {
+        String oldText = describe(oldValue);
+        String newText = describe(newValue);
+        if (Objects.equals(oldText, newText)) {
+            return;
+        }
+        DishCorrectionDifferenceVO diff = new DishCorrectionDifferenceVO();
+        diff.setField(field);
+        diff.setLabel(label);
+        diff.setOldValue(oldText);
+        diff.setNewValue(newText);
+        diff.setAffectsOthers(affectsOthers);
+        out.add(diff);
+    }
+
+    /** 值 → 端上可读文本（集合给「共 N 项：…」，其余原样） */
+    private static String describe(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof Collection<?> col) {
+            if (col.isEmpty()) {
+                return "";
+            }
+            return "共 " + col.size() + " 项：" + col.stream().map(String::valueOf)
+                    .collect(Collectors.joining("、"));
+        }
+        return String.valueOf(value);
+    }
+
+    /** 逐项采纳：把 `acceptedFields` 里的属性维度项取出（只带选中维度，dish 域按维度合并） */
+    private static Map<String, Object> acceptedAttributes(DishCorrection correction, Set<String> accepted) {
+        Map<String, Object> picked = new LinkedHashMap<>();
+        JsonMapUtil.parseObject(correction.getAttributes()).forEach((fieldKey, value) -> {
+            if (accepted.contains(FIELD_ATTR_PREFIX + fieldKey)) {
+                picked.put(fieldKey, value);
+            }
+        });
+        return picked;
+    }
+
+    /**
+     * 采纳清单校验：**必填非空**（空数组 → 400：什么都不采纳不是采纳，是拒绝），
+     * 且每一项都必须是**此刻仍有差异**的项（否则会出现「采纳一个已同步的值」）。
+     */
+    private Set<String> resolveAcceptedFields(DishCorrection correction, DishCorrectionAdoptReq req) {
+        List<String> raw = req == null ? null : req.getAcceptedFields();
+        if (raw == null || raw.isEmpty()) {
+            throw new BusinessException("请选择要采纳的差异项（要拒绝请走拒绝接口）");
+        }
+        Set<String> valid = buildDifferences(correction).stream()
+                .map(DishCorrectionDifferenceVO::getField)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> accepted = new LinkedHashSet<>(raw);
+        List<String> illegal = accepted.stream().filter(field -> !valid.contains(field)).toList();
+        if (!illegal.isEmpty()) {
+            throw new BusinessException("采纳项无效或已无差异：" + String.join(", ", illegal));
+        }
+        return accepted;
     }
 
     // ==================== 管理端采纳（POST /admin/corrections/{id}/adopt，两段式档口确认） ====================
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Deprecated(since = "2026-09", forRemoval = true)
     public StallConfirmVO adopt(Long id, DishCorrectionAdoptReq req) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         DishCorrection correction = correctionMapper.selectById(id);
         if (correction == null) {
-            throw new BusinessException("纠错不存在");
+            throw new BusinessException(4001, "纠错不存在");
         }
         // 前置：status=pending，否则 400（幂等：重复调用 = 已处理 →「该纠错已处理」）
         if (!CorrectionConst.STATUS_PENDING.equals(correction.getStatus())) {
@@ -362,32 +593,40 @@ public class CorrectionServiceImpl implements CorrectionService {
             throw new BusinessException(4001, "菜品不存在，无法采纳");
         }
 
-        // ---- 两段式档口确认：解析最终挂靠档口 ----
-        Long resolvedStallId;
-        if (req != null && req.getStallId() != null) {
-            // 第二段（管理端选定既有档口）：显式 stallId 优先，校验存在后挂靠
-            if (!stallService.existsById(req.getStallId())) {
-                throw new BusinessException(400, "档口不存在");
-            }
-            resolvedStallId = req.getStallId();
-        } else {
-            Long matchedStallId = stallService.findIdByName(correction.getStallName());
-            if (matchedStallId != null) {
-                // 提交档口名与现有档口归一化精确匹配命中 → 直接采纳
-                resolvedStallId = matchedStallId;
-            } else if (req != null && Boolean.TRUE.equals(req.getCreateIfMissing())) {
-                // 第二段（确认新建）：按提交档口名 upsert（所属食堂按提交食堂名 upsert，
-                // 空值语义名称 → 400「请选择所属食堂」，与菜品录入编辑同口径）
-                resolvedStallId = stallService.upsertStallByName(correction.getStallName(), correction.getCanteenName());
+        // ---- 逐项采纳清单（B4）：必填非空，且每项必须是「此刻仍有差异」的项 ----
+        Set<String> accepted = resolveAcceptedFields(correction, req);
+        // 只有采纳了**档口 / 食堂项**才需要两段式档口确认（楼层与档口挂靠是两件独立的事）
+        boolean acceptedStall = accepted.contains(FIELD_CANTEEN_NAME) || accepted.contains(FIELD_STALL_NAME);
+
+        // ---- 两段式档口确认：解析最终挂靠档口（仅在采纳了档口/食堂项时） ----
+        Long resolvedStallId = null;
+        if (acceptedStall) {
+            if (req != null && req.getStallId() != null) {
+                // 第二段（管理端选定既有档口）：显式 stallId 优先，校验存在后挂靠
+                if (!stallService.existsById(req.getStallId())) {
+                    throw new BusinessException(400, "档口不存在");
+                }
+                resolvedStallId = req.getStallId();
             } else {
-                // 未命中且未指定档口/未确认新建 → 不执行采纳，返回候选档口供管理端选择
-                return new StallConfirmVO(true, buildCandidates(correction.getCanteenName()));
+                Long matchedStallId = stallService.findIdByName(correction.getStallName());
+                if (matchedStallId != null) {
+                    // 提交档口名与现有档口归一化精确匹配命中 → 直接采纳
+                    resolvedStallId = matchedStallId;
+                } else if (req != null && Boolean.TRUE.equals(req.getCreateIfMissing())) {
+                    // 第二段（确认新建）：按提交档口名 upsert（所属食堂按提交食堂名 upsert，
+                    // 空值语义名称 → 400「请选择所属食堂」，与菜品录入编辑同口径）
+                    resolvedStallId = stallService.upsertStallByName(correction.getStallName(),
+                            correction.getCanteenName());
+                } else {
+                    // 未命中且未指定档口/未确认新建 → 不执行采纳，返回候选档口供管理端选择
+                    return new StallConfirmVO(true, buildCandidates(correction.getCanteenName()));
+                }
             }
         }
 
-        applyAdoption(correction, resolvedStallId);
-        // 站内回执（提交人非空且已认证时投递，失败不阻塞采纳）
-        sendCorrectionReceipt(correction, true, CorrectionConst.ADOPT_REPLY, null);
+        String actualReply = applyAdoption(correction, resolvedStallId, accepted, req);
+        // 站内回执（提交人非空时投递，失败不阻塞采纳）；reply 缺省用固定文案
+        sendCorrectionReceipt(correction, true, actualReply, null);
         return null;
     }
 
@@ -406,26 +645,46 @@ public class CorrectionServiceImpl implements CorrectionService {
      * <b>目标档口</b>（{@code resolvedStallId}），同档口下全部菜品的详情楼层一并生效；
      * 写动作经 {@code StallService#updateFloor} 跨域写契约下发（同 P0-1 收口口径）。
      */
-    private void applyAdoption(DishCorrection correction, Long resolvedStallId) {
-        // 楼层改动项：非空即「有改动」→ 写回目标档口（同档口其他菜品一并生效）。
-        // 目标档口沿用上方**既有解析结果**（管理端显式 stallId / 提交档口名命中 / 确认新建），
-        // 本方法不重新解析档口。注意：提交档口名为空（未改动）时既有解析不会自动取「该菜当前所属档口」，
-        // 而是走两段式候选确认、由管理端选定（= 该菜当前所属档口）后再次调用——该段逻辑本次刻意未动。
-        // 写失败（档口不存在）抛 400，与下方 dish 写回同处 adopt 事务，一并回滚。
-        if (StringUtils.hasText(correction.getFloor())) {
-            stallService.updateFloor(resolvedStallId, correction.getFloor());
+    /**
+     * 单条：目标菜品**当前**所属档口（只采纳 floor 时的楼层落点）。
+     * 单条路径不存在 N+1，故直接取菜品全字段（列表路径才走 {@code mapStallIdByIds} 批量投影）。
+     */
+    private Long currentStallIdOf(Long dishId) {
+        if (dishId == null) {
+            return null;
         }
-        // 实际挂靠档口名（管理端指定档口可能不同于提交名；档口不存在时保持提交名，与原 stall==null 判定同效）
-        String resolvedStallName = stallService.getNameById(resolvedStallId);
-        if (!dishService.applyCorrection(new DishCorrectionCmd(correction.getDishId(), correction.getName(),
-                correction.getPrice(), resolvedStallId, JsonMapUtil.parseObject(correction.getAttributes()),
-                correction.getImages()))) {
+        DishAdminVO live = dishService.getForAdmin(dishId);
+        return live == null ? null : live.getStallId();
+    }
+
+    private String applyAdoption(DishCorrection correction, Long resolvedStallId, Set<String> accepted,
+                                 DishCorrectionAdoptReq req) {
+        // 楼层改动项：**采纳项含 floor** 才写回（归属档口 stall.floor，同档口其他菜品一并生效）。
+        // 目标档口 = 本次解析结果；未采纳档口项时 = 该菜**当前**所属档口（楼层与档口挂靠独立）。
+        if (accepted.contains(FIELD_FLOOR) && StringUtils.hasText(correction.getFloor())) {
+            Long targetStallId = resolvedStallId == null ? currentStallIdOf(correction.getDishId()) : resolvedStallId;
+            if (targetStallId != null) {
+                stallService.updateFloor(targetStallId, correction.getFloor());
+            }
+        }
+        // 实际挂靠档口名（管理端指定档口可能不同于提交名；未采纳档口项时为 null，不归档改名）
+        String resolvedStallName = resolvedStallId == null ? null : stallService.getNameById(resolvedStallId);
+        // 逐项写回：只带**选中项**，未选中项一律 null（dish 域 NOT_NULL 策略跳过 ⇒ 不覆盖既有值）
+        String name = accepted.contains(FIELD_NAME) ? correction.getName() : null;
+        Integer price = accepted.contains(FIELD_PRICE) ? correction.getPrice() : null;
+        List<String> images = accepted.contains(FIELD_IMAGES) ? correction.getImages() : null;
+        Map<String, Object> attributes = acceptedAttributes(correction, accepted);
+        if (!dishService.applyCorrection(new DishCorrectionCmd(correction.getDishId(), name, price,
+                resolvedStallId, attributes, images))) {
             // 并发删除兜底（采纳前置已查到菜品）
             throw new BusinessException(4001, "菜品不存在，无法采纳");
         }
 
+        // 采纳回复：附注优先（≤600 已在 DTO 校验），缺省固定文案
+        String reply = req != null && StringUtils.hasText(req.getReply())
+                ? req.getReply().trim() : CorrectionConst.ADOPT_REPLY;
         correction.setStatus(CorrectionConst.STATUS_ADOPTED);
-        correction.setReply(CorrectionConst.ADOPT_REPLY);
+        correction.setReply(reply);
         correction.setRejectReason(null);
         correction.setHandledAt(LocalDateTime.now());
         // 归档实际挂靠档口名（**null-safe，缺陷修复**）：局部提交下 stallName 快照可为 null
@@ -436,6 +695,7 @@ public class CorrectionServiceImpl implements CorrectionService {
             correction.setStallName(resolvedStallName);
         }
         correctionMapper.updateById(correction);
+        return reply;
     }
 
     /**
@@ -454,12 +714,10 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Deprecated(since = "2026-09", forRemoval = true)
     public void reject(Long id, DishCorrectionHandleReq req) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         DishCorrection correction = correctionMapper.selectById(id);
         if (correction == null) {
-            throw new BusinessException("纠错不存在");
+            throw new BusinessException(4001, "纠错不存在");
         }
         // 前置：status=pending，否则 400（幂等：重复调用 = 已处理 →「该纠错已处理」）
         if (!CorrectionConst.STATUS_PENDING.equals(correction.getStatus())) {
@@ -472,10 +730,12 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (!CorrectionConst.OUTCOME_REJECTED.equals(outcome)) {
             throw new BusinessException(400, "处理结论非法（本端点仅支持 rejected=不采纳/退回）");
         }
-        // reply 必填（§7.16 同源口径）：DTO @NotBlank 为主拦截，Service 层兜底（同口径、同错误码 400）
+        // reply **可选**（B4，2026-10-03）：DTO 仅卡长度，Service 不再拦必填；
+        // 留空时回执正文退化为「不采纳原因」（必填项），保证提交人始终收到可读内容。
         String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
-        if (!StringUtils.hasText(trimmedReply)) {
-            throw new BusinessException(400, "请填写处理回复（提交人将收到该内容）");
+        // 上限 600 字（回执正文 = 前缀 + 回复全文，须 ≤ notification.content 的 1024 列宽）
+        if (trimmedReply != null && trimmedReply.length() > CorrectionConst.REPLY_MAX_LENGTH) {
+            throw new BusinessException(400, "处理回复不能超过" + CorrectionConst.REPLY_MAX_LENGTH + "字");
         }
         // 不采纳原因必填（§7.23 第 5 条同源口径）：1~200 字，纯空白视为未填写 → 400
         String rejectReason = req.getRejectReason() == null ? null : req.getRejectReason().trim();

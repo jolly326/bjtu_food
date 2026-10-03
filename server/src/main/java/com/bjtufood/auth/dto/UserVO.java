@@ -46,4 +46,7 @@ public class UserVO {
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
+
+    /** 最近更新时间（C2 补：管理端列表统一带它；表已有 `updated_at` 列，无需 DDL） */
+    private LocalDateTime updatedAt;
 }

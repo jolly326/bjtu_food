@@ -38,11 +38,24 @@ public interface CorrectionConst {
      */
     int FLOOR_MAX_LENGTH = 16;
 
-    /** 纠错配图上限（张；与评价 / 反馈的 UGC 配图口径一致） */
-    int IMAGE_MAX = 3;
+    /**
+     * 纠错配图上限（张）。
+     * <p>
+     * <b>2026-10-03 由 3 改为 5</b>（`docs/web/README.md` 待办 #4）：纠错要说明「现场是什么样」，
+     * 常需「菜品 + 价签 + 档口牌」多张佐证，3 张不够用 ⇒ 与评价 / 反馈的 UGC 口径**脱钩**
+     * （后两者仍为 3，见 `FeedbackConst`）。
+     */
+    int IMAGE_MAX = 5;
 
     /** 不采纳原因最大长度（schema dish_correction.reject_reason VARCHAR(200)，与 feedback 口径一致） */
     int REJECT_REASON_MAX_LENGTH = 200;
+
+    /**
+     * 处理回复最大长度（≤600 字，口径见 docs/web/B-UGC治理/B4-菜品纠错管理.md）。
+     * <p>
+     * 回执正文 = 固定前缀（≤40 字）+ 本回复全文 ⇒ 构造后必 ≤ 1024（`notification.content` 列宽）。
+     */
+    int REPLY_MAX_LENGTH = 600;
 
     /** 采纳固定回复文案（落库 dish_correction.reply） */
     String ADOPT_REPLY = "已采纳，菜品信息已更新";

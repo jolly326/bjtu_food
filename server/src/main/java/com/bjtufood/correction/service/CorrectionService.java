@@ -3,6 +3,7 @@ package com.bjtufood.correction.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
 import com.bjtufood.correction.dto.DishCorrectionAdminVO;
+import com.bjtufood.correction.dto.DishCorrectionDetailVO;
 import com.bjtufood.correction.dto.DishCorrectionHandleReq;
 import com.bjtufood.correction.dto.DishCorrectionReq;
 import com.bjtufood.correction.dto.StallConfirmVO;
@@ -33,7 +34,25 @@ public interface CorrectionService {
      * 纠错列表（管理端，ADM）：分页，status 筛选（pending/adopted/rejected，不传 = 全部）。
      * VO 补齐 dishName（实时回查 dish，含已下架/已删除兜底）与提交人昵称。
      */
-    IPage<DishCorrectionAdminVO> listForAdmin(String status, int page, int pageSize);
+    /**
+     * 管理端纠错列表（分页；按 `createdAt DESC`）。
+     *
+     * @param status 处理状态（`pending`/`adopted`/`rejected`；可空 = 全部；非法值 `400`）
+     * @param dishId 按目标菜品筛选（可空；从菜品视角看纠错）
+     */
+    IPage<DishCorrectionAdminVO> listForAdmin(String status, Long dishId, int page, int pageSize);
+
+    /**
+     * 管理端纠错**详情**（含 `differences[]` 差异对照，供「逐项勾选采纳」）。
+     * <p>
+     * `differences` **只列「仍有差异」的项**（`oldValue` 取当前菜品 / 档口的**实时值**）；
+     * 目标菜品已被物理删除时为空列表（无从对照，采纳本身也会 `4001`）。
+     *
+     * @param id 纠错 ID
+     * @return 详情 VO
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 纠错不存在
+     */
+    DishCorrectionDetailVO getDetail(Long id);
 
     /**
      * 采纳纠错（管理端，ADM，两段式档口确认）。

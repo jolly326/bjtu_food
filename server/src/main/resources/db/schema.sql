@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS `stall`
     `name`           VARCHAR(64)  NOT NULL DEFAULT '' COMMENT '档口名称',
     `images`         VARCHAR(1024) NULL    DEFAULT NULL COMMENT '档口多图JSON',
     `location`       VARCHAR(128) NULL    DEFAULT NULL COMMENT '档口位置',
-    `floor`          VARCHAR(16)  NULL    DEFAULT NULL COMMENT '楼层（如 1F/2F）',
+    `floor`          VARCHAR(16)  NULL    DEFAULT NULL COMMENT '楼层（受控字典、值即汉字：负一层/一层/二层/三层/四层，见 FloorDict 与 docs/schema/stall.md）',
     `window_no`      VARCHAR(32)  NULL    DEFAULT NULL COMMENT '窗口号（如 3号窗口）',
     `description`    VARCHAR(512) NULL    DEFAULT NULL COMMENT '档口描述',
     `sort_order`     INT          NOT NULL DEFAULT 0 COMMENT '排序权重',
@@ -185,11 +185,98 @@ CREATE TABLE IF NOT EXISTS `dish_attribute_dimension`
     `name`       VARCHAR(32) NOT NULL DEFAULT '' COMMENT '维度中文名（饮食属性/食材/口味/冷热）',
     `value_type` VARCHAR(16) NOT NULL DEFAULT 'single' COMMENT '取值类型：single=单值 / multi=多值',
     `order`      INT         NOT NULL DEFAULT 0 COMMENT '维度展示顺序（升序）',
+    `updated_at` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间（管理端列表出参）',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_dimension_field_key` (`field_key`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性维度';
+
+-- -------------------- 菜品描述属性取值（取值字典，2026-10-03 A4 落地） --------------------
+-- 模型反转：**取值有独立行与 ID**，`dish.attributes` 存的是**取值 ID**（single 数字 / multi 数字数组），
+-- 出参经服务端翻译成中文 ⇒ 客户端展示契约不变；改名只改一行、全站生效（**改名免费**）。
+-- 「值即中文、无取值字典」的旧模型由本表取代（旧迁移 `migrate_attribute_values_to_text` 已停用）。
+-- 口径真源：docs/schema/dish_attribute_value.md 与 docs/web/A-主数据维护/A4-菜品属性维度管理.md。
+-- 无 `created_at`（只有 `updated_at`，2026-10-02 管理端列表统一口径）。
+CREATE TABLE IF NOT EXISTS `dish_attribute_value`
+(
+    `id`           BIGINT      NOT NULL AUTO_INCREMENT COMMENT '取值ID（菜品 attributes 引用的就是它）',
+    `dimension_id` BIGINT      NOT NULL DEFAULT 0 COMMENT '所属维度ID',
+    `label`        VARCHAR(32) NOT NULL DEFAULT '' COMMENT '取值中文名（展示用；可改，改名免费）',
+    `order`        INT         NOT NULL DEFAULT 0 COMMENT '组内展示顺序（升序）',
+    `updated_at`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_value_dimension` (`dimension_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品描述属性取值（取值字典，A4）';
+
+-- -------------------- 菜品分类（分类值字典，2026-10-03 A6 落地） --------------------
+-- 菜品「分类」字段 `dish.meal_type` 的**取值域**（列定义不变，仍是 VARCHAR(20) 存 `key`）。
+-- 数据锚在 `key` ⇒ 改 `label` 只改一行、全站生效（**改名免费**，零菜品迁移）。
+-- 取值由**自由输入自动登记**产生（A3 菜品录入 / A6 视图条件），后台只保留重命名 / 合并 / 删除。
+-- 口径真源：docs/schema/dish_category_value.md 与 docs/web/A-主数据维护/A6-首页筛选视图管理.md。
+CREATE TABLE IF NOT EXISTS `dish_category_value`
+(
+    `id`         BIGINT      NOT NULL AUTO_INCREMENT COMMENT '分类ID',
+    `key`        VARCHAR(20) NOT NULL COMMENT '分类键（英文小写；dish.meal_type 存的就是它；在用后不可改）',
+    `label`      VARCHAR(32) NOT NULL DEFAULT '' COMMENT '分类中文名（可改，改名免费）',
+    `order`      INT         NOT NULL DEFAULT 0 COMMENT '顺序（后台下拉 / 列表展示序）',
+    `updated_at` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_category_key` (`key`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='菜品分类值字典（A6）';
+
+-- -------------------- 首页筛选视图（2026-10-03 A6 落地） --------------------
+-- 一个 tab = `key` + 文案 + 顺序 + 启停 + 默认标记 + **筛选标准**（conditions）+ 排序口径。
+-- `conditions` 是**有限语言**：字段白名单（操作符 + 值）的 AND 组合，**不可**写 SQL / 表达式；
+-- NULL / [] = 全部菜品。`is_default` 全站恰一个（应用层保证，先清旧值同事务）。
+-- 表名 `dish_filter_view`（点明是「菜品列表的筛选视图」，非数据库视图）；端点仍是 `/admin/dish-views`。
+-- 口径真源：docs/schema/dish_filter_view.md 与 docs/web/A-主数据维护/A6-首页筛选视图管理.md。
+CREATE TABLE IF NOT EXISTS `dish_filter_view`
+(
+    `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '视图ID',
+    `key`         VARCHAR(32) NOT NULL COMMENT '视图键（端上回传 view=<key>；在用后不可改）',
+    `label`       VARCHAR(32) NOT NULL DEFAULT '' COMMENT 'tab 文案（可改）',
+    `order`       INT         NOT NULL DEFAULT 0 COMMENT '展示顺序（升序；默认视图排首位）',
+    `enabled`     TINYINT     NOT NULL DEFAULT 1 COMMENT '是否在 client 首页出现（0=tab 隐藏）',
+    `is_default`  TINYINT     NOT NULL DEFAULT 0 COMMENT '默认视图（端上不带 view 的落点；全站恰一个）',
+    `conditions`  JSON        NULL     DEFAULT NULL COMMENT '筛选标准（字段白名单 + 操作符 + 值的 AND 组合；NULL/[]=全部菜品）',
+    `sort_kind`   VARCHAR(20) NOT NULL DEFAULT 'heat' COMMENT '排序口径白名单：heat/priceAsc/priceDesc/discountDesc/ratingDesc/newest/random',
+    `updated_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_view_key` (`key`),
+    KEY `idx_view_order` (`order`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='首页筛选视图（A6）';
+
+-- A6 种子 ①：分类值 = 原物理大类（保持原顺序与文案）+ 从存量 `dish.meal_type` 回填缺失项。
+--   INSERT IGNORE 保证重跑不覆盖管理员已改的 label / order。
+INSERT IGNORE INTO `dish_category_value` (`key`, `label`, `order`) VALUES
+    ('set_meal',  '套餐盖饭', 1),
+    ('stir_fry',  '家常小炒', 2),
+    ('noodle',    '面食粉类', 3),
+    ('dry_pot',   '香锅干锅', 4),
+    ('snack',     '风味小吃', 5),
+    ('soup_drink','汤饮甜品', 6);
+-- 兜底回填：存量菜品若用了种子外的 meal_type 值（自由输入产生），一并登记为分类值（label 先取键本身，管理员可改名）
+INSERT IGNORE INTO `dish_category_value` (`key`, `label`, `order`)
+    SELECT DISTINCT d.`meal_type`, d.`meal_type`, 99
+    FROM `dish` d
+    WHERE d.`meal_type` IS NOT NULL AND d.`meal_type` <> '';
+
+-- A6 种子 ②：视图 = 原常量 7 项（「为你推荐」+ 6 个物理大类），条件为空 / 等值筛，与旧行为逐项等价。
+INSERT IGNORE INTO `dish_filter_view` (`key`, `label`, `order`, `enabled`, `is_default`, `conditions`, `sort_kind`) VALUES
+    ('recommend',  '为你推荐', 1, 1, 1, NULL, 'random'),
+    ('set_meal',   '套餐盖饭', 2, 1, 0, CAST('[{"field":"mealType","op":"=","value":"set_meal"}]' AS JSON), 'heat'),
+    ('stir_fry',   '家常小炒', 3, 1, 0, CAST('[{"field":"mealType","op":"=","value":"stir_fry"}]' AS JSON), 'heat'),
+    ('noodle',     '面食粉类', 4, 1, 0, CAST('[{"field":"mealType","op":"=","value":"noodle"}]' AS JSON), 'heat'),
+    ('dry_pot',    '香锅干锅', 5, 1, 0, CAST('[{"field":"mealType","op":"=","value":"dry_pot"}]' AS JSON), 'heat'),
+    ('snack',      '风味小吃', 6, 1, 0, CAST('[{"field":"mealType","op":"=","value":"snack"}]' AS JSON), 'heat'),
+    ('soup_drink', '汤饮甜品', 7, 1, 0, CAST('[{"field":"mealType","op":"=","value":"soup_drink"}]' AS JSON), 'heat');
 
 -- -------------------- 评价 --------------------
 CREATE TABLE IF NOT EXISTS `review`
@@ -202,6 +289,7 @@ CREATE TABLE IF NOT EXISTS `review`
     `images`     VARCHAR(1024) NULL    DEFAULT NULL COMMENT '评价配图URL列表JSON（COS 绝对地址，≤3 张）',
     -- sec_state 列已随「取消人工复核」全链退役（2026-09-15 用户拍板）；存量库由文件末尾 drop_sec_state_columns 幂等清理
     `is_hidden`  TINYINT      NOT NULL DEFAULT 0 COMMENT '是否隐藏（0=正常, 1=管理员隐藏）',
+    `hidden_note` VARCHAR(200) NULL   DEFAULT NULL COMMENT '隐藏附注（≤200 字，随隐藏回执下发给作者；未隐藏为 NULL）',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     -- review.updated_at 已于 2026-09-23 用户拍板退役（§7.40 R6 / change dish-detail-contract-hardening）：
     -- 重评时与 created_at **同批刷新** → 两者恒等，该列对评价无独立语义，且端上与管理端双双零消费
@@ -231,9 +319,9 @@ CREATE TABLE IF NOT EXISTS `notification`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
     `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
-    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle=反馈处理回执 / correction_handle=菜品信息纠错回执',
+    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle=反馈与举报处置回执 / correction_handle=菜品信息纠错回执 / review_hidden=评价隐藏回执 / review_deleted=评价删除回执',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
-    `content`    VARCHAR(512) NULL     DEFAULT NULL COMMENT '通知正文',
+    `content`    VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '通知正文（固定前缀 ≤40 字 + 回复/不采纳原因全文 ⇒ ≤1024；恒非空）',
     `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/反馈ID，按 type 解释）',
     `is_read`    TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0=未读 1=已读',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -258,7 +346,7 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     `id`           BIGINT   NOT NULL AUTO_INCREMENT COMMENT '反馈ID',
     `user_id`      BIGINT   NOT NULL DEFAULT 0 COMMENT '用户ID',
     `type`         VARCHAR(32) NOT NULL DEFAULT 'suggestion' COMMENT '反馈类型：suggestion/error/add/bug/other/report',
-    `sub`          VARCHAR(16)  NULL    DEFAULT NULL COMMENT '二级分类（仅 type=suggestion 有效）：idea=想法/problem=问题；其他类型为 NULL',
+    `sub`          VARCHAR(16)  NULL    DEFAULT NULL COMMENT '举报原因机器值（仅 type=report 有效，取自 report_reason.value）；其余类型为 NULL',
     `content`      VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '反馈内容',
     `images`       VARCHAR(1024) NULL    DEFAULT NULL COMMENT '反馈配图URL列表JSON（COS 绝对地址，≤3 张）',
     -- sec_state 列已随「取消人工复核」全链退役（2026-09-15 用户拍板）；存量库由文件末尾 drop_sec_state_columns 幂等清理
@@ -268,7 +356,7 @@ CREATE TABLE IF NOT EXISTS `user_feedback`
     -- 两列存量库由文件末尾 drop_zero_consumer_columns 幂等段清理。
     `status`       VARCHAR(32) NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/handled',
     `reply`        VARCHAR(1024) NULL    DEFAULT NULL COMMENT '管理员回复',
-    `reject_reason` VARCHAR(200) NULL    DEFAULT NULL COMMENT '不采纳/退回原因（outcome=rejected 时必填）',
+    `reject_reason` VARCHAR(200) NULL    DEFAULT NULL COMMENT '不采纳/退回原因（status=handled 且结论为不采纳时必填；表无 outcome 物理列，结论按 status + 本列派生）',
     `related_type` VARCHAR(32)   NULL    DEFAULT NULL COMMENT '关联类型：举报为 review；信息纠错为 dish；其他为 null',
     `related_id`   BIGINT        NULL    DEFAULT NULL COMMENT '关联对象ID：举报为评价ID；信息纠错为菜品ID；其他为 null',
     `handled_at`   DATETIME      NULL    DEFAULT NULL COMMENT '处理时间',
@@ -294,11 +382,11 @@ CREATE TABLE IF NOT EXISTS `dish_correction`
     `price`         INT          NULL DEFAULT NULL COMMENT '提交的现价（单位：分；未改动为 NULL）',
     `canteen_name`  VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的食堂名称（自由文本，无字典端点；未改动为 NULL）',
     `stall_name`    VARCHAR(64)  NULL DEFAULT NULL COMMENT '提交的档口名称（自由文本，采纳时两段式确认归档；未改动为 NULL）',
-    `floor`         VARCHAR(16)  NULL DEFAULT NULL COMMENT '提交的楼层（自由文本；未改动为 NULL；采纳时写回所属档口 stall.floor）',
+    `floor`         VARCHAR(16)  NULL DEFAULT NULL COMMENT '提交的楼层（受控字典、值即汉字；未改动为 NULL；采纳时写回所属档口 stall.floor）',
     `attributes`    JSON         NULL DEFAULT NULL COMMENT '提交的描述属性（JSON：键=维度 field_key，值=中文文本/数组；仅含改动维度）',
-    `images`        JSON         NULL DEFAULT NULL COMMENT '提交的菜品图片URL列表（JSON 数组，COS 绝对地址，≤3 张）',
+    `images`        JSON         NULL DEFAULT NULL COMMENT '提交的菜品图片URL列表（JSON 数组，地址原样：本地链路站内相对路径 / COS 链路绝对地址，≤5 张）',
     `status`        VARCHAR(16)  NOT NULL DEFAULT 'pending' COMMENT '处理状态：pending/adopted/rejected',
-    `reply`         VARCHAR(512) NULL DEFAULT NULL COMMENT '处理回复（采纳时固定「已采纳，菜品信息已更新」）',
+    `reply`         VARCHAR(1024) NULL DEFAULT NULL COMMENT '处理回复（采纳时可传、缺省用固定文案；拒绝时作为处理说明随回执下发；≤600 字）',
     `reject_reason` VARCHAR(200) NULL DEFAULT NULL COMMENT '不采纳原因（status=rejected 时必填，1~200 字）',
     `handled_at`    DATETIME     NULL DEFAULT NULL COMMENT '处理时间',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -327,7 +415,7 @@ BEGIN
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stall' AND COLUMN_NAME = 'floor'
     ) THEN
-        ALTER TABLE `stall` ADD COLUMN `floor` VARCHAR(16) NOT NULL DEFAULT '' COMMENT '楼层（如 1F/2F）';
+        ALTER TABLE `stall` ADD COLUMN `floor` VARCHAR(16) NOT NULL DEFAULT '' COMMENT '楼层（受控字典、值即汉字：负一层/一层/二层/三层/四层，见 FloorDict 与 docs/schema/stall.md）';
     END IF;
     IF NOT EXISTS (
         SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
@@ -796,7 +884,7 @@ DROP PROCEDURE IF EXISTS `drop_category_chain`;
 --   （ReviewVO/ReviewAdminVO/FeedbackAdminVO）、Mapper 过滤条件与查询列、SecStateConst、
 --   管理端复核端点 PUT /admin/reviews/{id}/sec-state 及其 Service 方法、
 --   OperationLogConst.ACTION_REVIEW_SEC_STATE，列表查询的 secState 过滤入参一并删除。
---   注意：is_hidden 与事后处置能力（PUT /admin/reviews/{id}/hide、DELETE /admin/reviews/{id}、
+--   注意：is_hidden 与事后处置能力（PUT /admin/reviews/{id}/hidden、DELETE /admin/reviews/{id}、
 --         DELETE /reviews/{id}）**保留**——举报→下架通道不受影响。
 --   本段幂等（先判存在再 DROP），可重跑、不影响既有数据（列无索引，DROP COLUMN 无连带对象）。
 --   历史一次性数据修正脚本 fix_rating_by_sec_state.sql 已随本列退役一并删除（口径不再引用该列）。
@@ -1198,12 +1286,231 @@ BEGIN
     ) THEN
         ALTER TABLE `dish_correction`
             ADD COLUMN `floor` VARCHAR(16) NULL DEFAULT NULL
-            COMMENT '提交的楼层（自由文本；未改动为 NULL；采纳时写回所属档口 stall.floor）';
+            COMMENT '提交的楼层（受控字典、值即汉字；未改动为 NULL；采纳时写回所属档口 stall.floor）';
     END IF;
 END$$
 DELIMITER ;
 CALL `migrate_dish_correction_floor`();
 DROP PROCEDURE IF EXISTS `migrate_dish_correction_floor`;
+
+-- 4.3.2c review.hidden_note（评价隐藏附注，2026-10-03 新增）
+--   管理员隐藏评价时**可选**填写的说明（≤200 字），随站内回执下发给评价作者；
+--   恢复显示（is_hidden=0）时置 NULL，避免旧附注残留到下一条回执。
+--   幂等：列已存在时跳过，重复执行安全（5.7 兼容：仅用 INFORMATION_SCHEMA 判存，无 JSON_TABLE 等 8.0 语法）。
+DROP PROCEDURE IF EXISTS `migrate_review_hidden_note`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_review_hidden_note`()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND COLUMN_NAME = 'hidden_note'
+    ) THEN
+        ALTER TABLE `review`
+            ADD COLUMN `hidden_note` VARCHAR(200) NULL DEFAULT NULL
+            COMMENT '隐藏附注（≤200 字，随隐藏回执下发给作者；未隐藏为 NULL）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_review_hidden_note`();
+DROP PROCEDURE IF EXISTS `migrate_review_hidden_note`;
+
+-- 4.3.2d 回执列宽对齐（2026-10-03）
+--   dish_correction.reply 512 → 1024、notification.content 512 → 1024（NOT NULL DEFAULT ''）：
+--   回执正文 = 固定前缀（≤40 字）+ 回复（≤600 字）全文 ⇒ 512 会截断或抛错（静默丢回执）。
+--   幂等：仅当列宽不足时才 MODIFY；重复执行安全（5.7 兼容：仅用 INFORMATION_SCHEMA 判宽）。
+DROP PROCEDURE IF EXISTS `migrate_receipt_column_width`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_receipt_column_width`()
+BEGIN
+    IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_correction'
+                 AND COLUMN_NAME = 'reply' AND CHARACTER_MAXIMUM_LENGTH < 1024) THEN
+        ALTER TABLE `dish_correction`
+            MODIFY COLUMN `reply` VARCHAR(1024) NULL DEFAULT NULL
+            COMMENT '处理回复（采纳时可传、缺省用固定文案；拒绝时作为处理说明随回执下发；≤600 字）';
+    END IF;
+
+    -- content 由可空收紧为 NOT NULL DEFAULT ''：先把存量 NULL 归一，再改列定义
+    UPDATE `notification` SET `content` = '' WHERE `content` IS NULL;
+    IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification'
+                 AND COLUMN_NAME = 'content'
+                 AND (CHARACTER_MAXIMUM_LENGTH < 1024 OR IS_NULLABLE = 'YES')) THEN
+        ALTER TABLE `notification`
+            MODIFY COLUMN `content` VARCHAR(1024) NOT NULL DEFAULT ''
+            COMMENT '通知正文（固定前缀 ≤40 字 + 回复/不采纳原因全文 ⇒ ≤1024；恒非空）';
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_receipt_column_width`();
+DROP PROCEDURE IF EXISTS `migrate_receipt_column_width`;
+
+-- =============================================================
+-- 4.5 report_reason：举报原因字典（2026-10-03 新增，A7 落地）
+--   举报弹层「原因」单选的**可维护字典**（原为代码常量 FeedbackConst.REPORT_REASONS）。
+--   数据锚在 `value`（历史举报按它落库到 user_feedback.sub）⇒ **在用后不可改**（改就停用旧值新建一个）；
+--   删除受引用约束（被任一举报引用即 400，下线一律用 status='off'）—— 见 docs/schema/report_reason.md。
+--   幂等：CREATE TABLE IF NOT EXISTS + 种子按 `value` 逐行 INSERT IGNORE（不覆盖管理员已改的 label/status/order）。
+-- =============================================================
+CREATE TABLE IF NOT EXISTS `report_reason`
+(
+    `id`         BIGINT      NOT NULL AUTO_INCREMENT COMMENT '原因ID',
+    `value`      VARCHAR(32) NOT NULL COMMENT '机器值（小写字母/数字/-；举报记录按它落库；在用后不可改）',
+    `label`      VARCHAR(32) NOT NULL DEFAULT '' COMMENT '中文标签（可改，改名免费）',
+    `order`      INT         NOT NULL DEFAULT 0 COMMENT '展示顺序（升序）',
+    `status`     VARCHAR(10) NOT NULL DEFAULT 'on' COMMENT '状态：on=启用 / off=停用',
+    `updated_at` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_reason_value` (`value`),
+    KEY `idx_reason_status_order` (`status`, `order`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_general_ci COMMENT ='举报原因字典（A7）';
+
+-- 初始种子 = 原常量 6 条（保持原顺序与文案）；INSERT IGNORE 保证重跑不覆盖管理员的修改。
+INSERT IGNORE INTO `report_reason` (`value`, `label`, `order`, `status`) VALUES
+    ('spam',    '垃圾广告 / 营销刷屏', 1, 'on'),
+    ('abuse',   '辱骂攻击',           2, 'on'),
+    ('porn',    '色情低俗',           3, 'on'),
+    ('illegal', '违法违规',           4, 'on'),
+    ('fake',    '虚假信息 / 虚假评价', 5, 'on'),
+    ('other',   '其他问题',           6, 'on');
+
+-- =============================================================
+-- 4.6 dish.attributes「中文 → 取值 ID」迁移（2026-10-03，A4 落地方向反转）
+--   背景：4.3.3 曾把 dish.attributes 由「机器值」就地转成「中文」（方案 A：值即中文）。
+--   A4 拍板改为「**取值字典 + 存 ID**」⇒ 本段把 dish.attributes 的**中文**登记进
+--   dish_attribute_value 并就地替换为**取值 ID**；此后改名只改字典一行（改名免费）。
+--   ⚠️ 与 4.3.3 **方向相反**：4.3.3 的 CALL 已停用（永不执行），否则会来回覆盖。
+--   一次性护栏：仅当取值字典为空时转换；转换后字典非空 ⇒ 重跑自动跳过。
+--   可回滚：转换前把 dish.attributes 原值全量留档到 `dish_attributes_backup_20261003`。
+--   5.7 兼容：**不使用 JSON_TABLE**（改用「下标展开 + 按位 JSON_EXTRACT」）。
+--   维度 id 约定沿用既有：1=饮食属性(dietType) 2=食材(ingredients) 3=口味(flavorTags) 4=冷热(serveTemp)。
+--   注：**dish_correction.attributes 保持中文**（纠错快照是用户提交原样，采纳时才按中文查字典，见 B4）。
+-- =============================================================
+DROP PROCEDURE IF EXISTS `migrate_attribute_values_to_id`;
+DELIMITER $$
+CREATE PROCEDURE `migrate_attribute_values_to_id`()
+BEGIN
+    DECLARE v_count INT DEFAULT 0;
+
+    -- 回滚留档（幂等：已存在则跳过；切勿在未确认前删除本表）
+    CREATE TABLE IF NOT EXISTS `dish_attributes_backup_20261003` AS
+        SELECT `id`, `attributes` FROM `dish`;
+
+    IF EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES
+               WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'dish_attribute_dimension') THEN
+        SELECT COUNT(*) INTO v_count FROM `dish_attribute_value`;
+        IF v_count = 0 THEN
+            -- ① 单值维度：distinct 中文 → 字典行（dietType / serveTemp）
+            INSERT INTO `dish_attribute_value` (`dimension_id`, `label`, `order`)
+            SELECT 1, t.v, 0 FROM (
+                SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(`attributes`, '$."dietType"')) AS v
+                FROM `dish`
+                WHERE `attributes` IS NOT NULL
+                  AND JSON_TYPE(JSON_EXTRACT(`attributes`, '$."dietType"')) = 'STRING'
+            ) t WHERE t.v IS NOT NULL AND t.v <> '';
+
+            INSERT INTO `dish_attribute_value` (`dimension_id`, `label`, `order`)
+            SELECT 4, t.v, 0 FROM (
+                SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(`attributes`, '$."serveTemp"')) AS v
+                FROM `dish`
+                WHERE `attributes` IS NOT NULL
+                  AND JSON_TYPE(JSON_EXTRACT(`attributes`, '$."serveTemp"')) = 'STRING'
+            ) t WHERE t.v IS NOT NULL AND t.v <> '';
+
+            -- ② 多值维度：下标展开后 distinct（ingredients / flavorTags）
+            INSERT INTO `dish_attribute_value` (`dimension_id`, `label`, `order`)
+            SELECT 2, t.v, 0 FROM (
+                SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`,
+                           CONCAT('$."ingredients"[', n.n, ']'))) AS v
+                FROM `dish` d
+                JOIN (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                      UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                      UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                      UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                      UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19) n
+                  ON n.n < JSON_LENGTH(JSON_EXTRACT(d.`attributes`, '$."ingredients"'))
+                WHERE d.`attributes` IS NOT NULL
+                  AND JSON_TYPE(JSON_EXTRACT(d.`attributes`, '$."ingredients"')) = 'ARRAY'
+            ) t WHERE t.v IS NOT NULL AND t.v <> '';
+
+            INSERT INTO `dish_attribute_value` (`dimension_id`, `label`, `order`)
+            SELECT 3, t.v, 0 FROM (
+                SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`,
+                           CONCAT('$."flavorTags"[', n.n, ']'))) AS v
+                FROM `dish` d
+                JOIN (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                      UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                      UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                      UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                      UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19) n
+                  ON n.n < JSON_LENGTH(JSON_EXTRACT(d.`attributes`, '$."flavorTags"'))
+                WHERE d.`attributes` IS NOT NULL
+                  AND JSON_TYPE(JSON_EXTRACT(d.`attributes`, '$."flavorTags"')) = 'ARRAY'
+            ) t WHERE t.v IS NOT NULL AND t.v <> '';
+
+            -- ③ 回写 ID：单值维度
+            UPDATE `dish` d JOIN `dish_attribute_value` v
+                ON v.`dimension_id` = 1
+               AND v.`label` = JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`, '$."dietType"'))
+            SET d.`attributes` = JSON_SET(d.`attributes`, '$."dietType"', v.`id`)
+            WHERE d.`attributes` IS NOT NULL
+              AND JSON_TYPE(JSON_EXTRACT(d.`attributes`, '$."dietType"')) = 'STRING';
+
+            UPDATE `dish` d JOIN `dish_attribute_value` v
+                ON v.`dimension_id` = 4
+               AND v.`label` = JSON_UNQUOTE(JSON_EXTRACT(d.`attributes`, '$."serveTemp"'))
+            SET d.`attributes` = JSON_SET(d.`attributes`, '$."serveTemp"', v.`id`)
+            WHERE d.`attributes` IS NOT NULL
+              AND JSON_TYPE(JSON_EXTRACT(d.`attributes`, '$."serveTemp"')) = 'STRING';
+
+            -- ④ 回写 ID：多值维度（按位重建数组；未命中字典的项被内连接过滤，不残留中文）
+            UPDATE `dish` d JOIN (
+                SELECT d2.`id` AS did,
+                       CONCAT('[', GROUP_CONCAT(v.`id` ORDER BY n.n SEPARATOR ','), ']') AS newarr
+                FROM `dish` d2
+                JOIN (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                      UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                      UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                      UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                      UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19) n
+                  ON n.n < JSON_LENGTH(JSON_EXTRACT(d2.`attributes`, '$."ingredients"'))
+                JOIN `dish_attribute_value` v
+                  ON v.`dimension_id` = 2
+                 AND v.`label` = JSON_UNQUOTE(JSON_EXTRACT(d2.`attributes`,
+                                 CONCAT('$."ingredients"[', n.n, ']')))
+                WHERE d2.`attributes` IS NOT NULL
+                  AND JSON_TYPE(JSON_EXTRACT(d2.`attributes`, '$."ingredients"')) = 'ARRAY'
+                GROUP BY d2.`id`
+            ) t ON t.did = d.`id`
+            SET d.`attributes` = JSON_SET(d.`attributes`, '$."ingredients"', CAST(t.newarr AS JSON));
+
+            UPDATE `dish` d JOIN (
+                SELECT d2.`id` AS did,
+                       CONCAT('[', GROUP_CONCAT(v.`id` ORDER BY n.n SEPARATOR ','), ']') AS newarr
+                FROM `dish` d2
+                JOIN (SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                      UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                      UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                      UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                      UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19) n
+                  ON n.n < JSON_LENGTH(JSON_EXTRACT(d2.`attributes`, '$."flavorTags"'))
+                JOIN `dish_attribute_value` v
+                  ON v.`dimension_id` = 3
+                 AND v.`label` = JSON_UNQUOTE(JSON_EXTRACT(d2.`attributes`,
+                                 CONCAT('$."flavorTags"[', n.n, ']')))
+                WHERE d2.`attributes` IS NOT NULL
+                  AND JSON_TYPE(JSON_EXTRACT(d2.`attributes`, '$."flavorTags"')) = 'ARRAY'
+                GROUP BY d2.`id`
+            ) t ON t.did = d.`id`
+            SET d.`attributes` = JSON_SET(d.`attributes`, '$."flavorTags"', CAST(t.newarr AS JSON));
+        END IF;
+    END IF;
+END$$
+DELIMITER ;
+CALL `migrate_attribute_values_to_id`();
+DROP PROCEDURE IF EXISTS `migrate_attribute_values_to_id`;
 
 -- 4.3.3 属性取值「机器值 → 中文」迁移（方案 A：值即中文，去取值字典）
 --   存量 dish.attributes / dish_correction.attributes 存的是机器值；用 dish_attribute_value 的
@@ -1286,7 +1593,10 @@ BEGIN
     END IF;
 END$$
 DELIMITER ;
-CALL `migrate_attribute_values_to_text`();
+-- ⚠️ 2026-10-03 **方向反转，本段已停用（不再 CALL）**：
+--   A4 落地后 `dish.attributes` 存**取值 ID**（见下文 4.6 `migrate_attribute_values_to_id`）；
+--   本段（机器值 → 中文）若执行会把口径写回中文、与目标态冲突，故仅保留过程体供历史追溯，
+--   创建后立即 DROP、**永不执行**。回滚本表口径时走 4.6 的 `dish_attributes_backup_20261003`。
 DROP PROCEDURE IF EXISTS `migrate_attribute_values_to_text`;
 
 -- 4.4 坐标下线：幂等 DROP canteen.latitude / canteen.longitude（D8；位置表达收敛为 食堂 · 楼层 · 档口名）

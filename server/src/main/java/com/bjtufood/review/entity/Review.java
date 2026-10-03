@@ -50,6 +50,14 @@ public class Review {
     @Schema(description = "是否隐藏（0=正常, 1=管理员隐藏）")
     private Integer isHidden;
 
+    /**
+     * 隐藏附注（管理员可选填写，≤200 字；随隐藏回执下发给作者）。
+     * <p>
+     * `is_hidden = 0`（恢复显示）时置 NULL —— 避免旧附注残留到下一条回执。
+     */
+    @Schema(description = "隐藏附注（≤200 字，随隐藏回执下发；未隐藏为 null）")
+    private String hiddenNote;
+
     // review.useful_count 冗余计数列与 review_useful 表已于整链下线
     // （「评价有用」能力删除），实体字段同批移除，避免 MP 读写不存在的列。
 

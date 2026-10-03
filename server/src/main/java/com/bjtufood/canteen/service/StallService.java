@@ -22,6 +22,37 @@ public interface StallService {
     List<StallAdminVO> listAllForAdmin();
 
     /**
+     * 档口列表（{@code GET /admin/stalls}）：可选按食堂筛选，排序「食堂 → 档口名」。
+     *
+     * @param canteenId 食堂 ID；null = 全部
+     */
+    List<StallAdminVO> listAllForAdmin(Long canteenId);
+
+    /**
+     * 新增档口（{@code POST /admin/stalls}）。
+     *
+     * @return 新建的 VO
+     * @throws com.bjtufood.common.exception.BusinessException code=400 食堂缺失/不存在、名称为空/超长/同食堂重名、楼层不在字典
+     */
+    StallAdminVO createStall(Stall stall);
+
+    /**
+     * 删除档口（{@code DELETE /admin/stalls/{id}}）。
+     * <p>
+     * ⚠️ 「其下仍有菜品」的受阻判据在 <b>controller</b> 层（跨域计数不反向依赖 dish 域）。
+     *
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 档口不存在
+     */
+    void deleteStall(Long id);
+
+    /**
+     * 空档口数（D1 看板健康度：一个菜品都没有的档口 —— 管理员当场可修）。
+     *
+     * @return 无菜品的档口数
+     */
+    long countWithoutDish();
+
+    /**
      * 编辑档口
      *
      * @param stall 档口信息（含ID）
@@ -93,6 +124,24 @@ public interface StallService {
      * @return 档口名；不存在返回 null
      */
     String getNameById(Long stallId);
+
+    /**
+     * 取档口楼层（B4 纠错详情：楼层差异需给出**当前实时值**做对照）。
+     * <p>
+     * 楼层归属**档口**（{@code stall.floor}）而非菜品 ⇒ 必须经 canteen 域契约回查。
+     *
+     * @param stallId 档口 ID（可空）
+     * @return 楼层；档口不存在或未配置时为 {@code null}
+     */
+    String getFloorById(Long stallId);
+
+    /**
+     * 取档口所属食堂名称（管理端菜品详情回填用；档口或食堂不存在返回 null）。
+     *
+     * @param stallId 档口 ID
+     * @return 食堂名称；null=档口不存在 / 未挂食堂
+     */
+    String getCanteenNameByStallId(Long stallId);
 
     /**
      * 档口确认候选列表（correction 采纳两段式确认用，替代其直接注入 StallMapper/CanteenMapper 自查）。

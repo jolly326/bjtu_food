@@ -2,7 +2,10 @@ package com.bjtufood.dish.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.dish.dto.DishAdminReq;
+import com.bjtufood.dish.dto.DishAdminListItemVO;
+import com.bjtufood.dish.dto.DishAdminListQuery;
 import com.bjtufood.dish.dto.DishAdminVO;
+import com.bjtufood.dish.dto.DishHealthVO;
 import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
@@ -30,9 +33,10 @@ public interface DishService {
      * {@code maxPrice} 随「食堂 / 价格筛选全量下线」删除；§7.33：
      * {@code stallId} / {@code sortBy} / {@code sortOrder} 已删除，端上无排序入口）。
      * ：原 {@code mealType} 参数改为通用筛选视图 {@code view}。
-     * 筛选条件与排序口径由所选<b>视图</b>决定（{@code DishViewResolver} 解析 {@code view} 键）：
-     * 推荐视图走 {@code CRC32(CONCAT(seed,'-',id)), id} 稳定伪随机序（同 seed 全序恒定，翻页不重不漏）；
-     * 大类视图走 heatScoreExpr 倒序（热度口径不变）。
+     * 筛选条件与排序口径由所选<b>视图</b>决定（A6：`DishViewCatalog` 查表 → `DishViewResolver` 解析为
+     * {@code DishListQuery}）：视图的 `conditions` 经**字段白名单**翻译为参数化 WHERE（AND 组合）；
+     * `sort_kind` 决定 ORDER BY。推荐视图（`random`）走 {@code CRC32(CONCAT(seed,'-',id)), id}
+     * 稳定伪随机序（同 seed 全序恒定，翻页不重不漏）；其余口径见 {@code DishListQuery.SortKind}。
      * {@code view} 白名单校验（{@code DishViewConst}），非法值抛 BusinessException(400)。
      * 公开接口只查 status=on 的菜品
      *
@@ -48,7 +52,7 @@ public interface DishService {
      * <b>空类自动隐藏只对「按大类取数」的视图生效</b>（该大类当前无在售菜品即不下发，有菜自动出现），
      * 其余视图（「为你推荐」等聚合视角）恒下发。
      *
-     * @return 按声明序（即标签栏展示序）的筛选视图字典项
+     * @return 可见视图（`enabled` + 匹配数规则；默认视图排首位），端上按此序渲染标签栏
      */
     List<com.bjtufood.dish.view.DishViewVO> listDishViews();
 
@@ -113,14 +117,44 @@ public interface DishService {
      * @param pageSize 每页条数（上限由 PageUtil 约束）
      * @return 分页后台菜品 VO
      */
-    IPage<DishAdminVO> listAllForAdmin(int page, int pageSize);
+    /**
+     * 批量投影：dishId → 所属 stallId（供跨域调用方**消除 N+1**；空集合返回空 Map，不发查询）。
+     *
+     * @param dishIds 菜品 ID
+     * @return dishId → stallId；菜品不存在或档口为空则不入图
+     */
+    Map<Long, Long> mapStallIdByIds(Collection<Long> dishIds);
+
+    IPage<DishAdminListItemVO> listAllForAdmin(DishAdminListQuery query, int page, int pageSize);
 
     /**
      * 新增菜品
      *
      * @param req     菜品信息
      */
-    void addDish(DishAdminReq req);
+    DishAdminVO addDish(DishAdminReq req);
+
+    /**
+     * 单条详情（编辑回填）：{@code GET /admin/dishes/{id}}。
+     *
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 菜品不存在
+     */
+    DishAdminVO getForAdmin(Long id);
+
+    /**
+     * 复制为新菜品（{@code POST /admin/dishes/{id}/copy}）：只改菜名，其余字段复制源菜品；
+     * 副本默认 <b>下架</b>（半成品，确认后再上架）。
+     *
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 源菜品不存在 / code=400 名称非法
+     */
+    DishAdminVO copyDish(Long id, String name);
+
+    /**
+     * 上下架（{@code PUT /admin/dishes/{id}/status}）：只改 {@code status}。
+     *
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 菜品不存在 / code=400 status 非法
+     */
+    void updateStatus(Long id, String status);
 
     /**
      * 编辑菜品
@@ -162,6 +196,25 @@ public interface DishService {
      * @return true=存在
      */
     boolean existsById(Long dishId);
+
+    /**
+     * 统计某档口下的菜品数（管理端删除档口的受阻判据；跨域计数由 controller 编排，避免
+     * canteen → dish 的反向包级依赖）。
+     *
+     * @param stallId 档口 ID
+     * @return 菜品数；stallId 为 null 时返回 0
+     */
+    long countByStallId(Long stallId);
+
+    /**
+     * 菜品健康度计数（D1 看板：在售数 + 三个「当场能修」的缺失项）。
+     * <p>
+     * 跨域聚合由 `dashboard.controller` 编排，本方法只出**本域**的 4 个计数。
+     * 口径：在售 = `status='on'`；三个缺失项统计**全部菜品（含下架）**（存量清理指标）。
+     *
+     * @return 健康度计数
+     */
+    DishHealthVO countHealth();
 
     /**
      * 菜品是否存在且在售（{@code status=on}）。

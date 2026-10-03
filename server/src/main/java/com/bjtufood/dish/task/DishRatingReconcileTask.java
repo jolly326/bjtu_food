@@ -48,7 +48,7 @@ public class DishRatingReconcileTask {
     /**
      * 单批扫描行数。
      * <p>
-     * 取 200：与 {@code DishAttributeCatalog#MAX_SCAN_ROWS} 同量级，
+     * 取 200：单批内存与批次数之间的折中，
      * 兼顾「批次数不过多」与「单批内存可控」。每批都是一条极轻的
      * {@code SELECT id ... WHERE rating_count > 0 AND id > ? ORDER BY id LIMIT ?}。
      */

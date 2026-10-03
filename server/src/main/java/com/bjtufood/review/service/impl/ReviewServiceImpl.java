@@ -8,12 +8,16 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
+import com.bjtufood.notification.constant.NotificationConst;
+import com.bjtufood.notification.dto.NotificationCmd;
+import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.review.dto.MyReviewVO;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
+import com.bjtufood.review.dto.ReviewRelatedBriefVO;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
 import com.bjtufood.review.mapper.ReviewMapper;
@@ -57,6 +61,8 @@ public class ReviewServiceImpl implements ReviewService {
     private final ImageUrlUtil imageUrlUtil;
     private final LocalSensitiveFilter localSensitiveFilter;
     private final ContentSecurityService contentSecurityService;
+    /** 评价处置回执（隐藏 / 删除后向作者投递，见 docs/web/B-UGC治理/B1-评价管理.md） */
+    private final NotificationService notificationService;
 
     /**
      * 评价是否存在且公开可见（{@code is_hidden=0}）——供 feedback 域举报目标校验消费。
@@ -237,9 +243,8 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    @Deprecated(since = "2026-09", forRemoval = true)
-    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
+    public IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Boolean hidden, Long dishId, Long userId,
+                                                String keyword) {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
@@ -247,7 +252,9 @@ public class ReviewServiceImpl implements ReviewService {
                 .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
                         Review::getContent, Review::getImages, Review::getIsHidden,
                         Review::getCreatedAt)
-                .eq(isHidden != null, Review::getIsHidden, isHidden)
+                // B1：hidden 是**布尔**（库列 is_hidden 仍 0/1，在此翻译）；dishId 为新增筛选
+                .eq(hidden != null, Review::getIsHidden, hidden == null ? null : (hidden ? 1 : 0))
+                .eq(dishId != null, Review::getDishId, dishId)
                 .eq(userId != null, Review::getUserId, userId)
                 // 关键词模糊匹配评价正文，仅当显式传入时生效
                 .like(StringUtils.hasText(keyword), Review::getContent, keyword == null ? null : keyword.trim())
@@ -283,28 +290,111 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Deprecated(since = "2026-09", forRemoval = true)
-    public void setHidden(Long id, boolean hidden) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
+    public void setHidden(Long id, boolean hidden, String note) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
-            throw new BusinessException("Review not found");
+            throw new BusinessException(4001, "评价不存在");
         }
         review.setIsHidden(hidden ? 1 : 0);
+        // 附注只属「隐藏」：恢复显示时清空，避免旧附注残留到下一条回执
+        review.setHiddenNote(hidden ? normalizeHiddenNote(note) : null);
         reviewMapper.updateById(review);
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
+        if (hidden) {
+            // 隐藏后该评价对作者本人亦不可见（见 B1「客户端可见性」）⇒ 回执是作者唯一解释渠道
+            sendReviewReceipt(review.getUserId(), review.getId(), NotificationConst.TYPE_REVIEW_HIDDEN,
+                    "评价已被隐藏",
+                    "你的评价已被管理员隐藏。"
+                            + (review.getHiddenNote() == null ? "" : "说明：" + review.getHiddenNote()));
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Deprecated(since = "2026-09", forRemoval = true)
     public void deleteByAdmin(Long id) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         Review review = reviewMapper.selectById(id);
-        if (review != null) {
-            reviewMapper.deleteById(id);
-            eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
+        if (review == null) {
+            throw new BusinessException(4001, "评价不存在");
         }
+        reviewMapper.deleteById(id);
+        eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
+        // 物理删除、作者侧完全不可见 ⇒ 必须投递回执
+        sendReviewReceipt(review.getUserId(), review.getId(), NotificationConst.TYPE_REVIEW_DELETED,
+                "评价已被删除", "你的评价已被管理员删除。");
+    }
+
+    /**
+     * 评价处置回执（隐藏 / 删除统一入口）。
+     * <p>
+     * 投递判据 = <b>`userId` 有效（&gt; 0）</b>：静默登录的游客同样收到；**匿名（`user_id = 0`）无归属不投递**
+     * （与 feedback / correction 同源）。投递失败**不阻塞处置**（独立 try，异常不外抛主流程）。
+     */
+    @Override
+    public java.util.Map<Long, ReviewRelatedBriefVO> mapRelatedBriefByIds(java.util.Collection<Long> reviewIds) {
+        if (reviewIds == null || reviewIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        List<Review> rows = reviewMapper.selectList(new LambdaQueryWrapper<Review>()
+                .select(Review::getId, Review::getDishId, Review::getContent, Review::getIsHidden)
+                .in(Review::getId, reviewIds));
+        if (rows.isEmpty()) {
+            return java.util.Map.of();
+        }
+        // 菜品名**批量**取（P0-1：经 dish 域只读契约），避免逐行 N+1
+        java.util.Set<Long> dishIds = new java.util.HashSet<>();
+        for (Review r : rows) {
+            if (r.getDishId() != null) {
+                dishIds.add(r.getDishId());
+            }
+        }
+        java.util.Map<Long, String> dishNames = dishService.mapNameByIds(dishIds);
+        java.util.Map<Long, ReviewRelatedBriefVO> result = new java.util.HashMap<>(rows.size());
+        for (Review r : rows) {
+            ReviewRelatedBriefVO vo = new ReviewRelatedBriefVO();
+            vo.setContent(r.getContent());
+            vo.setDishName(dishNames.get(r.getDishId()));
+            vo.setHidden(r.getIsHidden() != null && r.getIsHidden() == 1);
+            result.put(r.getId(), vo);
+        }
+        return result;
+    }
+
+    @Override
+    public boolean hideIfVisible(Long reviewId) {
+        if (reviewId == null) {
+            return false;
+        }
+        Review review = reviewMapper.selectById(reviewId);
+        if (review == null || review.getIsHidden() != null && review.getIsHidden() == 1) {
+            return false;   // 不存在或已隐藏 ⇒ 无需再隐藏（幂等，也不重复投回执）
+        }
+        setHidden(reviewId, true, null);
+        return true;
+    }
+
+    @Override
+    public long countAll() {
+        return reviewMapper.selectCount(null);
+    }
+
+    private void sendReviewReceipt(Long userId, Long reviewId, String type, String title, String content) {
+        if (userId == null || userId <= 0) {
+            return;
+        }
+        try {
+            notificationService.notify(new NotificationCmd(userId, type, reviewId, title, content));
+        } catch (Exception ignored) {
+            // 回执失败不阻塞处置；真正的失败由 NotificationServiceImpl#notify 内部记 error 日志，不静默
+        }
+    }
+
+    /** 隐藏附注规范化：trim；空白视为未填（null） */
+    private static String normalizeHiddenNote(String note) {
+        if (note == null) {
+            return null;
+        }
+        String trimmed = note.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     // ==================== 跨域写契约实现（P0-1：由本域 event 监听器调用） ====================
@@ -357,7 +447,8 @@ public class ReviewServiceImpl implements ReviewService {
         List<String> images = JsonListUtil.parseStringList(review.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
         vo.setCreatedAt(review.getCreatedAt());
-        vo.setIsHidden(review.getIsHidden() != null ? review.getIsHidden() : 0);
+        // B1 出参布尔化（库列 0/1 → boolean）
+        vo.setHidden(review.getIsHidden() != null && review.getIsHidden() == 1);
         return vo;
     }
 }

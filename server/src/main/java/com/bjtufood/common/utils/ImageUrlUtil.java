@@ -43,6 +43,38 @@ public class ImageUrlUtil {
                 .toList();
     }
 
+    /**
+     * 绝对地址还原为站内相对路径（<b>入库口径</b>）。
+     * <p>
+     * {@code dish.images} / {@code banner.image_url} 是<b>相对路径列</b>，出参才由本类转绝对地址；
+     * 若把绝对地址直接入库，出参会二次拼域名 ⇒ 详情页图片 404（如纠错采纳回写的 COS 地址）。
+     * <p>
+     * 规则：去掉 {@code app.public-base-url} 前缀即为相对路径；已是相对路径原样返回；
+     * <b>非本站的绝对地址原样返回</b>（是否合法交由各业务的校验器判定，如 {@code isValidCosUgcUrl}）。
+     */
+    public String toRelativePath(String url) {
+        if (!StringUtils.hasText(url)) {
+            return url;
+        }
+        String trimmed = url.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            String prefix = publicBaseUrl + "/";
+            return trimmed.startsWith(prefix) ? trimmed.substring(publicBaseUrl.length()) : trimmed;
+        }
+        return trimmed;
+    }
+
+    /** 同 {@link #toRelativePath(String)}，批量版。 */
+    public List<String> toRelativePaths(List<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return List.of();
+        }
+        return urls.stream()
+                .filter(StringUtils::hasText)
+                .map(this::toRelativePath)
+                .toList();
+    }
+
     public List<String> parseAndToAbsoluteUrls(String imagesJson) {
         return toAbsoluteUrls(JsonListUtil.parseStringList(imagesJson));
     }

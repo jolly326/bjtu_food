@@ -1,14 +1,12 @@
 package com.bjtufood.feedback.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.bjtufood.feedback.constant.FeedbackConst;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.dto.ReportReq;
 import com.bjtufood.feedback.dto.ReportReasonVO;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -45,34 +43,17 @@ public interface FeedbackService {
     void report(Long userId, Long reviewId, ReportReq req);
 
     /**
-     * 举报原因字典（<b>两端各自暴露</b>，数据同源）。
+     * 举报原因字典（公开只读，`GET /report-reasons`）。
      * <p>
-     * <b>为何两个端点而不是合并为一个</b>：小程序走 {@code /api/v1/**} + JWT，
-     * 管理后台走 {@code /api/v1/admin/**} + {@code X-Admin-Token}，<b>鉴权体系互不通</b>。
-     * 审计发现 web 曾直接调用学生端 {@code GET /feedback/report-reasons}
-     * （属「一个接口两端调用」）。该端点在学生端白名单内是 {@code permitAll} 故当时能跑，
-     * 但一旦学生端接口纳入 JWT 鉴权，管理后台会立刻 401 失效。
-     * 故管理端另开 {@code GET /admin/feedbacks/report-reasons}，两端彻底解耦
-     * （实测：该管理端字典端点尚未落地，{@code FeedbackAdminController} 当前只有
-     * 列表 / 处理两个映射；web 侧原因筛选的值域仍待接，见 docs/web/B-UGC治理/B3-举报管理.md）。
+     * **真源改为 `report_reason` 表**（A7 落地，2026-10-03）：原为代码常量 {@code FeedbackConst.REPORT_REASONS}，
+     * 现由 {@code ReportReasonService#listEnabled()} 供给 —— 字典可维护、免发版、免客户端改动。
      * <p>
-     * P2 迁址：学生端本端点由 {@code GET /feedback/report-reasons} 改为
-     * {@code GET /report-reasons}（字典非「反馈提交」的子资源），无过渡别名。
-     * <p>
-     * <b>数据仍然同源</b>：两端出参均由 {@code FeedbackConst.REPORT_REASONS} 构造，
-     * 构造逻辑下沉到 {@link #reportReasons()} 供两个 Controller 复用，
-     * 避免「复制两份常量遍历」导致日后口径漂移（曾在前端发生过同类问题）。
+     * 出参结构**不变**（客户端契约零改动）：恰 {@code value} + {@code label}、无分页；
+     * 变化只有两条 ——「**只下发启用项**」与「顺序来自表（拖拽后的 `order`）」。
      *
-     * @return 举报原因字典项（value 机器值 + label 中文标签，按声明序）
+     * @return 举报原因字典项（value 机器值 + label 中文标签，按 `order` 升序，仅启用项）
      */
-    default List<ReportReasonVO> reportReasons() {
-        List<FeedbackConst.ReportReason> reasons = FeedbackConst.REPORT_REASONS;
-        List<ReportReasonVO> result = new ArrayList<>(reasons.size());
-        for (FeedbackConst.ReportReason reason : reasons) {
-            result.add(new ReportReasonVO(reason.value(), reason.label()));
-        }
-        return result;
-    }
+    List<ReportReasonVO> reportReasons();
 
     /**
      * 反馈列表（管理端，按状态/类型/用户过滤）
@@ -81,7 +62,7 @@ public interface FeedbackService {
      *
      * @param keyword 关键词（可选，对反馈内容 content 或管理员回复 reply 模糊匹配）
      */
-    IPage<FeedbackAdminVO> listForAdmin(String status, String type, Long userId, String keyword, int page, int pageSize);
+    IPage<FeedbackAdminVO> listForAdmin(String category, String status, String type, Long userId, String keyword, int page, int pageSize);
 
     /**
      * 处理反馈：标记 handled + 写 reply/处理结论/handled_at

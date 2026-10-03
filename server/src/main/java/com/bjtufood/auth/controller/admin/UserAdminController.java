@@ -2,7 +2,7 @@ package com.bjtufood.auth.controller.admin;
 
 import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.common.result.PageResult;
+import com.bjtufood.common.result.AdminPageResult;
 import com.bjtufood.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,19 +20,22 @@ import java.util.Map;
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "adminToken")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class UserAdminController {
-    // ⚠️ 冻结：管理端（Web 后台）接口，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     private final UserService userService;
 
-    @Operation(summary = "用户列表", description = "用途：后台分页查看用户，支持按 status 筛选。测试示例：/admin/users?page=1&pageSize=10&status=active")
+    @Operation(summary = "用户列表", description = "用途：后台分页查看用户。支持按 status 筛选，"
+            + "以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。"
+            + "测试示例：/admin/users?page=1&pageSize=10&status=active&keyword=干饭")
     @GetMapping
-    public Result<PageResult<UserVO>> listUsers(
+    public Result<AdminPageResult<UserVO>> listUsers(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String status) {
-        return Result.success(PageResult.of(userService.listUsers(page, pageSize, status)));
+            @Parameter(description = "状态：active/disabled/deleted；不传 = 全部")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "关键词：昵称 / 账号 / 绑定邮箱模糊匹配")
+            @RequestParam(required = false) String keyword) {
+        return Result.success(AdminPageResult.of(userService.listUsers(page, pageSize, status, keyword)));
     }
 
     @Operation(

@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -70,7 +71,7 @@ class FrontendApiIsolationTest {
      * <p>
      * 只抓<b>字面量首参</b>——本项目所有 api 层调用都是
      * {@code get('/admin/dishes', params)}、{@code get(`/admin/dishes/${id}`)}、
-     * {@code fetch(`${API_BASE_URL}/admin/upload/image`)} 形态，无变量拼接的路径，
+     * {@code fetch(`${API_BASE_URL}/admin/upload`)} 形态，无变量拼接的路径，
      * 故该模式覆盖完整（由样本量兜底用例守住）。
      */
     private static final Pattern CALL = Pattern.compile(
@@ -143,18 +144,12 @@ class FrontendApiIsolationTest {
      * 归属：web 重写（用户拍板「完全重写」）领先后端；待后端按
      * {@code docs/web/feature/*} 实现 admin API。
      */
-    private static final Set<String> PENDING_BACKEND_ADMIN_PATHS = Set.of(
-            "/admin/auth/login",
-            "/admin/auth/logout",
-            "/admin/auth/me",
-            "/admin/auth/password",
-            "/admin/banners",
-            "/admin/banners/{p}",
-            "/admin/banners/{p}/status",
-            "/admin/dashboard",
-            "/admin/dish-dimensions",
-            "/admin/dish-dimensions/{p}",
-            "/admin/reports/{p}");
+    // ✅ 2026-10-03 起本表**恒空**（不再有豁免）：
+    //    A4/A5/A6/A7/D1 与后台管理端全部端点均已落地；B4 的 `GET /admin/corrections/{id}`
+    //    （曾因「只比路径、丢弃方法」被假绿掩盖的缺口）也已补齐。
+    //    ⇒ 「web 调用的**方法 + 路径**必须在后端存在」由下面两个用例共同守住（路径 + 方法双维）。
+    //    后续若临时引入待实现端点，必须在此登记，并在后端补齐后**立即删除**（保持本表恒空）。
+    private static final Set<String> PENDING_BACKEND_ADMIN_PATHS = Set.of();
 
     @Test
     @DisplayName("web 禁调需鉴权的学生端路径（web 无 JWT，且多为用户私有数据）")
@@ -277,6 +272,110 @@ class FrontendApiIsolationTest {
         return false;
     }
 
+    // ==================== 方法 + 路径 双维比对（2026-10-03 补） ====================
+    // 事故复盘：`GET /admin/corrections/{id}` 曾被漏实现，而上面的路径比对**只比路径、丢掉方法**——
+    // 「拒绝」的 `PUT /admin/corrections/{id}` 让同路径进了后端集合，于是 GET 也被判为「存在」，
+    // 管理端纠错详情抽屉（差异对照逐项勾选）在运行期 405/404，护栏却是绿的。
+    // ⇒ 路径对不代表契约成立：**方法必须一起比**。
+
+    /** 前端调用：捕获「包装函数名 + 路径」（`fetch` 分支恒为上传，按 POST 计）。 */
+    private static final Pattern CALL_WITH_METHOD = Pattern.compile(
+            "(get|post|put|del)(?:<[^>]*>)?\\(\\s*['\"`]([^'\"`]+)['\"`]"
+                    + "|fetch\\(\\s*`[^`$]*\\$\\{[^}]*\\}([^`]+)`");
+
+    /** 收集后端「方法 + 路径」（类级前缀 + 方法级子路径；路径变量归一为 `{p}`）。 */
+    private static Set<String> collectBackendEndpoints() {
+        Path ctrlRoot = ROOT.resolve("server/src/main/java/com/bjtufood");
+        Pattern classMapping = Pattern.compile("@RequestMapping\\(\\s*[\"'`]([^\"'`]+)[\"'`]\\s*\\)");
+        // 方法级注解：@GetMapping("/x") / @PostMapping(value = "/x") / @PutMapping（无参）……
+        Pattern methodMapping = Pattern.compile(
+                "@(Get|Post|Put|Delete|Patch)Mapping"
+                        + "(?:\\(\\s*(?:value\\s*=\\s*)?[\"'`]([^\"'`]*)[\"'`]\\s*[^)]*\\))?");
+
+        Set<String> endpoints = new TreeSet<>();
+        try (Stream<Path> files = Files.walk(ctrlRoot)) {
+            for (Path file : files.filter(p -> p.toString().endsWith("Controller.java")).toList()) {
+                String content = Files.readString(file, StandardCharsets.UTF_8);
+                String prefix = "";
+                Matcher cm = classMapping.matcher(content);
+                if (cm.find()) {
+                    prefix = cm.group(1);
+                }
+                Matcher m = methodMapping.matcher(content);
+                while (m.find()) {
+                    String httpMethod = m.group(1).toUpperCase(Locale.ROOT);
+                    String sub = m.group(2) == null ? "" : m.group(2);
+                    String full = (prefix + sub).replaceAll("/+$", "");
+                    if (full.isEmpty()) {
+                        full = "/";
+                    }
+                    endpoints.add(httpMethod + " " + PLACEHOLDER.matcher(full).replaceAll("{p}"));
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("扫描后端 Controller 失败", e);
+        }
+        return endpoints;
+    }
+
+    /** 收集前端「方法 + 路径」。 */
+    private static Set<String> collectWebEndpoints(String apiDir) {
+        Path dir = ROOT.resolve(apiDir);
+        assertThat(Files.isDirectory(dir)).as("应存在前端 api 目录: %s", dir).isTrue();
+        Set<String> endpoints = new TreeSet<>();
+        try (Stream<Path> files = Files.list(dir)) {
+            for (Path file : files.filter(p -> p.toString().endsWith(".ts")).toList()) {
+                String content = Files.readString(file, StandardCharsets.UTF_8);
+                Matcher m = CALL_WITH_METHOD.matcher(content);
+                while (m.find()) {
+                    String raw = m.group(2) != null ? m.group(2) : m.group(3);
+                    if (raw == null || raw.isBlank() || !raw.startsWith("/")) {
+                        continue;
+                    }
+                    String verb = m.group(1) == null ? "post" : m.group(1);   // fetch = 上传，POST
+                    String httpMethod = switch (verb) {
+                        case "get" -> "GET";
+                        case "put" -> "PUT";
+                        case "del" -> "DELETE";
+                        default -> "POST";
+                    };
+                    endpoints.add(httpMethod + " " + PLACEHOLDER.matcher(raw).replaceAll("{p}"));
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("扫描前端 api 失败", e);
+        }
+        return endpoints;
+    }
+
+    /** 前端 `METHOD path` 是否被后端同方法的某条映射覆盖。 */
+    private static boolean matchesAnyBackendEndpoint(String frontendEndpoint, Set<String> backendEndpoints) {
+        int sp = frontendEndpoint.indexOf(' ');
+        String httpMethod = frontendEndpoint.substring(0, sp);
+        String path = frontendEndpoint.substring(sp + 1);
+        return backendEndpoints.stream()
+                .filter(e -> e.startsWith(httpMethod + " "))
+                .map(e -> e.substring(httpMethod.length() + 1))
+                .anyMatch(backendPath -> matchesAnyBackendPath(path, Set.of(backendPath)));
+    }
+
+    @Test
+    @DisplayName("web 调用的「方法 + 路径」必须与后端映射逐一对上（路径对≠契约成立）")
+    void web_calledMethodAndPathExistInBackend() {
+        Set<String> backend = collectBackendEndpoints();
+        Set<String> webCalls = collectWebEndpoints("web/src/api");
+
+        List<String> missing = webCalls.stream()
+                .filter(e -> !PENDING_BACKEND_ADMIN_PATHS.contains(e.substring(e.indexOf(' ') + 1)))
+                .filter(e -> !matchesAnyBackendEndpoint(e, backend))
+                .toList();
+
+        assertThat(missing)
+                .as("web 调用了后端**不存在的方法+路径**（如只有 PUT 却发 GET）—— 运行期 405/404，"
+                        + "而只比路径的护栏会漏报（历史事故：GET /admin/corrections/{id}）")
+                .isEmpty();
+    }
+
 
 
     @Test
@@ -298,6 +397,6 @@ class FrontendApiIsolationTest {
 
         assertThat(web)
                 .as("应提取到 web multipart 上传路径（独立 fetch 通道）")
-                .containsKey("/admin/upload/image");
+                .containsKey("/admin/upload");
     }
 }

@@ -10,6 +10,15 @@ package com.bjtufood.dish.constant;
  */
 public interface DishConst {
 
-    /** 上架状态：on=在售（off=下架无独立常量，见 schema.sql dish.status 列注释） */
+    /**
+     * 管理端列表的**上架状态筛选白名单**（A3，2026-10-03 补）：非法值 `400`。
+     * 不传 = 全部（**含已下架** —— 管理端要能看到并维护下架菜品）。
+     */
+    java.util.Set<String> QUERY_STATUSES = java.util.Set.of("on", "off");
+
+    /** 上架状态：on=在售 */
     String STATUS_ON = "on";
+
+    /** 下架状态：off=已下架（公开查询按 `status='on'` 过滤，等价于「不存在」） */
+    String STATUS_OFF = "off";
 }

@@ -1,6 +1,6 @@
 package com.bjtufood.review.controller.admin;
 
-import com.bjtufood.common.result.PageResult;
+import com.bjtufood.common.result.AdminPageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.review.dto.ReviewAdminVO;
 import com.bjtufood.review.service.ReviewService;
@@ -16,36 +16,46 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/admin/reviews")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "adminToken")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class ReviewAdminController {
-    // ⚠️ 冻结：管理端（Web 后台）接口，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     private final ReviewService reviewService;
 
-    @Operation(summary = "全部评价列表", description = "用途：后台查看所有评价，支持按 isHidden/userId/keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=10&isHidden=0")
+    @Operation(summary = "全部评价列表", description = "用途：后台查看所有评价，排序 `createdAt DESC`。"
+            + "支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。"
+            + "测试示例：/admin/reviews?page=1&pageSize=10&hidden=false&dishId=3")
     @GetMapping
-    public Result<PageResult<ReviewAdminVO>> listAll(
+    public Result<AdminPageResult<ReviewAdminVO>> listAll(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) Integer isHidden,
+            @Parameter(description = "是否隐藏：true=仅已隐藏 / false=仅显示中；不传 = 全部")
+            @RequestParam(required = false) Boolean hidden,
+            @Parameter(description = "按菜品筛选（可选）")
+            @RequestParam(required = false) Long dishId,
             @Parameter(description = "提交用户ID（可选，用户行为聚合用）")
             @RequestParam(required = false) Long userId,
             @Parameter(description = "评价正文关键词（可选，模糊匹配）")
             @RequestParam(required = false) String keyword) {
-        return Result.success(PageResult.of(reviewService.listAllForAdmin(page, pageSize, isHidden, userId, keyword)));
+        return Result.success(AdminPageResult.of(
+                reviewService.listAllForAdmin(page, pageSize, hidden, dishId, userId, keyword)));
     }
 
     // 评价事后处置只保留「隐藏/显示」与「删除」两个动作：内容安全检测 pass/review 直接放行、risky 直接拒绝，
     // 不存在待复核队列，故无内容安全态处置端点。
 
-    @Operation(summary = "设置评价隐藏/显示", description = "用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏后公开评价列表不再展示。")
-    @PutMapping("/{id}/hide")
+    @Operation(summary = "设置评价隐藏/显示", description = "用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。"
+            + "隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。")
+    @PutMapping("/{id}/hidden")
     public Result<Void> setHidden(
             @Parameter(description = "评价ID", example = "1")
             @PathVariable Long id,
             @RequestBody(required = false) java.util.Map<String, Object> body) {
         boolean hidden = body != null && Boolean.TRUE.equals(body.get("hidden"));
-        reviewService.setHidden(id, hidden);
+        Object rawNote = body == null ? null : body.get("note");
+        String note = rawNote == null ? null : String.valueOf(rawNote);
+        if (note != null && note.trim().length() > 200) {
+            throw new com.bjtufood.common.exception.BusinessException("隐藏附注不能超过 200 字");
+        }
+        reviewService.setHidden(id, hidden, note);
         return Result.success();
     }
 

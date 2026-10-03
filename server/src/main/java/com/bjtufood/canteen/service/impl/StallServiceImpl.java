@@ -1,6 +1,7 @@
 package com.bjtufood.canteen.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.bjtufood.canteen.constant.FloorDict;
 import com.bjtufood.canteen.dto.StallAdminVO;
 import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.entity.Canteen;
@@ -45,12 +46,17 @@ public class StallServiceImpl implements StallService {
     //   口径与出参（含无评价时按 0.00 兜底）保持不变。
 
     @Override
-    @Deprecated(since = "2026-09", forRemoval = true)
     public List<StallAdminVO> listAllForAdmin() {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
+        return listAllForAdmin(null);
+    }
+
+    @Override
+    public List<StallAdminVO> listAllForAdmin(Long canteenId) {
+        // 排序口径（A2）：食堂 → 档口名（原按 sort_order，sort_order 已收窄为保留列）
         List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
+                .eq(canteenId != null, Stall::getCanteenId, canteenId)
                 .orderByAsc(Stall::getCanteenId)
-                .orderByAsc(Stall::getSortOrder)
+                .orderByAsc(Stall::getName)
                 .orderByDesc(Stall::getUpdatedAt));
         if (stalls.isEmpty()) {
             return List.of();
@@ -65,9 +71,7 @@ public class StallServiceImpl implements StallService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @Deprecated(since = "2026-09", forRemoval = true)
     public void update(Stall stall) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // canteen_id=0 收口：canteenId 显式传入时必须为有效食堂
         // （dish 列表/详情 joinDishSql 对 canteen 为 INNER JOIN，挂 0 的档口菜品会被静默剔除）。
         // null=不修改（MyBatis-Plus updateById NOT_NULL 策略跳过），不校验。
@@ -76,9 +80,89 @@ public class StallServiceImpl implements StallService {
                 throw new BusinessException("请选择所属食堂");
             }
         }
+        // 楼层受控字典（值即汉字，唯一真源 FloorDict / docs/schema/stall.md）：
+        // null = 不修改（NOT_NULL 策略跳过）；非空则必须命中字典，否则会把字典外值写进档口楼层，
+        // 端上与详情页随后无法解释该值（详见 docs/web/A-主数据维护/A2-档口管理.md 的错误码节）。
+        if (stall.getFloor() != null) {
+            if (!StringUtils.hasText(stall.getFloor())) {
+                throw new BusinessException("楼层不能为空");
+            }
+            if (!FloorDict.isValid(stall.getFloor())) {
+                throw new BusinessException("楼层不在预设范围内");
+            }
+            stall.setFloor(FloorDict.normalize(stall.getFloor()));
+        }
+        // A2：改名同样受「**同食堂下**唯一」约束 —— 只在新增时校验的话，
+        // 「把档口改名成同食堂已有的名」会绕过约束。canteenId 未传（不修改归属）时取当前归属再判。
+        if (stall.getName() != null && !stall.getName().isBlank()) {
+            String trimmed = stall.getName().trim();
+            Long belongCanteenId = stall.getCanteenId();
+            if (belongCanteenId == null && stall.getId() != null) {
+                Stall current = stallMapper.selectById(stall.getId());
+                belongCanteenId = current == null ? null : current.getCanteenId();
+            }
+            if (belongCanteenId != null) {
+                boolean duplicated = stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
+                        .eq(Stall::getCanteenId, belongCanteenId)
+                        .eq(Stall::getName, trimmed)
+                        .ne(Stall::getId, stall.getId())) > 0;
+                if (duplicated) {
+                    throw new BusinessException("该食堂下档口名称已存在");
+                }
+            }
+            stall.setName(trimmed);
+        }
         if (stall.getId() == null || stallMapper.updateById(stall) == 0) {
             throw new BusinessException("Stall not found");
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public StallAdminVO createStall(Stall stall) {
+        if (stall.getCanteenId() == null || stall.getCanteenId() <= 0
+                || canteenMapper.selectById(stall.getCanteenId()) == null) {
+            throw new BusinessException("请选择所属食堂");
+        }
+        String name = stall.getName() == null ? null : stall.getName().trim();
+        if (name == null || name.isEmpty()) {
+            throw new BusinessException("档口名称不能为空");
+        }
+        if (name.length() > 64) {
+            throw new BusinessException("档口名称不能超过 64 字");
+        }
+        // 同食堂下唯一（应用层校验，不加强 DB 唯一索引 —— 历史数据可能已有重复）
+        boolean duplicated = stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
+                .eq(Stall::getCanteenId, stall.getCanteenId())
+                .eq(Stall::getName, name)) > 0;
+        if (duplicated) {
+            throw new BusinessException("该食堂下已存在同名档口");
+        }
+        // 楼层：可选；给了就必须命中受控字典（值即汉字，见 FloorDict）
+        if (stall.getFloor() != null) {
+            if (!StringUtils.hasText(stall.getFloor())) {
+                throw new BusinessException("楼层不能为空");
+            }
+            if (!FloorDict.isValid(stall.getFloor())) {
+                throw new BusinessException("楼层不在预设范围内");
+            }
+        }
+        Stall saved = new Stall();
+        saved.setCanteenId(stall.getCanteenId());
+        saved.setName(name);
+        saved.setFloor(FloorDict.normalize(stall.getFloor()));
+        saved.setWindowNo(stall.getWindowNo());
+        stallMapper.insert(saved);
+        return toAdminVO(stallMapper.selectById(saved.getId()), BigDecimal.ZERO);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteStall(Long id) {
+        if (id == null || stallMapper.selectById(id) == null) {
+            throw new BusinessException(4001, "档口不存在");
+        }
+        stallMapper.deleteById(id);
     }
 
     /**
@@ -97,6 +181,11 @@ public class StallServiceImpl implements StallService {
         String normalized = floor == null ? null : floor.trim();
         if (stallId == null || !StringUtils.hasText(normalized)) {
             throw new BusinessException("楼层不能为空");
+        }
+        // 楼层受控字典（值即汉字）：纠错采纳同样必须命中字典，否则会把字典外值写进 stall.floor
+        // （口径见 docs/web/B-UGC治理/B4-菜品纠错管理.md 与 docs/schema/stall.md）
+        if (!FloorDict.isValid(normalized)) {
+            throw new BusinessException("楼层不在预设范围内");
         }
         Stall update = new Stall();
         update.setId(stallId);
@@ -145,12 +234,42 @@ public class StallServiceImpl implements StallService {
     }
 
     @Override
+    public String getFloorById(Long stallId) {
+        if (stallId == null) {
+            return null;
+        }
+        Stall stall = stallMapper.selectById(stallId);
+        return stall == null ? null : stall.getFloor();
+    }
+
+    @Override
     public String getNameById(Long stallId) {
         if (stallId == null) {
             return null;
         }
         Stall stall = stallMapper.selectById(stallId);
         return stall == null ? null : stall.getName();
+    }
+
+    @Override
+    public long countWithoutDish() {
+        // `NOT IN (SELECT ...)` 用 EXISTS 语义更稳，但 MyBatis-Plus 的 notInSql 已足够且更易读；
+        // 子查询只扫 dish.stall_id（档口量级为十数条），无性能顾虑。
+        return stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
+                .notInSql(Stall::getId, "SELECT stall_id FROM dish WHERE stall_id > 0"));
+    }
+
+    @Override
+    public String getCanteenNameByStallId(Long stallId) {
+        if (stallId == null) {
+            return null;
+        }
+        Stall stall = stallMapper.selectById(stallId);
+        if (stall == null || stall.getCanteenId() == null) {
+            return null;
+        }
+        Canteen canteen = canteenMapper.selectById(stall.getCanteenId());
+        return canteen == null ? null : canteen.getName();
     }
 
     @Override
@@ -219,6 +338,7 @@ public class StallServiceImpl implements StallService {
         StallAdminVO vo = new StallAdminVO();
         vo.setId(stall.getId());
         vo.setCanteenId(stall.getCanteenId());
+        vo.setCanteenName(getCanteenNameByStallId(stall.getId()));
         vo.setName(stall.getName());
         vo.setLocation(stall.getLocation());
         // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已于§7.14 D 整体下线，

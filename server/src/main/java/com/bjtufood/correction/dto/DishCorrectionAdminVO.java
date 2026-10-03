@@ -12,9 +12,7 @@ import java.util.Map;
  */
 @Data
 @Schema(description = "菜品纠错管理端展示信息")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class DishCorrectionAdminVO {
-    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "纠错ID")
     private Long id;
@@ -70,9 +68,18 @@ public class DishCorrectionAdminVO {
     @Schema(description = "不采纳原因（status=rejected 时非空）")
     private String rejectReason;
 
+    @Schema(description = "差异项数量（一眼看出「改了几项」；列表不必展开全部内容）")
+    private Integer changeCount;
+
+    @Schema(description = "含 floor 改动时的连带影响提示（同档口菜品数）")
+    private String floorImpact;
+
     @Schema(description = "处理时间")
     private LocalDateTime handledAt;
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
+
+    @Schema(description = "最近更新时间（管理端列表统一带它）")
+    private LocalDateTime updatedAt;
 }

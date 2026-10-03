@@ -28,27 +28,27 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/admin/upload")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "adminToken")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class AdminUploadController {
-    // ⚠️ 冻结：管理端（Web 后台）接口，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     private final UploadService uploadService;
 
     @Operation(
             summary = "上传图片（multipart）",
             description = """
-                    用途：管理端上传菜品图。
+                    用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/web/README.md「管理端素材上传」。
                     鉴权：请求头 X-Admin-Token 必须等于环境变量 ADMIN_TOKEN（未配置即 fail-closed 403）。
                     测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
-                    返回：data.url（完整可访问 URL），本地存储降级链路额外返回 data.relativeUrl。
+                    限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
+                    返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
+                          与 data.relativeUrl（本地降级链路才有；两者都可直接入库）。
                     小程序 UGC 配图请使用 POST /upload/cloud-image（云存储转存链路，学生 JWT）。
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(
                     mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
                     examples = @ExampleObject(value = "file: <binary>"))))
-    @PostMapping(value = "/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<UploadResultVO> uploadImage(
-            @Parameter(description = "图片文件，支持 jpg/jpeg/png/webp")
+            @Parameter(description = "图片文件，支持 jpg/jpeg/png/webp，单文件 ≤5MB")
             @RequestParam("file") MultipartFile file) {
         return Result.success(uploadService.uploadImage(file));
     }

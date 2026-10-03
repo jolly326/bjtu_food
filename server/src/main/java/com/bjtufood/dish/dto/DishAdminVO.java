@@ -18,9 +18,7 @@ import java.util.Map;
  */
 @Data
 @Schema(description = "后台菜品列表展示信息")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class DishAdminVO {
-    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "菜品ID")
     private Long id;
@@ -69,6 +67,10 @@ public class DishAdminVO {
             example = "{\"dietType\":\"半荤\",\"ingredients\":[\"蛋\"],\"flavorTags\":[\"酸\",\"甜\"],\"serveTemp\":\"热食\"}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品大类枚举键（值域见 GET /dishes/views 的大类视图；管理端录入下拉 + 编辑回填 + 列表筛选）", example = "noodle")
+    @Schema(description = "菜品分类键（值域 = 分类值字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）", example = "noodle")
     private String mealType;
+
+    /** 分类中文名（A6 分类值字典派生；列表直接可读，端上零硬编码） */
+    @Schema(description = "分类中文名", example = "面食粉类")
+    private String mealTypeLabel;
 }
