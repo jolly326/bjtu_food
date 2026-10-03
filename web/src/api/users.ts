@@ -1,11 +1,12 @@
-import { getPage, put } from './http'
-import type { UserAdminVO, UserListParams, UserStatusReq } from '@/types/common'
+import { getAdminPage, put } from './http'
+import type { AdminPage, UserAdminVO, UserListParams, UserStatusReq } from '@/types/common'
 
-/** B-12 用户管理：分页 + 筛选。 */
-export function listUsers(params: UserListParams): Promise<UserAdminVO[]> {
-  return getPage<UserAdminVO>('/admin/users', params)
+/** C2 用户管理：列表（排序 `createdAt DESC`） */
+export function listUsers(params: UserListParams): Promise<AdminPage<UserAdminVO>> {
+  return getAdminPage<UserAdminVO>('/admin/users', params)
 }
 
-export function setUserStatus(id: number, req: UserStatusReq): Promise<UserAdminVO> {
-  return put<UserAdminVO>(`/admin/users/${id}/status`, req)
+/** C2 启用 / 禁用（只改 `status`） */
+export function setUserStatus(id: number, req: UserStatusReq): Promise<null> {
+  return put<null>(`/admin/users/${id}/status`, req)
 }

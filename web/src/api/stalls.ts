@@ -1,23 +1,22 @@
 import { get, post, put, del } from './http'
-import type { StallVO, StallSaveReq } from '@/types/common'
+import type { StallAdminVO, StallSaveReq } from '@/types/common'
 
-/** B-04 档口：不分页（可选 canteenId 筛选）。 */
-export function listStalls(canteenId?: number): Promise<StallVO[]> {
-  return get<StallVO[]>('/admin/stalls', { canteenId })
+/** A2 档口列表（可选 `canteenId` 筛选；按「食堂 → 档口名」升序；**不分页**） */
+export function listStalls(canteenId?: number): Promise<StallAdminVO[]> {
+  return get<StallAdminVO[]>('/admin/stalls', { canteenId })
 }
 
-export function createStall(req: StallSaveReq): Promise<StallVO> {
-  return post<StallVO>('/admin/stalls', req)
+/** A2 新增（`canteenId` 必填且须存在；同食堂下重名 / 楼层不在字典 → 400） */
+export function createStall(req: StallSaveReq): Promise<StallAdminVO> {
+  return post<StallAdminVO>('/admin/stalls', req)
 }
 
-export function updateStall(id: number, req: StallSaveReq): Promise<StallVO> {
-  return put<StallVO>(`/admin/stalls/${id}`, req)
+/** A2 修改（可编辑字段整体替换：`canteenId` / `name` / `floor` / `windowNo`） */
+export function updateStall(id: number, req: StallSaveReq): Promise<null> {
+  return put<null>(`/admin/stalls/${id}`, req)
 }
 
-export function toggleStallStatus(id: number): Promise<StallVO> {
-  return put<StallVO>(`/admin/stalls/${id}/status`)
-}
-
+/** A2 删除（**其下仍有菜品 → 400**） */
 export function deleteStall(id: number): Promise<null> {
   return del<null>(`/admin/stalls/${id}`)
 }

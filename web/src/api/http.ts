@@ -1,9 +1,13 @@
 /**
- * fetch 封装（web 依赖无 axios）：注入 Bearer 令牌、解析 Result<T>、统一错误处理。
- * 令牌经 setBearerToken 由 auth store 注入（避免与 store 形成模块循环依赖）。
+ * fetch 封装（web 依赖无 axios）：注入管理端口令、解析 Result<T>、统一错误处理。
+ *
+ * <p><b>鉴权口径</b>（真源 [C1 管理员登录与访问控制](../../../docs/web/C-账号与访问/C1-管理员登录与访问控制.md)）：
+ * **无登录体系** —— 口令由**构建期注入**（`VITE_ADMIN_TOKEN`）并以请求头
+ * `X-Admin-Token` 携带（与后端 `AdminTokenFilter` 对应）；口令不匹配 / 账号受限 = **403 = 会话失效**，
+ * **不存在 401 分支**，也不做任何登录页跳转（旧 `Bearer` 令牌与 `/login` 体系已整体退役）。
  */
-import { API_BASE_URL } from './config'
-import { CODE_OK, CODE_UNAUTHORIZED } from '@/types/common'
+import { ADMIN_TOKEN, API_BASE_URL } from './config'
+import { CODE_FORBIDDEN, CODE_OK } from '@/types/common'
 
 export class ApiError extends Error {
   code: number
@@ -13,16 +17,17 @@ export class ApiError extends Error {
   }
 }
 
-let bearerToken: string | null = null
-export function setBearerToken(token: string | null): void {
-  bearerToken = token
-}
-export function clearBearerToken(): void {
-  bearerToken = null
-}
+/**
+ * 会话失效（403）固定文案 —— 页面据此渲染「会话失效态」且**不渲染重试**
+ * （重试必然再失败，见 [UI 基线 §1.5 ⑥](../../../docs/web/ui/公共组件与形态基线.md)）。
+ */
+export const SESSION_INVALID_MESSAGE =
+  '管理员口令校验失败（403），请检查构建期注入的 ADMIN_TOKEN'
 
-/** 401 广播名（main.ts 监听并跳转 /login） */
-export const UNAUTHORIZED_EVENT = 'auth:unauthorized'
+/** 是否为「会话失效」（403）：页面用它把第 ⑥ 态与普通错误态区分开 */
+export function isSessionInvalid(err: unknown): boolean {
+  return err instanceof ApiError && err.code === CODE_FORBIDDEN
+}
 
 interface RequestOptions {
   /** 请求体为 FormData（文件上传） */
@@ -39,7 +44,8 @@ export async function request<T>(
 ): Promise<T> {
   const url = API_BASE_URL + path
   const headers: Record<string, string> = {}
-  if (bearerToken) headers['Authorization'] = `Bearer ${bearerToken}`
+  // 管理端口令：构建期注入，随每次请求带出（无登录态、无令牌刷新）
+  if (ADMIN_TOKEN) headers['X-Admin-Token'] = ADMIN_TOKEN
 
   let payload: BodyInit | undefined
   if (body !== undefined) {
@@ -75,11 +81,9 @@ export async function request<T>(
   }
   clearTimeout(timer)
 
-  // 401：清令牌并广播，由 main 接管跳转 /login
-  if (res.status === CODE_UNAUTHORIZED) {
-    clearBearerToken()
-    window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))
-    throw new ApiError(CODE_UNAUTHORIZED, '登录已失效，请重新登录')
+  // 403 = 会话失效（口令不匹配）：统一文案，页面据此渲染第 ⑥ 态，不做跳转
+  if (res.status === CODE_FORBIDDEN) {
+    throw new ApiError(CODE_FORBIDDEN, SESSION_INVALID_MESSAGE)
   }
 
   let result: { code: number; message: string; data: T | null }
@@ -116,9 +120,16 @@ export function del<T>(path: string, body?: unknown): Promise<T> {
   return request<T>('DELETE', path, body)
 }
 
-/** 分页 GET：返回 records 数组（消费方以 records 为准，结束判据自判） */
-export function getPage<T>(path: string, params?: object): Promise<T[]> {
-  return get<{ records: T[] }>(path, params).then((r) => r.records)
+/**
+ * 管理端分页 GET：返回 `{ records, total }`（`AdminPageResult`，见
+ * [api/README](../../../docs/api/README.md)）—— 列表页据此渲染「共 N 条 + 页码」，
+ * 结束判据 = `total`（**不再**靠「本页条数 < pageSize」推断）。
+ */
+export function getAdminPage<T>(
+  path: string,
+  params?: object,
+): Promise<{ records: T[]; total: number }> {
+  return get<{ records: T[]; total: number }>(path, params)
 }
 
 function toQueryString(params?: object): string {

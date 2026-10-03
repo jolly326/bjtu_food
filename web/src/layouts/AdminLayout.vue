@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-
-const auth = useAuthStore()
-const admin = computed(() => auth.admin)
-
+/**
+ * 管理后台外壳（左侧栏 + 内容区）。
+ *
+ * <p>口径真源：[C1 管理员登录与访问控制](../../../docs/web/C-账号与访问/C1-管理员登录与访问控制.md)
+ * —— **无登录页、无个人页**：口令由构建期注入，底部身份区为**静态说明**（不读登录态）；
+ * 导航 **13 项**见 [UI 基线 §四](../../../docs/web/ui/公共组件与形态基线.md)。
+ */
 interface NavItem {
   to: string
   label: string
@@ -20,12 +21,13 @@ const groups: NavGroup[] = [
     items: [{ to: '/dashboard', label: '运营看板' }],
   },
   {
-    title: '内容',
+    title: '主数据',
     items: [
       { to: '/canteens', label: '食堂管理' },
       { to: '/stalls', label: '档口管理' },
       { to: '/dishes', label: '菜品管理' },
       { to: '/dimensions', label: '属性维度' },
+      { to: '/views', label: '首页筛选视图' },
       { to: '/banners', label: '首页 Banner' },
     ],
   },
@@ -38,6 +40,10 @@ const groups: NavGroup[] = [
       { to: '/corrections', label: '菜品纠错' },
       { to: '/users', label: '用户管理' },
     ],
+  },
+  {
+    title: '配置',
+    items: [{ to: '/report-reasons', label: '举报原因' }],
   },
 ]
 </script>
@@ -69,8 +75,8 @@ const groups: NavGroup[] = [
       </nav>
 
       <div class="sidebar-foot">
-        <div class="admin-name">{{ admin?.nickname || admin?.username || '—' }}</div>
-        <div class="admin-role">管理员</div>
+        <div class="admin-name">管理员</div>
+        <div class="admin-role">口令由构建期注入</div>
       </div>
     </aside>
 

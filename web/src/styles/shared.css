@@ -158,17 +158,52 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   overflow-x: auto;
 }
 .table { width: 100%; border-collapse: collapse; font-size: var(--font-base); }
+/* 表头 / 单元格 / 行底：一律消费 --table-* component token（单一真源，见 设计变量.md）
+ * —— 此前并列 --bg-soft / --bg-hover / --border-soft 两套值，改一处不会全站生效。 */
 .table th {
-  text-align: left; padding: var(--space-3) var(--space-4);
-  background: var(--bg-soft);
+  text-align: left; padding: var(--table-th-padding);
+  background: var(--table-header-bg);
   color: var(--text-secondary);
   font-weight: var(--weight-medium);
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--table-border);
   white-space: nowrap;
 }
-.table td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-soft); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.table td { padding: var(--table-td-padding); border-bottom: 1px solid var(--table-border); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .table tbody tr { transition: background 0.15s ease; }
-.table tbody tr:hover { background: var(--bg-hover); }
+.table tbody tr:hover { background: var(--table-row-hover); }
+/* 紧凑档：抽屉内小表复用同一结构（消费方：A4 取值抽屉），SHALL NOT 另立第三套表格样式 */
+.table--compact th,
+.table--compact td { padding: var(--space-2) var(--space-3); }
+
+/* ============================================================
+ * 分页条（UI 基线 §1.6：**页码 + 共 N 条**，非「加载更多」）
+ * 左：共 N 条；右：‹ 上一页 / 第 x / y 页 / 下一页 ›
+ * total = 0 时不渲染本容器（空态由 StateBox 承担）
+ * ============================================================ */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid var(--table-border);
+}
+.pager-total {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+.pager-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pager-page {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .ellipsis { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { white-space: nowrap; display: flex; gap: var(--space-2); }
 .empty { text-align: center; color: var(--text-light); padding: var(--space-10) var(--space-4) !important; }
