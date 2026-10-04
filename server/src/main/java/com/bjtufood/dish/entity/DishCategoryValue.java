@@ -31,6 +31,7 @@ public class DishCategoryValue {
     @Schema(description = "分类ID")
     private Long id;
 
+    @TableField("`key`")
     @Schema(description = "分类键（dish.meal_type 存的就是它；在用后不可改）", example = "noodle")
     private String key;
 
