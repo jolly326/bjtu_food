@@ -8,6 +8,7 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
 import { listUsers, setUserStatus } from '@/api/users'
 import type { UserAdminVO, UserListParams, UserStatus } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
@@ -60,7 +61,7 @@ async function toggle(row: UserAdminVO): Promise<void> {
     ElMessage.success(disabled ? '已禁用' : '已启用')
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   }
 }
 

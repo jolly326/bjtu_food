@@ -8,6 +8,8 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
+import { useReorder } from '@/composables/useReorder'
 import {
   createReportReason,
   deleteReportReason,
@@ -50,7 +52,7 @@ async function submitCreate(): Promise<void> {
     await load()
   } catch (e) {
     // 机器值格式非法 / 重名 / 启用数已达上限 8 → 后端原文（400）
-    ElMessage.error(e instanceof Error ? e.message : '新建失败')
+    fail(e, '新建失败')
   } finally {
     saving.value = false
   }
@@ -81,7 +83,7 @@ async function submitRename(): Promise<void> {
     renameOpen.value = false
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '改名失败')
+    fail(e, '改名失败')
   } finally {
     saving.value = false
   }
@@ -109,7 +111,7 @@ async function toggle(row: ReportReasonAdminVO): Promise<void> {
     await load()
   } catch (e) {
     // 停用最后一条启用 / 启用数超上限 → 后端原文
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   }
 }
 
@@ -132,35 +134,12 @@ async function remove(row: ReportReasonAdminVO): Promise<void> {
     ElMessage.success('已删除')
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 
 /* ==================== 拖拽排序（提交全量行） ==================== */
-const dragIndex = ref<number | null>(null)
-
-function onDragStart(index: number): void {
-  dragIndex.value = index
-}
-
-async function onDrop(index: number): Promise<void> {
-  const from = dragIndex.value
-  dragIndex.value = null
-  if (from === null || from === index) return
-  const next = [...items.value]
-  const [moved] = next.splice(from, 1)
-  if (!moved) return
-  next.splice(index, 0, moved)
-  items.value = next
-  try {
-    await sortReportReasons({ items: next.map((r, i) => ({ id: r.id, order: i + 1 })) })
-    ElMessage.success('顺序已保存')
-    await load()
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '排序保存失败')
-    await load()
-  }
-}
+const { dragIndex, onDragStart, onDrop } = useReorder(items, sortReportReasons, load)
 
 onMounted(() => load())
 </script>

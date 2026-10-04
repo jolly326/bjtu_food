@@ -1,4 +1,5 @@
 import { get, post, put, del } from './http'
+import { submitSort } from './shared'
 import type {
   DishDimensionAdminVO,
   DishDimensionSaveReq,
@@ -31,7 +32,7 @@ export function deleteDimension(id: number): Promise<null> {
 
 /** A4 维度排序（拖拽后**整体提交全量行**） */
 export function sortDimensions(req: SortItemsReq): Promise<null> {
-  return put<null>('/admin/dish-dimensions/sort', req)
+  return submitSort('/admin/dish-dimensions/sort', req)
 }
 
 /* ==================== A4 取值 ==================== */
@@ -62,5 +63,5 @@ export function deleteValue(dimensionId: number, valueId: number): Promise<null>
 
 /** A4 取值排序（拖拽后**整体提交全量行**） */
 export function sortValues(dimensionId: number, req: SortItemsReq): Promise<null> {
-  return put<null>(`/admin/dish-dimensions/${dimensionId}/values/sort`, req)
+  return submitSort(`/admin/dish-dimensions/${dimensionId}/values/sort`, req)
 }

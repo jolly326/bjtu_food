@@ -1,4 +1,5 @@
 import { del, get, post, put } from './http'
+import { submitSort } from './shared'
 import type { OnOffStatus, ReportReasonAdminVO, SortItemsReq } from '@/types/common'
 
 /**
@@ -34,7 +35,7 @@ export function updateReportReasonStatus(id: number, status: OnOffStatus): Promi
 
 /** 排序（拖拽后整体提交全量行） */
 export function sortReportReasons(req: SortItemsReq): Promise<null> {
-  return put<null>('/admin/report-reasons/sort', req)
+  return submitSort('/admin/report-reasons/sort', req)
 }
 
 /** 删除（**被举报记录引用 → 400**；下线一律用停用） */

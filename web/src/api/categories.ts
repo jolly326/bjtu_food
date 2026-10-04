@@ -1,4 +1,5 @@
 import { del, get, post, put } from './http'
+import { submitSort } from './shared'
 import type { DishCategoryAdminVO, SortItemsReq } from '@/types/common'
 
 /**
@@ -27,7 +28,7 @@ export function renameCategory(id: number, label: string): Promise<null> {
 
 /** 排序（拖拽后整体提交全量行） */
 export function sortCategories(req: SortItemsReq): Promise<null> {
-  return put<null>('/admin/dish-categories/sort', req)
+  return submitSort('/admin/dish-categories/sort', req)
 }
 
 /** 合并（把 `fromId` 的菜品改指 `toId` 后删除 `fromId`） */

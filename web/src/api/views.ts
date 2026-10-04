@@ -1,4 +1,5 @@
 import { del, get, post, put } from './http'
+import { submitSort } from './shared'
 import type {
   SortItemsReq,
   DishViewAdminVO,
@@ -37,7 +38,7 @@ export function deleteView(id: number): Promise<null> {
 
 /** 排序（拖拽后整体提交全量行） */
 export function sortViews(req: SortItemsReq): Promise<null> {
-  return put<null>('/admin/dish-views/sort', req)
+  return submitSort('/admin/dish-views/sort', req)
 }
 
 /** 设为默认（自动取消原默认） */

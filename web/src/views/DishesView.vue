@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
 import {
   copyDish,
   createDish,
@@ -44,7 +45,7 @@ import StatusTag from '@/components/StatusTag.vue'
 const canteens = ref<CanteenAdminVO[]>([])
 const stalls = ref<StallAdminVO[]>([])
 const dimensions = ref<DishDimensionAdminVO[]>([])
-/** A6 分类值字典：分类**筛选下拉**与「分类中文名」展示的真源（此前筛选是自由文本输入键） */
+/** A6 分类值字典：分类**筛选下拉**与「分类中文名」展示的真源 */
 const categories = ref<DishCategoryAdminVO[]>([])
 /**
  * 取值字典（按维度 `fieldKey` 分组）—— A4 落地后**属性的候选真源**。
@@ -155,7 +156,7 @@ async function openEdit(row: DishAdminListItemVO): Promise<void> {
     }
     open.value = true
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '加载菜品详情失败')
+    fail(e, '加载菜品详情失败')
   }
 }
 
@@ -221,7 +222,7 @@ async function save(): Promise<void> {
     open.value = false
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
@@ -254,7 +255,7 @@ async function submitCopy(): Promise<void> {
     copyOpen.value = false
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '复制失败')
+    fail(e, '复制失败')
   } finally {
     copying.value = false
   }
@@ -268,7 +269,7 @@ async function toggle(row: DishAdminListItemVO): Promise<void> {
     ElMessage.success(next === 'on' ? '已上架' : '已下架')
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   }
 }
 
@@ -287,7 +288,7 @@ async function remove(row: DishAdminListItemVO): Promise<void> {
     ElMessage.success('已删除')
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 
@@ -342,7 +343,7 @@ onMounted(async () => {
         <option :value="0">全部档口</option>
         <option v-for="s in filteredStalls" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
-      <!-- A6 分类值字典驱动的下拉：筛选值 = 分类键（此前是自由文本输入键，管理员无从得知合法键） -->
+      <!-- A6 分类值字典驱动的下拉：筛选值 = 分类键（管理员从下拉选取合法键） -->
       <select class="form-input" v-model="fMealType" @change="reloadFirstPage">
         <option value="">全部分类</option>
         <option v-for="c in categories" :key="c.key" :value="c.key">{{ c.label }}</option>

@@ -8,6 +8,7 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
 import { deleteReview, listReviews, setReviewHidden } from '@/api/reviews'
 import type { ReviewAdminVO, ReviewListParams } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
@@ -26,7 +27,7 @@ function params(): ReviewListParams {
     keyword: fKeyword.value || undefined,
     dishId: fDishId.value ? Number(fDishId.value) : undefined,
     userId: fUserId.value ? Number(fUserId.value) : undefined,
-    // B1：新增 dishId 筛选（此前后端忽略该参数，筛选无效）
+    // B1：新增 dishId 筛选
     hidden: fHidden.value === '' ? undefined : fHidden.value,
   }
 }
@@ -78,7 +79,7 @@ async function submitHide(): Promise<void> {
     hideOpen.value = false
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   } finally {
     submitting.value = false
   }
@@ -90,7 +91,7 @@ async function unhide(row: ReviewAdminVO): Promise<void> {
     ElMessage.success('已恢复显示')
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   }
 }
 
@@ -109,7 +110,7 @@ async function remove(row: ReviewAdminVO): Promise<void> {
     ElMessage.success('已删除')
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 

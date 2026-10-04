@@ -8,6 +8,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
+import { useReorder } from '@/composables/useReorder'
 import {
   createDimension,
   createValue,
@@ -67,7 +69,7 @@ async function saveDimension(): Promise<void> {
     await load()
   } catch (e) {
     // 字段键重名 / 改在用字段键 → 后端原文（400）
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
@@ -89,35 +91,12 @@ async function removeDimension(row: DishDimensionAdminVO): Promise<void> {
     await load()
   } catch (e) {
     // 被引用 → 后端原文（400），提示改为「先改菜品，再删除」
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 
 /* ==================== 维度：拖拽排序（提交全量行） ==================== */
-const dragIndex = ref<number | null>(null)
-
-function onDragStart(index: number): void {
-  dragIndex.value = index
-}
-
-async function onDrop(index: number): Promise<void> {
-  const from = dragIndex.value
-  dragIndex.value = null
-  if (from === null || from === index) return
-  const next = [...items.value]
-  const [moved] = next.splice(from, 1)
-  if (!moved) return
-  next.splice(index, 0, moved)
-  items.value = next
-  try {
-    await sortDimensions({ items: next.map((d, i) => ({ id: d.id, order: i + 1 })) })
-    ElMessage.success('顺序已保存')
-    await load()
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '排序保存失败')
-    await load()
-  }
-}
+const { dragIndex, onDragStart, onDrop } = useReorder(items, sortDimensions, load)
 
 /* ==================== 取值：抽屉内管理 ==================== */
 const valuesOpen = ref(false)
@@ -165,7 +144,7 @@ async function addValue(): Promise<void> {
     await load()
   } catch (e) {
     // 同维度下重名 → 后端原文（400）
-    ElMessage.error(e instanceof Error ? e.message : '新增失败')
+    fail(e, '新增失败')
   }
 }
 
@@ -185,7 +164,7 @@ async function commitRename(row: DishValueAdminVO): Promise<void> {
     await loadValues()
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '改名失败')
+    fail(e, '改名失败')
   }
 }
 
@@ -207,7 +186,7 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
     await loadValues()
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 
@@ -232,7 +211,7 @@ async function onValueDrop(index: number): Promise<void> {
     await sortValues(dim.id, { items: next.map((v, i) => ({ id: v.id, order: i + 1 })) })
     await loadValues()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '排序保存失败')
+    fail(e, '排序保存失败')
     await loadValues()
   }
 }

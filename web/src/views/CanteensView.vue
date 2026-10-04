@@ -7,6 +7,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
 import { createCanteen, deleteCanteen, listCanteens, updateCanteen } from '@/api/canteens'
 import type { CanteenAdminVO } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
@@ -49,7 +50,7 @@ async function save(): Promise<void> {
     await load()
   } catch (e) {
     // 重名 / 空 / 超长 → 后端原文（400）
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
@@ -73,7 +74,7 @@ async function remove(row: CanteenAdminVO): Promise<void> {
     await load()
   } catch (e) {
     // 其下仍有档口 / 食堂不存在 → 后端原文（400 / 4001）
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 

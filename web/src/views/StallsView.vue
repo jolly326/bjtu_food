@@ -7,6 +7,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
 import { createStall, deleteStall, listStalls, updateStall } from '@/api/stalls'
 import { listCanteens } from '@/api/canteens'
 import type { CanteenAdminVO, StallAdminVO, StallSaveReq } from '@/types/common'
@@ -66,7 +67,7 @@ async function save(): Promise<void> {
     await load()
   } catch (e) {
     // 同食堂下重名 / 楼层不在字典 / 食堂不存在 → 原文透出（后端 message）
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
@@ -89,7 +90,7 @@ async function remove(row: StallAdminVO): Promise<void> {
     await load()
   } catch (e) {
     // 其下仍有菜品 / 档口不存在 → 后端原文（400 / 4001）
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 

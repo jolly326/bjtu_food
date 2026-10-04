@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { fail } from '@/utils/error'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
 import type { FeedbackAdminVO, FeedbackListParams, FeedbackStatus } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
@@ -101,7 +102,7 @@ async function submitHandle(): Promise<void> {
     await reload()
   } catch (e) {
     // 已处理再处理（400）/ 记录不存在（4001）→ 后端原文
-    ElMessage.error(e instanceof Error ? e.message : '处理失败')
+    fail(e, '处理失败')
   } finally {
     submitting.value = false
   }

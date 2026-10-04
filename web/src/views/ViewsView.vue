@@ -9,6 +9,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
+import { useReorder } from '@/composables/useReorder'
 import {
   createView,
   deleteView,
@@ -213,7 +215,7 @@ async function runPreview(): Promise<void> {
     previewSamples.value = res.sampleNames
   } catch (e) {
     // 条件不在白名单 → 后端原文（400）
-    ElMessage.error(e instanceof Error ? e.message : '预览失败')
+    fail(e, '预览失败')
   } finally {
     previewing.value = false
   }
@@ -250,7 +252,7 @@ async function save(): Promise<void> {
     await load()
   } catch (e) {
     // 键重名 / 改键 / 停用默认视图 / 条件不在白名单 → 后端原文
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
@@ -272,7 +274,7 @@ async function makeDefault(row: DishViewAdminVO): Promise<void> {
     ElMessage.success('已设为默认')
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   }
 }
 
@@ -294,34 +296,11 @@ async function remove(row: DishViewAdminVO): Promise<void> {
     ElMessage.success('已删除')
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 
-const dragIndex = ref<number | null>(null)
-
-function onDragStart(index: number): void {
-  dragIndex.value = index
-}
-
-async function onDrop(index: number): Promise<void> {
-  const from = dragIndex.value
-  dragIndex.value = null
-  if (from === null || from === index) return
-  const next = [...items.value]
-  const [moved] = next.splice(from, 1)
-  if (!moved) return
-  next.splice(index, 0, moved)
-  items.value = next
-  try {
-    await sortViews({ items: next.map((v, i) => ({ id: v.id, order: i + 1 })) })
-    ElMessage.success('顺序已保存')
-    await load()
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '排序保存失败')
-    await load()
-  }
-}
+const { dragIndex, onDragStart, onDrop } = useReorder(items, sortViews, load)
 
 /* ==================== 分类值管理（抽屉：重命名 / 合并 / 删除） ==================== */
 const catOpen = ref(false)
@@ -343,7 +322,7 @@ async function loadCategories(): Promise<void> {
   try {
     categories.value = await listCategories()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '分类值加载失败')
+    fail(e, '分类值加载失败')
   } finally {
     catLoading.value = false
   }
@@ -361,7 +340,7 @@ async function addCategory(): Promise<void> {
     ElMessage.success('已登记')
     await loadCategories()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '登记失败')
+    fail(e, '登记失败')
   }
 }
 
@@ -379,7 +358,7 @@ async function commitRename(row: DishCategoryAdminVO): Promise<void> {
     await loadCategories()
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '改名失败')
+    fail(e, '改名失败')
   }
 }
 
@@ -407,7 +386,7 @@ async function commitMerge(): Promise<void> {
     await loadCategories()
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '合并失败')
+    fail(e, '合并失败')
   }
 }
 
@@ -430,7 +409,7 @@ async function removeCategory(row: DishCategoryAdminVO): Promise<void> {
     ElMessage.success('已删除')
     await loadCategories()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 

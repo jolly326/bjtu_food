@@ -8,6 +8,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { fail } from '@/utils/error'
+import { useReorder } from '@/composables/useReorder'
 import {
   createBanner,
   deleteBanner,
@@ -61,7 +63,7 @@ async function save(): Promise<void> {
     open.value = false
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
@@ -75,7 +77,7 @@ async function toggle(row: BannerAdminVO): Promise<void> {
     ElMessage.success(next === 'on' ? '已启用' : '已停用')
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   }
 }
 
@@ -94,35 +96,12 @@ async function remove(row: BannerAdminVO): Promise<void> {
     ElMessage.success('已删除')
     await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 
 /* ==================== 拖拽排序（提交全量行） ==================== */
-const dragIndex = ref<number | null>(null)
-
-function onDragStart(index: number): void {
-  dragIndex.value = index
-}
-
-async function onDrop(index: number): Promise<void> {
-  const from = dragIndex.value
-  dragIndex.value = null
-  if (from === null || from === index) return
-  const next = [...items.value]
-  const [moved] = next.splice(from, 1)
-  if (!moved) return
-  next.splice(index, 0, moved)
-  items.value = next
-  try {
-    await sortBanners({ items: next.map((b, i) => ({ id: b.id, order: i + 1 })) })
-    ElMessage.success('顺序已保存')
-    await load()
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '排序保存失败')
-    await load()
-  }
-}
+const { dragIndex, onDragStart, onDrop } = useReorder(items, sortBanners, load)
 
 onMounted(() => load())
 </script>

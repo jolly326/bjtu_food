@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { fail } from '@/utils/error'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
 import type {
   AdminPage,
@@ -96,7 +97,7 @@ async function submitHandle(): Promise<void> {
     open.value = false
     await reload()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '处置失败')
+    fail(e, '处置失败')
   } finally {
     submitting.value = false
   }

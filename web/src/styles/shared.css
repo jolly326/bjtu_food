@@ -158,8 +158,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   overflow-x: auto;
 }
 .table { width: 100%; border-collapse: collapse; font-size: var(--font-base); }
-/* 表头 / 单元格 / 行底：一律消费 --table-* component token（单一真源，见 设计变量.md）
- * —— 此前并列 --bg-soft / --bg-hover / --border-soft 两套值，改一处不会全站生效。 */
+/* 表头 / 单元格 / 行底：一律消费 --table-* component token（单一真源，见 设计变量.md）。 */
 .table th {
   text-align: left; padding: var(--table-th-padding);
   background: var(--table-header-bg);

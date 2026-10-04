@@ -1,4 +1,5 @@
 import { get, post, put, del } from './http'
+import { submitSort } from './shared'
 import type { BannerAdminVO, BannerSaveReq, OnOffStatus, SortItemsReq } from '@/types/common'
 
 /** A5 Banner 列表（按 `order` 升序；**含已停用**；不分页、不筛选） */
@@ -21,9 +22,9 @@ export function updateBannerStatus(id: number, status: OnOffStatus): Promise<nul
   return put<null>(`/admin/banners/${id}/status`, { status })
 }
 
-/** A5 排序（拖拽后**整体提交全量行**，边界见 web/README 的「拖拽排序提交」通用约定） */
+/** A5 排序（拖拽后**整体提交全量行**） */
 export function sortBanners(req: SortItemsReq): Promise<null> {
-  return put<null>('/admin/banners/sort', req)
+  return submitSort('/admin/banners/sort', req)
 }
 
 /** A5 删除 */

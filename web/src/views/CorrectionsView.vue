@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { fail } from '@/utils/error'
 import {
   adoptCorrection,
   getCorrection,
@@ -143,7 +144,7 @@ async function submit(): Promise<void> {
     await reload()
   } catch (e) {
     // 已处理再处理（400）/ 不存在（4001）/ 被引用 → 后端原文
-    ElMessage.error(e instanceof Error ? e.message : '提交失败')
+    fail(e, '提交失败')
   } finally {
     submitting.value = false
   }

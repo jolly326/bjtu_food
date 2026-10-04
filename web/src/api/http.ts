@@ -4,10 +4,10 @@
  * <p><b>鉴权口径</b>（真源 [C1 管理员登录与访问控制](../../../docs/web/C-账号与访问/C1-管理员登录与访问控制.md)）：
  * **无登录体系** —— 口令由**构建期注入**（`VITE_ADMIN_TOKEN`）并以请求头
  * `X-Admin-Token` 携带（与后端 `AdminTokenFilter` 对应）；口令不匹配 / 账号受限 = **403 = 会话失效**，
- * **不存在 401 分支**，也不做任何登录页跳转（旧 `Bearer` 令牌与 `/login` 体系已整体退役）。
+ * **不存在 401 分支**，也不做任何登录页跳转（无 `Bearer` 令牌与 `/login` 体系）。
  */
 import { ADMIN_TOKEN, API_BASE_URL } from './config'
-import { CODE_FORBIDDEN, CODE_OK } from '@/types/common'
+import { CODE_FORBIDDEN, CODE_OK, type AdminPage } from '@/types/common'
 
 export class ApiError extends Error {
   code: number
@@ -121,15 +121,12 @@ export function del<T>(path: string, body?: unknown): Promise<T> {
 }
 
 /**
- * 管理端分页 GET：返回 `{ records, total }`（`AdminPageResult`，见
+ * 管理端分页 GET：返回 `AdminPage<T>`（`AdminPageResult`，见
  * [api/README](../../../docs/api/README.md)）—— 列表页据此渲染「共 N 条 + 页码」，
  * 结束判据 = `total`（**不再**靠「本页条数 < pageSize」推断）。
  */
-export function getAdminPage<T>(
-  path: string,
-  params?: object,
-): Promise<{ records: T[]; total: number }> {
-  return get<{ records: T[]; total: number }>(path, params)
+export function getAdminPage<T>(path: string, params?: object): Promise<AdminPage<T>> {
+  return get<AdminPage<T>>(path, params)
 }
 
 function toQueryString(params?: object): string {
