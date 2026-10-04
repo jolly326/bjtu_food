@@ -30,6 +30,7 @@ public class DishFilterView {
     @Schema(description = "视图ID")
     private Long id;
 
+    @TableField("`key`")
     @Schema(description = "视图键（端上回传 view=<key>；在用后不可改）", example = "noodle")
     private String key;
 
