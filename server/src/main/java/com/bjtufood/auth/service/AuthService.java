@@ -7,7 +7,7 @@ import com.bjtufood.auth.entity.User;
 
 
 /**
- * 认证服务接口（微信登录体系，spec §5.y）
+ * 认证服务接口（微信登录体系）
  * <p>
  * 小程序端无账号密码：微信静默登录（wechat-login）→ 游客态（bind_email 为 NULL）；
  * 邮箱验证码认证（verify-email）解锁 UGC 写操作。管理端无登录体系（/admin/** 由 AdminTokenFilter 口令校验，方案 C 已作废）。
@@ -15,7 +15,7 @@ import com.bjtufood.auth.entity.User;
 public interface AuthService {
 
     /**
-     * 发送邮箱验证码（认证用途 verify，spec §5.y.5）。
+     * 发送邮箱验证码（认证用途 verify）。
      * <p>
      * 校园邮箱由 username 推导，无需调用方传 email / purpose；同邮箱 60s 限频、验证码 10min 有效。
      *
@@ -24,7 +24,7 @@ public interface AuthService {
     void createEmailCode(String username);
 
     /**
-     * 微信静默登录（spec §5.y.1 / task-01 1.1）。
+     * 微信静默登录（task-01 1.1）。
      * <p>
      * 后端 code2Session 换 openid → 按 user.openid 取号：
      * 存在则返回原账号；不存在则自动建号（游客态 = bind_email 为 NULL）。
@@ -37,7 +37,7 @@ public interface AuthService {
     LoginVO wechatLogin(String code);
 
     /**
-     * 学号邮箱认证（spec §5.y.3 / task-01 1.3）。
+     * 学号邮箱认证（task-01 1.3）。
      * <p>
      * 校验验证码 → 按邮箱执行数据迁移合并 / 绑定替换 → 写 bind_email（**认证态唯一写入点**，
      * 非空即已认证）→ 返回更新后 UserInfoVO。
@@ -50,7 +50,7 @@ public interface AuthService {
     UserInfoVO verifyEmail(String code, Long userId);
 
     /**
-     * 获取当前用户个人信息（游客态可读，spec §5.y.5）。
+     * 获取当前用户个人信息（游客态可读）。
      *
      * @param userId 用户ID
      * @return UserInfoVO（id/username/nickname/avatar/bindEmail —— 与登录链路字段集严格同构，恰 5 字段）

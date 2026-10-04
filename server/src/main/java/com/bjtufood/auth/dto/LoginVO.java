@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 登录响应 VO（微信登录体系，spec §5.y.5）
+ * 登录响应 VO（微信登录体系）
  * <p>
  * 仅由 {@code POST /auth/wechat-login} 返回：结构为 {@code { token, userInfo }}，
  * 其中 userInfo 为小程序端账号信息（{@link UserInfoVO}，恰 5 字段）。

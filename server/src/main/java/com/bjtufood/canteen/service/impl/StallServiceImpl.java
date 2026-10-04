@@ -27,7 +27,7 @@ import java.util.Set;
 public class StallServiceImpl implements StallService {
 
     /**
-     * 「空值语义」的食堂/档口名称集合（§7.23 第 1 条：upsert 时这类名称视为未填，不建档）。
+     * 「空值语义」的食堂/档口名称集合（upsert 时这类名称视为未填，不建档）。
      * 命中即回退 stallId 逻辑，绝不以其为名新建食堂/档口。
      */
     private static final Set<String> EMPTY_NAME_VALUES = Set.of("其他", "其它", "无", "未知");
@@ -83,7 +83,7 @@ public class StallServiceImpl implements StallService {
         }
         // 楼层受控字典（值即汉字，唯一真源 FloorDict / docs/schema/stall.md）：
         // null = 不修改（NOT_NULL 策略跳过）；非空则必须命中字典，否则会把字典外值写进档口楼层，
-        // 端上与详情页随后无法解释该值（详见 docs/web/A-主数据维护/A2-档口管理.md 的错误码节）。
+        // 端上与详情页随后无法解释该值（详见 docs/api/web/stalls.md 的错误码节）。
         if (stall.getFloor() != null) {
             if (!StringUtils.hasText(stall.getFloor())) {
                 throw new BusinessException("楼层不能为空");
@@ -178,7 +178,7 @@ public class StallServiceImpl implements StallService {
             throw new BusinessException("楼层不能为空");
         }
         // 楼层受控字典（值即汉字）：纠错采纳同样必须命中字典，否则会把字典外值写进 stall.floor
-        // （口径见 docs/web/B-UGC治理/B4-菜品纠错管理.md 与 docs/schema/stall.md）
+        // （口径见 docs/func/web/B-UGC治理/B4-菜品问题反馈管理.md 与 docs/schema/stall.md）
         if (!FloorDict.isValid(normalized)) {
             throw new BusinessException("楼层不在预设范围内");
         }
@@ -336,7 +336,7 @@ public class StallServiceImpl implements StallService {
         vo.setCanteenName(getCanteenNameByStallId(stall.getId()));
         vo.setName(stall.getName());
         vo.setLocation(stall.getLocation());
-        // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已于§7.14 D 整体下线，
+        // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已整体下线，
         // 此前该值本就未填充（恒为 null），故删除实体/VO 字段不影响后台接口对外语义。
         vo.setFloor(stall.getFloor());
         vo.setWindowNo(stall.getWindowNo());
@@ -347,7 +347,7 @@ public class StallServiceImpl implements StallService {
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
         vo.setSortOrder(stall.getSortOrder());
         // createdBy 三端零消费（单口令模型无真实身份，写入侧为系统占位值），
-        // VO 字段已删除；实体字段与写入侧、stall.created_by 列定义同批退役（阶段4，schema.sql 幂等 DROP）。
+        // VO 字段已删除；实体字段与写入侧、stall.created_by 列定义同批退役（阶段4，存量库已直连远程库清理）。
         vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;

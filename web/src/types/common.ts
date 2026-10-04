@@ -1,17 +1,11 @@
 /**
  * 管理后台通用类型与全部 VO / 请求契约。
  *
- * <p>权威源：`docs/web/**`（管理端功能文档，接口/字段/错误码真源）+ `docs/api/README.md`（通用约定）。
+ * <p>权威源：`docs/api/web/**`（管理端契约真源：端点 / 字段 / 错误码）+ `docs/schema/**`（库表）。
  * 后端 Java DTO/VO 出参统一 camelCase，视图层禁止手写字段映射。
  */
 
 // ===== 统一响应信封 =====
-export interface Result<T> {
-  code: number
-  message: string
-  data: T | null
-}
-
 /**
  * 管理端分页壳（`AdminPageResult<T>`，见 [api/README](../../../docs/api/README.md)）。
  *
@@ -26,17 +20,22 @@ export interface AdminPage<T> {
 
 // ===== 业务状态码 =====
 export const CODE_OK = 200
-export const CODE_BAD_REQUEST = 400
 /** 会话失效（口令不匹配 / 账号受限）—— 页面渲染第 ⑥ 态且不渲染重试 */
 export const CODE_FORBIDDEN = 403
-export const CODE_NOT_FOUND = 4001
-export const CODE_SERVER_ERROR = 500
 
 // ===== 通用状态枚举（文案以 设计变量.md 的「状态文案总表」为准） =====
 export type OnOffStatus = 'on' | 'off'
 export type UserStatus = 'active' | 'disabled' | 'deleted'
 export type FeedbackStatus = 'pending' | 'handled'
 export type CorrectionStatus = 'pending' | 'adopted' | 'rejected'
+
+/**
+ * 菜品问题反馈类型（`dish_correction.type`）
+ *
+ * - `field`：**信息有误** —— 局部提交改动项，处置=差异对照 + 逐项采纳 / 拒绝
+ * - `gone`：**已经下架** —— 一键提交即成立，处置=🔴 **仅「下架」**（绝不删除）
+ */
+export type CorrectionType = 'field' | 'gone'
 
 // ===== D1 运营看板 =====
 
@@ -236,46 +235,21 @@ export interface BannerSaveReq {
 // ===== A6 首页筛选视图与分类值 =====
 export interface DishViewAdminVO {
   id: number
-  /** 视图键（端上回传 `view=<key>`；在用后不可改） */
+  /** 视图键（端上回传 `view=<key>`；属 seed / 代码资产，后台不可改） */
   key: string
   /** tab 文案 */
   label: string
   order: number
   enabled: boolean
-  /** 默认视图（端上不带 `view` 的落点；全站恰一个） */
-  isDefault: boolean
-  sortKind: string
-  /** 筛选条件（原样回显，供编辑；空数组 = 全部菜品） */
-  conditions: DishViewCondition[]
-  /** 当前匹配的在售菜品数 */
+  /** 当前匹配的在售菜品数（列表展示，兼作「是否生效」的自证） */
   matchedCount: number
   updatedAt: string
 }
 
-/** 视图筛选条件项（**有限语言**的一元；字段/操作符/值三层白名单由服务端强制） */
-export interface DishViewCondition {
-  /** 白名单：`mealType` / `discount` / `price` / `stallId` / `canteenId` / `avgRating` / `createdAt` */
-  field: string
-  /** 白名单（随字段而定）：`=` / `in` / `isTrue` / `between` / `>=` / `<=` / `withinDays` */
-  op: string
-  /** 单值（`= / >= / <= / withinDays` 用；`between` 时为下界）；`discount.isTrue` 无值 */
-  value?: string
-  /** 多值（`in` 用；`between` 时为 `[下界, 上界]`） */
-  values?: string[]
-}
-
-export interface DishViewSaveReq {
-  key: string
+/** 视图修改入参：后台只可改 `label` / `enabled`（`key` / 条件 / 排序口径属 seed / 代码资产） */
+export interface DishViewUpdateReq {
   label: string
-  sortKind: string
   enabled: boolean
-  conditions: DishViewCondition[]
-}
-
-/** 预览出参（保存前试算，不入库） */
-export interface DishViewPreviewVO {
-  matchedCount: number
-  sampleNames: string[]
 }
 
 /** A6 分类值（`dish.meal_type` 的取值域；条件构建器的「值」就是它的 `key`） */
@@ -300,11 +274,6 @@ export interface ReportReasonAdminVO {
   /** 被举报记录引用次数（`type='report'` 且 `sub = value`）—— 删除前判断 */
   feedbackCount: number
   updatedAt: string
-}
-
-export interface ReportReasonSaveReq {
-  value: string
-  label: string
 }
 
 // ===== B1 评价 =====
@@ -392,29 +361,51 @@ export interface FeedbackHandleReq {
   hideReview?: boolean
 }
 
-// ===== B4 菜品纠错 =====
+// ===== B4 菜品问题反馈 =====
 export interface CorrectionAdminVO {
   id: number
+  /** 问题类型：field=信息有误 / gone=已经下架（管理端据此分 Tab 与分派处置） */
+  type: CorrectionType
   dishId: number
   dishName: string | null
+  /** 提交人 ID（**`0` = 匿名提交**；昵称为空时页面回落「游客」） */
   userId: number
+  /** 提交人昵称（匿名提交为空串 / null） */
   userNickname: string
+  /** **仅 `type=gone`**：补充说明（≤200 字，处置时**必须展示**给管理员判读） */
+  note: string | null
   status: CorrectionStatus
   reply: string | null
   rejectReason: string | null
+  /** 差异项数量（`field` 型「改了几项」；`gone` 型恒 0） */
+  changeCount: number
+  /** `field` 型含 `floor` 改动时的连带影响提示（同档口菜品数，文案由服务端下发）；否则为 null */
+  floorImpact: string | null
   createdAt: string
   handledAt: string | null
 }
 
-/** 纠错详情：列表行 + 逐项差异对照（供「逐项勾选采纳」） */
+/** 菜品问题反馈详情 */
 export interface CorrectionDetailVO {
   id: number
+  /**
+   * 问题类型：`field` → 展示 `differences` 逐项采纳；`gone` → `differences`/`submitted` 恒空，
+   * 处置动作**仅「下架」**（🔴 本流程不提供删除）。
+   */
+  type: CorrectionType
   dishId: number
   dishName: string | null
+  /** 提交人 ID（**`0` = 匿名提交**；昵称为空时页面回落「游客」） */
   userId: number
+  /** 提交人昵称（匿名提交为空串 / null） */
   userNickname: string
   status: CorrectionStatus
+  /** `field` 型：仍有差异的项（逐项勾选采纳）；`gone` 型：恒空 */
   differences: CorrectionDifference[]
+  /** `gone` 型：用户选填补充说明（≤200 字） */
+  note: string | null
+  /** `gone` 型：同菜品待处理反馈数（已按用户去重）—— ⚠️ **仅参考，非下架阈值**（≥1 即进队列，是否下架人工决定） */
+  goneUserCount: number | null
   images: string[]
   reply: string | null
   rejectReason: string | null
@@ -437,14 +428,19 @@ export interface CorrectionListParams {
   page?: number
   pageSize?: number
   status?: CorrectionStatus | ''
+  /** 问题类型筛选：`field` / `gone` / `''`（= 全部，管理端分 Tab 用） */
+  type?: CorrectionType | ''
   dishId?: number
 }
 
-/** 采纳请求：`stallId`（挂靠既有档口）或 `createIfMissing: true`（按提交名新建） */
+/** 采纳请求：`field` 型带 `acceptedFields`；`gone` 型无差异项（只认 `reply`） */
 export interface CorrectionAdoptReq {
+  /** 采纳哪些差异项（`field` 型**必填且非空**；取值 = `differences[].field`） */
   acceptedFields?: string[]
   stallId?: number
   createIfMissing?: boolean
+  /** 采纳附注（可选，≤600 字；随回执下发，留空用服务端固定文案） */
+  reply?: string
 }
 
 export interface StallConfirmVO {

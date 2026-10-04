@@ -11,7 +11,7 @@ package com.bjtufood.auth.service;
 public interface EmailCodeService {
 
     /**
-     * 生成并发送邮箱验证码（认证用途 verify，spec §5.y.5）
+     * 生成并发送邮箱验证码（认证用途 verify）
      * <p>
      * 校园邮箱 = {学号}@bjtu.edu.cn，由 username 推导，无需调用方传 email / purpose。
      *

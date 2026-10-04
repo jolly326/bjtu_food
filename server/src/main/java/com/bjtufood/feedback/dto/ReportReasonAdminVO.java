@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * A7 举报原因出参（管理端）。
  *
  * <p>比公开 VO（{@link ReportReasonVO}）多 4 项：`id` / `order` / `status` / `feedbackCount` / `updatedAt`
- * —— 支撑列表展示与「删除前判断」。契约真源：docs/web/A-主数据维护/A7-举报原因管理.md。
+ * —— 支撑列表展示与「删除前判断」。契约真源：docs/api/web/report-reasons.md。
  */
 @Data
 @Schema(description = "管理端举报原因出参")

@@ -12,7 +12,7 @@ onLaunch(() => {
     wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
   }
   // #endif
-  // 微信自动静默登录（§5.y）：打开小程序即登录为游客态（bindEmail 为空）；有 token 则刷新资料
+  // 微信自动静默登录：打开小程序即登录为游客态（bindEmail 为空）；有 token 则刷新资料
   // 失败（如后端不可达）仅打点，不阻断浏览与菜单栏渲染
   useUserStore().silentLogin().catch(() => {})
 });
@@ -23,10 +23,9 @@ onLaunch(() => {
    var() 派生引用与全局盒模型重置）。两处导入，均为**唯一真源**：
      · 颜色     → theme/generated-colors.css（手工同步 theme/tokens.ts 的 CSS_VARS）
      · 非颜色   → theme/design-tokens.css（圆角 / 间距 / 字号 / 字重 / 字距 / 动效 / 高度 / 层级）
-   → 文档对照表：docs/client/ui/client-设计变量.md
+   → 文档对照表：docs/ui/client/设计变量.md
    **改值只改上述两处真源**；生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens`
-   不在本工作区，generated-colors.css 须**手工同步**（内容与 CSS_VARS 逐键一致），
-   见 spec §4.2 / §7.39。
+   不在本工作区，generated-colors.css 须**手工同步**（内容与 CSS_VARS 逐键一致）。
    - 因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，真实声明须由 page 承载
      （两个导入文件内部均以 page{…} 声明）；
    - 微信小程序 WXSS 不支持 :root 选择器；

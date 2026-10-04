@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * 微信静默登录请求（spec §5.y.5）
+ * 微信静默登录请求
  * <p>
  * 入参为微信 {@code wx.login} 获取的临时登录凭证 code，后端经 code2Session 换 openid。
  */

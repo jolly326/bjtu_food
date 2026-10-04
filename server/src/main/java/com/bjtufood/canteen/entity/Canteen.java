@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * 已从实体与接口层移除（不再读写）。
  * <p>
  * {@code created_by}（提交人）亦已退役：食堂降级为「菜品筛选属性字典」后无归属语义，
- * 写入侧恒为系统占位值、三端零消费，实体字段与写入/列定义同批移除（存量库由 schema.sql 幂等 DROP）。
+ * 写入侧恒为系统占位值、三端零消费，实体字段与写入/列定义同批移除（存量库已直连远程库清理）。
  */
 @Data
 @TableName("canteen")
@@ -39,8 +39,8 @@ public class Canteen {
     private String location;
 
     // 坐标列 latitude / longitude 已于拍板全链下线（位置表达收敛为 食堂 · 楼层 · 档口名，
-    // 学生端不申请定位权限、不计算距离）；实体字段与 schema.sql CREATE TABLE 同批移除，
-    // 存量库由 schema.sql 末尾 drop_canteen_coordinates 幂等段清理。
+    // 学生端不申请定位权限、不计算距离）；实体字段与列定义同批移除，
+    // 存量库已直连远程库清理。
 
     /** 食堂描述 */
     @Schema(description = "食堂描述")

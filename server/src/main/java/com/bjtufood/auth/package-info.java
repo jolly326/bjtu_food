@@ -9,6 +9,6 @@
  * <p>
  * <b>领域事件</b>：UserOwnershipMigratedEvent（归属迁移）、UserAccountClosedEvent（账号注销）
  * <p>
- * 模块边界由 {@code ArchTests}（ArchUnit）在测试阶段强制校验，详见 {@code docs/architecture.md}。
+ * 模块边界由 {@code ArchTests}（ArchUnit）在测试阶段强制校验。
  */
 package com.bjtufood.auth;

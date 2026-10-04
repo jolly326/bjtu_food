@@ -202,7 +202,7 @@
       <text class="submit-note">提交后人工审核，审核通过更新菜品信息</text>
       <view class="submit-area" @tap="onSubmitTap">
         <AppButton
-          :text="submitting ? '提交中…' : '提交纠错'"
+          :text="submitting ? '提交中…' : '提交菜品问题反馈'"
           :disabled="!canSubmit"
           :loading="!!submitting"
           @press="emit('submit')"
@@ -216,7 +216,7 @@
 
 <script setup lang="ts">
 /**
- * CorrectionForm —— 菜品纠错页根组件（表单数据渲染 + 校验错误呈现 + 提交触发）
+ * CorrectionForm —— 菜品问题反馈页「信息有误」型的表单区（渲染 + 校验错误呈现 + 提交触发）
  *
  * 职责边界：本组件**不持有业务状态**（表单值 / 校验 / patch 组装 / 提交全在 `useCorrection`），
  * 只负责「六段结构」的渲染与字段级写回（`props.model` 就地写回，父级 reactive 为唯一真源）。

@@ -7,16 +7,18 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 采纳菜品纠错请求（{@code POST /admin/corrections/{id}/adopt}，两段式档口确认）。
- *
- * <p><b>逐项采纳</b>（B4，2026-10-03）：管理员先调 {@code GET /admin/corrections/{id}} 拿到
- * `differences[]`，勾选后把**选中项的 `field`** 放进 {@link #acceptedFields}。取值必须是该清单里的键
+ * 采纳菜品问题反馈请求（{@code POST /admin/corrections/{id}/adopt}）。
+ * <p>
+ * <b>逐项采纳</b>：管理员先调 {@code GET /admin/corrections/{id}} 拿到 `differences[]`，
+ * 勾选后把**选中项的 `field`** 放进 {@link #acceptedFields}。取值必须是该清单里的键
  * （`name` / `price` / `canteenName` / `stallName` / `floor` / `images` / `attributes.<fieldKey>`）。
  * <ul>
  *   <li><b>必填且非空</b>：空数组 → `400`（「什么都不采纳」不是采纳，是**拒绝**，有独立动作与必填原因）；</li>
- *   <li><b>只写回选中项</b>：不再「七字段一次性写回」—— 原实现让管理员的判断粒度只有「全采纳 / 全拒绝」；</li>
+ *   <li><b>只写回选中项</b>：管理员的判断粒度是「逐项取舍」，而非「全采纳 / 全拒绝」；</li>
  *   <li>选中项若**已无差异**（管理员已手工改成同值）→ `400`，避免「采纳一个已经相同的值」。</li>
  * </ul>
+ * <p>
+ * {@code type=gone}（已经下架）型**忽略本请求体**，采纳动作 = 置 {@code dish.status=off}（可逆）。
  *
  * <p>两段式档口确认（**仅在采纳了档口 / 食堂项时才需要**）：
  * <ul>

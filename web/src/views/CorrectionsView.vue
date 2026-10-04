@@ -1,10 +1,15 @@
 <script setup lang="ts">
 /**
- * B4 菜品纠错管理（页面规格见 [菜品纠错.md](../../../docs/web/ui/菜品纠错.md)）。
+ * B4 菜品问题反馈管理（页面规格见 [菜品纠错.md](../../../docs/ui/web/菜品纠错.md)）。
  *
- * <p>要点：分页（页码 + 共 N 条）+ 六态；处置载体 = **抽屉**（差异对照表 + 结论 + 回复 ⇒ 含只读内容区块）；
- * **逐项勾选采纳**（`acceptedFields`）；档口两段式确认（`needStallConfirm` ⇒ 选既有档口或按提交名新建）；
- * 采纳 / 拒绝**均向提交人投递站内回执**（空附注用固定文案）。
+ * <p>**按 `type` 分派**（两类反馈的处置动作不同，列表先分 Tab）：
+ * - `field`（信息有误）→ 抽屉内**差异对照 + 逐项勾选采纳**（`acceptedFields`）；档口**两段式确认**
+ *   （`needStallConfirm` ⇒ 选既有档口或按提交名新建）；
+ * - `gone`（已经下架）→ 抽屉内展示用户的**补充说明 / 图片 / 反馈人数**，处置动作**仅「下架」**或「驳回」
+ *   （🔴 **不提供「删除」**：删除为物理删除且级联删除评价，仅在菜品管理中由管理员主动执行）。
+ *
+ * <p>分页（页码 + 共 N 条）+ 六态；采纳 / 下架 / 驳回**均向提交人投递站内回执**（**文案由服务端按 `type`
+ * 与「是否部分采纳」分派**，端上只传可选附注，不拼回执正文）。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -20,17 +25,29 @@ import type {
   CorrectionDetailVO,
   CorrectionListParams,
   CorrectionStatus,
+  CorrectionType,
 } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
+import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
+const fType = ref<CorrectionType | ''>('')
 const fStatus = ref<CorrectionStatus | ''>('')
 const fDishId = ref('')
 
+/** 类型 Tab（`type` 筛选；空串 = 全部）；文案与 `StatusTag kind="correctionType"` 保持一致 */
+const TYPE_TABS: { value: CorrectionType | ''; label: string }[] = [
+  { value: '', label: '全部' },
+  { value: 'field', label: '信息有误' },
+  { value: 'gone', label: '已经下架' },
+]
+
 function params(): CorrectionListParams {
   return {
+    type: fType.value || undefined,
     status: fStatus.value || undefined,
     dishId: fDishId.value ? Number(fDishId.value) : undefined,
   }
@@ -71,8 +88,18 @@ const chosenStallId = ref(0)
 const createIfMissing = ref(false)
 const needStallConfirm = ref(false)
 
+/** 当前详情的反馈类型（`field` = 信息有误 / `gone` = 已经下架） */
+const isGone = computed(() => detail.value?.type === 'gone')
+
+/**
+ * 提交按钮可用性。
+ * - `gone` 型：下架**无需勾选任何项**（无可对照差异）⇒ 采纳侧恒可提交；
+ * - `field` 型：至少勾选一项（空数组服务端 `400`），且档口确认段须选定归属；
+ * - 驳回：原因必填。
+ */
 const canSubmit = computed(() => {
   if (outcome.value === 'adopted') {
+    if (isGone.value) return true
     if (needStallConfirm.value && !createIfMissing.value && !chosenStallId.value) return false
     return Object.values(accepted.value).some(Boolean)
   }
@@ -95,7 +122,7 @@ async function openHandle(row: CorrectionAdminVO, mode: 'adopted' | 'rejected'):
   try {
     const d = await getCorrection(row.id)
     detail.value = d
-    // 默认全选（管理员可逐项取消）
+    // `field` 型默认全选（管理员可逐项取消）；`gone` 型无差异项，无可勾选
     for (const diff of d.differences) accepted.value[diff.field] = true
   } catch (e) {
     detailError.value = e instanceof Error ? e.message : '加载详情失败'
@@ -114,17 +141,19 @@ async function submit(): Promise<void> {
   submitting.value = true
   try {
     if (outcome.value === 'adopted') {
-      const acceptedFields = Object.entries(accepted.value)
-        .filter(([, v]) => v)
-        .map(([k]) => k)
-      const res = await adoptCorrection(d.id, {
-        acceptedFields,
-        ...(needStallConfirm.value
-          ? createIfMissing.value
-            ? { createIfMissing: true }
-            : { stallId: chosenStallId.value }
-          : {}),
-      })
+      // `gone` 型：请求体只带可选附注，服务端忽略其余字段并直接下架菜品（可逆）
+      const res = isGone.value
+        ? await adoptCorrection(d.id, reply.value.trim() ? { reply: reply.value.trim() } : {})
+        : await adoptCorrection(d.id, {
+            acceptedFields: Object.entries(accepted.value)
+              .filter(([, v]) => v)
+              .map(([k]) => k),
+            ...(needStallConfirm.value
+              ? createIfMissing.value
+                ? { createIfMissing: true }
+                : { stallId: chosenStallId.value }
+              : {}),
+          })
       if (res != null) {
         // 档口未匹配：进入第二段确认
         needStallConfirm.value = true
@@ -132,13 +161,13 @@ async function submit(): Promise<void> {
         chosenStallId.value = res.candidates[0]?.id ?? 0
         return
       }
-      ElMessage.success('已采纳')
+      ElMessage.success(isGone.value ? '已下架' : '已采纳')
     } else {
       await rejectCorrection(d.id, {
         reply: reply.value.trim(),
         rejectReason: rejectReason.value.trim(),
       })
-      ElMessage.success('已拒绝')
+      ElMessage.success(isGone.value ? '已驳回' : '已拒绝')
     }
     open.value = false
     await reload()
@@ -151,6 +180,7 @@ async function submit(): Promise<void> {
 }
 
 function reset(): void {
+  fType.value = ''
   fStatus.value = ''
   fDishId.value = ''
   reloadFirstPage()
@@ -161,7 +191,25 @@ onMounted(() => reloadFirstPage())
 
 <template>
   <div class="page">
-    <div class="page-header"><h2>菜品纠错管理</h2></div>
+    <div class="page-header">
+      <h2>菜品问题反馈管理</h2>
+      <!-- 类型 Tab（`type` 筛选）：两类反馈处置动作不同，先分流再看列表 -->
+      <div class="tabs" role="tablist" aria-label="问题类型">
+        <button
+          v-for="t in TYPE_TABS"
+          :key="t.value"
+          class="tab"
+          type="button"
+          role="tab"
+          :aria-selected="fType === t.value"
+          :class="{ active: fType === t.value }"
+          v-press
+          @click="fType = t.value; reloadFirstPage()"
+        >
+          {{ t.label }}
+        </button>
+      </div>
+    </div>
 
     <div class="card filters">
       <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
@@ -176,16 +224,23 @@ onMounted(() => reloadFirstPage())
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="reload" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无纠错" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无反馈"
+      @retry="reload"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
+            <th>类型</th>
             <th>目标菜品</th>
             <th>提交人</th>
+            <th>改动项 / 反馈数</th>
+            <th>楼层影响</th>
             <th>状态</th>
             <th>处理回复 / 原因</th>
             <th>提交时间</th>
@@ -194,9 +249,20 @@ onMounted(() => reloadFirstPage())
         </thead>
         <tbody>
           <tr v-for="row in items" :key="row.id">
+            <td><StatusTag :status="row.type" kind="correctionType" /></td>
             <td>{{ row.dishName ?? '菜品已删除' }}</td>
-            <!-- 匿名提交 userId = 0 → 服务端回落「游客」 -->
+            <!-- 匿名提交 userId = 0 且昵称为空 → 回落「游客」 -->
             <td>{{ row.userNickname || '游客' }}</td>
+            <!-- `field` 型给「改了几项」，`gone` 型恒 0 项（无可对照差异） -->
+            <td>
+              <template v-if="row.type === 'field'">{{ row.changeCount }} 项</template>
+              <span v-else class="muted">—</span>
+            </td>
+            <!-- 仅含 floor 改动时有连带影响提示 -->
+            <td>
+              <span v-if="row.floorImpact" class="warn">{{ row.floorImpact }}</span>
+              <span v-else class="muted">—</span>
+            </td>
             <td><StatusTag :status="row.status" kind="correction" /></td>
             <td class="ellipsis">
               <span v-if="row.reply">{{ row.reply }}</span>
@@ -206,8 +272,12 @@ onMounted(() => reloadFirstPage())
             <td class="muted">{{ row.createdAt }}</td>
             <td class="actions">
               <template v-if="row.status === 'pending'">
-                <button class="link" type="button" @click="openHandle(row, 'adopted')">采纳</button>
-                <button class="link danger" type="button" @click="openHandle(row, 'rejected')">拒绝</button>
+                <button class="link" type="button" @click="openHandle(row, 'adopted')">
+                  {{ row.type === 'gone' ? '下架' : '采纳' }}
+                </button>
+                <button class="link danger" type="button" @click="openHandle(row, 'rejected')">
+                  {{ row.type === 'gone' ? '驳回' : '拒绝' }}
+                </button>
               </template>
               <span v-else class="muted">已处理</span>
             </td>
@@ -215,30 +285,46 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <div v-if="total > 0" class="pager">
-        <span class="pager-total">共 {{ total }} 条</span>
-        <div class="pager-actions">
-          <button class="btn-secondary" type="button" :disabled="page <= 1" @click="prevPage">上一页</button>
-          <span class="pager-page">第 {{ page }} / {{ pageCount }} 页</span>
-          <button class="btn-secondary" type="button" :disabled="page >= pageCount" @click="nextPage">下一页</button>
-        </div>
-      </div>
+      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
     </div>
 
-    <!-- 处置抽屉：差异对照（逐项勾选）+ 结论 + 回复 -->
-    <BaseDrawer title="处理纠错" :open="open" @close="open = false">
+    <!-- 处置抽屉：`field` = 差异对照（逐项勾选）；`gone` = 反馈佐证（说明 / 图片 / 人数） -->
+    <BaseDrawer :title="isGone ? '处理下架反馈' : '处理反馈'" :open="open" @close="open = false">
       <StateBox v-if="detailLoading" status="loading" />
       <StateBox v-else-if="detailError" status="error" :message="detailError" />
       <template v-else-if="detail">
         <div class="ctx">
           <div class="ctx-label">
             {{ detail.dishName ?? '菜品已删除' }} · {{ detail.userNickname || '游客' }}
+            <StatusTag :status="detail.type" kind="correctionType" />
           </div>
         </div>
 
+        <!-- `gone` 型：用户佐证（补充说明 + 图片）+ 同菜品反馈人数（下架与否人工判断） -->
+        <template v-if="isGone">
+          <div class="field">
+            <label id="corr-gone-label">用户反馈</label>
+            <dl class="gone-info" aria-labelledby="corr-gone-label">
+              <dt>补充说明</dt>
+              <dd>
+                <span v-if="detail.note">{{ detail.note }}</span>
+                <span v-else class="muted">未填写</span>
+              </dd>
+              <dt>反馈人数</dt>
+              <dd>
+                {{ detail.goneUserCount ?? 1 }} 人反馈已下架
+                <span class="muted">（仅参考，是否下架由人工判断）</span>
+              </dd>
+            </dl>
+            <div v-if="detail.images?.length" class="thumbs">
+              <img v-for="(img, i) in detail.images" :key="i" :src="img" alt="反馈图片" />
+            </div>
+          </div>
+        </template>
+
         <div class="field">
-          <label>处理结论</label>
-          <div class="tag-options">
+          <label id="corr-outcome-label">处理结论</label>
+          <div class="tag-options" role="radiogroup" aria-labelledby="corr-outcome-label">
             <button
               class="tag-option"
               type="button"
@@ -247,7 +333,7 @@ onMounted(() => reloadFirstPage())
               :class="{ active: outcome === 'adopted' }"
               @click="outcome = 'adopted'"
             >
-              采纳
+              {{ isGone ? '下架该菜品' : '采纳' }}
             </button>
             <button
               class="tag-option"
@@ -257,15 +343,20 @@ onMounted(() => reloadFirstPage())
               :class="{ active: outcome === 'rejected' }"
               @click="outcome = 'rejected'"
             >
-              不采纳
+              {{ isGone ? '驳回（仍在售）' : '不采纳' }}
             </button>
           </div>
         </div>
 
-        <!-- 采纳：逐项勾选（楼层改动会连带同档口其它菜品，单独提示） -->
-        <div v-if="outcome === 'adopted'" class="field">
-          <label>采纳项（逐项勾选）</label>
-          <table class="table table--compact">
+        <!-- `gone` 型采纳 = 下架：说明写回影响（可逆，评价保留；本流程不提供删除） -->
+        <p v-if="isGone && outcome === 'adopted'" class="warn note-line">
+          下架仅把该菜品置为「已下架」，可重新上架、评价完整保留；删除请到「菜品管理」由管理员主动执行。
+        </p>
+
+        <!-- `field` 型采纳：逐项勾选（楼层改动会连带同档口其它菜品，单独提示） -->
+        <div v-if="outcome === 'adopted' && !isGone" class="field">
+          <label id="corr-adopt-label">采纳项（逐项勾选）</label>
+          <table class="table table--compact" aria-labelledby="corr-adopt-label">
             <thead>
               <tr>
                 <th class="pick-col"></th>
@@ -290,10 +381,10 @@ onMounted(() => reloadFirstPage())
           </table>
         </div>
 
-        <!-- 档口两段式确认 -->
-        <div v-if="outcome === 'adopted' && needStallConfirm" class="field stall-confirm">
-          <label>档口归属确认</label>
-          <select class="form-input" v-model.number="chosenStallId" :disabled="createIfMissing">
+        <!-- 档口两段式确认（仅 `field` 型采纳了档口名时才触发） -->
+        <div v-if="outcome === 'adopted' && !isGone && needStallConfirm" class="field stall-confirm">
+          <label for="corr-stall">档口归属确认</label>
+          <select id="corr-stall" class="form-input" v-model.number="chosenStallId" :disabled="createIfMissing">
             <option v-for="c in candidates" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
           <label class="check-line">
@@ -303,18 +394,19 @@ onMounted(() => reloadFirstPage())
         </div>
 
         <div v-if="outcome === 'rejected'" class="field">
-          <label>不采纳原因（必填，≤200 字）</label>
-          <input class="form-input" v-model="rejectReason" maxlength="200" />
+          <label for="corr-reject-reason">{{ isGone ? '仍在售的原因（必填，≤200 字）' : '不采纳原因（必填，≤200 字）' }}</label>
+          <input id="corr-reject-reason" class="form-input" v-model="rejectReason" maxlength="200" />
         </div>
 
         <div class="field">
-          <label>处理回复{{ outcome === 'rejected' ? '（必填）' : '（可选）' }}，≤600 字</label>
+          <label for="corr-reply">处理回复（可选，≤600 字）</label>
           <textarea
+            id="corr-reply"
             class="form-textarea"
             v-model="reply"
             rows="3"
             maxlength="600"
-            placeholder="随站内回执下发给提交人；采纳时留空则用固定文案"
+            placeholder="随站内回执下发给提交人；留空则用固定文案"
           />
           <div class="hint">{{ reply.length }} / 600</div>
         </div>
@@ -337,6 +429,28 @@ onMounted(() => reloadFirstPage())
 </template>
 
 <style scoped>
+/* 类型 Tab（`type` 筛选）：与页头同一行，置于标题右侧 */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+.tab {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+.tab.active {
+  background: var(--color-primary-soft, var(--bg-gray));
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: var(--weight-medium);
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -354,6 +468,41 @@ onMounted(() => reloadFirstPage())
 .warn {
   color: var(--color-warning);
   font-size: var(--font-xs);
+}
+.note-line {
+  margin: 0 0 var(--space-4);
+  line-height: 1.5;
+}
+
+/* `gone` 型佐证区：说明 + 反馈人数（定义列表，左标签右内容） */
+.gone-info {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  font-size: var(--font-sm);
+}
+.gone-info dt {
+  color: var(--text-secondary);
+}
+.gone-info dd {
+  margin: 0;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* 用户配图（只读对比，不提供上传 / 删除） */
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.thumbs img {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
 }
 .hint {
   margin-top: var(--space-1);

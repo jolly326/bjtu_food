@@ -27,7 +27,7 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 分页查询菜品（联表：dish + stall + canteen）
      * <p>
      * 出参为**列表专用** {@link DishListItemVO}（8 字段，D 项拆分）；
-     * 取数条件与排序口径均由 {@link DishListQuery}（**视图行**的解析结果）决定：
+     * 取数条件与排序口径均由 {@link DishListQuery}（视图解析结果）决定：
      * keyword 三路模糊 / `conditions`（字段白名单 + 参数化，见 DishViewConditions），
      * 以及 sortKind 决定的 ORDER BY（7 种口径）。
      */
@@ -96,7 +96,7 @@ public interface DishMapper extends BaseMapper<Dish> {
      * <p>
      * 供 {@code GET /dishes/views} 字典下发使用：
      * **空类自动隐藏**——某大类在售菜品数为 0 时不下发；重新有菜后自动出现。
-     * 标签文案与顺序由 {@code DishViewConst} 提供（单一真源），本查询只回答「哪些类目下当前有菜」。
+     * 标签文案与顺序由视图字典表提供（单一真源），本查询只回答「哪些类目下当前有菜」。
      *
      * @return 在售菜品覆盖的大类枚举键（去重）
      */

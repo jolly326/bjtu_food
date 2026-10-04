@@ -134,8 +134,8 @@ export interface paths {
   };
   "/dishes/{id}/correction": {
     /**
-     * 提交菜品信息纠错
-     * @description PUB。游客与登录用户均可提交（dishId 在路径上）；局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images，均为选填）；空请求体返回 400「未提交任何改动」（仅改楼层也算有改动）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+     * 提交菜品问题反馈
+     * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**先选 type 再填字段**，两类字段集合不同：type=field（信息有误）局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images）；type=gone（已经下架）一键提交即可成立——note（≤200 字）与 images（≤3 张）均为选填、可全不传，但传任何差异项字段 → 400。floor 传入时非空 ≤16 字，采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同一用户对同一菜品的 gone 型只计一次（重复提交成功但不重复计数）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
      */
     post: operations["submitCorrection"];
   };
@@ -317,8 +317,8 @@ export interface paths {
   };
   "/admin/corrections": {
     /**
-     * 纠错列表
-     * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。
+     * 菜品问题反馈列表
+     * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交 userId=0、昵称为 null）。type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。
      */
     get: operations["list_2"];
   };
@@ -582,7 +582,7 @@ export interface components {
     /** @description 拒绝请求体 {reply, outcome:'rejected', rejectReason}；校验失败返回 400 */
     DishCorrectionHandleReq: {
       /**
-       * @description 管理员回复内容（必填）
+       * @description 管理员回复内容（可选，≤600 字）
        * @example 经核实价格无误
        */
       reply: string;
@@ -718,6 +718,11 @@ export interface components {
     /** @description 改动项 {name,price(分),canteenName,stallName,floor,attributes,images}；均为选填，传入即校验 */
     DishCorrectionReq: {
       /**
+       * @description 反馈类型：field=信息有误 / gone=已经下架（**必填**）
+       * @example field
+       */
+      type: string;
+      /**
        * @description 菜品名称（传入时：非空、≤64 字）
        * @example 宫保鸡丁
        */
@@ -756,8 +761,13 @@ export interface components {
       attributes?: {
         [key: string]: Record<string, never>;
       };
-      /** @description 菜品图片 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，传入时：≤3 张） */
+      /** @description 菜品图片 URL 列表（field 型：改动后的完整数组，≤5 张 / gone 型：选填补充，≤3 张；均可不传） */
       images?: string[];
+      /**
+       * @description 补充说明（≤200 字；**仅 gone 型**可选填，field 型传入 → 400）
+       * @example 这个窗口现在换成麻辣香锅了
+       */
+      note?: string;
     };
     /** @description 微信静默登录请求参数 */
     WechatLoginReq: {
@@ -810,6 +820,14 @@ export interface components {
     /** @description 采纳请求体 {stallId?, createIfMissing?}（两段式档口确认） */
     DishCorrectionAdoptReq: {
       /**
+       * @description 采纳哪些差异项（取值 = GET /admin/corrections/{id} 的 differences[].field）；必填且非空
+       * @example [
+       *   "name",
+       *   "price"
+       * ]
+       */
+      acceptedFields?: string[];
+      /**
        * Format: int64
        * @description 档口ID（可选，两段式第二段：管理端选定的既有档口，校验存在后挂靠）
        * @example 3
@@ -820,6 +838,8 @@ export interface components {
        * @example false
        */
       createIfMissing?: boolean;
+      /** @description 采纳附注（可选，≤600 字；缺省用固定文案「已采纳，菜品信息已更新」随回执下发） */
+      reply?: string;
     };
     /** @description 统一响应结果 */
     ResultObject: {
@@ -998,7 +1018,7 @@ export interface components {
        */
       keyword?: string;
       /**
-       * @description 筛选视图键（值域见 GET /dishes/views；白名单校验，非法值 400；空 = 默认视图「为你推荐」）
+       * @description 筛选视图键（值域见 GET /dishes/views；白名单校验，非法值 400；空 = 首个启用视图）
        * @example noodle
        */
       view?: string;
@@ -1644,7 +1664,7 @@ export interface components {
       dishName?: string;
       /**
        * Format: int64
-       * @description 提交人用户ID（匿名提交为 null）
+       * @description 提交人用户ID（匿名提交为 0）
        */
       userId?: number;
       /** @description 提交人昵称（匿名提交为 null） */
@@ -1679,7 +1699,7 @@ export interface components {
       attributes?: {
         [key: string]: Record<string, never>;
       };
-      /** @description 提交的菜品图片 URL 列表（COS 绝对地址） */
+      /** @description 提交的菜品图片 URL 列表（field=改动后的完整数组≤5张 / gone=选填补充≤3张） */
       images?: string[];
       /** @description 处理状态：pending/adopted/rejected */
       status?: string;
@@ -1697,6 +1717,28 @@ export interface components {
        * @description 创建时间
        */
       createdAt?: string;
+      /**
+       * @description 问题类型：field=信息有误 / gone=已经下架
+       * @example field
+       */
+      type?: string;
+      /**
+       * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
+       * @example 这个窗口现在换成麻辣香锅了
+       */
+      note?: string;
+      /**
+       * Format: int32
+       * @description 差异项数量（一眼看出「改了几项」；列表不必展开全部内容）
+       */
+      changeCount?: number;
+      /** @description 含 floor 改动时的连带影响提示（同档口菜品数） */
+      floorImpact?: string;
+      /**
+       * Format: date-time
+       * @description 最近更新时间（管理端列表统一带它）
+       */
+      updatedAt?: string;
     };
     /** @description 分页响应结果 */
     PageResultDishCorrectionAdminVO: {
@@ -1717,6 +1759,87 @@ export interface components {
        */
       message?: string;
       data?: components["schemas"]["PageResultDishCorrectionAdminVO"];
+    };
+    /** @description 纠错差异对照项 */
+    DishCorrectionDifferenceVO: {
+      /**
+       * @description 差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<fieldKey>
+       * @example name
+       */
+      field?: string;
+      /**
+       * @description 字段中文名（服务端下发，端上零硬编码）
+       * @example 菜品名称
+       */
+      label?: string;
+      /** @description 当前实时值（回查 dish / stall） */
+      oldValue?: string;
+      /** @description 用户提交的值 */
+      newValue?: string;
+      /** @description 是否连带影响同档口其它菜品（仅 floor 为 true） */
+      affectsOthers?: boolean;
+    };
+    /** @description 菜品纠错详情（含差异对照） */
+    DishCorrectionDetailVO: {
+      /**
+       * Format: int64
+       * @description 反馈ID
+       */
+      id?: number;
+      /**
+       * @description 问题类型：field=信息有误 / gone=已经下架
+       * @example field
+       */
+      type?: string;
+      /**
+       * Format: int64
+       * @description 目标菜品ID
+       */
+      dishId?: number;
+      /** @description 目标菜品名（实时回查 dish；菜品已物理删除为 null） */
+      dishName?: string;
+      /**
+       * Format: int64
+       * @description 提交人用户ID（匿名提交为 0）
+       */
+      userId?: number;
+      /** @description 提交人昵称（匿名提交为 null） */
+      userNickname?: string;
+      /** @description 处理状态：pending/adopted/rejected */
+      status?: string;
+      /**
+       * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
+       * @example 这个窗口现在换成麻辣香锅了
+       */
+      note?: string;
+      /**
+       * Format: int64
+       * @description 同菜品待处理的 gone 反馈数（已按用户去重；仅参考、非下架阈值）
+       * @example 3
+       */
+      goneUserCount?: number;
+      /** @description 差异对照清单（仅仍有差异的项） */
+      differences?: components["schemas"]["DishCorrectionDifferenceVO"][];
+      /** @description 用户提交的原始快照（仅改动项） */
+      submitted?: {
+        [key: string]: unknown;
+      };
+      /** @description 提交的菜品图片 URL 列表（COS 绝对地址） */
+      images?: string[];
+      /** @description 处理回复 */
+      reply?: string;
+      /** @description 不采纳原因（status=rejected 时非空） */
+      rejectReason?: string;
+      /**
+       * Format: date-time
+       * @description 处理时间
+       */
+      handledAt?: string;
+      /**
+       * Format: date-time
+       * @description 提交时间
+       */
+      createdAt?: string;
     };
   };
   responses: never;
@@ -2624,8 +2747,8 @@ export interface operations {
     };
   };
   /**
-   * 提交菜品信息纠错
-   * @description PUB。游客与登录用户均可提交（dishId 在路径上）；局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images，均为选填）；空请求体返回 400「未提交任何改动」（仅改楼层也算有改动）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+   * 提交菜品问题反馈
+   * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**先选 type 再填字段**，两类字段集合不同：type=field（信息有误）局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images）；type=gone（已经下架）一键提交即可成立——note（≤200 字）与 images（≤3 张）均为选填、可全不传，但传任何差异项字段 → 400。floor 传入时非空 ≤16 字，采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同一用户对同一菜品的 gone 型只计一次（重复提交成功但不重复计数）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
    */
   submitCorrection: {
     parameters: {
@@ -3679,14 +3802,16 @@ export interface operations {
     };
   };
   /**
-   * 纠错列表
-   * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。
+   * 菜品问题反馈列表
+   * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交 userId=0、昵称为 null）。type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。
    */
   list_2: {
     parameters: {
       query?: {
         /** @description 处理状态：pending/adopted/rejected；不传 = 全部 */
         status?: string;
+        /** @description 问题类型：field=信息有误 / gone=已经下架；不传 = 全部 */
+        type?: string;
         page?: number;
         pageSize?: number;
       };

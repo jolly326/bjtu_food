@@ -2,9 +2,9 @@
 /**
  * 管理后台外壳（左侧栏 + 内容区）。
  *
- * <p>口径真源：[C1 管理员登录与访问控制](../../../docs/web/C-账号与访问/C1-管理员登录与访问控制.md)
+ * <p>口径真源：[C1 管理员登录与访问控制](../../../docs/api/web/auth.md)
  * —— **无登录页、无个人页**：口令由构建期注入，底部身份区为**静态说明**（不读登录态）；
- * 导航 **13 项**见 [UI 基线 §四](../../../docs/web/ui/公共组件与形态基线.md)。
+ * 导航 **13 项**见 [UI 基线 §四](../../../docs/ui/web/公共组件与形态基线.md)。
  */
 interface NavItem {
   to: string
@@ -37,7 +37,7 @@ const groups: NavGroup[] = [
       { to: '/reviews', label: '评价管理' },
       { to: '/feedbacks', label: '意见反馈' },
       { to: '/reports', label: '举报管理' },
-      { to: '/corrections', label: '菜品纠错' },
+      { to: '/corrections', label: '菜品问题反馈' },
       { to: '/users', label: '用户管理' },
     ],
   },
@@ -50,6 +50,7 @@ const groups: NavGroup[] = [
 
 <template>
   <div class="admin-shell">
+    <a class="skip-link" href="#main-content">跳到主内容</a>
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-logo">食</div>
@@ -80,7 +81,7 @@ const groups: NavGroup[] = [
       </div>
     </aside>
 
-    <main class="content">
+    <main class="content" id="main-content">
       <RouterView v-slot="{ Component }">
         <transition name="view-fade" mode="out-in">
           <component :is="Component" />

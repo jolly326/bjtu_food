@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!--
     ImagePicker —— UGC 配图选择/压缩/上传/预览统一组件。
     复用点（≥3 处，跨分包公用，按组件组织规范驻留 components/）：
@@ -11,10 +11,10 @@
     违规图片后端 400「图片包含违规内容，无法上传」由 http 层抛 message，此处逐张 toast 透出。
 
     ⚠️ 为何不自带来源弹层：ActionSheet → BaseSheet 内部是 position: fixed，而本组件在
-    意见反馈 / 菜品纠错两处位于 <scroll-view> 之内（fixed 层级会被压扁/裁剪）。
+    意见反馈 / 菜品问题反馈两处位于 <scroll-view> 之内（fixed 层级会被压扁/裁剪）。
     故与 ReviewItem 一致：弹层由页面根级持有，本组件只抛意图 + 经 ref 暴露 startPick。
 
-    UI 红线（spec §4.9）：可点元素 @tap；按压反馈 opacity（禁 scale）；颜色全语义 token；
+    UI 红线：可点元素 @tap；按压反馈 opacity（禁 scale）；颜色全语义 token；
     图标走 IconSvg（image=添加图片语义、close=删除）。
   -->
   <view class="ip-grid">

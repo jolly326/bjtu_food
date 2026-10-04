@@ -1,11 +1,8 @@
 package com.bjtufood.dish.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
-import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.dish.dto.DishCategoryAdminVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishCategoryValue;
@@ -25,9 +22,8 @@ import java.util.regex.Pattern;
 /**
  * A6 分类值字典管理实现。
  * <p>
- * <b>删除约束</b>：被菜品引用即禁删（`dishCount > 0`）—— 避免菜品读到悬空分类；
- * 清理同义值一律走**合并**。写入后失效视图目录缓存（分类值参与视图条件的取值域，
- * 且分类改名会改变视图 tab 的观感）。
+ * 分类值由**自由输入产生**（A3 菜品录入），后台只保留**重命名**；
+ * 数据锚在 `key`（`dish.meal_type` 存的就是它）⇒ 改名免费、零菜品迁移。
  */
 @Service
 @RequiredArgsConstructor
@@ -40,9 +36,8 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
     private final DishCategoryValueMapper categoryMapper;
     private final DishMapper dishMapper;
-    // 注：分类值**自身无缓存**（值域只在写入校验与下拉里读），故本类不做缓存失效。
-    // 视图侧目录缓存（`GET /dishes/views` 的 @Cacheable）随 A6 第二期（视图目录 + 条件引擎）接入，
-    // 届时在 create / rename / merge / delete 处补 viewCatalog.invalidateViews()。
+    // 注：分类值**自身无缓存**（值域只在写入校验与下拉里读），故本类不做缓存失效；
+    // 视图侧目录缓存（`GET /dishes/views` 的 @Cacheable）由 DishViewCatalog 写侧显式失效。
 
     @Override
     public List<DishCategoryAdminVO> listAll() {
@@ -87,59 +82,12 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void sort(List<SortItem> items) {
-        List<Long> existing = categoryMapper.selectList(null).stream().map(DishCategoryValue::getId).toList();
-        Map<Long, Integer> ordered = SortReorderUtil.resolve(items, existing);
-        for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
-            DishCategoryValue update = new DishCategoryValue();
-            update.setId(e.getKey());
-            update.setOrder(e.getValue());
-            categoryMapper.updateById(update);
-        }
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void merge(Long fromId, Long toId) {
-        if (fromId == null || toId == null || fromId.equals(toId)) {
-            throw new BusinessException("合并的源与目标必须不同");
-        }
-        DishCategoryValue from = categoryMapper.selectById(fromId);
-        DishCategoryValue to = categoryMapper.selectById(toId);
-        if (from == null || to == null) {
-            throw new BusinessException("合并的源或目标不存在");
-        }
-        // ① 批量改指：dish.meal_type = from.key → to.key（参数化 UPDATE，不逐行读改）
-        dishMapper.update(null, new LambdaUpdateWrapper<Dish>()
-                .set(Dish::getMealType, to.getKey())
-                .eq(Dish::getMealType, from.getKey()));
-        // ② 删源行（此刻已无菜品引用）
-        categoryMapper.deleteById(fromId);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void delete(Long id) {
-        DishCategoryValue current = categoryMapper.selectById(id);
-        if (current == null) {
-            throw new BusinessException(4001, "分类值不存在");
-        }
-        long used = countDishes(current.getKey());
-        if (used > 0) {
-            // 删掉会让菜品读到悬空分类 ⇒ 清理同义值请用「合并」
-            throw new BusinessException("仍有 " + used + " 个菜品属于该分类，不能删除（可先合并到其它分类）");
-        }
-        categoryMapper.deleteById(id);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public String resolveOrRegister(String key) {
         String normalizedKey = normalizeKey(key);
         if (existsByKey(normalizedKey)) {
             return normalizedKey;
         }
-        // 自由输入产生的新分类：以键为初名登记（管理员可在「管理值」里改名）
+        // 自由输入产生的新分类：以键为初名登记（管理员可改名）
         DishCategoryValue entity = new DishCategoryValue();
         entity.setKey(normalizedKey);
         entity.setLabel(normalizedKey);
@@ -168,10 +116,6 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
             wrapper.ne(DishCategoryValue::getId, excludeId);
         }
         DuplicateGuard.assertUnique(categoryMapper, wrapper, "分类名已存在");
-    }
-
-    private long countDishes(String key) {
-        return dishMapper.selectCount(new LambdaQueryWrapper<Dish>().eq(Dish::getMealType, key));
     }
 
     /**

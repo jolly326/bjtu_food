@@ -8,14 +8,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 菜品纠错管理端视图对象（{@code GET /admin/corrections}）。
+ * 菜品问题反馈管理端视图对象（{@code GET /admin/corrections}）。
  */
 @Data
-@Schema(description = "菜品纠错管理端展示信息")
+@Schema(description = "菜品问题反馈管理端展示信息")
 public class DishCorrectionAdminVO {
 
-    @Schema(description = "纠错ID")
+    @Schema(description = "反馈ID")
     private Long id;
+
+    /**
+     * 问题类型：{@code field}（信息有误）/ {@code gone}（已经下架）。
+     * <p>
+     * 管理端据此<b>分 Tab 展示与分派处置</b>：field → 差异对照 + 逐项采纳；gone → <b>仅下架</b>（无删除）。
+     */
+    @Schema(description = "问题类型：field=信息有误 / gone=已经下架", example = "field")
+    private String type;
 
     @Schema(description = "目标菜品ID")
     private Long dishId;
@@ -27,7 +35,7 @@ public class DishCorrectionAdminVO {
     @Schema(description = "目标菜品名（实时回查 dish；菜品已物理删除为 null）")
     private String dishName;
 
-    @Schema(description = "提交人用户ID（匿名提交为 null）")
+    @Schema(description = "提交人用户ID（匿名提交为 0）")
     private Long userId;
 
     @Schema(description = "提交人昵称（匿名提交为 null）")
@@ -56,8 +64,18 @@ public class DishCorrectionAdminVO {
             example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\",\"sour\"]}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "提交的菜品图片 URL 列表（COS 绝对地址）")
+    @Schema(description = "提交的菜品图片 URL 列表（field=改动后的完整数组≤5张 / gone=选填补充≤3张）")
     private List<String> images;
+
+    /**
+     * 补充说明（<b>仅 {@code type=gone} 的选填补充</b>，≤200 字；field 型恒 null）。
+     * <p>
+     * 管理端<b>处置gone 型时必须展示</b>：它承载「变成了别的菜 / 换窗口了 / 今天临时没供」，
+     * 这三种情况的处置动作完全不同（补录 / 改档口 / 不下架），只看「已下架 N 人反馈」会误判。
+     */
+    @Schema(description = "补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）",
+            example = "这个窗口现在换成麻辣香锅了")
+    private String note;
 
     @Schema(description = "处理状态：pending/adopted/rejected")
     private String status;

@@ -1,20 +1,20 @@
 <template>
   <!-- 底部菜单栏：区分「首页 / 我的」两主区；仅主根页可见，二级页（navigateTo）自动隐藏 -->
-  <view v-if="tabVisible" class="tab-bar">
+  <view v-if="routeStore.tabVisible" class="tab-bar">
     <view
       v-for="item in tabs"
       :key="item.key"
       class="tab-item"
-      :class="{ active: item.key === activeTab }"
+      :class="{ active: item.key === routeStore.activeTab }"
       hover-class="pressed"
       :aria-label="item.label"
       @tap="onTap(item)"
     >
       <!-- 选中态：图标切换为填充变体（<name>-filled），图标与文字同步变主色 -->
       <IconSvg
-        :name="item.key === activeTab ? `${item.icon}-filled` : item.icon"
+        :name="item.key === routeStore.activeTab ? `${item.icon}-filled` : item.icon"
         :size="48"
-        :color="item.key === activeTab ? COLOR_MAP['primary-bright'] : COLOR_MAP['text-tertiary']"
+        :color="item.key === routeStore.activeTab ? COLOR_MAP['primary-bright'] : COLOR_MAP['text-tertiary']"
       />
       <text class="tab-label">{{ item.label }}</text>
     </view>
@@ -23,7 +23,8 @@
 
 <script setup lang="ts">
 import IconSvg from './IconSvg.vue'
-import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/route'
+import { useRouteStore } from '@/stores/route'
+const routeStore = useRouteStore()
 import { TAB_HOME, TAB_PROFILE, TAB_URL_BY_KEY } from '@/utils/routes'
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -36,7 +37,7 @@ const tabs = [
 ] as const
 
 function onTap(item: (typeof tabs)[number]) {
-  if (item.key === activeTab.value) return
+  if (item.key === routeStore.activeTab) return
   // 主区切换重置页面栈（reLaunch），避免叠加多层历史
   uni.reLaunch({ url: item.url })
 }
@@ -52,14 +53,14 @@ interface RouteInvokeArgs {
 // 跳转发起时即按目标 URL 判定显隐（URL 已知，不依赖页面栈就绪时序，最稳定）；
 // navigateBack 无可预知目标，待 complete（栈已更新）再据栈重算。
 // 主根页的初始显示由各自 onShow 锚定（见 pages/*/index.vue）。
-uni.addInterceptor('navigateTo', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
-uni.addInterceptor('redirectTo', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
-uni.addInterceptor('reLaunch', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
-uni.addInterceptor('switchTab', { invoke: (a: RouteInvokeArgs) => ensureTabForUrl(a?.url) })
-uni.addInterceptor('navigateBack', { complete: () => syncRoute() })
+uni.addInterceptor('navigateTo', { invoke: (a: RouteInvokeArgs) => routeStore.ensureTabForUrl(a?.url) })
+uni.addInterceptor('redirectTo', { invoke: (a: RouteInvokeArgs) => routeStore.ensureTabForUrl(a?.url) })
+uni.addInterceptor('reLaunch', { invoke: (a: RouteInvokeArgs) => routeStore.ensureTabForUrl(a?.url) })
+uni.addInterceptor('switchTab', { invoke: (a: RouteInvokeArgs) => routeStore.ensureTabForUrl(a?.url) })
+uni.addInterceptor('navigateBack', { complete: () => routeStore.syncRoute() })
 
 // 首屏兜底（主根页 onShow 才是可靠锚点，此处仅双保险）
-syncRoute()
+routeStore.syncRoute()
 </script>
 
 <style scoped lang="scss">

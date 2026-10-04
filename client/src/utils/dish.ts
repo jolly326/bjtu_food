@@ -1,8 +1,8 @@
-/**
+﻿/**
  * 菜品 / 评分的**展示派生值**（纯函数，无副作用）—— 全站统一口径。
  *
  * 本文件收口全站菜品 / 评分展示派生值（joinLocation / hasDiscount / formatRating）单一口径，避免各页重复实现导致漂移：
- * · `joinLocation` —— 位置副信息拼接（空段自动跳过；find 结果 / 详情页 / 纠错锚定卡复用）
+ * · `joinLocation` —— 位置副信息拼接（空段自动跳过；find 结果 / 详情页 / 反馈锚定卡复用）
  * · `hasDiscount`  —— 「有折扣」唯一判据
  * · `formatRating` —— 评分展示口径（恒一位小数）
  *

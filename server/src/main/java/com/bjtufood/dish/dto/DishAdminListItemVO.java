@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 /**
  * 管理端菜品**列表行** VO（{@code GET /admin/dishes}，A3「列表 / 详情 VO 分离」）。
  *
- * <p>契约真源：docs/web/A-主数据维护/A3-菜品管理.md 的「响应 · `DishAdminListItemVO`（列表行 · **瘦身**）」。
+ * <p>契约真源：docs/api/web/dishes.md 的「响应 · `DishAdminListItemVO`（列表行 · **瘦身**）」。
  *
  * <p><b>为什么拆分</b>：列表是「扫视」场景（要小、要快），详情是「编辑回填」场景（要全）。
  * 共用 VO 会让列表为 20 行 × 512 字描述 + 属性 Map + 全量图片买单 —— 既浪费带宽，

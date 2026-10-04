@@ -1,14 +1,14 @@
 // 主题->颜色 token 映射（唯一事实源）。
 // WXSS 不接受 var() 的原生 API 常量兜底色登记于此；其余一律走 CSS 变量 var(--xxx)。
 
-// ===== 全站色板「暖橙黄」（§7.39 裁决，真源 = docs/client/ui/client-首页菜品浏览.md §10.2）=====
-// 主色按语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），token 名对齐 §4.1
+// ===== 全站色板「暖橙黄」（真源 = docs/ui/client/首页菜品浏览.md §10.2 色板与取色边界）=====
+// 主色按语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），token 名见下方色板键
 // （`--color-primary-fill` / `--color-primary-text` / `--text-title` / `--text-body` / `--bg-soft-yellow` …），
 // 页面文档可直接引用。
 export const COLOR_MAP = {
   /* ===== 主色（暖橙黄）=====
      填充 / 文字档 #B4531A（「白字安全橙」）：白字 on 它 5.01:1 ✅；作 #FFF8EF 上的文字 4.75:1 ✅。
-     ⚠️ 取色边界（§4.1）：`--color-primary-orange` #E67E22 白字仅 2.85:1、作文字亦 2.85:1，
+     ⚠️ 取色边界：`--color-primary-orange` #E67E22 白字仅 2.85:1、作文字亦 2.85:1，
         **不得**作填充底或正文色；`--color-orange-deep` #D35400 白字 3.88:1，仅可作点击态 / 图形。 */
   primary: '#B4531A',
   'primary-fill': '#B4531A',
@@ -30,7 +30,7 @@ export const COLOR_MAP = {
   'primary-soft': '#FFF3D6',
   accent: '#B4531A',
   'accent-soft': '#FAE0CE',
-  /* ===== 功能色（§4.1）===== */
+  /* ===== 功能色 ===== */
   error: '#C62828',
   'error-soft': '#FFECEB',
   warning: '#E67E22',
@@ -47,7 +47,7 @@ export const COLOR_MAP = {
   'text-white-edge': 'rgba(255,255,255,0.24)',
   /* 详情页返回钮黑箭头（微信原生胶囊同款配色；WXSS 可直接消费 var(--nav-back-icon)） */
   'nav-back-icon': '#1A1A1A',
-  /* ===== 文字四档（§4.1；全部 ≥4.5:1，达标）=====
+  /* ===== 文字四档（全部 ≥4.5:1，达标）=====
      title 15.1:1 / body 10.9:1 / subtitle 4.86:1；placeholder 2.39:1 仅作「输入框占位」（从宽）。
      ⚠️ 旧三阶（#262626 / #595959 / #999999）中 `--text-tertiary` #999999 对白仅 **2.85:1**，
         **不达** WCAG AA 4.5:1 —— 本次替换同时修掉该可访问性缺陷。 */
@@ -58,7 +58,7 @@ export const COLOR_MAP = {
   'text-subtitle': '#7F6A55',
   'text-tertiary': '#7F6A55',
   'text-placeholder': '#B5A594',
-  /* ===== 背景（§4.1）===== */
+  /* ===== 背景 ===== */
   'bg-page': '#FFF8EF',
   /* ⚠️ 无独立页面顶部渐变键——装饰色按需取下方 `--bg-soft-*` 档。 */
   'bg-soft-orange': '#FFE8D1',
@@ -84,7 +84,7 @@ export const COLOR_MAP = {
   /* 底栏/浮层阴影族（原散落 App.vue，UI-03 收口入唯一真源） */
   'shadow-bar': '0 -4rpx 20rpx rgba(56, 42, 34, 0.08)',
   'shadow-bar-soft': '0 -4rpx 12rpx rgba(0, 0, 0, 0.06)',
-  /* 主色通道随新主色 #B4531A（RGB 180, 83, 26）同步（§4.1 / §7.39） */
+  /* 主色通道随新主色 #B4531A（RGB 180, 83, 26）同步 */
   'shadow-bar-primary': '0 12rpx 28rpx rgba(180, 83, 26, 0.28)',
   'shadow-float': '0 6rpx 16rpx rgba(0, 0, 0, 0.12)',
   /* 长条删除按钮（图片移除）暗底（原散落 App.vue，UI-03 收口） */
@@ -98,7 +98,7 @@ export const COLOR_MAP = {
 } as const
 
 /**
- * CSS 变量注册表（UI-03 色值唯一真源，spec §4.2）。
+ * CSS 变量注册表（UI-03 色值唯一真源）。
  *
  * 键 = 全局 CSS 变量名，值**一律引用上方 COLOR_MAP 同语义键**（同键同值，不重复写字面量），
  * 由 `scripts/gen-css-vars.ts` 遍历生成 `src/theme/generated-colors.css` 的 `page{…}` 颜色块，
@@ -106,11 +106,14 @@ export const COLOR_MAP = {
  *
  * ⚠️ 生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不再存在，
  * `generated-colors.css` 须**手工维护**（内容与本表逐键一致）；类型检查直接执行
- * `npx vue-tsc --noEmit`（见 spec §4.2 / §7.39）。
+ * `npx vue-tsc --noEmit`。
  *
  * 收录口径：仅收录「以 CSS 变量形态被 WXSS 消费」的色值 token；
  * 仅原生 API 兜底直取实色的键（如 success 历史键）不在页面级声明，不收录。
  * 派生引用（--text-hint 等值为 var() 组合、不含裸色值）不属色值真源范畴，仍手写在 App.vue 派生区。
+ *
+ * ⚠️ 本常量供外部 codegen 脚本（scripts/gen-css-vars.ts）生成 CSS 使用，全仓零运行时引用，
+ * 属构建资产真源，**勿当死代码删除**。
  */
 export const CSS_VARS: Record<string, string> = {
   /* 品牌主色（填充档 / 文字档 / 图形档 / 橙档 / 浅底档） */

@@ -35,7 +35,7 @@ public class AdminUploadController {
     @Operation(
             summary = "上传图片（multipart）",
             description = """
-                    用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/web/README.md「管理端素材上传」。
+                    用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
                     鉴权：请求头 X-Admin-Token 必须等于环境变量 ADMIN_TOKEN（未配置即 fail-closed 403）。
                     测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
                     限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。

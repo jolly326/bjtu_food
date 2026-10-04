@@ -65,7 +65,7 @@ public class Review {
     @Schema(description = "创建时间（重评时刷新为当前 —— 「重评即新发布」）")
     private LocalDateTime createdAt;
 
-    // review.updated_at 已于用户拍板退役（§7.40 R6）：
+    // review.updated_at 已于用户拍板退役：
     // 重评时与 created_at 同批刷新 → 两者恒等，该列对评价无独立语义，且端上与管理端双双零消费
     // （web/src/views 对 updated_at 零命中）。实体字段 / 建表脚本 / 种子脚本同批移除。
     // ⚠️ 不要据此删除 dish.updated_at —— 它有真实消费（DishFormDialog 的 Q-112「他人已修改」轻提示基线）。

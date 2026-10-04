@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * A4 菜品属性维度与取值（页面规格见 [属性维度与取值.md](../../../docs/web/ui/属性维度与取值.md)）。
+ * A4 菜品属性维度与取值（页面规格见 [属性维度与取值.md](../../../docs/ui/web/属性维度与取值.md)）。
  *
  * <p>要点：维度列表**不分页**（按 `order` 升序）+ **拖拽排序**（提交**全量行**，非法提交 → `400`）；
  * 编辑维度 = **弹窗**（字段键 / 名称 / 取值类型）；**取值管理 = 抽屉**（`.table--compact` 紧凑表格）；
  * 删除确认**必须含影响面**（其下 N 个取值、M 个菜品）。
  */
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import { useReorder } from '@/composables/useReorder'
 import {
@@ -31,6 +32,7 @@ import { useSimpleList } from '@/composables/useSimpleList'
 import BaseModal from '@/components/BaseModal.vue'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
 
 const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
   useSimpleList<DishDimensionAdminVO>(() => listDimensions())
@@ -77,11 +79,9 @@ async function saveDimension(): Promise<void> {
 
 async function removeDimension(row: DishDimensionAdminVO): Promise<void> {
   try {
-    await ElMessageBox.confirm(
-      `确认删除维度「${row.name}」？其下 ${row.valueCount} 个取值、${row.dishCount} 个菜品正在使用；被引用时将无法删除。`,
-      '删除维度',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
-    )
+    await confirmDelete(`确认删除维度「${row.name}」？其下 ${row.valueCount} 个取值、${row.dishCount} 个菜品正在使用；被引用时将无法删除。`, {
+      title: '删除维度',
+    })
   } catch {
     return
   }
@@ -172,11 +172,9 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
   const dim = currentDim.value
   if (!dim) return
   try {
-    await ElMessageBox.confirm(
-      `确认删除取值「${row.label}」？被菜品引用时将无法删除。`,
-      '删除取值',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
-    )
+    await confirmDelete(`确认删除取值「${row.label}」？被菜品引用时将无法删除。`, {
+      title: '删除取值',
+    })
   } catch {
     return
   }
@@ -190,31 +188,9 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
   }
 }
 
-/* 取值拖拽排序（同样提交全量行） */
-const valueDragIndex = ref<number | null>(null)
-
-function onValueDragStart(index: number): void {
-  valueDragIndex.value = index
-}
-
-async function onValueDrop(index: number): Promise<void> {
-  const dim = currentDim.value
-  const from = valueDragIndex.value
-  valueDragIndex.value = null
-  if (!dim || from === null || from === index) return
-  const next = [...values.value]
-  const [moved] = next.splice(from, 1)
-  if (!moved) return
-  next.splice(index, 0, moved)
-  values.value = next
-  try {
-    await sortValues(dim.id, { items: next.map((v, i) => ({ id: v.id, order: i + 1 })) })
-    await loadValues()
-  } catch (e) {
-    fail(e, '排序保存失败')
-    await loadValues()
-  }
-}
+/* 取值拖拽排序（提交全量行，复用 useReorder） */
+const { dragIndex: valueDragIndex, onDragStart: onValueDragStart, onDrop: onValueDrop } =
+  useReorder(values, (req) => sortValues(currentDim.value!.id, req), loadValues)
 
 onMounted(() => load())
 </script>
@@ -227,11 +203,15 @@ onMounted(() => load())
     </div>
 
     <!-- 四态：加载 / 会话失效 / 错误 / 空 / 有数据 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="load" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无属性维度" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无属性维度"
+      @retry="load"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -272,12 +252,13 @@ onMounted(() => load())
     <!-- 维度编辑：3 个简单控件 → 弹窗 -->
     <BaseModal :title="dimTitle" :open="dimOpen" @close="dimOpen = false">
       <div class="field">
-        <label>维度名称</label>
-        <input class="form-input" v-model="form.name" placeholder="如 口味 / 食材" />
+        <label for="dim-name">维度名称</label>
+        <input id="dim-name" class="form-input" v-model="form.name" placeholder="如 口味 / 食材" />
       </div>
       <div class="field">
-        <label>字段键</label>
+        <label for="dim-field-key">字段键</label>
         <input
+          id="dim-field-key"
           class="form-input"
           v-model="form.fieldKey"
           :disabled="!!editing"
@@ -286,8 +267,8 @@ onMounted(() => load())
         <div class="hint">后端索引键，创建后不可修改</div>
       </div>
       <div class="field">
-        <label>取值类型</label>
-        <select class="form-input" v-model="form.valueType">
+        <label for="dim-value-type">取值类型</label>
+        <select id="dim-value-type" class="form-input" v-model="form.valueType">
           <option value="single">单选</option>
           <option value="multi">多选</option>
         </select>

@@ -5,7 +5,7 @@ import type { OnOffStatus, ReportReasonAdminVO, SortItemsReq } from '@/types/com
 /**
  * A7 举报原因管理（`/admin/report-reasons`，6 个端点）。
  *
- * <p>契约真源：[A7-举报原因管理](../../../docs/web/A-主数据维护/A7-举报原因管理.md)。
+ * <p>契约真源：[A7-举报原因管理](../../../docs/api/web/report-reasons.md)。
  * <p><b>没有「改机器值」的端点</b> —— `value` 是历史举报的数据锚点（落库列 `user_feedback.sub`），
  * 在用后不可改；要改就停用旧值、新建一个。
  */

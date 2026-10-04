@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * B2 意见反馈管理（页面规格见 [反馈与举报.md](../../../docs/web/ui/反馈与举报.md) §B2）。
+ * B2 意见反馈管理（页面规格见 [反馈与举报.md](../../../docs/ui/web/反馈与举报.md) §B2）。
  *
  * <p>要点：列表走**同一端点** `GET /admin/feedbacks?category=feedback`（B3 举报为 `category=report`）；
  * 处置载体 = **抽屉**（只读内容区 + 结论 + 回复 + 不采纳原因 ⇒ ≥5 控件）；
@@ -12,7 +12,8 @@ import { fail } from '@/utils/error'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
 import type { FeedbackAdminVO, FeedbackListParams, FeedbackStatus } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
+import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 
@@ -140,11 +141,15 @@ onMounted(() => reloadFirstPage())
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="reload" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无反馈" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无反馈"
+      @retry="reload"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -186,14 +191,7 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <div v-if="total > 0" class="pager">
-        <span class="pager-total">共 {{ total }} 条</span>
-        <div class="pager-actions">
-          <button class="btn-secondary" type="button" :disabled="page <= 1" @click="prevPage">上一页</button>
-          <span class="pager-page">第 {{ page }} / {{ pageCount }} 页</span>
-          <button class="btn-secondary" type="button" :disabled="page >= pageCount" @click="nextPage">下一页</button>
-        </div>
-      </div>
+      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
     </div>
 
     <!-- 处置抽屉：只读内容区 + 结论 + 回复 + 不采纳原因 -->
@@ -207,8 +205,8 @@ onMounted(() => reloadFirstPage())
       </div>
 
       <div class="field">
-        <label>处理结论</label>
-        <div class="tag-options">
+        <label id="fb-outcome-label">处理结论</label>
+        <div class="tag-options" role="radiogroup" aria-labelledby="fb-outcome-label">
           <button
             class="tag-option"
             type="button"
@@ -233,13 +231,14 @@ onMounted(() => reloadFirstPage())
       </div>
 
       <div class="field" v-if="outcome === 'rejected'">
-        <label>不采纳原因（必填，≤200 字）</label>
-        <input class="form-input" v-model="rejectReason" maxlength="200" />
+        <label for="fb-reject-reason">不采纳原因（必填，≤200 字）</label>
+        <input id="fb-reject-reason" class="form-input" v-model="rejectReason" maxlength="200" />
       </div>
 
       <div class="field">
-        <label>处理回复（可选，≤600 字）</label>
+        <label for="fb-reply">处理回复（可选，≤600 字）</label>
         <textarea
+          id="fb-reply"
           class="form-textarea"
           v-model="reply"
           rows="4"

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * A7 举报原因管理（页面规格见 [A7-举报原因管理](../../../docs/web/A-主数据维护/A7-举报原因管理.md)）。
+ * A7 举报原因管理（页面规格见 [A7-举报原因管理](../../../docs/func/web/A-主数据维护/A7-举报原因管理.md)）。
  *
  * <p>要点：维护举报弹层的「原因」单选字典（**可维护、免发版**）；数据锚在 `value`（历史举报按它落库）
  * ⇒ **没有「改机器值」入口**（要改就停用旧值、新建一个）；改名免费；**删除受引用约束**（下线一律用停用）；
  * 三条不变量由服务端强制（至少 1 条启用 / 启用 ≤8 / 引用禁删），前端只负责把错误原文透出。
  */
 import { onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import { useReorder } from '@/composables/useReorder'
 import {
@@ -21,7 +22,7 @@ import {
 import type { ReportReasonAdminVO, OnOffStatus } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
 import BaseModal from '@/components/BaseModal.vue'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
 const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
@@ -97,10 +98,9 @@ async function toggle(row: ReportReasonAdminVO): Promise<void> {
       ? `确认启用「${row.label}」？举报弹层将再次出现该选项（启用数上限 8 条）。`
       : `确认停用「${row.label}」？停用后举报弹层不再展示该选项（历史举报仍能翻译出中文），但**不能停用最后一条启用**。`
   try {
-    await ElMessageBox.confirm(hint, next === 'on' ? '启用原因' : '停用原因', {
-      type: 'warning',
-      confirmButtonText: next === 'on' ? '启用' : '停用',
-      cancelButtonText: '取消',
+    await confirmDelete(hint, {
+      title: next === 'on' ? '启用原因' : '停用原因',
+      confirmText: next === 'on' ? '启用' : '停用',
     })
   } catch {
     return
@@ -121,11 +121,7 @@ async function remove(row: ReportReasonAdminVO): Promise<void> {
       ? `该原因已被 ${row.feedbackCount} 条举报引用，**不能删除**（删掉会让历史举报翻不出中文）—— 请改用「停用」。`
       : '确认删除该举报原因？删除后举报弹层不再出现该选项。'
   try {
-    await ElMessageBox.confirm(hint, '删除原因', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await confirmDelete(hint, { title: '删除原因' })
   } catch {
     return
   }
@@ -152,11 +148,15 @@ onMounted(() => load())
     </div>
 
     <!-- 四态：加载 / 会话失效 / 错误 / 空 / 有数据 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="load" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无举报原因" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无举报原因"
+      @retry="load"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -202,13 +202,13 @@ onMounted(() => load())
     <!-- 新建：机器值 + 中文标签（2 控件） -->
     <BaseModal title="新建举报原因" :open="createOpen" @close="createOpen = false">
       <div class="field">
-        <label>机器值</label>
-        <input class="form-input" v-model="newValue" placeholder="小写字母 / 数字 / -（如 spam）" />
+        <label for="rr-new-value">机器值</label>
+        <input id="rr-new-value" class="form-input" v-model="newValue" placeholder="小写字母 / 数字 / -（如 spam）" />
         <div class="hint">全站唯一，**在用后不可修改**</div>
       </div>
       <div class="field">
-        <label>中文标签</label>
-        <input class="form-input" v-model="newLabel" placeholder="如 垃圾广告 / 营销刷屏" />
+        <label for="rr-new-label">中文标签</label>
+        <input id="rr-new-label" class="form-input" v-model="newLabel" placeholder="如 垃圾广告 / 营销刷屏" />
       </div>
       <template #actions>
         <button class="btn-secondary" type="button" @click="createOpen = false">取消</button>
@@ -221,8 +221,8 @@ onMounted(() => load())
     <!-- 改名：只改 label（1 控件） -->
     <BaseModal title="原因改名" :open="renameOpen" @close="renameOpen = false">
       <div class="field">
-        <label>中文标签</label>
-        <input class="form-input" v-model="renameLabel" @keyup.enter="submitRename" />
+        <label for="rr-rename-label">中文标签</label>
+        <input id="rr-rename-label" class="form-input" v-model="renameLabel" @keyup.enter="submitRename" />
       </div>
       <p class="hint">改名免费：历史举报的「原因」会同步显示新文案（数据锚在机器值）。</p>
       <template #actions>

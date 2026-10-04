@@ -1,15 +1,15 @@
 /* =========================================================================
- * generated-colors.css —— 色值唯一真源导出（spec §4.2 / §7.39）
+ * generated-colors.css —— 色值唯一真源导出
  * 真源：src/theme/tokens.ts 的 CSS_VARS（值引用 COLOR_MAP 同键同值）
  *
  * 生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不在本工作区，本文件**手工维护**（含本注释头）。
  *    维护规则不变：内容 SHALL 与 tokens.ts 的 CSS_VARS 逐键一致；
  *    改色值只改 tokens.ts，随后同步本文件；禁止在本文件引入 tokens.ts 没有的键。
- *    恢复脚本化生成须重新登记（见 spec §4.2 / §7.39）。
+ *    恢复脚本化生成须重新登记。
  * ======================================================================== */
 
 page {
-  /* ===== 主色（暖橙黄，§4.1）===== */
+  /* ===== 主色（暖橙黄）===== */
   --color-primary: #B4531A;
   --color-primary-fill: #B4531A;
   --color-primary-text: #B4531A;

@@ -49,10 +49,10 @@ export const useDishStore = defineStore('dish', () => {
 
   /** 筛选视图字典（`GET /dishes/views`）：文案 / 顺序 / 子集全由后端下发，端上零写死 */
   const viewList = ref<DishView[]>([])
-  /** 当前选中视图键（`null` = 字典尚未加载，请求不传 `view` ⇒ 服务端落默认视图）；端上唯一筛选维度 */
+  /** 当前选中视图键（`null` = 字典尚未加载，请求不传 `view` ⇒ 服务端落首个启用视图）；端上唯一筛选维度 */
   const filterView = ref<string | null>(null)
 
-  /** 首页列表（默认视图 = 推荐流·会话种子伪随机序（逛）；大类视图 = 该类热度序（找），产品拍板确认保持） */
+  /** 首页列表（首个启用视图 = 推荐流·会话种子伪随机序（逛）；大类视图 = 该类热度序（找），产品拍板确认保持） */
   const homeList = ref<DishListItem[]>([])
   const homePage = ref(1)
   /** 触底加载更多是否在途（派生自 loading key，兼作 loadMore 并发守卫） */
@@ -107,7 +107,7 @@ export const useDishStore = defineStore('dish', () => {
   /**
    * 拉取筛选视图字典（**标签栏 100% 服务端直出，端上零文案**）。
    * 顺带校正选中项：选中视图不在字典（该类当前无在售菜被隐藏）或尚未选中 → 落**字典首项**
-   * （服务端声明的默认视图），避免请求一个不存在的视图。
+   * （服务端声明的首个启用视图），避免请求一个不存在的视图。
    */
   async function fetchDishViews() {
     // 已成功拉过、或已有同一请求在途，都不再发
@@ -117,7 +117,7 @@ export const useDishStore = defineStore('dish', () => {
       const list = await dishApi.listDishViews()
       viewList.value = list
       viewLoaded.value = true
-      // 字典首项 = 服务端声明的默认视图（如「为你推荐」）；端上不硬编码其 key
+      // 字典首项 = 服务端声明的首个启用视图（如「为你推荐」）；端上不硬编码其 key
       const [first] = list
       const fallback = first ? first.key : null
       if (!filterView.value || !list.some((v) => v.key === filterView.value)) {

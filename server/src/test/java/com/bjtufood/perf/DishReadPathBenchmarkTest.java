@@ -100,17 +100,14 @@ class DishReadPathBenchmarkTest {
     private DishAttributeValueMapper valueMapper;
     private DishServiceImpl dishService;
 
-    /** 默认视图样本（A6）：条件空 + `random`（= 旧口径的「为你推荐」） */
-    private static DishFilterView defaultView() {
+    /** 视图样本（A6）：逻辑（空条件 + `random`）由 DishViewDefs 按 key 提供，表行只给展示态 */
+    private static DishFilterView sampleView() {
         DishFilterView v = new DishFilterView();
         v.setId(1L);
         v.setKey("recommend");
         v.setLabel("为你推荐");
         v.setOrder(1);
         v.setEnabled(true);
-        v.setIsDefault(true);
-        v.setConditions(null);
-        v.setSortKind("random");
         return v;
     }
 
@@ -163,9 +160,9 @@ class DishReadPathBenchmarkTest {
         DishAttributeCatalog catalog = new DishAttributeCatalog(dimensionMapper, valueMapper,
                 CacheConfig.buildCacheManager());
         // 视图目录打桩：A6 后 listDishes 走**查表**取视图行（未登记 → 4001 之前先 400），
-        // 故此处桩定默认视图（random + 无条件），等价于旧口径的「为你推荐」
+        // 故此处桩定一个视图（random + 无条件，即「为你推荐」）
         DishViewCatalog viewCatalog = mock(DishViewCatalog.class);
-        when(viewCatalog.byKey(any())).thenReturn(defaultView());
+        when(viewCatalog.byKey(any())).thenReturn(sampleView());
         dishService = new DishServiceImpl(dishMapper, stallService, publisher, imageUrlUtil, catalog,
                 attributeAdminService, mock(DishCategoryAdminService.class), viewCatalog);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);

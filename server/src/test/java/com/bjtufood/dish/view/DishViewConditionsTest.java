@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * 视图条件引擎的**白名单护栏**单测（安全底线，口径见
- * docs/schema/dish_filter_view.md 的「条件语言是有限语言」与 docs/web/A-主数据维护/A6-首页筛选视图管理.md）。
+ * docs/schema/dish_filter_view.md 的「条件语言是有限语言」与 docs/func/web/A-主数据维护/A6-首页筛选视图管理.md）。
  * <p>
  * 这里断言的是「**不能**做什么」：任何白名单外的字段 / 操作符 / 取值形态一律 `400`，
  * 且全部取值**参数化**绑定（不拼接进 SQL 文本）。

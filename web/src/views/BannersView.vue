@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * A5 首页 Banner 管理（页面规格见 [列表页模板.md 的 A5 差异节](../../../docs/web/ui/列表页模板.md)）。
+ * A5 首页 Banner 管理（页面规格见 [列表页模板.md 的 A5 差异节](../../../docs/ui/web/列表页模板.md)）。
  *
  * <p>要点：卡片网格、**不分页不筛选**（启用 ≤6）；**拖拽排序**（提交**全量行**）；
  * 新增 / 编辑 = **抽屉**（**含图片上传 ⇒ 按基线 §1.10 判据走抽屉**，不用弹窗）；
  * 启停为**显式传目标状态**（非 toggle）。
  */
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import { useReorder } from '@/composables/useReorder'
 import {
@@ -22,7 +23,7 @@ import type { BannerAdminVO, BannerSaveReq } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
 const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
@@ -83,11 +84,7 @@ async function toggle(row: BannerAdminVO): Promise<void> {
 
 async function remove(row: BannerAdminVO): Promise<void> {
   try {
-    await ElMessageBox.confirm('确认删除该 Banner？删除后首页轮播立即不再展示。', '删除 Banner', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await confirmDelete('确认删除该 Banner？删除后首页轮播立即不再展示。', { title: '删除 Banner' })
   } catch {
     return
   }
@@ -114,11 +111,15 @@ onMounted(() => load())
     </div>
 
     <!-- 四态：加载 / 会话失效 / 错误 / 空 / 有数据 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="load" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无 Banner" />
-    <div v-else-if="hasData" class="banner-grid">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无 Banner"
+      @retry="load"
+    />
+    <div v-if="hasData" class="banner-grid">
       <div
         v-for="(row, index) in items"
         :key="row.id"
@@ -149,7 +150,7 @@ onMounted(() => load())
     <BaseDrawer :title="title" :open="open" @close="open = false">
       <div class="field">
         <label>Banner 图片</label>
-        <ImageUpload v-model="bannerImages" :max="1" ratio-hint="建议 750×320" />
+        <ImageUpload v-model="bannerImages" :max="1" ratio-hint="建议 750×320" :aria-label="'Banner 图片'" />
         <div class="hint">单张、建议比例 750:320；上传成功后地址由服务端返回</div>
       </div>
       <template #actions>

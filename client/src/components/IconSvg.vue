@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 纯展示组件：不向外派发任何事件（MP-017，可点元素由父级自行绑定 @tap） -->
   <view class="icon-svg" :style="rootStyle">
     <!-- 微信小程序无原生 <svg> 组件，改用 <image> + SVG data-uri 渲染矢量图标，
@@ -93,9 +93,9 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   // 我的（人形实心：头部为实心圆 + 肩部闭合半圆，避免填充开放弧线导致形状畸变）
   'profile-filled': { path: ['M4 21a8 8 0 0 1 16 0z'], circle: [{ cx: 12, cy: 8, r: 4, fill: 'currentColor' }], fill: true },
   'badge-check': { circle: [{ cx: 12, cy: 12, r: 9.2 }], path: ['m8.2 12.3 2.6 2.6 5-5.2'] },
-  // 提示（信息圈 + 短竖线 + 圆点）：菜品纠错页顶部提示横幅前导图标（禁 emoji 的语义替代）
+  // 提示（信息圈 + 短竖线 + 圆点）：菜品问题反馈页顶部提示横幅前导图标（禁 emoji 的语义替代）
   info: { circle: [{ cx: 12, cy: 12, r: 9.2 }], path: ['M12 11.2v5.2', 'M12 7.6h.01'] },
-  // 警示（信息圈 + 感叹号）：菜品详情信息卡「信息有误?」前导图标（线性；禁 emoji 的语义替代）
+  // 警示（信息圈 + 感叹号）：菜品详情信息卡「菜品有问题?」前导图标（线性；禁 emoji 的语义替代）
   alert: { circle: [{ cx: 12, cy: 12, r: 9.2 }], path: ['M12 7.6v5.2', 'M12 16.4h.01'] },
   // ── feedback-forms-ux-polish：圆润填充（胖）glyph（意见反馈页顶部/选项等使用；SVG data-uri，禁 emoji） ──
   // 灯泡实心（提个想法）：圆润灯身 + 灯座

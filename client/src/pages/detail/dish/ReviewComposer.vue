@@ -15,7 +15,7 @@
     @close="onClose"
   >
     <view class="rc-body">
-      <!-- 菜名副标题：BaseSheet 头部之下、星级之上（纠错入口不在此处 —— 见信息卡名称行「信息有误?」） -->
+      <!-- 菜名副标题：BaseSheet 头部之下、星级之上（纠错入口不在此处 —— 见信息卡名称行「菜品有问题?」） -->
       <text class="rc-dish">{{ dishName }}</text>
 
       <!-- 星级：1-5 必填；未选 outline 浅灰、已选填充主色 -->

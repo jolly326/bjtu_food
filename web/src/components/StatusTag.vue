@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 状态标签（[UI 基线 §2.3](../../../docs/web/ui/公共组件与形态基线.md)）。
+ * 状态标签（[UI 基线 §2.3](../../../docs/ui/web/公共组件与形态基线.md)）。
  *
- * <p><b>文案单一真源</b> = [设计变量.md 的「状态文案总表」](../../../docs/web/ui/设计变量.md) ——
+ * <p><b>文案单一真源</b> = [设计变量.md 的「状态文案总表」](../../../docs/ui/web/设计变量.md) ——
  * 页面**只传 `status` + `kind`**，不自定义文案、不自写 `.tag-*`。
  *
  * <p>`kind` 决定「用哪组文案」（不改变文案本身）：
@@ -11,9 +11,18 @@
  * - `user`：正常 / 已禁用 / 已注销
  * - `feedback`：待处理 / 已处理
  * - `correction`：待处理 / 已采纳 / 已拒绝
+ * - **`correctionType`：信息有误 / 已经下架**（菜品问题反馈的**类型列**，两档同为中性灰 ——
+ *   「已经下架」不是错误，与 `dish` 的「已下架」同色档）
  * - `review`：显示中 / 已隐藏（传 `visible` / `hidden`）
  */
-export type StatusKind = 'onoff' | 'dish' | 'user' | 'feedback' | 'correction' | 'review'
+export type StatusKind =
+  | 'onoff'
+  | 'dish'
+  | 'user'
+  | 'feedback'
+  | 'correction'
+  | 'correctionType'
+  | 'review'
 
 const props = defineProps<{
   status: string
@@ -38,8 +47,11 @@ const LABELS: Record<string, string> = {
 }
 
 function label(): string {
-  if (props.kind === 'dish') return props.status === 'on' ? '在售' : '已下架'
-  return LABELS[props.status] ?? props.status
+  const s = props.status
+  if (props.kind === 'dish') return s === 'on' ? '在售' : '已下架'
+  // 反馈类型（`field` / `gone`）：两者都是「用户在说什么」，不是处理结论 —— 两档均中性灰
+  if (props.kind === 'correctionType') return s === 'gone' ? '已经下架' : '信息有误'
+  return LABELS[s] ?? s
 }
 
 function cls(): string {
@@ -50,6 +62,7 @@ function cls(): string {
     if (s === 'disabled') return 'tag tag-gray'
     return 'tag tag-red'
   }
+  if (props.kind === 'correctionType') return 'tag tag-gray'
   if (props.kind === 'feedback' || props.kind === 'correction') {
     if (s === 'pending') return 'tag tag-gray'
     if (s === 'handled' || s === 'adopted') return 'tag tag-green'

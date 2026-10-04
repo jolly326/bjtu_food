@@ -3,19 +3,19 @@ package com.bjtufood.dish.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.dish.dto.DishViewCondition;
-import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishFilterView;
 import com.bjtufood.dish.mapper.DishFilterViewMapper;
 import com.bjtufood.dish.mapper.DishMapper;
 import com.bjtufood.dish.view.DishViewConditions;
+import com.bjtufood.dish.view.DishViewDefs;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -25,12 +25,16 @@ import java.util.List;
  * <b>自调用不过代理</b>；把「可缓存的目录数据」抽成独立 bean，由 service 注入调用，代理必然生效。
  *
  * <p><b>下发规则</b>（契约见 docs/schema/dish_filter_view.md 的「客户端可见性」）：
- * 只下发 `enabled = 1` 的视图，且**匹配数为 0 的不下发**（避免点进空列表），
- * **默认视图恒下发**（它是空 `view` 的落点）；顺序 = `order` 升序、**默认视图排首位**。
+ * 只下发 `enabled = 1` 的视图，且**匹配数为 0 的不下发**（避免点进空列表），顺序 = `order` 升序。
+ * 无「默认视图」概念：空 `view` 取**首个启用视图**。
  *
- * <p><b>缓存</b>：`all()` 走 `@Cacheable`（TTL 见 {@link CacheConfig}）；A6 的写入口
- * （视图 / 分类值的增删改、排序、设默认）一律调用 {@link #invalidateViews()} 显式失效，做到**保存即生效**。
+ * <p><b>逻辑取自代码</b>：视图的筛选条件与排序口径不落库，按 `key` 从 {@link DishViewDefs} 取；
+ * 表行的 `key` 在 {@code DishViewDefs} 无定义 ⇒ 逻辑缺失，该视图**不下发**、按键解析返回 `null`。
+ *
+ * <p><b>缓存</b>：`visible()` 走 `@Cacheable`（TTL 见 {@link CacheConfig}）；A6 的写入口
+ * （视图改文案启停、排序）一律调用 {@link #invalidateViews()} 显式失效，做到**保存即生效**。
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DishViewCatalog {
@@ -53,23 +57,28 @@ public class DishViewCatalog {
                 .orderByAsc(DishFilterView::getId)));
     }
 
-    /** 默认视图（`is_default = 1`；应用层保证全站恰一个）。约定缺失时返回 {@code null}。 */
-    public DishFilterView defaultView() {
-        return all().stream().filter(v -> Boolean.TRUE.equals(v.getIsDefault())).findFirst().orElse(null);
-    }
-
     /**
-     * 按键解析视图：空 = 默认视图；未登记 = {@code null}（由调用方按白名单非法值抛 `400`，不静默降级）。
+     * 按键解析视图：空 = **首个启用视图**（按 `order` 升序）；未登记 / 逻辑无定义 = {@code null}
+     * （由调用方按白名单非法值抛 `400`，不静默降级）。
+     * <p>
+     * 「逻辑无定义」指表行的 `key` 在 {@link DishViewDefs} 中不存在 —— 此时无筛选条件与排序口径可用。
      */
     public DishFilterView byKey(String key) {
+        DishFilterView view;
         if (key == null || key.isBlank()) {
-            return defaultView();
+            view = all().stream().filter(v -> Boolean.TRUE.equals(v.getEnabled())).findFirst().orElse(null);
+        } else {
+            view = all().stream().filter(v -> key.equals(v.getKey())).findFirst().orElse(null);
         }
-        return all().stream().filter(v -> key.equals(v.getKey())).findFirst().orElse(null);
+        if (view != null && !DishViewDefs.contains(view.getKey())) {
+            log.warn("筛选视图 key 在 DishViewDefs 无定义，按未登记处理：key={}, id={}", view.getKey(), view.getId());
+            return null;
+        }
+        return view;
     }
 
     /**
-     * 端上可见视图（`enabled` + 匹配数规则；默认视图排首位）。
+     * 端上可见视图（`enabled` + 匹配数规则；`order` 升序）。
      * <p>
      * <b>缓存的是本方法的结果</b>（而非原始行）：判定可见性需要**逐视图一次计数查询**，
      * 只缓存原始行会让「第二次进首页」依旧发 N 次计数 —— 那正是这次缓存要省掉的成本。
@@ -83,38 +92,43 @@ public class DishViewCatalog {
     public List<DishFilterView> visible() {
         List<DishFilterView> result = new ArrayList<>();
         for (DishFilterView view : all()) {
-            boolean isDefault = Boolean.TRUE.equals(view.getIsDefault());
             if (!Boolean.TRUE.equals(view.getEnabled())) {
                 continue;
             }
-            // 匹配数为 0 不下发（避免用户点进空列表）；默认视图恒下发（空 view 的落点）
-            if (!isDefault && matchedCount(view) == 0) {
+            DishViewDefs.Def def = DishViewDefs.byKey(view.getKey());
+            if (def == null) {
+                // 逻辑无定义（表行 key 与 DishViewDefs 不一致）：不下发，避免端上点到无筛选语义的 tab
+                log.warn("筛选视图 key 在 DishViewDefs 无定义，不下发：key={}, id={}", view.getKey(), view.getId());
+                continue;
+            }
+            // 匹配数为 0 不下发（避免用户点进空列表）
+            if (matchedCount(def.conditions()) == 0) {
                 continue;
             }
             result.add(view);
         }
-        // 默认视图排首位；其余保持 order 升序（all() 已排序）
-        result.sort(Comparator.comparing((DishFilterView v) -> !Boolean.TRUE.equals(v.getIsDefault())));
+        // all() 已按 order 升序、id 稳定排序
         return List.copyOf(result);
     }
 
     /**
-     * 某视图当前匹配的**在售**菜品数。
+     * 某视图当前匹配的**在售**菜品数（条件按 `key` 从 {@link DishViewDefs} 取）。
      *
-     * @param view 视图行（`conditions` JSON 为原文）
+     * @param view 视图行；`key` 在 {@link DishViewDefs} 无定义时计 0（管理端列表照常展示该行）
      */
     public long matchedCount(DishFilterView view) {
-        return matchedCount(DishViewConditions.parse(view.getConditions()));
+        DishViewDefs.Def def = view == null ? null : DishViewDefs.byKey(view.getKey());
+        return def == null ? 0L : matchedCount(def.conditions());
     }
 
     /**
-     * 给定条件命中的**在售**菜品数（预览端点复用同一口径）。
+     * 给定条件命中的**在售**菜品数。
      */
     public long matchedCount(List<DishViewCondition> conditions) {
         return dishMapper.selectCount(DishViewConditions.toWrapper(conditions, true));
     }
 
-    /** 失效视图目录缓存：A6 的一切写入口（视图 / 分类值）都须调用，做到保存即生效。 */
+    /** 失效视图目录缓存：A6 的一切写入口（视图改文案启停 / 排序）都须调用，做到保存即生效。 */
     public void invalidateViews() {
         Cache cache = cacheManager.getCache(CacheConfig.DISH_VIEWS);
         if (cache == null) {
@@ -124,15 +138,5 @@ public class DishViewCatalog {
                     "缓存未装配：CacheManager 中找不到 " + CacheConfig.DISH_VIEWS + "，检查 CacheConfig");
         }
         cache.clear();
-    }
-
-    /** 抽样菜名（预览用，供管理员判断条件对不对；只取 id + name，避免拉全行） */
-    public List<String> sampleNames(List<DishViewCondition> conditions, int limit) {
-        return dishMapper.selectList(DishViewConditions.toWrapper(conditions, true)
-                        .select("id", "name")
-                        .last("LIMIT " + Math.max(1, limit)))
-                .stream()
-                .map(Dish::getName)
-                .toList();
     }
 }

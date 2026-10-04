@@ -2,7 +2,7 @@ package com.bjtufood.auth.event;
 
 /**
  * 账号归属迁移事件（P0-1 跨域写侧解耦）：把 {@code fromUserId} 账号下的业务数据改挂到
- * {@code toUserId}（spec §5.y.3，触发场景 = 学号邮箱认证时的「替换绑定」与「历史邮箱注册账号并入当前微信」）。
+ * {@code toUserId}（触发场景 = 学号邮箱认证时的「替换绑定」与「历史邮箱注册账号并入当前微信」）。
  * <p>
  * 发布方：{@code AuthServiceImpl.migrateOwnership}（auth 域，事务内发布，等价于原三处内联写库的位置）。
  * 订阅方（各域自理本域表，auth 不再持有他域 Mapper）：

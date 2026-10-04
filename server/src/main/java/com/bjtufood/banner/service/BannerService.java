@@ -24,7 +24,7 @@ public interface BannerService {
      */
     List<BannerVO> listBanners();
 
-    // ==================== 管理端写契约（A5，docs/web/A-主数据维护/A5-首页Banner管理.md） ====================
+    // ==================== 管理端写契约（A5，docs/api/web/banners.md） ====================
 
     /**
      * 管理端 Banner 列表（按 `order` 升序；**含已停用**；不分页）。

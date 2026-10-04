@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 拖拽排序提交的**统一校验与归一**（六个 {@code PUT .../sort} 共用，口径见 docs/web/README.md）。
+ * 拖拽排序提交的**统一校验与归一**（六个 {@code PUT .../sort} 共用，口径见 docs/api/README.md）。
  *
  * <p>校验四件套（任一命中 → `400`「排序提交非法」）：
  * <ol>

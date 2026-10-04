@@ -19,7 +19,7 @@ public class DishAdminReq {
     private Long stallId;
 
     /**
-     * 档口名称（§7.23 第 1 条：食堂/档口随菜品按名 upsert）。
+     * 档口名称（食堂/档口随菜品按名 upsert）。
      * 传有效名称时优先生效：字典存在同名档口则复用其 ID，不存在则由后端自动建档（同名不重复建档）；
      * 「其他」等空值语义名称不建档（视为未传，回退 stallId 逻辑）。
      */

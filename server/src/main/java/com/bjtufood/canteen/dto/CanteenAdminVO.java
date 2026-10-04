@@ -16,7 +16,7 @@ public class CanteenAdminVO {
     @Schema(description = "食堂名称", example = "第一食堂")
     private String name;
 
-    /** 其下档口数（联表统计，供删除前判断与列表展示；口径见 docs/web/A-主数据维护/A1-食堂管理.md） */
+    /** 其下档口数（联表统计，供删除前判断与列表展示；口径见 docs/api/web/stalls.md） */
     @Schema(description = "其下档口数", example = "3")
     private Long stallCount;
 

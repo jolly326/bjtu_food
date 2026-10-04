@@ -2,7 +2,7 @@
   <!-- 意见反馈 · 表单字段区：
        ① 反馈类型（必填，竖排单选，选中项左侧橙色勾）
        ② 具体描述（必填，≤600 字、字数常显标题行右上角，占位文案随类型切换）
-       ③ 上传截图（选填，≤1 张）
+       ③ 上传截图（选填，≤3 张，与 `UGC_IMAGE_MAX` 同源）
        表单自身不带卡片壳（白卡由页面 .q-card 提供）。 -->
   <view class="fb-form">
     <!-- ① 反馈类型：竖排单选。整行可点，命中区 ≥88rpx -->
@@ -63,13 +63,14 @@
       <text v-if="model.type === 'other'" class="field-help">若发现菜品资料有误，请前往对应菜品详情页提交纠错</text>
     </view>
 
-    <!-- ③ 上传截图（选填，**≤1 张**，与文档 / 后端 `images ≤1` 同口径）；破图走统一 ImagePlaceholder -->
+    <!-- ③ 上传截图（选填，**≤3 张**，上限取 `UGC_IMAGE_MAX`，与服务端 `FeedbackConst.IMAGE_MAX` 同源）；
+         破图走统一 ImagePlaceholder -->
     <view class="field">
       <text class="field-label">上传截图</text>
       <ImagePicker
         ref="imagePickerRef"
         :model-value="model.images"
-        :max="1"
+        :max="IMAGE_MAX"
         :disabled="submitting"
         @update:model-value="onImagesChange"
         @pick="emit('pick-image')"
@@ -86,6 +87,7 @@ import { ref } from 'vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import type { PickSource } from '@/components/imagePickSource'
+import { UGC_IMAGE_MAX as IMAGE_MAX } from '@/constants/ugc'
 import { CONTENT_MAX } from './useFeedback'
 
 const props = defineProps<{

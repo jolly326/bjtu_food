@@ -60,7 +60,7 @@
            无评分时评分组不渲染，价格仍靠右（price-group margin-left:auto）。 -->
       <view class="meta-row">
         <view v-if="item.rating != null" class="rating-group">
-          <!-- 星色 = 独立语义色（黄），不随主色换肤（§4.2）；必须传实色（data-uri 不解析 var()） -->
+          <!-- 星色 = 独立语义色（黄），不随主色换肤；必须传实色（data-uri 不解析 var()） -->
           <IconSvg name="star-filled" :size="36" :color="COLOR_MAP['star']" class="rating-star" />
           <text class="rating-num">{{ formatRating(item.rating) }}</text>
         </view>

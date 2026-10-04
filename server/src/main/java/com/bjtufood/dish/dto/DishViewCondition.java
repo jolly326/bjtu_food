@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 视图筛选条件的一项（`{ field, op, value }`）—— **有限语言**的一元。
  *
- * <p>契约真源：docs/web/A-主数据维护/A6-首页筛选视图管理.md 的「筛选字段白名单」。
+ * <p>契约真源：docs/api/web/views.md 的「筛选字段白名单」。
  * <b>字段 / 操作符 / 值三层白名单</b>：后台不可写 SQL / 表达式 / 函数，全部经
  * {@code DishViewConditions} 校验后**参数化**绑定。
  *

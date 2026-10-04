@@ -43,6 +43,26 @@ public interface CorrectionService {
     IPage<DishCorrectionAdminVO> listForAdmin(String status, Long dishId, int page, int pageSize);
 
     /**
+     * 管理端问题反馈列表（分页；按 `createdAt DESC`）——<b>支持按 {@code type} 筛选</b>。
+     * <p>
+     * 管理端按类型分 Tab 展示（信息有误 / 已经下架）；{@code type} 不传 = 全部（含存量 field 记录）。
+     *
+     * @param status 处理状态（`pending`/`adopted`/`rejected`；可空 = 全部；非法值 `400`）
+     * @param type   问题类型（`field`/`gone`；可空 = 全部；非法值 `400`）
+     * @param dishId 按目标菜品筛选（可空；从菜品视角看反馈）
+     */
+    IPage<DishCorrectionAdminVO> listForAdmin(String status, String type, Long dishId, int page, int pageSize);
+
+    /**
+     * 待处理的「已经下架」反馈数（管理端「疑似下架」参考值）。
+     * <p>
+     * ⚠️ <b>仅作参考展示，不是下架阈值</b> —— ≥1 条即进待办，是否下架由管理员人工决定。
+     *
+     * @return {@code type=gone} 且 {@code status=pending} 的条数
+     */
+    long countPendingGone();
+
+    /**
      * 待办计数（运营看板）：status=pending 的总数。
      * <p>
      * 等价于 {@code listForAdmin("pending", null, 1, 1).getTotal()}，但免去一次 LIMIT 1 列表查询。

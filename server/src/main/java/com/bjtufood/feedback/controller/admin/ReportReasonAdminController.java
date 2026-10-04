@@ -27,7 +27,7 @@ import java.util.List;
 /**
  * A7 举报原因管理（管理端）。
  *
- * <p>契约真源：docs/web/A-主数据维护/A7-举报原因管理.md。
+ * <p>契约真源：docs/api/web/report-reasons.md。
  * <p><b>没有「改机器值」的端点</b> —— `value` 是历史举报的数据锚点，在用后不可改；要改就停用旧值、新建一个。
  * <p>公开只读端点仍是 {@code GET /report-reasons}（`FeedbackController`），出参结构不变（只下发启用项）。
  */

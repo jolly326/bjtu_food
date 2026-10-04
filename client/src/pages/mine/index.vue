@@ -14,7 +14,7 @@
       <!-- 卡片 A：个人信息 + 快捷功能 -->
       <view class="mine-card">
         <!-- 用户信息模块（卡片 A 内第 1 段）：认证态 = 昵称 + 校园邮箱；游客态 = 昵称 +「未完成校园认证」。
-             内容与排版真源见 docs/client/ui/README.md §身份卡。
+             内容与排版真源见 docs/ui/client/README.md §身份卡。
              整段点击进入「我的主页」（游客与认证态同达，无认证拦截）；
              认证动作的单一入口为宫格「身份认证」格，本段不放「去认证」按钮 -->
         <IdentityCard
@@ -92,7 +92,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { showTab } from '@/stores/route'
+import { useRouteStore } from '@/stores/route'
+const routeStore = useRouteStore()
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -125,7 +126,7 @@ onLoad(() => {
 // 每次进入「我的」刷新未读通知数（宫格红点角标；消息中心为登录级能力，游客与认证态同权刷新）
 onShow(() => {
   // 锚定底部菜单栏：我的页始终显示并高亮
-  showTab(TAB_PROFILE)
+  routeStore.showTab(TAB_PROFILE)
   notifyStore.fetchUnread()
 })
 

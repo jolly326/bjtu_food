@@ -9,8 +9,7 @@
     <!-- 页面无页签：两种形态由**进入方式**决定，页面上不暴露切换入口 -->
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
       <view class="q-card">
-        <!-- 单表单（默认：「我的」页宫格进入）—— 反馈类型 3 选 1 + 具体描述 + 截图（≤1 张）+ 本地草稿；
-             纠错表单（`mode=update`：菜品详情底栏「反馈错误」带 dishId 跳入）—— 自动填好这道菜，只改差异项。
+        <!-- 单表单（「我的」页宫格进入）：反馈类型 3 选 1 + 具体描述 + 截图（≤3 张）+ 本地草稿；
              submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1 口径沿用） -->
         <IssueForm
           ref="issueFormRef"
@@ -27,7 +26,7 @@
       <!-- 提交反馈（表单最下方，随内容滚动）：
            外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast -->
       <view class="submit-area" @tap="onSubmitAreaTap">
-        <!-- 处理承诺：issue 沿用 48 小时口径；update 强调管理员核实后更新（不得暗示提交即生效） -->
+        <!-- 处理承诺：48 小时内处理（不得暗示提交即生效） -->
         <AppButton
           :text="submitButtonText"
           :disabled="!canSubmit"
@@ -50,12 +49,12 @@
 
 <script setup lang="ts">
 /**
- * feedback —— 意见反馈页（**面向小程序本身的通用反馈**，与菜品纠错解耦）
+ * feedback —— 意见反馈页（**面向小程序本身的通用反馈**）
  * - 反馈类型 3 选 1（程序功能Bug / 产品功能建议 / 其他相关问题），竖排单选、选中项左侧橙色勾；
- * - 固定一套字段：具体描述（≤600 字、占位随类型切换、字数常显右上角）+ 截图（选填 ≤1 张）—— **不再有第二套表单**；
+ * - 固定一套字段：具体描述（≤600 字、占位随类型选择、字数常显右上角）+ 截图（选填 ≤3 张）；
  * - 提交 `POST /feedback`（type ∈ bug / suggestion / other）；
  * - 入口：「我的」页宫格（搜索页「没搜到 → 推荐这道菜」同页复用）；
- * - **菜品纠错已迁出为独立页面** `pages/correction/`（仅菜品详情页底栏「反馈错误」进入）；
+ * - 菜品资料有误 / 已经下架走**独立页面** `pages/correction/`（菜品问题反馈，入口「菜品有问题?」）；
  * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件仅 `IssueForm`。
  */
 import { computed, ref } from 'vue'

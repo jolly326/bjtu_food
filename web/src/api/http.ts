@@ -1,7 +1,7 @@
 /**
  * fetch 封装（web 依赖无 axios）：注入管理端口令、解析 Result<T>、统一错误处理。
  *
- * <p><b>鉴权口径</b>（真源 [C1 管理员登录与访问控制](../../../docs/web/C-账号与访问/C1-管理员登录与访问控制.md)）：
+ * <p><b>鉴权口径</b>（真源 [C1 管理员登录与访问控制](../../../docs/api/web/auth.md)）：
  * **无登录体系** —— 口令由**构建期注入**（`VITE_ADMIN_TOKEN`）并以请求头
  * `X-Admin-Token` 携带（与后端 `AdminTokenFilter` 对应）；口令不匹配 / 账号受限 = **403 = 会话失效**，
  * **不存在 401 分支**，也不做任何登录页跳转（无 `Bearer` 令牌与 `/login` 体系）。
@@ -9,7 +9,7 @@
 import { ADMIN_TOKEN, API_BASE_URL } from './config'
 import { CODE_FORBIDDEN, CODE_OK, type AdminPage } from '@/types/common'
 
-export class ApiError extends Error {
+class ApiError extends Error {
   code: number
   constructor(code: number, message: string) {
     super(message)
@@ -19,9 +19,9 @@ export class ApiError extends Error {
 
 /**
  * 会话失效（403）固定文案 —— 页面据此渲染「会话失效态」且**不渲染重试**
- * （重试必然再失败，见 [UI 基线 §1.5 ⑥](../../../docs/web/ui/公共组件与形态基线.md)）。
+ * （重试必然再失败，见 [UI 基线 §1.5 ⑥](../../../docs/ui/web/公共组件与形态基线.md)）。
  */
-export const SESSION_INVALID_MESSAGE =
+const SESSION_INVALID_MESSAGE =
   '管理员口令校验失败（403），请检查构建期注入的 ADMIN_TOKEN'
 
 /** 是否为「会话失效」（403）：页面用它把第 ⑥ 态与普通错误态区分开 */

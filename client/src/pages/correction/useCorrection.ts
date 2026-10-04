@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 楼层固定字典（R40 · UI 稿「楼层控件」）：**存储值 ↔ 展示汉字**双向映射，端上常量。
  *
  * ⚠️ **只存在于端上**：后端 `floor` 契约（string、非空、≤16）与落库值（`B1` / `1F` …）**全部不变**，
@@ -30,9 +30,9 @@ export function floorDisplay(raw: string): [string, boolean] {
 }
 
 /**
- * useCorrection —— 菜品信息纠错页（pages/correction/index.vue）编排逻辑
+ * useCorrection —— 菜品问题反馈页（pages/correction/index.vue）编排逻辑
  *
- * **独立页面**（与「意见反馈」解耦）：入口**唯一** —— 菜品详情页信息卡名称行「信息有误?」；
+ * **独立页面**（与「意见反馈」解耦）：入口**唯一** —— 菜品详情页信息卡名称行「菜品有问题?」；
  * 进页即按导航参数 `dishId` **锚定该菜品**（页内不提供切换入口），拉详情预填全部字段，
  * 用户只改错的地方 → **只提交改动过的项**（局部提交 / patch），未改动的不上传。
  *
@@ -50,12 +50,12 @@ import { createDishCorrection } from '@/api/feedback'
 import { getDishDetail, listDishEditAttributes } from '@/api/dish'
 import { isResourceNotFound } from '@/api/errors'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
-import type { DishCorrectionPayload } from '@/types/feedback'
+import type { DishCorrectionPayload, DishProblemType } from '@/types/feedback'
 import { buildCorrectionDiff, priceValid as isPriceValid, snapshotAttributes } from './correctionDiff'
 import { backToHome } from '@/utils/back'
 import { joinLocation } from '@/utils/dish'
 import { toastInfo, toastSuccess } from '@/utils/error'
-import { CORRECTION_IMAGE_MAX } from '@/constants/ugc'
+import { CORRECTION_IMAGE_MAX, GONE_IMAGE_MAX } from '@/constants/ugc'
 
 /** 描述属性编辑项（表单内一个维度的可编辑模型） */
 export interface AttributeEditor {
@@ -108,12 +108,27 @@ export function useCorrection() {
   // ---- ① 锚定菜品与表单字段 ----
   /** 进页即由导航参数锚定（页内不可切换） */
   const dishId = ref(0)
+
+  /**
+   * **问题类型**（进页第一屏由 `TypePicker` 选定）。
+   *
+   * <p>**先选类型再进表单** —— 两类的表单与字段完全不同：
+   * `field` 要拉详情预填七个改动项；`gone` 一键提交、无需任何字段。
+   *
+   * <p>**初值空串 = 尚未选择**：UI 稿硬口径「**不选类型不得进入表单**」
+   * （避免进错表单再回退），故不给默认类型、未选时不渲染任何表单。
+   */
+  const problemType = ref<DishProblemType | ''>('')
+  /** 是否已选类型（未选 ⇒ 只渲染第一屏类型选择） */
+  const typeChosen = computed(() => problemType.value !== '')
+  /** 是否 `gone` 型（模板分派用，避免散落的 `problemType === 'gone'` 判断） */
+  const isGone = computed(() => problemType.value === 'gone')
   /**
    * 预填数据源（`GET /dishes/{id}`）；预填未完成时禁止提交。
-   * 初值 **true**（返工口径）：`onLoad` 之前即视为「载入中」⇒ 首帧不渲染全空表单，
-   * 避免预填就绪前用户面对空字段（乃至误提交空改动）。
+   * 初值 **false**：类型先行 ⇒ 未选 `field` 之前**不发请求**（`gone` 型全程不拉详情），
+   * 由 {@link selectType} 在首次切到 `field` 时才置 true 并拉取。
    */
-  const loading = ref(true)
+  const loading = ref(false)
   /** 菜品不存在 / 已下架（后端 4001）：与网络失败区别对待，只给返回 */
   const notFound = ref(false)
   /** 预填请求失败（网络 / 服务端故障，可重试） */
@@ -153,8 +168,15 @@ export function useCorrection() {
     attributes: {} as Record<string, string[]>,
   })
 
+  /**
+   * `field` 型详情**是否已发起过**预填请求（唯一防抖锚点）。
+   * 用户在两项类型间来回点按不会重复打接口；失败态由 `retryLoad` 显式重试。
+   */
+  const detailRequested = ref(false)
+
   // ---- ② 进页预填（详情 + 编辑态候选并行） ----
   async function loadDish(id: number) {
+    detailRequested.value = true
     loading.value = true
     loadFailed.value = false
     notFound.value = false
@@ -222,16 +244,47 @@ export function useCorrection() {
     return loadDish(dishId.value)
   }
 
-  // ---- ③ 改动项（局部提交口径）：只上传「当前值 ≠ 预填值」的字段 ----
-  /** 与基线逐项比对得出的**改动集合**（即提交请求体；空对象 = 无改动） */
-  // 比对口径（有序/无序、金额元→分、维度集合）已抽至 correctionDiff.ts：
-  // 那里是无副作用纯函数，可被单测直接覆盖；此处只负责喂入响应式数据。
-  const diff = computed<DishCorrectionPayload>(() =>
-    buildCorrectionDiff(dishName.value, form, baseline),
-  )
+  /**
+   * 选定 / 切换**问题类型**（第一屏单选，也允许在表单上方改选 ——「表单随类型切换」）。
+   *
+   * <p>**懒加载**：只有切到 `field` 时才拉详情预填（一次），`gone` 型**全程不拉**
+   * （硬约束 3：少一次网络请求 = 更快 = 更可能提交成功）。
+   *
+   * <p>提交中忽略点按：换表单会让「正在提交的载荷」与「眼前的界面」错位。
+   */
+  function selectType(next: DishProblemType) {
+    if (submitting.value) return
+    problemType.value = next
+    if (next === 'field' && !detailRequested.value && dishId.value > 0) {
+      void loadDish(dishId.value)
+    }
+  }
 
-  /** 是否有改动（无改动 ⇒ 禁用提交：局部提交下无可提交内容，后端也会 400「未提交任何改动」） */
-  const hasChange = computed(() => Object.keys(diff.value).length > 0)
+  // ---- ③ 改动项（局部提交口径）：只上传「当前值 ≠ 预填值」的字段 ----
+  /**
+   * 与基线逐项比对得出的**改动集合**（即提交请求体；空对象 = 无改动）。
+   *
+   * 比对口径（有序/无序、金额元→分、维度集合）已抽至 correctionDiff.ts：
+   * 那里是无副作用纯函数，可被单测直接覆盖；此处只负责喂入响应式数据。
+   *
+   * ⚠️ **必须携带 `type`**（后端**必填**，不做「不传即 field」的兜底）。
+   * 本页当前只实现 `field`（信息有误）形态；`gone` 型「一键提交」由独立的类型选择流程提交
+   * （载荷仅 `{ type:'gone', note?, images? }`，无差异项）。
+   */
+  const diff = computed<DishCorrectionPayload>(() => ({
+    type: 'field',
+    ...buildCorrectionDiff(dishName.value, form, baseline),
+  }))
+
+  /**
+   * 是否有改动（无改动 ⇒ 禁用提交：局部提交下无可提交内容，后端也会 400「未提交任何改动」）。
+   *
+   * ⚠️ **判据须排除 `type`** —— `diff` 已固定携带 `type:'field'`（后端必填），
+   * 若直接用 `Object.keys().length` 判空，恒为「有改动」⇒ 提交按钮永远可点 ⇒ 空改动会被后端 400。
+   */
+  const hasChange = computed(
+    () => Object.keys(diff.value).some((k) => k !== 'type'),
+  )
 
   // ---- ④ 提交门禁 ----
 
@@ -355,17 +408,64 @@ export function useCorrection() {
     }
   }
 
-  // ---- ⑥ 落点参数：`dishId` 必带（详情页底栏跳入），进页即预填 ----
+  // ==================== `type=gone`（已经下架）· 一键提交 ====================
+
+  /**
+   * gone 型的选填补充（note ≤200 字 / images ≤3 张）。
+   * <p>**均可为空** —— 提交按钮恒可用（见 {@link GoneForm} 的硬约束 1）。
+   */
+  const goneNote = ref('')
+  const goneImages = ref<string[]>([])
+
+  /**
+   * gone 型提交：载荷**只含** `{type, note?, images?}`，**不带任何差异项**。
+   *
+   * <p>与 {@link submit} 的区别：
+   * <ul>
+   *   <li>**无字段门禁**（`collectSubmitErrors` 那套必填校验不适用）；</li>
+   *   <li>**不做 diff 比对**（无基线可比）；</li>
+   *   <li>失败**保留补充内容**（用户填的说明/图不丢，便于改后重试）。</li>
+   * </ul>
+   */
+  async function submitGone() {
+    if (submitting.value || cooling()) return
+    submitting.value = true
+    submitError.value = ''
+    try {
+      const note = goneNote.value.trim()
+      const images = goneImages.value.slice(0, GONE_IMAGE_MAX)
+      await createDishCorrection(dishId.value, {
+        type: 'gone',
+        // 空值不传（后端允许全不传；传空串会被当作"填了空白"）
+        ...(note ? { note } : {}),
+        ...(images.length ? { images } : {}),
+      })
+      clearCooldown()
+      toastSuccess('已收到，感谢反馈')
+      if (goBackTimer) clearTimeout(goBackTimer)
+      goBackTimer = setTimeout(backToHome, 1500)
+    } catch (e) {
+      handleRateLimit(e)
+      submitError.value = e instanceof Error && e.message ? e.message : '提交失败，请稍后再试'
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  // ---- ⑥ 落点参数：`dishId` 必带（详情页信息卡「菜品有问题?」跳入）；`type` 可选 ----
   onLoad((opts?: Record<string, string>) => {
     const id = Number(opts?.dishId ?? 0)
-    if (id > 0) {
-      dishId.value = id
-      void loadDish(id)
+    if (!(id > 0)) {
+      // 缺 dishId：本页不提供跨菜品选择（入口唯一），直接提示并返回
+      toastInfo('缺少菜品信息')
+      backToHome()
       return
     }
-    // 缺 dishId：本页不提供跨菜品选择（入口唯一），直接提示并返回
-    toastInfo('缺少菜品信息')
-    backToHome()
+    dishId.value = id
+    // 导航显式带 `type` ⇒ 预选该类型（供将来「从别处直接跳某型」用）；
+    // 常规入口（`correctionUrl(dishId)`）不带 ⇒ 进页停在**类型选择第一屏**，由用户选。
+    if (opts?.type === 'gone') selectType('gone')
+    else if (opts?.type === 'field') selectType('field')
   })
 
   /**
@@ -377,6 +477,14 @@ export function useCorrection() {
   return {
     /** 全页唯一返回实现（有返回栈 navigateBack；无返回栈 reLaunch 首页） */
     goBack: backToHome,
+    /** 问题类型（`TypePicker` 双向；决定下方渲染哪套表单；空串 = 未选） */
+    problemType,
+    /** 是否已选类型（未选 ⇒ 第一屏只渲染类型选择，不渲染表单） */
+    typeChosen,
+    /** 是否 `gone` 型（模板分派：`GoneForm` vs `CorrectionForm`） */
+    isGone,
+    /** 选定 / 切换问题类型（`field` 首次选中时才拉详情预填） */
+    selectType,
     dishName,
     dishLocation,
     loading,
@@ -392,6 +500,12 @@ export function useCorrection() {
     clearError,
     canSubmit,
     gateHint,
+    /** `field` 型提交（局部提交：只带改动项） */
     submit,
+    /** gone 型选填补充（v-model 双向） */
+    goneNote,
+    goneImages,
+    /** `gone` 型一键提交（无字段门禁；载荷只含 `{type, note?, images?}`） */
+    submitGone,
   }
 }

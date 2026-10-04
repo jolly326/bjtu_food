@@ -7,7 +7,7 @@ import lombok.Data;
 /**
  * 上下架请求（{@code PUT /admin/dishes/{id}/status}）。
  * <p>
- * 契约见 docs/web/A-主数据维护/A3-菜品管理.md：只改 {@code status}，`on` 上架 / `off` 下架；
+ * 契约见 docs/api/web/dishes.md：只改 {@code status}，`on` 上架 / `off` 下架；
  * 取值非法 → `400`，目标菜品不存在 → `4001`。
  */
 @Data

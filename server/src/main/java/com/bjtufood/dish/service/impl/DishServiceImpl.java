@@ -64,7 +64,7 @@ public class DishServiceImpl implements DishService {
      * 猜你喜欢返回条数。
      * <p>
      * 端上不写死条数、不截断、不排序，一律按返回渲染——**条数上限是数据源侧职责**。
-     * 收为 6 的理由（见 docs/client/ui/client-搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
+     * 收为 6 的理由（见 docs/ui/client/搜索.md §1 第 4 条）：该接口当前是**纯随机**推送
      * （无推荐算法），8 条会占满发现态首屏（实测排成 3 行 chips），把「搜索记录」这个
      * 真正的个性化入口挤出可视区。
      */
@@ -123,8 +123,9 @@ public class DishServiceImpl implements DishService {
                 req.getPageSize() == null ? 0 : req.getPageSize());
         req.setPage(norm[0]);
         req.setPageSize(norm[1]);
-        // 视图解析（查表 + 白名单，PR-06）：空值 = 默认视图（`is_default=1`）；未登记的键 400 报错，不静默降级。
-        // 筛选条件与排序口径由**视图行**决定（见 DishViewResolver 与 DishViewConditions），
+        // 视图解析（查表取展示态 + 按 key 取代码逻辑，PR-06）：空值 = 首个启用视图（按 `order` 升序）；
+        // 未登记 / 逻辑无定义的键 400 报错，不静默降级。
+        // 筛选条件与排序口径由代码常量 DishViewDefs 按 key 决定（见 DishViewResolver 与 DishViewConditions），
         // API 层不感知 meal_type / 价格等字段，端上也无排序入口。
         DishFilterView view = viewCatalog.byKey(req.getView());
         DishListQuery query = DishViewResolver.resolve(view, req.getKeyword(), req.getSeed());
@@ -137,8 +138,8 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    // 表驱动（A6）：视图目录与「enabled / 匹配数为 0 不下发 / 默认视图恒下发 / 默认排首位」规则
-    // 全部收在 DishViewCatalog；**缓存也随之上移**（DISH_VIEWS 由目录持有，写侧显式失效 ⇒ 保存即生效）。
+    // 表驱动（A6）：视图目录与「enabled / 匹配数为 0 不下发」规则全部收在 DishViewCatalog；
+    // **缓存也随之上移**（DISH_VIEWS 由目录持有，写侧显式失效 ⇒ 保存即生效）。
     // 出参仍是 [{key, label}]，客户端契约不变。
     public List<DishViewVO> listDishViews() {
         return viewCatalog.visible().stream()
@@ -337,7 +338,7 @@ public class DishServiceImpl implements DishService {
         }
         // 产品定型：菜品首图必填（无图不录入 / 不上架；已上架的老数据不受影响）+ A3 图片 0~5 张与列宽校验
         validateImages(req.getImages(), "请至少上传 1 张菜品图");
-        // 解析档口归属（§7.23 第 1 条：支持按名 upsert 食堂/档口；新增路径必须得到有效档口）
+        // 解析档口归属（支持按名 upsert 食堂/档口；新增路径必须得到有效档口）
         Long stallId = resolveStallId(req);
         if (stallId == null) {
             throw new BusinessException("档口不存在");
@@ -587,7 +588,7 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 解析菜品归属档口（§7.23 第 1 条：食堂/档口是菜品属性，随菜品按名 upsert，不独立建档）。
+     * 解析菜品归属档口（食堂/档口是菜品属性，随菜品按名 upsert，不独立建档）。
      * <p>
      * 优先级：
      * <ol>
@@ -613,7 +614,7 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 空值语义名称判断（§7.23 第 1 条：「其他/其它/无/未知」视为未填，回退 stallId 逻辑）。
+     * 空值语义名称判断（「其他/其它/无/未知」视为未填，回退 stallId 逻辑）。
      * 判据与 {@code StallServiceImpl#upsertStallByName} 内部的名称归一化同源。
      */
     private static boolean isEmptySemanticName(String trimmedName) {
@@ -658,7 +659,7 @@ public class DishServiceImpl implements DishService {
             dish.setAttributes(resolved.isEmpty() ? null : JsonMapUtil.toJson(resolved));
         }
 
-        // 菜品分类（入库字段，§7.34；A6 落地后值域 = `dish_category_value` 表）：
+        // 菜品分类（入库字段；A6 落地后值域 = `dish_category_value` 表）：
         // **输入新分类 → 自动登记**（自由输入产生值域，免发版、免改代码）；仅「空 / 超 20 字 / 非法字符」才 400。
         // null = 不修改（编辑路径 MyBatis-Plus NOT_NULL 策略跳过，行内部分更新不会误清分类）。
         if (req.getMealType() == null) {
@@ -762,7 +763,7 @@ public class DishServiceImpl implements DishService {
      * 可空快照字段（name/price/stallId）不覆盖既有值（MyBatis-Plus NOT_NULL 策略跳过 null），
      * 保护「菜品首图必填」等既有不变量；images 的 JSON 序列化形态属 dish 落库口径，故收在本域。
      * <p>
-     * <b>属性必须「按维度合并」</b>（口径见 docs/web/B-UGC治理/B4-菜品纠错管理.md 与
+     * <b>属性必须「按维度合并」</b>（口径见 docs/func/web/B-UGC治理/B4-菜品问题反馈管理.md 与
      * docs/schema/dish_correction.md）：纠错快照只含<b>改动维度</b>，整体覆盖会静默抹掉其余维度；
      * 用户提交空数组表示「清空该维度」⇒ 删除该键，不落空数组。
      * <p>

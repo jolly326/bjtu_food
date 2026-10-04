@@ -14,13 +14,13 @@ import java.time.LocalDateTime;
  * 菜品分类值字典（表 {@code dish_category_value}；A6 落地 2026-10-03）。
  * <p>
  * `dish.meal_type` 的**取值域**：列定义不变（VARCHAR(20) 存 `key`），本表把值域从代码常量
- * （`DishViewConst.mealTypeValues()`）搬进库。
+ * （原视图常量的 mealType 取值）搬进库。
  * <ul>
  *   <li>{@code key}：数据锚点（`dish.meal_type` 存的就是它）⇒ **在用后不可改**；</li>
  *   <li>{@code label}：中文名，**改名免费**（改一行、全站生效）；</li>
  *   <li>删除约束：被菜品引用时禁止删除（`dishCount > 0`）；清理同义值走**合并**。</li>
  * </ul>
- * 口径真源：docs/schema/dish_category_value.md 与 docs/web/A-主数据维护/A6-首页筛选视图管理.md。
+ * 口径真源：docs/schema/dish_category_value.md 与 docs/api/web/categories.md。
  */
 @Data
 @TableName("dish_category_value")

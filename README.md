@@ -1,4 +1,4 @@
-# 知行食记
+﻿# 知行食记
 
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green)
 ![Java](https://img.shields.io/badge/Java-21-orange)
@@ -61,11 +61,11 @@ JDK 21+、Maven 3.8+、MySQL 8.0+、Node.js 18+、pnpm、微信开发者工具
 
 ### 1. 初始化数据库
 
+> **本仓库不维护初始化脚本。** 库结构唯一真源 = [`docs/schema/`](./docs/schema/README.md)。
+
 ```bash
-# 建表（自包含建库选库，无需预先 CREATE DATABASE）
-mysql -u root -p < server/src/main/resources/db/schema.sql
-# 灌入演示数据
-mysql -u root -p < server/src/main/resources/db/seed_data.sql
+# 建库建表：按 docs/schema/ 各表文档的「列定义 / 索引」逐表 CREATE TABLE
+# 演示数据：自行准备（或按各表文档的说明录入）
 ```
 
 ### 2. 配置环境变量
@@ -107,10 +107,12 @@ cd client && npm install && npm run dev:mp-weixin
 
 | 文档 | 说明 |
 |---|---|
-| [功能与接口契约](docs/client/README.md) | 学生端功能说明、接口约定与错误码 |
-| [UI 设计规范](docs/client/ui/README.md) | 学生端页面设计稿与跨页通用口径 |
-| [后端架构](docs/architecture.md) | 分包模型、依赖规则、测试策略与已知技术债 |
-| [管理后台功能](docs/web/feature/README.md) | 管理后台功能说明 |
+| [功能设计（学生端）](docs/func/client/README.md) | 学生端功能说明 |
+| [功能设计（管理端）](docs/func/web/README.md) | 管理后台功能说明 |
+| [接口契约](docs/api/README.md) | 端点 / 入参 / 出参 / 错误码（`client/` 学生端 · `web/` 管理端） |
+| [数据库设计](docs/schema/README.md) | 表 / 列 / 索引（库结构唯一真源） |
+| [UI 设计规范（学生端）](docs/ui/client/README.md) | 学生端页面设计稿与跨页通用口径 |
+| [UI 设计规范（管理端）](docs/ui/web/README.md) | 管理端页面设计稿与公共组件基线 |
 
 ## 贡献指南
 
@@ -137,10 +139,10 @@ cd client && npm install && npm run dev:mp-weixin
 
 ### 项目约定
 
-- 遵循现有代码风格与目录结构；目录组织、UI 红线与跨端边界见 [docs/client/README.md](docs/client/README.md)
+- 遵循现有代码风格与目录结构；目录组织、UI 红线与跨端边界见 [docs/func/client/README.md](docs/func/client/README.md)
 - 涉及后端接口变更时，请同步更新契约产物与相关文档（`cd client && npm run gen:api:fresh`）
-- UI 改动以 [docs/client/ui/](docs/client/ui/) 的设计规范为准
-- 数据库结构变更请改 `server/src/main/resources/db/schema.sql`，不要直连数据库 ALTER
+- UI 改动以 [docs/ui/client/](docs/ui/client/) 的设计规范为准
+- 数据库结构变更请先改 `docs/schema/` 对应表文档，再执行 ALTER；**文档是唯一真源**
 
 ## License
 

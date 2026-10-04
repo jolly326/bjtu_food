@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * 状态盒（[UI 基线 §2.2](../../../docs/web/ui/公共组件与形态基线.md)）。
+ * 状态盒（[UI 基线 §2.2](../../../docs/ui/web/公共组件与形态基线.md)）。
  *
  * <p>`status` 四档：`loading` 加载 / `error` 错误（带重试）/ `empty` 空 / **`session` 会话失效**。
  * <p>⚠️ **`session` 不渲染「重试」**：口令不匹配（403）时重试必然再失败，
- * 由构建期重新注入 `ADMIN_TOKEN` 才能解决（见 [UI 基线 §1.5 ⑥](../../../docs/web/ui/公共组件与形态基线.md)）。
+ * 由构建期重新注入 `ADMIN_TOKEN` 才能解决（见 [UI 基线 §1.5 ⑥](../../../docs/ui/web/公共组件与形态基线.md)）。
  */
 withDefaults(
   defineProps<{

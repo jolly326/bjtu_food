@@ -23,13 +23,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * A6 分类值字典的约束与「自动登记」单测（口径见
- * docs/web/A-主数据维护/A6-首页筛选视图管理.md 与 docs/schema/dish_category_value.md）：
+ * A6 分类值字典的契约与「自动登记」单测（口径见
+ * docs/api/web/categories.md 与 docs/schema/dish_category_value.md）：
  * <ol>
- *   <li><b>删除受引用约束</b>：被菜品引用 → {@code 400}（清理同义值走合并）；</li>
- *   <li><b>合并</b>：把 from 的菜品改指 to 后删 from；源/目标相同或不存在 → {@code 400}；</li>
  *   <li><b>自动登记</b>：A3 输入新分类 → 落库；已存在 → 原样返回、不重复插入；键非法 → {@code 400}；</li>
- *   <li><b>重命名唯一</b>：同名字 → {@code 400}。</li>
+ *   <li><b>登记唯一</b>：键重名 → {@code 400}；</li>
+ *   <li><b>列表</b>：按 order 升序返回并带 dishCount。</li>
  * </ol>
  */
 class DishCategoryAdminServiceImplTest {
@@ -57,54 +56,6 @@ class DishCategoryAdminServiceImplTest {
         c.setLabel(label);
         c.setOrder(order);
         return c;
-    }
-
-    @Test
-    @DisplayName("delete：被菜品引用 → 400（清理同义值请用合并）")
-    void delete_referencedByDish_rejected400() {
-        when(categoryMapper.selectById(3L)).thenReturn(category(3L, "noodle", "面食粉类", 3));
-        when(dishMapper.selectCount(any())).thenReturn(7L);
-
-        assertThatThrownBy(() -> service().delete(3L))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        // BaseMapper 的 deleteById 有 (Serializable) 与 (T) 两个重载：显式给 Long 消歧
-        verify(categoryMapper, never()).deleteById(any(Long.class));
-    }
-
-    @Test
-    @DisplayName("merge：源与目标相同 → 400")
-    void merge_sameIds_rejected400() {
-        assertThatThrownBy(() -> service().merge(3L, 3L))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(dishMapper, never()).update(any(), any());
-    }
-
-    @Test
-    @DisplayName("merge：源或目标不存在 → 400")
-    void merge_missingEndpoint_rejected400() {
-        when(categoryMapper.selectById(7L)).thenReturn(null);
-        when(categoryMapper.selectById(3L)).thenReturn(category(3L, "noodle", "面食粉类", 3));
-
-        assertThatThrownBy(() -> service().merge(7L, 3L))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-    }
-
-    @Test
-    @DisplayName("merge：正常 —— 批量改指 dish.meal_type 后删源行")
-    void merge_rewritesDishesThenDeletesSource() {
-        when(categoryMapper.selectById(7L)).thenReturn(category(7L, "noodle-old", "面食", 9));
-        when(categoryMapper.selectById(3L)).thenReturn(category(3L, "noodle", "面食粉类", 3));
-
-        service().merge(7L, 3L);
-
-        // ① 参数化批量 UPDATE（不逐行读改）
-        verify(dishMapper).update(any(), any());
-        // ② 目标保留、源行删除
-        verify(categoryMapper).deleteById(7L);
-        verify(categoryMapper, never()).deleteById(3L);
     }
 
     @Test

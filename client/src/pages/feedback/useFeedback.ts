@@ -1,9 +1,9 @@
 /**
  * useFeedback —— 意见反馈页（pages/feedback/index.vue）编排逻辑
  *
- * 面向小程序本身的通用反馈：类型 3 选 1（Bug / 建议 / 其他）+ 描述（≤600 字、占位随类型切换）
- * + 截图（选填）+ 本地草稿；提交 `POST /feedback`。
- * 「菜品信息纠错」已迁出为独立页面 `pages/correction/`，本页只有一套字段、无表单形态切换。
+ * 面向小程序本身的通用反馈：类型 3 选 1（Bug / 建议 / 其他）+ 描述（≤600 字、占位随类型选择）
+ * + 截图（选填，≤`UGC_IMAGE_MAX` 张）+ 本地草稿；提交 `POST /feedback`。
+ * 菜品资料有误 / 已经下架走独立页面 `pages/correction/`（菜品问题反馈），本页只有一套字段、无表单形态切换。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用，使 onLoad/onUnload/watch
  * 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。

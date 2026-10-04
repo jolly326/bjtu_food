@@ -7,7 +7,7 @@
          ② 搜索行：与首页完全同款（左搜索胶囊 + 右「搜索」按钮），本页为 input 模式（可输入 + 提交）。
          两段常驻固定（根层不滚动，滚动只发生在内容区内部）。 -->
     <!-- 标题带：有返回 ⇒ 左区「返回」+ 居中区页面名称。
-         ⚠️ 页面名称暂定「搜索」（本页语义见 docs/client/ui/client-搜索.md），如需改文案告诉我。 -->
+         ⚠️ 页面名称暂定「搜索」（本页语义见 docs/ui/client/搜索.md），如需改文案告诉我。 -->
     <AppTitleBand back title="搜索" @back="onBack" />
     <view class="find-search-row">
       <SearchBar
@@ -104,7 +104,7 @@
 
       <!-- ============ 搜索结果态（仅结果态渲染）============
            结果态由本页承担「滚动容器 + 列表编排」，结果卡 = 页内私有 `DishResultCard`
-           （布局规格见 docs/client/ui/client-搜索.md §2「结果行布局」）。 -->
+           （布局规格见 docs/ui/client/搜索.md §2「结果行布局」）。 -->
       <!-- ⚠️ 触底事件必须由本 scroll-view 承载：页面根 overflow:hidden + 定高容器下，
            页面级 onReachBottom 不会触发（踩坑记录见 usePagedList 注释） -->
       <scroll-view

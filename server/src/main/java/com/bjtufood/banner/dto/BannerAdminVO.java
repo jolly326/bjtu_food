@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  *
  * <p>与公开 VO（{@link BannerVO}）的差异：管理端需要 `order` / `status` / 时间列以支撑列表与启停；
  * **图片地址出参一律转绝对 URL**（与公开端点同口径）。
- * 契约真源：docs/web/A-主数据维护/A5-首页Banner管理.md。
+ * 契约真源：docs/api/web/banners.md。
  */
 @Data
 @Schema(description = "管理端 Banner 出参")

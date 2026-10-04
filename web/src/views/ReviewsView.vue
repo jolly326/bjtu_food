@@ -1,18 +1,20 @@
 <script setup lang="ts">
 /**
- * B1 评价管理（页面规格见 [评价管理.md](../../../docs/web/ui/评价管理.md)）。
+ * B1 评价管理（页面规格见 [评价管理.md](../../../docs/ui/web/评价管理.md)）。
  *
  * <p>要点：分页（页码 + 共 N 条）；状态列**恒用 `StatusTag`（`kind="review"`）**，页面不自写 `.tag-*`；
  * 隐藏为**显式置位**（非 toggle）且支持**可选附注**（≤200 字，随回执下发给作者）；
  * 删除为物理删除（**触发评分重算 + 向作者投递回执**），确认文案写明影响面。
  */
 import { onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import { deleteReview, listReviews, setReviewHidden } from '@/api/reviews'
 import type { ReviewAdminVO, ReviewListParams } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
+import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BaseModal from '@/components/BaseModal.vue'
 
@@ -97,11 +99,9 @@ async function unhide(row: ReviewAdminVO): Promise<void> {
 
 async function remove(row: ReviewAdminVO): Promise<void> {
   try {
-    await ElMessageBox.confirm(
-      `确认删除这条评价？删除后**不可恢复**，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`,
-      '删除评价',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
-    )
+    await confirmDelete(`确认删除这条评价？删除后**不可恢复**，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`, {
+      title: '删除评价',
+    })
   } catch {
     return
   }
@@ -143,11 +143,15 @@ onMounted(() => reloadFirstPage())
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="reload" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无评价" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无评价"
+      @retry="reload"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -184,14 +188,7 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <div v-if="total > 0" class="pager">
-        <span class="pager-total">共 {{ total }} 条</span>
-        <div class="pager-actions">
-          <button class="btn-secondary" type="button" :disabled="page <= 1" @click="prevPage">上一页</button>
-          <span class="pager-page">第 {{ page }} / {{ pageCount }} 页</span>
-          <button class="btn-secondary" type="button" :disabled="page >= pageCount" @click="nextPage">下一页</button>
-        </div>
-      </div>
+      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
     </div>
 
     <!-- 隐藏：显式置位 + 可选附注（随回执下发） -->
@@ -201,8 +198,9 @@ onMounted(() => reloadFirstPage())
         <div class="ctx-body">{{ hideTarget?.content || '（无文字）' }}</div>
       </div>
       <div class="field">
-        <label>附注（可选，≤200 字）</label>
+        <label for="review-note">附注（可选，≤200 字）</label>
         <textarea
+          id="review-note"
           class="form-textarea"
           v-model="hideNote"
           rows="3"

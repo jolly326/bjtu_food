@@ -14,6 +14,8 @@ declare module 'vue' {
     BaseDrawer: typeof import('./components/BaseDrawer.vue')['default']
     BaseModal: typeof import('./components/BaseModal.vue')['default']
     ImageUpload: typeof import('./components/ImageUpload.vue')['default']
+    ListState: typeof import('./components/ListState.vue')['default']
+    Pager: typeof import('./components/Pager.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StateBox: typeof import('./components/StateBox.vue')['default']

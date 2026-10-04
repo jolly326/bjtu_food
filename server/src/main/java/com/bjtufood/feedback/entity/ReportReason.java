@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  *   <li>{@code status}：`on` / `off` —— 公开端点只下发启用项，提交白名单同样只认启用项；</li>
  *   <li>删除受引用约束：被任一举报引用即 `400`（下线一律用停用）。</li>
  * </ul>
- * 口径真源：docs/schema/report_reason.md 与 docs/web/A-主数据维护/A7-举报原因管理.md。
+ * 口径真源：docs/schema/report_reason.md 与 docs/api/web/report-reasons.md。
  */
 @Data
 @TableName("report_reason")

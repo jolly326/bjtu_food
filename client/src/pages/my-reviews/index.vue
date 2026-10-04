@@ -5,7 +5,7 @@
     <Header title="我的主页" @back="backToHome" />
 
     <scroll-view class="scroll-wrap v-scroll" scroll-y @scroll="onScroll" @scrolltolower="loadMore">
-      <!-- 用户信息卡：主页的身份版面（头像 / 主行 / 副行），内容与排版真源见 docs/client/ui/client-公共组件与形态基线.md §三：
+      <!-- 用户信息卡：主页的身份版面（头像 / 主行 / 副行），内容与排版真源见 docs/ui/client/公共组件与形态基线.md §三：
            认证态副行 = 校园邮箱 + 右侧「编辑个人信息」→ 独立个人信息编辑页；
            游客态副行 = 「未完成校园认证」且**不渲染动作位**（编辑身份信息是认证态才具备的能力）。
            ⚠️ 块间距**必须**落在页面自己的节点上 —— mp-weixin 下给自定义组件传的 class 落进**组件宿主节点**

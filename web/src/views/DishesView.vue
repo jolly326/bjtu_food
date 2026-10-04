@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
- * A3 菜品管理（页面规格见 [菜品管理.md](../../../docs/web/ui/菜品管理.md)）。
+ * A3 菜品管理（页面规格见 [菜品管理.md](../../../docs/ui/web/菜品管理.md)）。
  *
  * <p>要点：分页（页码 + 共 N 条）+ 六态；编辑载体 = **抽屉**（含图片与动态属性子表单 ⇒ 基线 §1.10 判据）；
  * 状态列 **`kind="dish"`**（在售 / 已下架）；上下架走独立端点且**显式传目标状态**；
  * 归属只认 `stallId`（实体下拉，按名 upsert 已退役）；属性值**可直接填写中文**（未命中由服务端登记并替换为 ID）。
  */
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import {
   copyDish,
@@ -39,7 +40,8 @@ import { usePagedList } from '@/composables/usePagedList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
+import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
 const canteens = ref<CanteenAdminVO[]>([])
@@ -275,11 +277,9 @@ async function toggle(row: DishAdminListItemVO): Promise<void> {
 
 async function remove(row: DishAdminListItemVO): Promise<void> {
   try {
-    await ElMessageBox.confirm(
-      `确认删除菜品「${row.name}」？其**全部评价将一并删除**且不可恢复。`,
-      '删除菜品',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
-    )
+    await confirmDelete(`确认删除菜品「${row.name}」？其**全部评价将一并删除**且不可恢复。`, {
+      title: '删除菜品',
+    })
   } catch {
     return
   }
@@ -358,11 +358,15 @@ onMounted(async () => {
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="reload" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无菜品" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无菜品"
+      @retry="reload"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -405,50 +409,43 @@ onMounted(async () => {
         </tbody>
       </table>
 
-      <div v-if="total > 0" class="pager">
-        <span class="pager-total">共 {{ total }} 条</span>
-        <div class="pager-actions">
-          <button class="btn-secondary" type="button" :disabled="page <= 1" @click="prevPage">上一页</button>
-          <span class="pager-page">第 {{ page }} / {{ pageCount }} 页</span>
-          <button class="btn-secondary" type="button" :disabled="page >= pageCount" @click="nextPage">下一页</button>
-        </div>
-      </div>
+      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
     </div>
 
     <!-- 编辑：含图片 + 动态属性子表单 ⇒ 抽屉 -->
     <BaseDrawer :title="drawerTitle" :open="open" @close="open = false">
       <div class="field">
-        <label>菜品名称</label>
-        <input class="form-input" v-model="form.name" placeholder="菜品名称" />
+        <label for="dish-name">菜品名称</label>
+        <input id="dish-name" class="form-input" v-model="form.name" placeholder="菜品名称" />
       </div>
       <div class="field">
-        <label>所属档口</label>
-        <select class="form-input" v-model.number="form.stallId">
+        <label for="dish-stall">所属档口</label>
+        <select id="dish-stall" class="form-input" v-model.number="form.stallId">
           <option :value="0" disabled>请选择</option>
           <option v-for="s in stalls" :key="s.id" :value="s.id">{{ s.canteenName }} · {{ s.name }}</option>
         </select>
       </div>
       <div class="row2">
         <div class="field">
-          <label>现价（元）</label>
-          <input class="form-input" type="number" step="0.01" v-model="form.priceYuan" />
+          <label for="dish-price">现价（元）</label>
+          <input id="dish-price" class="form-input" type="number" step="0.01" v-model="form.priceYuan" />
         </div>
         <div class="field">
-          <label>原价（元，可空）</label>
-          <input class="form-input" type="number" step="0.01" v-model="form.originalPriceYuan" />
+          <label for="dish-original-price">原价（元，可空）</label>
+          <input id="dish-original-price" class="form-input" type="number" step="0.01" v-model="form.originalPriceYuan" />
         </div>
       </div>
       <div class="field">
-        <label>菜品分类</label>
-        <input class="form-input" v-model="form.mealType" placeholder="如 主食 / 饮品；可填新分类，保存时自动登记" />
+        <label for="dish-meal-type">菜品分类</label>
+        <input id="dish-meal-type" class="form-input" v-model="form.mealType" placeholder="如 主食 / 饮品；可填新分类，保存时自动登记" />
       </div>
       <div class="field">
-        <label>描述</label>
-        <textarea class="form-textarea" v-model="form.description" rows="2" />
+        <label for="dish-description">描述</label>
+        <textarea id="dish-description" class="form-textarea" v-model="form.description" rows="2" />
       </div>
       <div class="field">
         <label>配图（首图为封面，必填，≤5 张）</label>
-        <ImageUpload v-model="form.images" :max="5" />
+        <ImageUpload v-model="form.images" :max="5" :aria-label="'配图'" />
       </div>
       <div v-if="dimensions.length" class="dim-block">
         <div class="dim-title">描述属性（下拉给出字典建议；填新值保存时自动登记）</div>
@@ -486,8 +483,8 @@ onMounted(async () => {
     <!-- 复制：只填新菜名（其余字段复制源菜品，副本默认下架） -->
     <BaseModal title="复制菜品" :open="copyOpen" @close="copyOpen = false">
       <div class="field">
-        <label>新菜品名称</label>
-        <input class="form-input" v-model="copyName" @keyup.enter="submitCopy" />
+        <label for="copy-name">新菜品名称</label>
+        <input id="copy-name" class="form-input" v-model="copyName" @keyup.enter="submitCopy" />
       </div>
       <p class="hint">其余字段（价格 / 分类 / 属性 / 图片）全部复制源菜品；**副本默认下架**，确认内容后再上架。</p>
       <template #actions>

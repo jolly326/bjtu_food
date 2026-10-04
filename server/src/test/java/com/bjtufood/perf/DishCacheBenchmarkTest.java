@@ -137,13 +137,12 @@ class DishCacheBenchmarkTest {
         when(attributeAdminService.translateForRead(any()))
                 .thenAnswer(inv -> JsonMapUtil.parseObject(inv.getArgument(0)));
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        // A6：视图字典改表驱动 —— 「为你推荐」（默认，恒下发）+ 一个大类视图（非默认，靠匹配数判定）
+        // A6：视图字典改表驱动 —— 「为你推荐」（条件空）+ 一个大类视图；可见性靠 enabled + 匹配数判定
         viewMapper = mock(DishFilterViewMapper.class);
         when(viewMapper.selectList(any())).thenReturn(List.of(
-                view(1L, "recommend", "为你推荐", 1, true, null, "random"),
-                view(2L, "noodle", "面食粉类", 2, false,
-                        "[{\"field\":\"mealType\",\"op\":\"=\",\"value\":\"noodle\"}]", "heat")));
-        // 非默认视图的匹配数 > 0 ⇒ 可见（匹配数 0 不下发）
+                view(1L, "recommend", "为你推荐", 1),
+                view(2L, "noodle", "面食粉类", 2)));
+        // 匹配数 > 0 ⇒ 可见（匹配数 0 不下发）
         when(dishMapper.selectCount(any())).thenReturn(1L);
 
         cacheManager = CacheConfig.buildCacheManager();
@@ -236,7 +235,7 @@ class DishCacheBenchmarkTest {
         // 若只缓存原始行，这里会是「视图数」次计数查询。
         assertThat(repeatCalls).isZero();
         assertThat(second).isEqualTo(first);
-        // 默认视图恒下发（排首位）、非默认视图靠匹配数判定
+        // 可见性靠 enabled + 匹配数判定，顺序按 order 升序
         assertThat(first).extracting(DishViewVO::getKey).containsExactly("recommend", "noodle");
 
         // 写后显式失效 ⇒ 保存即生效（不必等 TTL）
@@ -295,18 +294,14 @@ class DishCacheBenchmarkTest {
                 + mockingDetails(viewMapper).getInvocations().size();
     }
 
-    /** 视图行样本（A6） */
-    private static DishFilterView view(Long id, String key, String label, int order,
-                                       boolean isDefault, String conditions, String sortKind) {
+    /** 视图行样本（A6）：表行只给展示态，逻辑（条件 / 排序）由 DishViewDefs 按 key 提供 */
+    private static DishFilterView view(Long id, String key, String label, int order) {
         DishFilterView v = new DishFilterView();
         v.setId(id);
         v.setKey(key);
         v.setLabel(label);
         v.setOrder(order);
         v.setEnabled(true);
-        v.setIsDefault(isDefault);
-        v.setConditions(conditions);
-        v.setSortKind(sortKind);
         return v;
     }
 

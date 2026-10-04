@@ -17,7 +17,7 @@ public class StallAdminVO {
     @Schema(description = "所属食堂ID")
     private Long canteenId;
 
-    /** 所属食堂名（联表带出，列表直接可读；口径见 docs/web/A-主数据维护/A2-档口管理.md） */
+    /** 所属食堂名（联表带出，列表直接可读；口径见 docs/api/web/stalls.md） */
     @Schema(description = "所属食堂名", example = "第一食堂")
     private String canteenName;
 

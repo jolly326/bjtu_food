@@ -121,7 +121,7 @@ function clearError() { formError.value = '' }
 /** 当前聚焦字段（驱动底线高亮）：空串 = 无聚焦 */
 const focusField = ref('')
 
-/** 文案常量（spec 契约基线） */
+/** 文案常量（契约基线） */
 const NOTE_SUBTITLE = '验证码将发送至你的校园邮箱，完成身份认证后即可使用评价等功能'
 const NOTE_PRIVACY = '仅用于核验本校校园身份，认证后将与当前微信账号绑定，不会用于其他用途'
 

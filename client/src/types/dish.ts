@@ -86,7 +86,7 @@ export interface MixedResultItem {
  */
 export interface DishQuery {
   keyword?: string
-  /** 筛选视图键（值取自 `GET /dishes/views` 的 `key`；不传 = 默认视图） */
+  /** 筛选视图键（值取自 `GET /dishes/views` 的 `key`；不传 = 首个启用视图） */
   view?: string
   /**
    * 会话随机种子：端上**冷启动生成一次、会话内恒定**，翻页沿用同一值。

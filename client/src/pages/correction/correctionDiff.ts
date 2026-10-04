@@ -1,5 +1,14 @@
 /**
- * 纠错表单的**纯逻辑**：改动比对与售价校验（无响应式状态、无副作用，可完整单测）。
+ * 菜品问题反馈 · `field` 型（信息有误）的**改动项集合**。
+ *
+ * <p><b>为何 `Omit`掉 `type`**：本函数只负责「算出**改了哪些字段**」——
+ * `type` 是**固定值**（恒 `field`），由调用方组装 payload 时补上；
+ * 若在此处要求 `type`，纯比对层就得为它造一个占位值，污染单测断言。
+ */
+export type DishCorrectionDiff = Omit<DishCorrectionPayload, 'type'>
+
+/**
+ * 菜品问题反馈 `field` 型表单的**纯逻辑**：改动比对与售价校验（无响应式状态、无副作用，可完整单测）。
  *
  * 编排（详情加载 / 属性候选 / 提交与限频）留在 `useCorrection`，本文件只负责「算出改了哪些字段」。
  * 之所以独立成模块：比对口径错了会**静默产生「无意义改动」提交**（弹层里取消再勾回若按顺序比对，
@@ -72,8 +81,8 @@ export function buildCorrectionDiff(
   dishName: string,
   form: CorrectionFormModel,
   baseline: CorrectionBaseline,
-): DishCorrectionPayload {
-  const payload: DishCorrectionPayload = {}
+): DishCorrectionDiff {
+  const payload: DishCorrectionDiff = {}
   if (!dishName) return payload
   if (form.name.trim() !== baseline.name) payload.name = form.name.trim()
   // 金额：元字符串 → 分（金额红线；比对层只判是否改动）

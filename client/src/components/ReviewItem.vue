@@ -190,7 +190,7 @@ function onMore() {
   padding: 0;
 }
 .review-item--flat.review-item-pressed { opacity: 0.5; }
-/* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言，spec ）。
+/* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言）。
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 

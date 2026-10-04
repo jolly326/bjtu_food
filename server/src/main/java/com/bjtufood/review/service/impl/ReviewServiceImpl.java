@@ -60,7 +60,7 @@ public class ReviewServiceImpl implements ReviewService {
     private final ImageUrlUtil imageUrlUtil;
     private final LocalSensitiveFilter localSensitiveFilter;
     private final ContentSecurityService contentSecurityService;
-    /** 评价处置回执（隐藏 / 删除后向作者投递，见 docs/web/B-UGC治理/B1-评价管理.md） */
+    /** 评价处置回执（隐藏 / 删除后向作者投递，见 docs/func/web/B-UGC治理/B1-评价管理.md） */
     private final NotificationService notificationService;
 
     /**
@@ -123,7 +123,7 @@ public class ReviewServiceImpl implements ReviewService {
                 .last("LIMIT 1"));
         String filteredContent = localSensitiveFilter.filter(req.getContent());
 
-        // ---- UGC 准入门槛（project_spec §7.5 / §7.7：verified=1 且 openid 非空）----
+        // ---- UGC 准入门槛（verified=1 且 openid 非空）----
         // 微信 msgSecCheck v2 必填 openid，故必须在机检之前前置双约束，否则口子敞开。
         UserAuthContextVO reviewUser = requireUgcAuthorizedUser(userId);
 
@@ -231,7 +231,7 @@ public class ReviewServiceImpl implements ReviewService {
     public void deleteReview(Long id, Long userId) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
-            // 4001 = 资源不存在（docs/client/B-UGC表达与治理/B3-删除本人评价.md）：端上据此给出恢复路径，不解析 message
+            // 4001 = 资源不存在（docs/api/client/reviews.md）：端上据此给出恢复路径，不解析 message
             throw new BusinessException(4001, "评价不存在");
         }
         if (!review.getUserId().equals(userId)) {

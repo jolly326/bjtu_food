@@ -13,6 +13,6 @@
  * <p>
  * <b>领域事件</b>：无
  * <p>
- * 模块边界由 {@code ArchTests}（ArchUnit）在测试阶段强制校验，详见 {@code docs/architecture.md}。
+ * 模块边界由 {@code ArchTests}（ArchUnit）在测试阶段强制校验。
  */
 package com.bjtufood.canteen;

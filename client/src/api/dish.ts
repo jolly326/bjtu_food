@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   DishListItem, DishDetail, DishQuery,
   DishAttribute, GuessLike, DishView,
 } from '@/types/dish'
@@ -115,7 +115,7 @@ export async function listGuessLike(seed?: string): Promise<GuessLike[]> {
 /** 首页筛选视图字典（GET /dishes/views）：横向筛选栏数据源，文案与顺序全由后端下发 */
 export async function listDishViews(): Promise<DishView[]> {
   const raw = await get<DishViewVO[]>('/dishes/views')
-  // 端上只认 key + label（无 null 特例：默认视图「为你推荐」也是普通 key）
+  // 端上只认 key + label（无 null 特例：首个启用视图「为你推荐」也是普通 key）
   return (raw || []).map((item) => ({
     key: String(item.key ?? ''),
     label: String(item.label || ''),
@@ -125,7 +125,7 @@ export async function listDishViews(): Promise<DishView[]> {
 /**
  * 编辑态属性维度项（`GET /dishes/{id}/attributes` 出参）。
  *
- * **按需**（进菜品纠错编辑界面时才请求）：只返回**该菜现有维度**的参考候选
+ * **按需**（进菜品问题反馈「信息有误」编辑界面时才请求）：只返回**该菜现有维度**的参考候选
  * —— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。
  */
 interface DishEditAttribute {

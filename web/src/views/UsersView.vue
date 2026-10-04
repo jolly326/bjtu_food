@@ -1,18 +1,20 @@
 <script setup lang="ts">
 /**
- * C2 用户管理（页面规格见 [列表页模板.md](../../../docs/web/ui/列表页模板.md) §一）。
+ * C2 用户管理（页面规格见 [列表页模板.md](../../../docs/ui/web/列表页模板.md) §一）。
  *
  * <p>要点：分页（`AdminPageResult`，**页码 + 共 N 条**）；筛选 = 关键词 + 状态；
  * **认证态不单独出字段** —— 按 `bindEmail` 是否为空派生（空串 = 未认证，管理端 VO 恒非空串）；
  * 状态列恒用 `StatusTag`（`kind="user"`）；禁用 / 启用为行内文字动作，确认文案含影响面。
  */
 import { onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import { listUsers, setUserStatus } from '@/api/users'
 import type { UserAdminVO, UserListParams, UserStatus } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
+import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
 const fKeyword = ref('')
@@ -46,12 +48,11 @@ const {
 async function toggle(row: UserAdminVO): Promise<void> {
   const disabled = row.status !== 'disabled'
   try {
-    await ElMessageBox.confirm(
+    await confirmDelete(
       disabled
         ? `确认禁用用户「${row.nickname || row.id}」？禁用后其登录与写操作将被拒绝（已发表内容保留），且不再收到处置回执。`
         : `确认启用用户「${row.nickname || row.id}」？`,
-      disabled ? '禁用用户' : '启用用户',
-      { type: 'warning', confirmButtonText: disabled ? '禁用' : '启用', cancelButtonText: '取消' },
+      { title: disabled ? '禁用用户' : '启用用户', confirmText: disabled ? '禁用' : '启用' },
     )
   } catch {
     return
@@ -96,11 +97,15 @@ onMounted(() => reloadFirstPage())
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="reload" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无用户" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无用户"
+      @retry="reload"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -140,24 +145,7 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <!-- ⑤ 分页：共 N 条 + 页码（total = 0 时不渲染） -->
-      <div v-if="total > 0" class="pager">
-        <span class="pager-total">共 {{ total }} 条</span>
-        <div class="pager-actions">
-          <button class="btn-secondary" type="button" :disabled="page <= 1" @click="prevPage">
-            上一页
-          </button>
-          <span class="pager-page">第 {{ page }} / {{ pageCount }} 页</span>
-          <button
-            class="btn-secondary"
-            type="button"
-            :disabled="page >= pageCount"
-            @click="nextPage"
-          >
-            下一页
-          </button>
-        </div>
-      </div>
+      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
     </div>
   </div>
 </template>

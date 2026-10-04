@@ -116,12 +116,12 @@ public class FeedbackServiceImpl implements FeedbackService {
             throw new BusinessException(4001, "评价不存在");
         }
         // 举报原因必选，值域 = **report_reason 表**（存在且启用；停用的原因不能再被提交，
-        // 但历史记录仍能翻译出中文 —— 见 docs/web/A-主数据维护/A7-举报原因管理.md）
+        // 但历史记录仍能翻译出中文 —— 见 docs/func/web/A-主数据维护/A7-举报原因管理.md）
         String reason = req.getReason() == null ? null : req.getReason().trim();
         if (!reportReasonService.isSubmittable(reason)) {
             throw new BusinessException("举报原因非法");
         }
-        // 去重（§7.11 第 3 条）：同一登录用户对同一评价的重复举报不再新增（游客 userId=null 无身份标识，不去重）
+        // 去重：同一登录用户对同一评价的重复举报不再新增（游客 userId=null 无身份标识，不去重）
         if (userId != null) {
             DuplicateGuard.assertUnique(feedbackMapper, new LambdaQueryWrapper<Feedback>()
                     .eq(Feedback::getUserId, userId)
@@ -279,7 +279,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 ? dishNameMap.get(relatedId)
                 : null);
         vo.setStatus(f.getStatus());
-        // 处理结论回显（§7.23 第 5 条）：表无 outcome 物理列，按 status + reject_reason 派生——
+        // 处理结论回显：表无 outcome 物理列，按 status + reject_reason 派生——
         // handle() 落库保证「rejected ⇒ reject_reason 非空、handled ⇒ reject_reason 为 NULL」，
         // 故 handled 且 rejectReason 非空即 rejected，否则 handled（历史存量 reject_reason=NULL → handled，
         // 与缺省「已处理」一致）；pending（未处理）保持 null。
@@ -333,7 +333,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (trimmedReply != null && trimmedReply.length() > FeedbackConst.REPLY_MAX_LENGTH) {
             throw new BusinessException("处理回复不能超过" + FeedbackConst.REPLY_MAX_LENGTH + "字");
         }
-        // §7.23 第 5 条：处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
+        // 处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
         // 白名单外一律 400（PR-06），不再静默降级；rejectReason 仅在 rejected 结论下消费与落库。
         String outcome = req.getOutcome() == null || req.getOutcome().isBlank()
                 ? FeedbackConst.OUTCOME_HANDLED
@@ -365,15 +365,15 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setReply(trimmedReply);
         feedback.setRejectReason(rejectReason);
         feedback.setHandledAt(LocalDateTime.now());
-        // §7.10：管理端操作人身份降级（单口令即单人），handler_id 一直未写；
-        // 该列已于零消费退役删除（schema.sql drop_zero_consumer_columns），无需再处理。
+        // 管理端操作人身份降级（单口令即单人），handler_id 一直未写；
+        // 该列已于零消费退役删除，无需再处理。
         feedbackMapper.updateById(feedback);
         // 处理结果回执（携带处理结论与不采纳原因）：向「可归属」提交人（提交时带 userId 的登录态，含游客）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason, hiddenThisTime);
     }
 
     /**
-     * 反馈处理结果回执（§7.23 第 5 条：回执携带处理结论；不采纳/退回时一并展示不采纳原因）。
+     * 反馈处理结果回执（回执携带处理结论；不采纳/退回时一并展示不采纳原因）。
      * <p>
      * 归属判据：提交时带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
      * 游客提交的反馈同样保留可回执身份）。
@@ -409,7 +409,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 body = (isReport ? "你提交的举报已受理" : "你提交的反馈已处理") + hiddenSuffix
                         + (reply == null ? "。" : "：" + reply);
             }
-            // §7.16 origin：reply 必填时通知不存在「无回复」分支；B2 起 reply 可选 ⇒
+            // reply 必填时通知不存在「无回复」分支；B2 起 reply 可选 ⇒
             // 交由上面的 body 组装保证**始终有可读正文**，不产生空通知。
             notificationService.notify(new NotificationCmd(userId, title, body));
         } catch (Exception ignored) {

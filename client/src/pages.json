@@ -89,7 +89,7 @@
 				{
 					"path": "index",
 					"style": {
-						"navigationBarTitleText": "菜品信息纠错",
+						"navigationBarTitleText": "菜品问题反馈",
 						"navigationStyle": "custom"
 					}
 				}

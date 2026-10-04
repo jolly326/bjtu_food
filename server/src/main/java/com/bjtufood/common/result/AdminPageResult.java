@@ -17,7 +17,7 @@ import java.util.List;
  *   <li>管理端（核对型使用）：需要「共 N 条」与总页数来做页码跳转与抽查，故回 {@code total}。</li>
  * </ul>
  * 契约见 docs/api/README.md「管理端分页结构 {@code AdminPageResult<T>}」与
- * docs/web/README.md 的通用约定（列表）。
+ * docs/api/README.md 的通用约定（列表）。
  * <p>
  * <b>字段集</b>：{@code records}（当前页数据）+ {@code total}（满足条件的总条数）。
  * 请求侧仍持有 {@code page} / {@code pageSize}，管理端默认 {@code pageSize = 20}。

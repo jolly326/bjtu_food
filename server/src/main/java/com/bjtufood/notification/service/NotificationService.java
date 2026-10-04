@@ -49,7 +49,7 @@ public interface NotificationService {
     void markRead(Long userId, Long notificationId);
 
     /**
-     * 全部标记已读（spec §7.18）：将当前用户全部未读通知一次性置为已读。
+     * 全部标记已读：将当前用户全部未读通知一次性置为已读。
      * <p>
      * 单条批量 UPDATE（{@code WHERE user_id = ? AND is_read = 0}），不逐条循环；
      * 幂等：无未读时返回 0，不报错。

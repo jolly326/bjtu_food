@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 微信登录会话服务（jscode2Session，spec §5.y.1）：用 wx.login 的 code 换 openid / session_key。
+ * 微信登录会话服务（jscode2Session）：用 wx.login 的 code 换 openid / session_key。
  * <p>
  * （user.unionid 已于零消费退役，微信响应中的 unionid 字段不再解析。）
  * <p>

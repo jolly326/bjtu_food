@@ -53,7 +53,7 @@ public interface FeedbackConst {
     // ==================== 举报原因 ====================
     // 举报原因字典**已改为表驱动**（`report_reason` 表，A7 落地 2026-10-03）：
     // 原先的常量真源（`REPORT_REASONS` / `REPORT_REASON_VALUES` / 6 个机器值常量 / `ReportReason` record）
-    // 已整体删除 —— 口径真源见 docs/schema/report_reason.md 与 docs/web/A-主数据维护/A7-举报原因管理.md。
+    // 已整体删除 —— 口径真源见 docs/schema/report_reason.md 与 docs/api/web/report-reasons.md。
     // 读取与校验入口：{@code ReportReasonService#listEnabled()}（公开下发）与 {@code isSubmittable()}（提交白名单）。
     //
     // ⚠️ 测试中若需具体机器值，直接用字面量（如 "spam"）或读表，**不要再引入本类常量**。
@@ -82,12 +82,12 @@ public interface FeedbackConst {
      *   <li>{@code report} = 举报管理（B3）→ <b>仅</b> {@code type='report'}</li>
      * </ul>
      * 不传 = 全部（兼容不区分板块的调用）。口径见
-     * docs/web/B-UGC治理/B2-意见反馈管理.md 与 B3-举报管理.md。
+     * docs/api/web/feedback.md。
      */
     Set<String> QUERY_CATEGORIES = Set.of("feedback", "report");
 
     /**
-     * 处理结论（§7.23 第 5 条）：{@code handled}=通过/已处理（缺省值）；
+     * 处理结论：{@code handled}=通过/已处理（缺省值）；
      * {@code rejected}=不采纳/退回（此时 reject_reason 必填，1~200 字）。
      */
     String OUTCOME_HANDLED = "handled";
@@ -96,11 +96,11 @@ public interface FeedbackConst {
     /** 处理结论白名单（后台处理入参校验用；未传按 handled 缺省） */
     Set<String> OUTCOMES = Set.of(OUTCOME_HANDLED, OUTCOME_REJECTED);
 
-    /** 不采纳原因最大长度（schema user_feedback.reject_reason VARCHAR(200)，§7.23 第 5 条） */
+    /** 不采纳原因最大长度（schema user_feedback.reject_reason VARCHAR(200)） */
     int REJECT_REASON_MAX_LENGTH = 200;
 
     /**
-     * 处理回复最大长度（≤600 字，口径见 docs/web/B-UGC治理/B2-意见反馈管理.md）。
+     * 处理回复最大长度（≤600 字，口径见 docs/api/web/feedback.md）。
      * <p>
      * 回执正文 = 固定前缀（≤40 字）+ 本回复全文 ⇒ 构造后必 ≤ 1024（`notification.content` 列宽），
      * 故**不得**放宽本上限而不改列宽。

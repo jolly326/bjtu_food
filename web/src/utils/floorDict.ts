@@ -8,5 +8,3 @@
  * （故不会出现字典外的值）。后端 `FloorDict`（`server/.../canteen/constant/FloorDict.java`）与本表逐项一致。
  */
 export const FLOOR_OPTIONS = ['负一层', '一层', '二层', '三层', '四层'] as const
-
-export type FloorValue = (typeof FLOOR_OPTIONS)[number]

@@ -134,7 +134,7 @@ class FrontendApiIsolationTest {
     /**
      * <b>已知缺口（临时白名单 —— 后端补齐后必须逐条清空）</b>。
      * <p>
-     * 管理后台（web）已按 {@code docs/web/feature/*} 的<b>新契约</b>完成完全重写，
+     * 管理后台（web）已按 {@code docs/api/web/*} 的<b>新契约</b>完成完全重写，
      * 但对应的<b>后端 admin API 尚未实现</b>，这些端点当前请求恒 404。
      * 为让「web 调用的路径必须在后端存在」这条护栏在<b>后端落地前</b>仍能拦住
      * 已有端点的误拼写 / 误路径，此处显式登记尚未实现的端点，<b>仅</b>从
@@ -142,7 +142,7 @@ class FrontendApiIsolationTest {
      * <p>
      * <b>后端逐一补齐后，必须从此表删除对应项；表清空即护栏恢复全量严格。</b>
      * 归属：web 重写（用户拍板「完全重写」）领先后端；待后端按
-     * {@code docs/web/feature/*} 实现 admin API。
+     * {@code docs/api/web/*} 实现 admin API。
      */
     // ✅ 2026-10-03 起本表**恒空**（不再有豁免）：
     //    A4/A5/A6/A7/D1 与后台管理端全部端点均已落地；B4 的 `GET /admin/corrections/{id}`

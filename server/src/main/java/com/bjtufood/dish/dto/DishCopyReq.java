@@ -8,7 +8,7 @@ import lombok.Data;
 /**
  * 复制菜品请求（{@code POST /admin/dishes/{id}/copy}）。
  * <p>
- * 契约见 docs/web/A-主数据维护/A3-菜品管理.md：<b>只收新菜名</b>，其余字段全部复制源菜品；
+ * 契约见 docs/api/web/dishes.md：<b>只收新菜名</b>，其余字段全部复制源菜品；
  * 副本**默认下架**（`off`）—— 复制出来的是半成品，先下架、确认内容后再上架。
  */
 @Data

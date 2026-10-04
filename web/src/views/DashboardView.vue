@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * D1 运营看板（**登录后首屏**；页面规格见 [运营看板.md](../../../docs/web/ui/运营看板.md) 与
- * [D1-运营看板.md](../../../docs/web/D-运营/D1-运营看板.md)）。
+ * D1 运营看板（**登录后首屏**；页面规格见 [运营看板.md](../../../docs/ui/web/运营看板.md) 与
+ * [D1-运营看板.md](../../../docs/func/web/D-运营/D1-运营看板.md)）。
  *
  * <p>定位：**只读聚合页** —— 本页不含任何写操作，所有处置都在各自页面（评价 / 反馈 / 举报 / 纠错 / 主数据）。
  * 三区分区，每区 ≤4 项；待办区**必须含可点击的最近列表**（只有数字的话看板会退化成「数字墙」，
@@ -41,7 +41,7 @@ async function load(): Promise<void> {
 const KIND_META: Record<RecentTodoVO['kind'], { label: string; to: string }> = {
   feedback: { label: '意见反馈', to: '/feedbacks' },
   report: { label: '举报', to: '/reports' },
-  correction: { label: '菜品纠错', to: '/corrections' },
+  correction: { label: '菜品问题反馈', to: '/corrections' },
 }
 
 function go(path: string): void {
@@ -76,7 +76,7 @@ onMounted(() => load())
           </button>
           <button class="stat-card" type="button" v-press @click="go('/corrections')">
             <div class="stat-value">{{ data.todo.pendingCorrectionCount }}</div>
-            <div class="stat-label">待处理菜品纠错</div>
+            <div class="stat-label">待处理菜品问题反馈</div>
           </button>
         </div>
 

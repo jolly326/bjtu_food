@@ -248,7 +248,7 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("handle：反馈不存在 → 4001（目标态契约，见 docs/web/B-UGC治理/B2-意见反馈管理.md）")
+    @DisplayName("handle：反馈不存在 → 4001（目标态契约，见 docs/api/web/feedback.md）")
     void handle_notFound_4001() {
         when(feedbackMapper.selectById(anyLong())).thenReturn(null);
         FeedbackHandleReq req = new FeedbackHandleReq();

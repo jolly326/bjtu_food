@@ -1,18 +1,19 @@
 <script setup lang="ts">
 /**
- * A1 食堂管理（页面规格见 [列表页模板.md 的 A1 差异节](../../../docs/web/ui/列表页模板.md)）。
+ * A1 食堂管理（页面规格见 [列表页模板.md 的 A1 差异节](../../../docs/ui/web/列表页模板.md)）。
  *
  * <p>要点：**不分页**（量级十数条，列表按 `name` 升序）；编辑载体 = **弹窗**（仅 1 个简单控件：名称）；
  * 删除受阻（**其下仍有档口 → `400` 原文透出**）。
  */
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import { createCanteen, deleteCanteen, listCanteens, updateCanteen } from '@/api/canteens'
 import type { CanteenAdminVO } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
 import BaseModal from '@/components/BaseModal.vue'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
 
 const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
   useSimpleList<CanteenAdminVO>(() => listCanteens())
@@ -60,11 +61,7 @@ async function remove(row: CanteenAdminVO): Promise<void> {
   const stallHint =
     row.stallCount > 0 ? `该食堂下有 ${row.stallCount} 个档口，删除前请先处理。` : ''
   try {
-    await ElMessageBox.confirm(`确认删除食堂「${row.name}」？${stallHint}`, '删除食堂', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await confirmDelete(`确认删除食堂「${row.name}」？${stallHint}`, { title: '删除食堂' })
   } catch {
     return
   }
@@ -89,11 +86,15 @@ onMounted(() => load())
     </div>
 
     <!-- 六态：① 加载 ⑥ 会话失效 ② 错误 ③ 空 ④ 有数据 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="load" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无食堂" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无食堂"
+      @retry="load"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -119,8 +120,8 @@ onMounted(() => load())
 
     <BaseModal :title="title" :open="open" @close="open = false">
       <div class="field">
-        <label>食堂名称</label>
-        <input class="form-input" v-model="name" placeholder="如 学一食堂" @keyup.enter="save" />
+        <label for="canteen-name">食堂名称</label>
+        <input id="canteen-name" class="form-input" v-model="name" placeholder="如 学一食堂" @keyup.enter="save" />
       </div>
       <template #actions>
         <button class="btn-secondary" type="button" @click="open = false">取消</button>

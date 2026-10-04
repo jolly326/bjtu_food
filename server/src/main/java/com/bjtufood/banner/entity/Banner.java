@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  *   <li>{@code image_url} 与菜品图片同口径：库内可存相对路径，出参经 {@code ImageUrlUtil} 转绝对 URL。</li>
  * </ul>
  * <p>
- * 本期仅只读：管理端录入（/admin/banners）不落地，素材由 {@code seed_data.sql} 维护；需要运营自助录入时另立 change。
+ * 本期仅只读：管理端录入（/admin/banners）不落地，素材由种子数据维护；需要运营自助录入时另立 change。
  */
 @Data
 @TableName("banner")

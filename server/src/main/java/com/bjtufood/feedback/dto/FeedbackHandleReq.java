@@ -12,7 +12,7 @@ import lombok.Data;
  *   <li>{@code reply} <b>可选</b>（≤1000 字；B2 2026-10-03 由必填改为可选）——
  *       处理回复没有信息增量时不该强制填写，空值由回执的固定文案兜底；
  *       <b>仅 {@code outcome=rejected} 时 {@code rejectReason} 必填</b>。</li>
- *   <li>{@code outcome} 处理结论（§7.23 第 5 条）：{@code handled}=通过/已处理（缺省）；
+ *   <li>{@code outcome} 处理结论：{@code handled}=通过/已处理（缺省）；
  *       {@code rejected}=不采纳/退回。非法值由 Service 层 400 拦截。</li>
  *   <li>{@code rejectReason} 不采纳原因：outcome=rejected 时<b>必填</b>（1~200 字，纯空白 → 400
  *       「请填写不采纳原因」）；outcome=handled 时不消费（保持落库 NULL）。</li>

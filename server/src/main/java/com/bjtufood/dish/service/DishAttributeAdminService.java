@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * A4 属性维度与取值管理（管理端）+ **属性值的读写口径转换**。
  *
- * <p>契约真源：docs/web/A-主数据维护/A4-菜品属性维度管理.md。
+ * <p>契约真源：docs/api/web/dimensions.md。
  *
  * <p><b>模型</b>：取值有独立行与 ID（`dish_attribute_value`），`dish.attributes` 存**取值 ID**
  * （`single` 数字 / `multi` 数字数组），出参翻译成中文 ⇒ 客户端展示契约不变、**改名免费**。

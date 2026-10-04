@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  * 因此改 `label` 只改一行、**全站生效（改名免费）**。
  * <p>
  * 删除约束：被菜品引用时禁止删除（应用层统计 `dishCount`），避免菜品属性读到悬空 ID。
- * 口径真源：docs/schema/dish_attribute_value.md 与 docs/web/A-主数据维护/A4-菜品属性维度管理.md。
+ * 口径真源：docs/schema/dish_attribute_value.md 与 docs/api/web/dimensions.md。
  */
 @Data
 @TableName("dish_attribute_value")

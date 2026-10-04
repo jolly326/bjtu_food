@@ -52,7 +52,7 @@ public class Feedback {
 
     // user_feedback.contact 已于用户拍板「产品定型不收集联系方式」退役：
     // 请求字段（FeedbackReq.contact）、实体字段与落库逻辑同批删除；
-    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
+    // CREATE TABLE 已移除，存量库已直连远程库清理。
 
     /** 关联类型：report 举报为 review（被举报评价）；error 信息纠错为 dish；其他反馈为 null */
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
@@ -71,9 +71,9 @@ public class Feedback {
     private String reply;
 
     /**
-     * 不采纳原因（§7.23 第 5 条）：处理结论为「不采纳/退回」时必填（1~200 字），
+     * 不采纳原因：处理结论为「不采纳/退回」时必填（1~200 字），
      * 随回执通知一并向已认证提交人展示；结论为通过/已处理时保持 NULL。
-     * 对应列 user_feedback.reject_reason（由技术负责人在 schema.sql 幂等补列）。
+     * 对应列 user_feedback.reject_reason（由技术负责人直连远程库补列）。
      */
     @Schema(description = "不采纳原因（处理结论为不采纳/退回时必填，1~200 字）")
     private String rejectReason;
@@ -83,8 +83,8 @@ public class Feedback {
     private LocalDateTime handledAt;
 
     // user_feedback.handler_id 已于用户拍板「零消费即删除」退役
-    //（§7.10 管理端操作人身份降级为单口令后该列即不写，读侧恒 NULL）；
-    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
+    //（管理端操作人身份降级为单口令后该列即不写，读侧恒 NULL）；
+    // CREATE TABLE 已移除，存量库已直连远程库清理。
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")

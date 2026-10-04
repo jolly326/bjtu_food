@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 页面路由集中注册表。
  * 目的：消除 `/pages/...` 字面量在各页 / 分享 / 导航层散落 —— 分包或路径变更时只改这里 + `pages.json`。
  * 与 `client/src/pages.json` 严格一致（12 页）；跳转统一用文件底部的便捷构造函数，**禁止调用点手拼 URL**。
@@ -55,7 +55,7 @@ export function feedbackUrl(): string {
 }
 
 /**
- * 菜品纠错页 URL（独立页面，**仅**菜品详情页底栏「反馈错误」触发）：
+ * 菜品问题反馈页 URL（独立页面，**仅**菜品详情页信息卡「菜品有问题?」触发）：
  * 进页即按 `dishId` 预绑定该菜品并拉详情预填，表单内不可切换菜品，提交**只传改动项**。
  */
 export function correctionUrl(dishId: number | string): string {

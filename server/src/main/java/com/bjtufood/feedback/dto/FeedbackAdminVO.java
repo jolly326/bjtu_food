@@ -57,7 +57,7 @@ public class FeedbackAdminVO {
     private String status;
 
     /**
-     * 处理结论（§7.23 第 5 条）：{@code handled}=通过/已处理（缺省）；{@code rejected}=不采纳/退回。
+     * 处理结论：{@code handled}=通过/已处理（缺省）；{@code rejected}=不采纳/退回。
      * <p>
      * 派生口径（user_feedback 表无 outcome 物理列，落库语义由 handle() 保证一致：
      * rejected 结论时 reject_reason 必填非空，handled 结论时 reject_reason 恒为 NULL）：

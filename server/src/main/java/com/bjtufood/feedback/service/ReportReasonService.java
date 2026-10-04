@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 举报原因字典服务（A7）。
  *
- * <p>契约真源：docs/web/A-主数据维护/A7-举报原因管理.md 与 docs/schema/report_reason.md。
+ * <p>契约真源：docs/api/web/report-reasons.md 与 docs/schema/report_reason.md。
  *
  * <p>三条不变量（服务端强制）：
  * <ol>

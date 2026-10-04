@@ -579,7 +579,7 @@ class SmokeApiTest {
 
     /**
      * 防回归：上传端点命名去混淆后，学生端 {@code /upload/cloud-image} 与管理端
-     * {@code /admin/upload} 应在册（口径见 docs/web/README.md「管理端素材上传」），
+     * {@code /admin/upload} 应在册（口径见 docs/api/web/upload.md「管理端素材上传」），
      * 旧路径 {@code /upload/images}、{@code /upload/image}、{@code /admin/upload/image} 不得残留。
      */
     @Test

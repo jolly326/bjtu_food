@@ -392,7 +392,7 @@ class CorrectionServiceImplTest {
     // ==================== adopt：幂等与两段式档口确认 ====================
 
     @Test
-    @DisplayName("adopt：纠错不存在 → 4001（目标态契约，见 docs/web/B-UGC治理/B4-菜品纠错管理.md）")
+    @DisplayName("adopt：纠错不存在 → 4001（目标态契约，见 docs/api/web/corrections.md）")
     void adopt_notFound_4001() {
         when(correctionMapper.selectById(anyLong())).thenReturn(null);
         assertThatThrownBy(() -> service().adopt(9L, null))

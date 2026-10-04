@@ -21,7 +21,7 @@
     - 管理端查询（adminDishColumns）额外选 status/stall_id/timestamps（管理端维护用）；
     - 坐标兜底 COALESCE 与 canteen 坐标列同批下线（位置表达收敛为 食堂 · 楼层 · 档口名）；
     - 标签 FIND_IN_SET(tag) 条件与 d.tags 模糊匹配随 tags 整链下线删除；
-    - 辣度 spice_level 筛选条件随维度替换删除（§7.28）。
+    - 辣度 spice_level 筛选条件随维度替换删除。
     ============================================================
     -->
 
@@ -53,7 +53,7 @@
         view_count*1 + rating_count*5*20 + COALESCE(avg_rating,0)*20
         权重：浏览量 1、评价数 5*20=100、评分 20。
     注意（Q-109，2026-09-14 用户拍板）：Java 侧 DishHeatWeights 常量已删除，热度口径**只存在于本处 SQL**。
-    如需调整权重，**直接改本片段**（并按需同步 docs/project_spec.md 相关性条款），不存在第二处需同步的常量，
+    如需调整权重，**直接改本片段**，不存在第二处需同步的常量，
     避免「改了常量以为生效」的误判。
     仅供「等价口径」复用（heat 排序、热搜词条）；其他独立业务口径请勿 include 本片段。
     -->
@@ -124,7 +124,7 @@
         SELECT
         <include refid="listDishColumns"/>
         <include refid="dishFromJoin"/>
-        <!-- 档口/食堂已去实体化（§7.14）：无停业语义，原 s.status/c.status='open' 过滤已移除（列同批 DROP） -->
+        <!-- 档口/食堂已去实体化：无停业语义，原 s.status/c.status='open' 过滤已移除（列同批 DROP） -->
         <!-- 菜品审核语义已整体退役（2026-09-15 阶段4）：公开可见性唯一判据为上架状态 status='on' -->
         WHERE d.status = 'on'
         <if test="q.keyword != null and q.keyword != ''">
@@ -139,7 +139,7 @@
         </if>
         <!-- 视图筛选条件（A6：由 DishViewConditions 按**字段/操作符/值三层白名单**校验后下发；
              白名单非法值在 Service 层即 400、不落 SQL；全部取值走 #{} 预编译参数，**不拼接 SQL 文本**。
-             组合关系只有 AND（一期不支持 OR）。字段清单见 docs/web/A-主数据维护/A6-首页筛选视图管理.md。
+             组合关系只有 AND（一期不支持 OR）。字段清单见 docs/func/web/A-主数据维护/A6-首页筛选视图管理.md。
              与 DishViewConditions#toWrapper（计数 / 预览 / 抽样用）保持**同一套口径**。 -->
         <foreach collection="q.conditions" item="c">
             <choose>
@@ -194,7 +194,7 @@
                 —— 同一 seed ⇒ 同一全序（翻页不重不漏），换 seed ⇒ 整体重洗（新鲜度）；
                 d.id 作决胜键，消除 CRC32 哈希碰撞导致的并列乱序；
              ② DISCOUNT_DESC（折扣视图）→ 折扣力度倒序，热度作决胜键；
-             ③ 其余（大类视图 / 搜索 / HEAT）→ heatScoreExpr DESC（2026-09-21 §7.33 热度口径不变）。
+             ③ 其余（大类视图 / 搜索 / HEAT）→ heatScoreExpr DESC。
              seed 走 #{} 预编译参数（防注入）；端上仍无排序入口（sortBy/sortOrder 已删） -->
         <choose>
             <when test="(q.keyword == null or q.keyword == '') and q.sortKind.name() == 'SEED_RANDOM' and q.seed != null and q.seed != ''">

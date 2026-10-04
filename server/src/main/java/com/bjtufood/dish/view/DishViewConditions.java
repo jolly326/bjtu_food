@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * 视图筛选条件引擎 —— **字段 / 操作符 / 值 三层白名单**的唯一真源。
  *
- * <p>契约真源：docs/web/A-主数据维护/A6-首页筛选视图管理.md 的「筛选字段白名单」与
+ * <p>契约真源：docs/api/web/views.md 的「筛选字段白名单」与
  * docs/schema/dish_filter_view.md 的「条件语言是有限语言（安全底线）」。
  *
  * <p><b>为什么必须白名单</b>：开放「可配置 SQL」等于把 ORM 暴露给运营 —— 注入与性能双双失控。

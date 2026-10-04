@@ -84,7 +84,7 @@ public interface StallService {
     void updateFloor(Long stallId, String floor);
 
     /**
-     * 按名 upsert 档口（§7.23 第 1 条）：同名不重复建档（精确匹配，名称列无唯一键，
+     * 按名 upsert 档口：同名不重复建档（精确匹配，名称列无唯一键，
      * 并发双写极端情况由调用方幂等容忍）。菜品录入/编辑（DishServiceImpl#resolveStallId）
      * 与菜品纠错采纳（createIfMissing=true）共用本入口。
      * <p>

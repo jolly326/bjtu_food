@@ -7,6 +7,7 @@ const props = defineProps<{
   modelValue: string[]
   max?: number
   ratioHint?: string
+  ariaLabel?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [string[]] }>()
 
@@ -41,15 +42,16 @@ function remove(i: number): void {
 </script>
 
 <template>
-  <div class="img-upload">
+  <div class="img-upload" role="group" :aria-label="ariaLabel ?? '图片上传'">
     <div class="thumb" v-for="(u, i) in modelValue" :key="i">
       <img :src="u" alt="" />
-      <button class="thumb-del" type="button" @click="remove(i)">×</button>
+      <button class="thumb-del" type="button" :aria-label="`删除${ariaLabel ?? '图片'} ${i + 1}`" @click="remove(i)">×</button>
     </div>
     <button
       class="thumb add"
       type="button"
       :disabled="uploading"
+      :aria-label="ariaLabel ? `添加${ariaLabel}` : '添加图片'"
       @click="inputRef?.click()"
     >
       <span v-if="uploading" class="spin"></span>

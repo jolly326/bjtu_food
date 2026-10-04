@@ -1,9 +1,9 @@
-/**
+﻿/**
  * 反馈 / 举报写入口（三链路各自独立）：
  * - 意见反馈 `POST /feedback`（纯反馈三类型 bug/suggestion/other）
  * - 评价举报 `POST /reviews/{id}/report`（RESTful 子资源）
  * - 举报原因字典 `GET /report-reasons`（PUB）
- * - 菜品纠错 `POST /dishes/{id}/correction`
+ * - 菜品问题反馈 `POST /dishes/{id}/correction`（信息有误 / 已经下架）
  */
 import { get, post } from './http'
 import type { ReportReasonVO as SharedReportReasonVO } from './shared'
@@ -27,9 +27,13 @@ export async function reportReview(reviewId: number, payload: ReportPayload): Pr
 }
 
 /**
- * 提交菜品纠错。请求体七字段平铺（无 payload 包裹、无 type / dishId）；
- * `price` 单位为分 —— 端上以元填写、提交前经 `yuanToFen` 转分（金额红线）；
- * 公开可提交（匿名允许）；菜品不存在 → 4001，name 敏感词 → 400 直透。
+ * 提交菜品问题反馈（`POST /dishes/{id}/correction`）。
+ *
+ * 请求体**必须携带 `type`**（`field` 信息有误 / `gone` 已经下架），两类字段集合不同：
+ * - `field`：七字段平铺（局部提交，只传改动项；`price` 单位**分**，端上以元填写、提交前经 `yuanToFen` 转分）；
+ * - `gone`：仅 `note`（≤200 字）+ `images`（≤3 张），**均可不传**（提交即成立）。
+ *
+ * 无 `dishId`（在路径中）。公开可提交（匿名允许）；菜品不存在 → 4001，name 敏感词 → 400 直透。
  */
 export async function createDishCorrection(
   dishId: number,

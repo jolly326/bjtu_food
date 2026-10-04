@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 /**
  * A4 维度出参（管理端）。
  *
- * <p>契约真源：docs/web/A-主数据维护/A4-菜品属性维度管理.md ——
+ * <p>契约真源：docs/api/web/dimensions.md ——
  * `dishCount`（使用该维度的菜品数）与 `valueCount`（该维度下的取值数）供**删除前判断**与确认文案使用。
  */
 @Data

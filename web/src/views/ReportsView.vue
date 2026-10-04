@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * B3 举报管理（页面规格见 [反馈与举报.md](../../../docs/web/ui/反馈与举报.md) §B3）。
+ * B3 举报管理（页面规格见 [反馈与举报.md](../../../docs/ui/web/反馈与举报.md) §B3）。
  *
  * <p>要点：与 B2 **同一列表端点**（`GET /admin/feedbacks?category=report`）与**同一处置端点**
  * （`PUT /admin/feedbacks/{id}`）；列表私有列 = 被举报评价摘要 + 评价可见性；
@@ -17,7 +17,8 @@ import type {
   ReportAdminVO,
 } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
+import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 
@@ -128,11 +129,15 @@ onMounted(() => reloadFirstPage())
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
-    <StateBox v-if="firstLoading" status="loading" />
-    <StateBox v-else-if="sessionInvalid" status="session" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="reload" />
-    <StateBox v-else-if="isEmpty" status="empty" message="暂无举报" />
-    <div v-else-if="hasData" class="card table-wrap">
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无举报"
+      @retry="reload"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
@@ -171,14 +176,7 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <div v-if="total > 0" class="pager">
-        <span class="pager-total">共 {{ total }} 条</span>
-        <div class="pager-actions">
-          <button class="btn-secondary" type="button" :disabled="page <= 1" @click="prevPage">上一页</button>
-          <span class="pager-page">第 {{ page }} / {{ pageCount }} 页</span>
-          <button class="btn-secondary" type="button" :disabled="page >= pageCount" @click="nextPage">下一页</button>
-        </div>
-      </div>
+      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
     </div>
 
     <!-- 处置抽屉：被举报评价只读摘要 + 同时隐藏复选 + 结论 + 回复 -->
@@ -199,8 +197,8 @@ onMounted(() => reloadFirstPage())
       </div>
 
       <div class="field">
-        <label>处理结论</label>
-        <div class="tag-options">
+        <label id="rep-outcome-label">处理结论</label>
+        <div class="tag-options" role="radiogroup" aria-labelledby="rep-outcome-label">
           <button
             class="tag-option"
             type="button"
@@ -232,13 +230,13 @@ onMounted(() => reloadFirstPage())
       </div>
 
       <div class="field" v-if="outcome === 'rejected'">
-        <label>不成立原因（必填，≤200 字）</label>
-        <input class="form-input" v-model="rejectReason" maxlength="200" />
+        <label for="rep-reject-reason">不成立原因（必填，≤200 字）</label>
+        <input id="rep-reject-reason" class="form-input" v-model="rejectReason" maxlength="200" />
       </div>
 
       <div class="field">
-        <label>回复举报人（可选，≤600 字）</label>
-        <textarea class="form-textarea" v-model="reply" rows="4" maxlength="600" />
+        <label for="rep-reply">回复举报人（可选，≤600 字）</label>
+        <textarea id="rep-reply" class="form-textarea" v-model="reply" rows="4" maxlength="600" />
         <div class="hint">{{ reply.length }} / 600</div>
       </div>
 

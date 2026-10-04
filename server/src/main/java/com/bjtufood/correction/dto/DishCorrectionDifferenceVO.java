@@ -6,7 +6,7 @@ import lombok.Data;
 /**
  * 纠错**差异对照**项（{@code GET /admin/corrections/{id}} 的 `differences[]`）。
  *
- * <p>契约真源：docs/web/B-UGC治理/B4-菜品纠错管理.md 的「响应 · `differences[]`」。
+ * <p>契约真源：docs/api/web/corrections.md 的「响应 · `differences[]`」。
  * <ul>
  *   <li><b>只列「仍有差异」的项</b>：快照是**提交当时**的差异；若管理员已通过 A3 手动改成了同样的值，
  *       该项**已无差异** —— 再列进采纳清单等于「采纳一个已经相同的值」，徒增噪音与误操作；</li>

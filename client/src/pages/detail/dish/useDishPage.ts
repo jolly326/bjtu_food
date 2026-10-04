@@ -13,7 +13,7 @@
  * 使 store 获取与 onLoad/onShow/onShareAppMessage 均在组件实例上下文中注册
  * （模块顶层注册会报 "no active component instance"）。子 composable 同理。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { useAuthStore } from '@/stores/auth'
 import type { DishDetail } from '@/types/dish'
@@ -136,7 +136,7 @@ export function useDishPage() {
   }))
 
   /** 供页面模板/模板回调使用的全部编排绑定（名称与抽取前 <script setup> 顶层保持一致） */
-  return {
+  return reactive({
     dish,
     dishId,
     dishName: hero.dishName,
@@ -167,5 +167,5 @@ export function useDishPage() {
     onRetryReviews: reviewCore.onRetryReviews,
     onReviewsReachBottom: reviewCore.onReviewsReachBottom,
     submitReport,
-  }
+  })
 }
