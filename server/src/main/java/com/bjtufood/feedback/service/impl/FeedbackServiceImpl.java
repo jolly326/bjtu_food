@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.feedback.constant.FeedbackConst;
 import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -26,7 +27,6 @@ import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
 import com.bjtufood.feedback.service.FeedbackService;
 import com.bjtufood.feedback.service.ReportReasonService;
-import com.bjtufood.notification.constant.NotificationConst;
 import com.bjtufood.notification.dto.NotificationCmd;
 import com.bjtufood.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -122,12 +122,12 @@ public class FeedbackServiceImpl implements FeedbackService {
             throw new BusinessException("举报原因非法");
         }
         // 去重（§7.11 第 3 条）：同一登录用户对同一评价的重复举报不再新增（游客 userId=null 无身份标识，不去重）
-        if (userId != null && feedbackMapper.selectCount(new LambdaQueryWrapper<Feedback>()
-                .eq(Feedback::getUserId, userId)
-                .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
-                .eq(Feedback::getRelatedType, FeedbackConst.RELATED_REVIEW)
-                .eq(Feedback::getRelatedId, reviewId)) > 0) {
-            throw new BusinessException(400, "你已举报过该内容，我们会尽快处理，请勿重复提交");
+        if (userId != null) {
+            DuplicateGuard.assertUnique(feedbackMapper, new LambdaQueryWrapper<Feedback>()
+                    .eq(Feedback::getUserId, userId)
+                    .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
+                    .eq(Feedback::getRelatedType, FeedbackConst.RELATED_REVIEW)
+                    .eq(Feedback::getRelatedId, reviewId), 400, "你已举报过该内容，我们会尽快处理，请勿重复提交");
         }
         // 补充文本可空；填写则过本地词库 + 微信机审（空文本跳过送检省额度）
         String content = StringUtils.hasText(req.getContent()) ? localSensitiveFilter.filter(req.getContent()) : "";
@@ -170,31 +170,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
 
-        // 查询入参白名单校验（P2-01 / PR-06）：非法值 400，不再静默进 SQL 恒空（掩盖真实积压）。
-        // 兼容要求：type 白名单含历史遗留 bug/other（QUERY_TYPES），后台按历史类型筛选仍可查到老数据。
-        // 内容安全态筛选入参已随 sec_state 全链退役删除。
-        status = ParamValidator.optionalInWhitelist(status, FeedbackConst.QUERY_STATUSES, "处理状态");
-        type = ParamValidator.optionalInWhitelist(type, FeedbackConst.QUERY_TYPES, "反馈类型");
-        // 板块分流（B2 意见反馈 / B3 举报管理共用本端点，见 docs/web/B-UGC治理）：
-        //   report   ⇒ 仅 type='report'；feedback ⇒ 排除 type='report'（含存量 issue/add/error/bug/other）
-        category = ParamValidator.optionalInWhitelist(category, FeedbackConst.QUERY_CATEGORIES, "板块");
-        boolean reportOnly = "report".equals(category);
-        boolean feedbackOnly = "feedback".equals(category);
-
-        LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
-                .eq(StringUtils.hasText(status), Feedback::getStatus, status)
-                .eq(StringUtils.hasText(type), Feedback::getType, type)
-                .eq(reportOnly, Feedback::getType, FeedbackConst.TYPE_REPORT)
-                .ne(feedbackOnly, Feedback::getType, FeedbackConst.TYPE_REPORT)
-                .eq(userId != null, Feedback::getUserId, userId);
-
-        // 关键词模糊匹配反馈正文或管理员回复；用 and(...) 包一层括号，避免 OR 打散上面的等值条件。
-        // 必须在 orderByDesc 之前追加，否则条件片段会拼到 ORDER BY 之后生成非法 SQL。
-        if (StringUtils.hasText(keyword)) {
-            String kw = keyword.trim();
-            wrapper.and(w -> w.like(Feedback::getContent, kw).or().like(Feedback::getReply, kw));
-        }
-        wrapper.orderByDesc(Feedback::getCreatedAt);
+        LambdaQueryWrapper<Feedback> wrapper = buildAdminQuery(category, status, type, userId, keyword);
 
         IPage<Feedback> p = feedbackMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
@@ -229,6 +205,32 @@ public class FeedbackServiceImpl implements FeedbackService {
                 recs -> recs.stream()
                         .map(f -> toAdminVO(f, userMap, dishNameMap, reasonLabelMap, reviewBriefs))
                         .toList());
+    }
+
+    /** 抽取管理端列表 / 计数的公共查询构造（含入参白名单校验与板块分流），供 listForAdmin 与 countPending 复用。 */
+    private LambdaQueryWrapper<Feedback> buildAdminQuery(String category, String status, String type, Long userId, String keyword) {
+        status = ParamValidator.optionalInWhitelist(status, FeedbackConst.QUERY_STATUSES, "处理状态");
+        type = ParamValidator.optionalInWhitelist(type, FeedbackConst.QUERY_TYPES, "反馈类型");
+        category = ParamValidator.optionalInWhitelist(category, FeedbackConst.QUERY_CATEGORIES, "板块");
+        boolean reportOnly = "report".equals(category);
+        boolean feedbackOnly = "feedback".equals(category);
+        LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
+                .eq(StringUtils.hasText(status), Feedback::getStatus, status)
+                .eq(StringUtils.hasText(type), Feedback::getType, type)
+                .eq(reportOnly, Feedback::getType, FeedbackConst.TYPE_REPORT)
+                .ne(feedbackOnly, Feedback::getType, FeedbackConst.TYPE_REPORT)
+                .eq(userId != null, Feedback::getUserId, userId);
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            wrapper.and(w -> w.like(Feedback::getContent, kw).or().like(Feedback::getReply, kw));
+        }
+        wrapper.orderByDesc(Feedback::getCreatedAt);
+        return wrapper;
+    }
+
+    @Override
+    public long countPending(String category) {
+        return feedbackMapper.selectCount(buildAdminQuery(category, "pending", null, null, null));
     }
 
     /**
@@ -409,8 +411,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             }
             // §7.16 origin：reply 必填时通知不存在「无回复」分支；B2 起 reply 可选 ⇒
             // 交由上面的 body 组装保证**始终有可读正文**，不产生空通知。
-            notificationService.notify(new NotificationCmd(userId, NotificationConst.TYPE_FEEDBACK_HANDLE,
-                    feedback.getId(), title, body));
+            notificationService.notify(new NotificationCmd(userId, title, body));
         } catch (Exception ignored) {
             // 回执失败不阻塞反馈处理
             //

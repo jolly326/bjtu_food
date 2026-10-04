@@ -89,15 +89,15 @@ public class DashboardAdminController {
     }
 
     private long pendingFeedback() {
-        return feedbackService.listForAdmin("feedback", "pending", null, null, null, 1, 1).getTotal();
+        return feedbackService.countPending("feedback");
     }
 
     private long pendingReport() {
-        return feedbackService.listForAdmin("report", "pending", null, null, null, 1, 1).getTotal();
+        return feedbackService.countPending("report");
     }
 
     private long pendingCorrection() {
-        return correctionService.listForAdmin("pending", null, 1, 1).getTotal();
+        return correctionService.countPending();
     }
 
     /** 反馈 / 举报的最近待办（摘要取正文，超长截断 —— 看板只做「一眼看出是什么」。 */

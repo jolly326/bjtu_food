@@ -69,8 +69,6 @@ public class NotificationServiceImpl implements NotificationService {
         // 实体只在 notify 内部构造：isRead 恒 0（未读），投递方不再触达实体（P0-1 跨域契约收敛）
         Notification notification = new Notification();
         notification.setUserId(cmd.getUserId());
-        notification.setType(cmd.getType());
-        notification.setRelatedId(cmd.getRelatedId());
         notification.setIsRead(0);
         notification.setTitle(cmd.getTitle());
         notification.setContent(cmd.getContent());
@@ -78,8 +76,7 @@ public class NotificationServiceImpl implements NotificationService {
             notificationMapper.insert(notification);
         } catch (Exception e) {
             // 异步线程内异常不会传播到调用方，必须就地记日志，否则写入失败将完全静默
-            log.error("通知写入失败（userId={} type={} relatedId={}）",
-                    cmd.getUserId(), cmd.getType(), cmd.getRelatedId(), e);
+            log.error("通知写入失败（userId={}）", cmd.getUserId(), e);
             throw e;
         }
     }
@@ -137,7 +134,6 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     private NotificationVO toVO(Notification n) {
-        // type / relatedId 端上零消费，不出参（见 NotificationVO 类注释）
         NotificationVO vo = new NotificationVO();
         vo.setId(n.getId());
         vo.setTitle(n.getTitle());

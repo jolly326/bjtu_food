@@ -24,8 +24,7 @@ import org.springframework.web.bind.annotation.*;
  * 评价端点（RESTful 子资源路径）。
  * <ul>
  *   <li>评价列表 {@code GET /dishes/{id}/reviews}；</li>
- *   <li>发表评价 {@code POST /dishes/{id}/reviews}（请求体不含菜品 ID，归属由路径锁定；**重复提交即覆盖**）；</li>
- *   <li>重新评价（覆盖式）{@code PUT /reviews/{id}}；</li>
+ *   <li>发表评价 {@code POST /dishes/{id}/reviews}（请求体不含菜品 ID，归属由路径锁定；**重复提交即覆盖式重评**，无需独立端点）；</li>
  *   <li>删除本人评价 {@code DELETE /reviews/{id}}；</li>
  *   <li>我的评价 {@code GET /my/reviews}（支持 dishId 过滤）。</li>
  * </ul>

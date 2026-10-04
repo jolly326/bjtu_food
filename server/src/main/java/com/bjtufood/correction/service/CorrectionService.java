@@ -43,6 +43,15 @@ public interface CorrectionService {
     IPage<DishCorrectionAdminVO> listForAdmin(String status, Long dishId, int page, int pageSize);
 
     /**
+     * 待办计数（运营看板）：status=pending 的总数。
+     * <p>
+     * 等价于 {@code listForAdmin("pending", null, 1, 1).getTotal()}，但免去一次 LIMIT 1 列表查询。
+     *
+     * @return 待处理条数
+     */
+    long countPending();
+
+    /**
      * 管理端纠错**详情**（含 `differences[]` 差异对照，供「逐项勾选采纳」）。
      * <p>
      * `differences` **只列「仍有差异」的项**（`oldValue` 取当前菜品 / 档口的**实时值**）；

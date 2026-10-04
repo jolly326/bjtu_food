@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.dish.dto.DishViewAdminVO;
 import com.bjtufood.dish.dto.DishViewCondition;
@@ -52,10 +53,8 @@ public class DishViewAdminServiceImpl implements DishViewAdminService {
         String label = normalizeLabel(req.getLabel());
         List<DishViewCondition> conditions = DishViewConditions.validate(req.getConditions());
         String sortKind = normalizeSortKind(req.getSortKind());
-        if (viewMapper.selectCount(new LambdaQueryWrapper<DishFilterView>()
-                .eq(DishFilterView::getKey, key)) > 0) {
-            throw new BusinessException("视图键已存在");
-        }
+        DuplicateGuard.assertUnique(viewMapper, new LambdaQueryWrapper<DishFilterView>()
+                .eq(DishFilterView::getKey, key), "视图键已存在");
         DishFilterView entity = new DishFilterView();
         entity.setKey(key);
         entity.setLabel(label);

@@ -8,6 +8,7 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,12 +52,9 @@ public class CanteenServiceImpl implements CanteenService {
         // 「把 A 食堂改名成已存在的 B」会绕过约束，制造出同名食堂（数据重复的根源）。
         if (canteen.getName() != null && !canteen.getName().isBlank()) {
             String trimmed = canteen.getName().trim();
-            boolean duplicated = canteenMapper.selectCount(new LambdaQueryWrapper<Canteen>()
+            DuplicateGuard.assertUnique(canteenMapper, new LambdaQueryWrapper<Canteen>()
                     .eq(Canteen::getName, trimmed)
-                    .ne(Canteen::getId, canteen.getId())) > 0;
-            if (duplicated) {
-                throw new BusinessException("食堂名称已存在");
-            }
+                    .ne(Canteen::getId, canteen.getId()), "食堂名称已存在");
             canteen.setName(trimmed);
         }
         if (canteenMapper.updateById(canteen) == 0) {
@@ -75,11 +73,8 @@ public class CanteenServiceImpl implements CanteenService {
             throw new BusinessException("食堂名称不能超过 64 字");
         }
         // 名称唯一由应用层校验（A1：不强制加 DB 唯一索引 —— 历史数据可能已有重复，避免迁移阻塞）
-        boolean duplicated = canteenMapper.selectCount(new LambdaQueryWrapper<Canteen>()
-                .eq(Canteen::getName, trimmed)) > 0;
-        if (duplicated) {
-            throw new BusinessException("食堂名称已存在");
-        }
+        DuplicateGuard.assertUnique(canteenMapper, new LambdaQueryWrapper<Canteen>()
+                .eq(Canteen::getName, trimmed), "食堂名称已存在");
         Canteen canteen = new Canteen();
         canteen.setName(trimmed);
         canteenMapper.insert(canteen);

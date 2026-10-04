@@ -319,10 +319,8 @@ CREATE TABLE IF NOT EXISTS `notification`
 (
     `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '通知ID',
     `user_id`    BIGINT       NOT NULL DEFAULT 0 COMMENT '接收用户ID',
-    `type`       VARCHAR(32)  NOT NULL DEFAULT '' COMMENT '通知类型：feedback_handle=反馈与举报处置回执 / correction_handle=菜品信息纠错回执 / review_hidden=评价隐藏回执 / review_deleted=评价删除回执',
     `title`      VARCHAR(128) NOT NULL DEFAULT '' COMMENT '通知标题',
     `content`    VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '通知正文（固定前缀 ≤40 字 + 回复/不采纳原因全文 ⇒ ≤1024；恒非空）',
-    `related_id` BIGINT       NULL     DEFAULT NULL COMMENT '关联对象ID（菜品/反馈ID，按 type 解释）',
     `is_read`    TINYINT      NOT NULL DEFAULT 0 COMMENT '是否已读：0=未读 1=已读',
     `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -991,6 +989,33 @@ END$$
 DELIMITER ;
 CALL `drop_verified_columns`();
 DROP PROCEDURE IF EXISTS `drop_verified_columns`;
+
+-- 字段下线（2026-10-04）：notification 两列退役——
+--   · notification.type        —— 只写不读（端上零消费、不出参、服务端无任何按 type 分支；预留的「按类型跳转」未落地）；
+--   · notification.related_id  —— 只写不读（同上，关联对象 ID 端上零消费）。
+-- CREATE TABLE 已同步移除两列定义，实体 / Service 写入点同批移除；存量库在此幂等 DROP
+-- （先判 INFORMATION_SCHEMA.COLUMNS 存在再 DROP COLUMN，可重跑；两列均无索引成员，无连带对象），不影响既有数据。
+DROP PROCEDURE IF EXISTS `drop_notification_redundant_columns`;
+DELIMITER $$
+CREATE PROCEDURE `drop_notification_redundant_columns`()
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification' AND COLUMN_NAME = 'type'
+    ) THEN
+        ALTER TABLE `notification` DROP COLUMN `type`;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notification' AND COLUMN_NAME = 'related_id'
+    ) THEN
+        ALTER TABLE `notification` DROP COLUMN `related_id`;
+    END IF;
+END$$
+DELIMITER ;
+CALL `drop_notification_redundant_columns`();
+DROP PROCEDURE IF EXISTS `drop_notification_redundant_columns`;
 
 -- 字段下线（2026-09-16 用户拍板「数据库重设计：零消费列全部删除，满足 BCNF」）：
 --   共 6 列，逐列三端 grep 复核零消费后退役：

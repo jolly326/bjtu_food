@@ -8,7 +8,6 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
-import com.bjtufood.notification.constant.NotificationConst;
 import com.bjtufood.notification.dto.NotificationCmd;
 import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.common.utils.UgcImageValidator;
@@ -135,7 +134,7 @@ public class ReviewServiceImpl implements ReviewService {
         String imagesJson = UgcImageValidator.encode(req.getImages(), "评价", imageUrlUtil);
 
         if (existing != null) {
-            // 覆盖旧评价（与 PUT /reviews/{id} 同语义，差异化仅在归属由 token 锁定、无需传评价 ID）
+            // 覆盖旧评价（与发表同语义：归属由 token 锁定、无需传评价 ID）
             reviewPersister.updateAndPublish(existing.getId(), req.getRating(), filteredContent, imagesJson, dishId);
             return existing.getId();
         }
@@ -302,7 +301,7 @@ public class ReviewServiceImpl implements ReviewService {
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
         if (hidden) {
             // 隐藏后该评价对作者本人亦不可见（见 B1「客户端可见性」）⇒ 回执是作者唯一解释渠道
-            sendReviewReceipt(review.getUserId(), review.getId(), NotificationConst.TYPE_REVIEW_HIDDEN,
+            sendReviewReceipt(review.getUserId(),
                     "评价已被隐藏",
                     "你的评价已被管理员隐藏。"
                             + (review.getHiddenNote() == null ? "" : "说明：" + review.getHiddenNote()));
@@ -319,7 +318,7 @@ public class ReviewServiceImpl implements ReviewService {
         reviewMapper.deleteById(id);
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
         // 物理删除、作者侧完全不可见 ⇒ 必须投递回执
-        sendReviewReceipt(review.getUserId(), review.getId(), NotificationConst.TYPE_REVIEW_DELETED,
+        sendReviewReceipt(review.getUserId(),
                 "评价已被删除", "你的评价已被管理员删除。");
     }
 
@@ -377,12 +376,12 @@ public class ReviewServiceImpl implements ReviewService {
         return reviewMapper.selectCount(null);
     }
 
-    private void sendReviewReceipt(Long userId, Long reviewId, String type, String title, String content) {
+    private void sendReviewReceipt(Long userId, String title, String content) {
         if (userId == null || userId <= 0) {
             return;
         }
         try {
-            notificationService.notify(new NotificationCmd(userId, type, reviewId, title, content));
+            notificationService.notify(new NotificationCmd(userId, title, content));
         } catch (Exception ignored) {
             // 回执失败不阻塞处置；真正的失败由 NotificationServiceImpl#notify 内部记 error 日志，不静默
         }

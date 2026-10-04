@@ -10,6 +10,7 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -102,13 +103,10 @@ public class StallServiceImpl implements StallService {
                 belongCanteenId = current == null ? null : current.getCanteenId();
             }
             if (belongCanteenId != null) {
-                boolean duplicated = stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
+                DuplicateGuard.assertUnique(stallMapper, new LambdaQueryWrapper<Stall>()
                         .eq(Stall::getCanteenId, belongCanteenId)
                         .eq(Stall::getName, trimmed)
-                        .ne(Stall::getId, stall.getId())) > 0;
-                if (duplicated) {
-                    throw new BusinessException("该食堂下档口名称已存在");
-                }
+                        .ne(Stall::getId, stall.getId()), "该食堂下档口名称已存在");
             }
             stall.setName(trimmed);
         }
@@ -132,12 +130,9 @@ public class StallServiceImpl implements StallService {
             throw new BusinessException("档口名称不能超过 64 字");
         }
         // 同食堂下唯一（应用层校验，不加强 DB 唯一索引 —— 历史数据可能已有重复）
-        boolean duplicated = stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
+        DuplicateGuard.assertUnique(stallMapper, new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getCanteenId, stall.getCanteenId())
-                .eq(Stall::getName, name)) > 0;
-        if (duplicated) {
-            throw new BusinessException("该食堂下已存在同名档口");
-        }
+                .eq(Stall::getName, name), "该食堂下已存在同名档口");
         // 楼层：可选；给了就必须命中受控字典（值即汉字，见 FloorDict）
         if (stall.getFloor() != null) {
             if (!StringUtils.hasText(stall.getFloor())) {

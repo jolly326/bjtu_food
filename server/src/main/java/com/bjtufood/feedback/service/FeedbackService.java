@@ -65,6 +65,17 @@ public interface FeedbackService {
     IPage<FeedbackAdminVO> listForAdmin(String category, String status, String type, Long userId, String keyword, int page, int pageSize);
 
     /**
+     * 待办计数（运营看板）：按板块统计 status=pending 的总数。
+     * <p>
+     * 等价于 {@code listForAdmin(category, "pending", null, null, null, 1, 1).getTotal()}，
+     * 但免去一次 LIMIT 1 列表查询（与 countWithoutDish / countHealth 口径一致）。
+     *
+     * @param category 板块（feedback / report）
+     * @return 待处理条数
+     */
+    long countPending(String category);
+
+    /**
      * 处理反馈：标记 handled + 写 reply/处理结论/handled_at
      * <p>
      * §7.10 决议：管理端「操作人身份」降级——单口令即单人，不再追究身份，

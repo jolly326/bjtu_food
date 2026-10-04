@@ -29,7 +29,6 @@ import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.DishDimensionAdminVO;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
-import com.bjtufood.notification.constant.NotificationConst;
 import com.bjtufood.notification.dto.NotificationCmd;
 import com.bjtufood.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -290,14 +289,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         page = norm[0];
         pageSize = norm[1];
 
-        // 查询入参白名单校验（PR-06）：非法值 400，不静默进 SQL 恒空（掩盖真实积压）
-        status = ParamValidator.optionalInWhitelist(status, CorrectionConst.QUERY_STATUSES, "处理状态");
-
-        LambdaQueryWrapper<DishCorrection> wrapper = new LambdaQueryWrapper<DishCorrection>()
-                .eq(StringUtils.hasText(status), DishCorrection::getStatus, status)
-                // B4：按目标菜品筛选（从菜品视角看纠错）
-                .eq(dishId != null, DishCorrection::getDishId, dishId)
-                .orderByDesc(DishCorrection::getCreatedAt);
+        LambdaQueryWrapper<DishCorrection> wrapper = buildAdminQuery(status, dishId);
         IPage<DishCorrection> p = correctionMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
         // 批量补齐提交人昵称（一次 IN 查询，消除 N+1；游客 userId=null 不参与）——
@@ -331,6 +323,19 @@ public class CorrectionServiceImpl implements CorrectionService {
                 recs -> recs.stream()
                         .map(c -> toAdminVO(c, userMap, dishNameMap, stallByDish, dishCountByStall))
                         .toList());
+    }
+
+    private LambdaQueryWrapper<DishCorrection> buildAdminQuery(String status, Long dishId) {
+        status = ParamValidator.optionalInWhitelist(status, CorrectionConst.QUERY_STATUSES, "处理状态");
+        return new LambdaQueryWrapper<DishCorrection>()
+                .eq(StringUtils.hasText(status), DishCorrection::getStatus, status)
+                .eq(dishId != null, DishCorrection::getDishId, dishId)
+                .orderByDesc(DishCorrection::getCreatedAt);
+    }
+
+    @Override
+    public long countPending() {
+        return correctionMapper.selectCount(buildAdminQuery("pending", null));
     }
 
     /** 批量查询本页纠错目标菜品名：dishId 去重后一次 IN 查询，空集合返回空 Map（不发起查询） */
@@ -777,8 +782,7 @@ public class CorrectionServiceImpl implements CorrectionService {
             // 投递口径与 feedback handle 同源（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
             // 游客提交的纠错同样收到处理回执。
             // is_read 由 notify 实现侧统一置 0（P0-1：correction 不再 import / 构造 notify 实体）
-            notificationService.notify(new NotificationCmd(userId, NotificationConst.TYPE_CORRECTION_HANDLE,
-                    correction.getId(), "菜品信息更新",
+            notificationService.notify(new NotificationCmd(userId, "菜品信息更新",
                     adopted
                             ? "你提交的菜品信息纠错已采纳，菜品信息已更新。处理说明：" + reply
                             : "你提交的菜品信息纠错未采纳：" + rejectReason + "。处理说明：" + reply));

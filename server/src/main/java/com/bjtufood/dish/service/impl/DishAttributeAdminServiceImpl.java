@@ -3,6 +3,7 @@ package com.bjtufood.dish.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.dish.dto.DishDimensionAdminVO;
@@ -83,10 +84,8 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         String key = requireFieldKey(fieldKey);
         String dimensionName = requireText(name, "维度名", LABEL_MAX);
         String type = requireValueType(valueType);
-        if (dimensionMapper.selectCount(new LambdaQueryWrapper<DishAttributeDimension>()
-                .eq(DishAttributeDimension::getFieldKey, key)) > 0) {
-            throw new BusinessException("维度键已存在");
-        }
+        DuplicateGuard.assertUnique(dimensionMapper, new LambdaQueryWrapper<DishAttributeDimension>()
+                .eq(DishAttributeDimension::getFieldKey, key), "维度键已存在");
         DishAttributeDimension entity = new DishAttributeDimension();
         entity.setFieldKey(key);
         entity.setName(dimensionName);
@@ -457,9 +456,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (excludeId != null) {
             wrapper.ne(DishAttributeValue::getId, excludeId);
         }
-        if (valueMapper.selectCount(wrapper) > 0) {
-            throw new BusinessException("该取值已存在");
-        }
+        DuplicateGuard.assertUnique(valueMapper, wrapper, "该取值已存在");
     }
 
     private DishValueAdminVO toValueVO(DishAttributeValue v, Usage usage) {

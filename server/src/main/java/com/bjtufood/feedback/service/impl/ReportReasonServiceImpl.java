@@ -3,6 +3,7 @@ package com.bjtufood.feedback.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.feedback.constant.FeedbackConst;
 import com.bjtufood.feedback.dto.ReportReasonAdminVO;
@@ -68,10 +69,8 @@ public class ReportReasonServiceImpl implements ReportReasonService {
         String normalizedValue = normalizeValue(value);
         String normalizedLabel = normalizeLabel(label);
         // 机器值全站唯一（uk_reason_value 兜底，应用层先行给友好错误）
-        if (reportReasonMapper.selectCount(new LambdaQueryWrapper<ReportReason>()
-                .eq(ReportReason::getValue, normalizedValue)) > 0) {
-            throw new BusinessException("机器值已存在");
-        }
+        DuplicateGuard.assertUnique(reportReasonMapper, new LambdaQueryWrapper<ReportReason>()
+                .eq(ReportReason::getValue, normalizedValue), "机器值已存在");
         // 新增默认启用 ⇒ 启用数将达到 count+1，超上限即拒
         if (countEnabled() >= MAX_ENABLED) {
             throw new BusinessException("启用数已达上限 " + MAX_ENABLED + " 条，请先停用其它原因");

@@ -24,7 +24,7 @@ public interface NotificationService {
      * 架构收口 P0-1，feedback / correction 等投递方不再 import notify 的实体，
      * 实体只在 notify 内部构造（{@code isRead} 由实现侧统一置 0，调用方无需关心）。
      *
-     * @param cmd 通知入参（type 取 {@code NotificationConst.TYPE_*}）
+     * @param cmd 通知入参（跨域投递；实体仅在 notify 内部构造）
      */
     void notify(NotificationCmd cmd);
 

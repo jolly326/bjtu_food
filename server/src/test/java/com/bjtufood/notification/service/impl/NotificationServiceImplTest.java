@@ -126,8 +126,6 @@ class NotificationServiceImplTest {
     void notifyBuildsEntityInternally() {
         NotificationCmd cmd = new NotificationCmd();
         cmd.setUserId(1L);
-        cmd.setType("feedback_handled");
-        cmd.setRelatedId(7L);
         cmd.setTitle("反馈已处理");
         cmd.setContent("管理员已回复");
 
@@ -137,8 +135,6 @@ class NotificationServiceImplTest {
         verify(notificationMapper).insert(captor.capture());
         Notification saved = captor.getValue();
         assertThat(saved.getUserId()).isEqualTo(1L);
-        assertThat(saved.getType()).isEqualTo("feedback_handled");
-        assertThat(saved.getRelatedId()).isEqualTo(7L);
         assertThat(saved.getTitle()).isEqualTo("反馈已处理");
         assertThat(saved.getContent()).isEqualTo("管理员已回复");
         assertThat(saved.getIsRead()).as("新投递通知恒为未读").isZero();

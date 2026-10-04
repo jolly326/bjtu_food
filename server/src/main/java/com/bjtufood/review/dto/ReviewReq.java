@@ -13,7 +13,7 @@ import java.util.List;
  * 评价提交 / 重新评价请求参数。
  * <p>
  * 不含菜品 ID：归属由端点路径表达
- * （{@code POST /dishes/{id}/reviews} 发表、{@code PUT /reviews/{id}} 重新评价）。
+ * （{@code POST /dishes/{id}/reviews} 发表；重复提交即覆盖式重评，无需独立端点）。
  */
 @Data
 @Schema(description = "评价提交/重新评价请求参数")

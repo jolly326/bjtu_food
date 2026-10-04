@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.dish.dto.DishCategoryAdminVO;
 import com.bjtufood.dish.entity.Dish;
@@ -166,9 +167,7 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         if (excludeId != null) {
             wrapper.ne(DishCategoryValue::getId, excludeId);
         }
-        if (categoryMapper.selectCount(wrapper) > 0) {
-            throw new BusinessException("分类名已存在");
-        }
+        DuplicateGuard.assertUnique(categoryMapper, wrapper, "分类名已存在");
     }
 
     private long countDishes(String key) {
