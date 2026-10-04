@@ -1,91 +1,81 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  listCanteens,
-  createCanteen,
-  updateCanteen,
-  toggleCanteenStatus,
-  deleteCanteen,
-} from '@/api/canteens'
-import type { CanteenVO, CanteenSaveReq } from '@/types/common'
-import StatusTag from '@/components/StatusTag.vue'
+/**
+ * A1 食堂管理（页面规格见 [列表页模板.md 的 A1 差异节](../../../docs/ui/web/列表页模板.md)）。
+ *
+ * <p>要点：**不分页**（量级十数条，列表按 `name` 升序）；编辑载体 = **弹窗**（仅 1 个简单控件：名称）；
+ * 删除受阻（**其下仍有档口 → `400` 原文透出**）。
+ */
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
+import { fail } from '@/utils/error'
+import { createCanteen, deleteCanteen, listCanteens, updateCanteen } from '@/api/canteens'
+import type { CanteenAdminVO } from '@/types/common'
+import { useSimpleList } from '@/composables/useSimpleList'
 import BaseModal from '@/components/BaseModal.vue'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
 
-const list = ref<CanteenVO[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
+  useSimpleList<CanteenAdminVO>(() => listCanteens())
+
 const open = ref(false)
-const editing = ref<CanteenVO | null>(null)
-const form = ref<CanteenSaveReq>({ name: '', description: '', sortOrder: 0 })
+const editing = ref<CanteenAdminVO | null>(null)
 const saving = ref(false)
+const name = ref('')
 
-async function load(): Promise<void> {
-  loading.value = true
-  error.value = null
-  try {
-    list.value = await listCanteens()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
+const title = computed(() => (editing.value ? '编辑食堂' : '新建食堂'))
 
 function openCreate(): void {
   editing.value = null
-  form.value = { name: '', description: '', sortOrder: 0 }
+  name.value = ''
   open.value = true
 }
-function openEdit(r: CanteenVO): void {
-  editing.value = r
-  form.value = { name: r.name, description: r.description, sortOrder: r.sortOrder }
+
+function openEdit(row: CanteenAdminVO): void {
+  editing.value = row
+  name.value = row.name
   open.value = true
 }
+
 async function save(): Promise<void> {
-  if (!form.value.name.trim()) {
-    ElMessage.warning('请输入名称')
+  if (!name.value.trim()) {
+    ElMessage.warning('请输入食堂名称')
     return
   }
   saving.value = true
   try {
-    if (editing.value) await updateCanteen(editing.value.id, form.value)
-    else await createCanteen(form.value)
-    ElMessage.success('已保存')
+    if (editing.value) await updateCanteen(editing.value.id, { name: name.value.trim() })
+    else await createCanteen({ name: name.value.trim() })
+    ElMessage.success(editing.value ? '已保存' : '已新建')
     open.value = false
-    load()
+    await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    // 重名 / 空 / 超长 → 后端原文（400）
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
 }
-async function toggle(r: CanteenVO): Promise<void> {
+
+async function remove(row: CanteenAdminVO): Promise<void> {
+  const stallHint =
+    row.stallCount > 0 ? `该食堂下有 ${row.stallCount} 个档口，删除前请先处理。` : ''
   try {
-    await toggleCanteenStatus(r.id)
-    ElMessage.success('已更新')
-    load()
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  }
-}
-async function remove(r: CanteenVO): Promise<void> {
-  try {
-    await ElMessageBox.confirm(`确认删除食堂「${r.name}」？`, '提示', { type: 'warning' })
+    await confirmDelete(`确认删除食堂「${row.name}」？${stallHint}`, { title: '删除食堂' })
   } catch {
     return
   }
   try {
-    await deleteCanteen(r.id)
+    await deleteCanteen(row.id)
     ElMessage.success('已删除')
-    load()
+    await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    // 其下仍有档口 / 食堂不存在 → 后端原文（400 / 4001）
+    fail(e, '删除失败')
   }
 }
 
-onMounted(load)
+onMounted(() => load())
 </script>
 
 <template>
@@ -94,57 +84,47 @@ onMounted(load)
       <h2>食堂管理</h2>
       <button class="btn-primary" type="button" v-press @click="openCreate">新建食堂</button>
     </div>
-    <StateBox v-if="loading" status="loading" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="load" />
-    <div v-else class="card table-wrap">
+
+    <!-- 六态：① 加载 ⑥ 会话失效 ② 错误 ③ 空 ④ 有数据 -->
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无食堂"
+      @retry="load"
+    />
+    <div v-if="hasData" class="card table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>名称</th>
-            <th>描述</th>
-            <th>排序</th>
-            <th>状态</th>
+            <th>食堂</th>
             <th>档口数</th>
+            <th>更新时间</th>
             <th class="actions">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in list" :key="r.id">
-            <td>{{ r.name }}</td>
-            <td class="ellipsis">{{ r.description || '—' }}</td>
-            <td>{{ r.sortOrder }}</td>
-            <td><StatusTag :status="r.status" kind="onoff" /></td>
-            <td>{{ r.stallCount }}</td>
+          <tr v-for="row in items" :key="row.id">
+            <td>{{ row.name }}</td>
+            <td>{{ row.stallCount }}</td>
+            <td class="muted">{{ row.updatedAt }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="openEdit(r)">编辑</button>
-              <button class="link" type="button" @click="toggle(r)">
-                {{ r.status === 'on' ? '停用' : '启用' }}
-              </button>
-              <button class="link danger" type="button" @click="remove(r)">删除</button>
+              <button class="link" type="button" @click="openEdit(row)">编辑</button>
+              <button class="link danger" type="button" @click="remove(row)">删除</button>
             </td>
-          </tr>
-          <tr v-if="!list.length">
-            <td colspan="6"><StateBox status="empty" /></td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <BaseModal :title="editing ? '编辑食堂' : '新建食堂'" :open="open" @close="open = false">
+    <BaseModal :title="title" :open="open" @close="open = false">
       <div class="field">
-        <label>名称</label>
-        <input class="form-input" v-model="form.name" placeholder="食堂名称" />
-      </div>
-      <div class="field">
-        <label>描述</label>
-        <textarea class="form-textarea" v-model="form.description" rows="3" />
-      </div>
-      <div class="field">
-        <label>排序</label>
-        <input class="form-input" type="number" v-model.number="form.sortOrder" />
+        <label for="canteen-name">食堂名称</label>
+        <input id="canteen-name" class="form-input" v-model="name" placeholder="如 学一食堂" @keyup.enter="save" />
       </div>
       <template #actions>
-        <button class="btn-ghost" type="button" @click="open = false">取消</button>
+        <button class="btn-secondary" type="button" @click="open = false">取消</button>
         <button class="btn-primary" type="button" :disabled="saving" v-press @click="save">
           {{ saving ? '保存中…' : '保存' }}
         </button>
@@ -152,3 +132,10 @@ onMounted(load)
     </BaseModal>
   </div>
 </template>
+
+<style scoped>
+.muted {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+</style>

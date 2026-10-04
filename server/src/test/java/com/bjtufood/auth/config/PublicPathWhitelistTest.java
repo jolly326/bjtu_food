@@ -103,7 +103,7 @@ class PublicPathWhitelistTest {
                 .andReturn().getResponse().getStatus();
 
         org.assertj.core.api.Assertions.assertThat(status)
-                .as("游客浏览菜品是产品底线（docs/client/README.md「游客可浏览一切」），"
+                .as("游客浏览菜品是产品底线（docs/func/client/README.md「游客可浏览一切」），"
                         + "GET %s/dishes 不得返回 401。返回 401 说明 SecurityConfig 中 "
                         + "/dishes/** 白名单在带 context-path 的线上环境下未命中。", CONTEXT_PATH)
                 .isNotEqualTo(401);

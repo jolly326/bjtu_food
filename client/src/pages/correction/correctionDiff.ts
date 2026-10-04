@@ -1,16 +1,20 @@
 /**
- * 纠错表单的**纯逻辑**：改动比对与售价校验。
+ * 菜品问题反馈 · `field` 型（信息有误）的**改动项集合**。
  *
- * <p><b>为何抽出</b>：原为 `useCorrection.ts`（435 行）内部的 `sameList` / `sameValueSet` /
- * `priceValid` / `diff`，与「详情加载」「属性候选编排」「提交与限频」等副作用逻辑混在一起。
- * 这三者都是**无副作用的纯函数**，却因位置而无法被单测覆盖 —— 而它们恰好是本模块
- * 最易改坏的部分（比对口径错了会静默产生「无意义改动」提交）。
+ * <p><b>为何 `Omit`掉 `type`**：本函数只负责「算出**改了哪些字段**」——
+ * `type` 是**固定值**（恒 `field`），由调用方组装 payload 时补上；
+ * 若在此处要求 `type`，纯比对层就得为它造一个占位值，污染单测断言。
+ */
+export type DishCorrectionDiff = Omit<DishCorrectionPayload, 'type'>
+
+/**
+ * 菜品问题反馈 `field` 型表单的**纯逻辑**：改动比对与售价校验（无响应式状态、无副作用，可完整单测）。
  *
- * <p><b>只搬纯函数，不动编排</b>：本文件不持有任何响应式状态，调用方（`useCorrection`）
- * 仍负责 form / baseline / 提交。**拆分对页面行为零影响**。
+ * 编排（详情加载 / 属性候选 / 提交与限频）留在 `useCorrection`，本文件只负责「算出改了哪些字段」。
+ * 之所以独立成模块：比对口径错了会**静默产生「无意义改动」提交**（弹层里取消再勾回若按顺序比对，
+ * 就会误判为有改动），是最易改坏的部分，必须能被测试覆盖。
  *
- * <p><b>金额红线</b>：比对层只判「是否改动」，元 → 分的换算由调用方在组装 payload 时做
- * （`yuanToFen`），此处不碰金额单位。
+ * ⚠️ 金额红线：元 → 分 的换算只在组装 payload 时做（`yuanToFen`），比对层不碰金额单位。
  */
 import { yuanToFen } from '@/utils/money'
 import type { AttributeEditor, CorrectionFormModel } from './useCorrection'
@@ -77,8 +81,8 @@ export function buildCorrectionDiff(
   dishName: string,
   form: CorrectionFormModel,
   baseline: CorrectionBaseline,
-): DishCorrectionPayload {
-  const payload: DishCorrectionPayload = {}
+): DishCorrectionDiff {
+  const payload: DishCorrectionDiff = {}
   if (!dishName) return payload
   if (form.name.trim() !== baseline.name) payload.name = form.name.trim()
   // 金额：元字符串 → 分（金额红线；比对层只判是否改动）

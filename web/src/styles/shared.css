@@ -77,6 +77,27 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   box-shadow: var(--focus-ring);
 }
 
+/* 键盘可达：跳到主内容（默认视觉隐藏，聚焦时显现） */
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  z-index: 50;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  color: var(--color-primary-text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
+  transform: translateY(-160%);
+  transition: transform 0.15s var(--ease-out);
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ============================================================
  * 统一卡片 / 容器圆角（§4.2 卡片 16px；UI-06 --radius-card 已对齐 16px）+ 柔和阴影 + 统一边框
  * 所有页面复用这些公共类，禁止各页写死 px 圆角/边框。
@@ -158,17 +179,51 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   overflow-x: auto;
 }
 .table { width: 100%; border-collapse: collapse; font-size: var(--font-base); }
+/* 表头 / 单元格 / 行底：一律消费 --table-* component token（单一真源，见 设计变量.md）。 */
 .table th {
-  text-align: left; padding: var(--space-3) var(--space-4);
-  background: var(--bg-soft);
+  text-align: left; padding: var(--table-th-padding);
+  background: var(--table-header-bg);
   color: var(--text-secondary);
   font-weight: var(--weight-medium);
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--table-border);
   white-space: nowrap;
 }
-.table td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-soft); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.table td { padding: var(--table-td-padding); border-bottom: 1px solid var(--table-border); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .table tbody tr { transition: background 0.15s ease; }
-.table tbody tr:hover { background: var(--bg-hover); }
+.table tbody tr:hover { background: var(--table-row-hover); }
+/* 紧凑档：抽屉内小表复用同一结构（消费方：A4 取值抽屉），SHALL NOT 另立第三套表格样式 */
+.table--compact th,
+.table--compact td { padding: var(--space-2) var(--space-3); }
+
+/* ============================================================
+ * 分页条（UI 基线 §1.6：**页码 + 共 N 条**，非「加载更多」）
+ * 左：共 N 条；右：‹ 上一页 / 第 x / y 页 / 下一页 ›
+ * total = 0 时不渲染本容器（空态由 StateBox 承担）
+ * ============================================================ */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid var(--table-border);
+}
+.pager-total {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+.pager-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pager-page {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .ellipsis { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { white-space: nowrap; display: flex; gap: var(--space-2); }
 .empty { text-align: center; color: var(--text-light); padding: var(--space-10) var(--space-4) !important; }
@@ -221,7 +276,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   background: var(--bg-card); color: var(--color-error); font-size: var(--font-base);
   cursor: pointer; font-weight: var(--weight-medium);
 }
-.btn-danger:hover { background: var(--color-error); color: var(--text-white); }
+.btn-danger:hover { background: var(--color-error-hover); color: var(--text-white); }
 .btn-danger:disabled { opacity: .5; cursor: not-allowed; }
 /* 全链语义梯度：放行绿 < 驳回黄 < 删除/隐藏红 */
 .btn-success {
@@ -229,7 +284,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
   background: var(--bg-card); color: var(--color-success); font-size: var(--font-base);
   cursor: pointer; font-weight: var(--weight-medium);
 }
-.btn-success:hover { background: var(--color-success); color: var(--text-white); }
+.btn-success:hover { background: var(--color-success-hover); color: var(--text-white); }
 .btn-success:disabled { opacity: .5; cursor: not-allowed; }
 .btn-warn {
   padding: var(--space-2) var(--space-5); border: 1px solid var(--color-warning); border-radius: var(--radius);
@@ -259,7 +314,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 }
 .field input:focus, .field textarea:focus, .field select:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  box-shadow: var(--focus-ring);
 }
 .field textarea { resize: vertical; }
 .field select { cursor: pointer; }
@@ -284,7 +339,7 @@ button:focus-visible:not(:disabled), a:focus-visible, [role="button"]:focus-visi
 .form-input:focus,
 .form-textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  box-shadow: var(--focus-ring);
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: var(--space-3); margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--border-light); }
 

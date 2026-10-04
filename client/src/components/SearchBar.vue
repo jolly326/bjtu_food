@@ -8,7 +8,7 @@
        · `mode="entry"`（首页）：整条胶囊（含内嵌按钮）都是「进搜索页」入口（`@tap`）；
        · `mode="input"`（搜索页）：胶囊内为可输入框（点击即聚焦），按钮提交（`@search`），有值时可清除。
        高度取 `--search-bar-height`（96rpx ≈ 48px）；触控目标 ≥ 88rpx 由整条胶囊自身满足，
-       故不再需要旧版的 `::after` 扩展热区。 -->
+       故不再需要 `::after` 扩展热区（整条胶囊自身满足触控目标）。 -->
   <view class="search-bar-host">
     <view
       class="search-bar"

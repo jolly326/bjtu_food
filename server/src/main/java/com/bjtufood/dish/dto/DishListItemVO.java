@@ -10,7 +10,7 @@ import java.util.List;
 /**
  * 菜品列表行视图对象（**列表专用，恰为 8 个字段**）
  * <p>
- * 用户拍板「列表 / 详情出参拆分」（见 docs/client/A-浏览与发现/A1-首页菜品浏览.md D 项）：
+ * 用户拍板「列表 / 详情出参拆分」（见 docs/func/client/A-浏览与发现/A1-首页菜品浏览.md D 项）：
  * 拆分前列表与详情共用 {@link DishDetailVO} 的 15 字段，其中 8 个在列表链路零消费
  * （description / images[1..] / floor / ratingCount / dietType / ingredients / flavorTags / serveTemp），
  * 20 行/页约多下发 160 个字段值 → 拆出本类，列表只装「首页卡片四段 + 搜索结果卡」的真实渲染集合。

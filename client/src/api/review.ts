@@ -3,7 +3,7 @@ import { get, post, del } from './http'
 import { DEFAULT_PAGE_SIZE } from '@/constants/paging'
 import { ANONYMOUS_AUTHOR } from '@/constants/copy'
 import {
-  recordsOf, type RawPage,
+  recordsOf, normalizeImages, type RawPage,
   type ReviewVO, type MyReviewVO, type ReviewCreatedVO,
 } from './shared'
 
@@ -19,12 +19,9 @@ function toReview(raw: ReviewVO): Review {
     userAvatar: raw.userAvatar || '',
     rating: Number(raw.rating || 0),
     content: raw.content || '',
-    // 时间字段统一为 createdAt，不使用 createTime 别名
     createdAt: raw.createdAt || '',
-    // 配图（COS URL，≤3 张；后端未返回时缺省空数组，消费方按 length 渲染）
-    images: Array.isArray(raw.images)
-      ? (raw.images as unknown[]).filter((x): x is string => typeof x === 'string' && !!x)
-      : [],
+    // 配图（COS URL，≤3 张；缺省空数组，消费方按 length 渲染）
+    images: normalizeImages(raw.images),
   }
 }
 
@@ -38,9 +35,7 @@ function toMyReview(raw: MyReviewVO): MyReview {
     rating: Number(raw.rating || 0),
     content: raw.content || '',
     createdAt: raw.createdAt || '',
-    images: Array.isArray(raw.images)
-      ? (raw.images as unknown[]).filter((x): x is string => typeof x === 'string' && !!x)
-      : [],
+    images: normalizeImages(raw.images),
     dishId: Number(raw.dishId ?? 0),
     dishName: raw.dishName || '',
   }
@@ -48,9 +43,10 @@ function toMyReview(raw: MyReviewVO): MyReview {
 
 /**
  * 公开评价列表（RESTful 子资源）：GET /dishes/{id}/reviews
- * - 菜品归属由路径表达（不再用查询参数）；
- * - 排序唯一为时间倒序，端上**不传 sort**（PR-02）；
- * - 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
+ * 菜品归属由路径表达；排序唯一为时间倒序，端上**不传 sort**。
+ * 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
+ *
+ * 元素类型取自生成契约（`XxxVO`），后端改字段即编译期报错。
  */
 export async function listDishReviews(
   dishId: number,
@@ -60,7 +56,6 @@ export async function listDishReviews(
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
-  // 强类型：元素类型取自生成契约，后端改 ReviewVO 字段即编译期报错
   const res = await get<RawPage<ReviewVO>>(`/dishes/${dishId}/reviews`, params)
   return { list: recordsOf<ReviewVO>(res).map(toReview) }
 }
@@ -76,8 +71,7 @@ export async function deleteReview(reviewId: number): Promise<void> {
 
 /**
  * 我的评价列表（GET /my/reviews，需邮箱认证）。
- * 行字段 = **本人视角 7 字段**；删除仍走 DELETE /reviews/{id}。
- * 传 `dishId` 时仅返回该菜本人评价——详情页据此判定「我是否已评价」并取回评价 ID（供预填 / 重评）。
+ * 传 `dishId` 时仅返回该菜本人评价 —— 详情页据此判定「我是否已评价」并取回评价 ID（供预填 / 重评）。
  */
 export async function listMyReviews(
   options?: { page?: number; pageSize?: number; dishId?: number },
@@ -87,7 +81,6 @@ export async function listMyReviews(
     pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
   if (options?.dishId != null) params.dishId = options.dishId
-  // 强类型：同 listDishReviews，元素类型取自生成契约
   const res = await get<RawPage<MyReviewVO>>('/my/reviews', params)
   return { list: recordsOf<MyReviewVO>(res).map(toMyReview) }
 }

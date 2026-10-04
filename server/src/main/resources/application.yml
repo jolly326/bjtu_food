@@ -102,7 +102,7 @@ jwt:
   # JWT 签名密钥：生产/云端必须从环境变量 JWT_SECRET 注入强随机密钥，禁止明文入库。
   # 本地开发默认值仅供调试，切勿直接用于生产。
   secret: ${JWT_SECRET:BjtuFoodDevSecretKey2024ChangeMe}
-  # Token 过期时间：7 天（604800000ms，spec §5.y.5）。
+  # Token 过期时间：7 天（604800000ms）。
   # 小程序端过期后经静默登录自动换取新 token；注销/禁用仍可通过 TokenBlacklist 立即失效。
   expiration: 604800000
 
@@ -136,7 +136,7 @@ upload:
   # 上传文件 URL 访问前缀
   url-prefix: ${UPLOAD_URL_PREFIX:/images}
 
-# ---------- 微信小程序（code2Session，spec §5.y） ----------
+# ---------- 微信小程序（code2Session） ----------
 # appid / secret 一律从环境变量注入，禁止在仓库写入明文。
 wechat:
   appid: ${WECHAT_APPID:}
@@ -149,7 +149,7 @@ wechat:
 
 # ---------- 腾讯云 COS 对象存储（UGC 配图最终存储） ----------
 # 四项均从环境变量注入；任一缺失视为「COS 未配置」，/upload/cloud-image 返回 400「图片存储未配置」，
-# 管理端 multipart /admin/upload/image 降级本地磁盘存储（开发环境无 COS 仍可用）。
+# 管理端 multipart /admin/upload 降级本地磁盘存储（开发环境无 COS 仍可用）。
 cos:
   bucket: ${COS_BUCKET:}
   secret-id: ${COS_SECRET_ID:}

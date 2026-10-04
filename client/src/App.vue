@@ -12,7 +12,7 @@ onLaunch(() => {
     wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
   }
   // #endif
-  // 微信自动静默登录（§5.y）：打开小程序即登录为游客态（bindEmail 为空）；有 token 则刷新资料
+  // 微信自动静默登录：打开小程序即登录为游客态（bindEmail 为空）；有 token 则刷新资料
   // 失败（如后端不可达）仅打点，不阻断浏览与菜单栏渲染
   useUserStore().silentLogin().catch(() => {})
 });
@@ -23,10 +23,9 @@ onLaunch(() => {
    var() 派生引用与全局盒模型重置）。两处导入，均为**唯一真源**：
      · 颜色     → theme/generated-colors.css（手工同步 theme/tokens.ts 的 CSS_VARS）
      · 非颜色   → theme/design-tokens.css（圆角 / 间距 / 字号 / 字重 / 字距 / 动效 / 高度 / 层级）
-   → 文档对照表：docs/client/ui/client-设计变量.md
+   → 文档对照表：docs/ui/client/设计变量.md
    **改值只改上述两处真源**；生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens`
-   不在本工作区，generated-colors.css 须**手工同步**（内容与 CSS_VARS 逐键一致），
-   见 spec §4.2 / §7.39。
+   不在本工作区，generated-colors.css 须**手工同步**（内容与 CSS_VARS 逐键一致）。
    - 因 uni.scss 的 :root 在编译为小程序 WXSS 时被丢弃，真实声明须由 page 承载
      （两个导入文件内部均以 page{…} 声明）；
    - 微信小程序 WXSS 不支持 :root 选择器；
@@ -82,7 +81,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 /* ===== 主滚动区尺寸口径（全站唯一真源，Round 26 复核）=====
    ① `min-height: 0` **必需**：flex 子项默认 `min-height: auto`，不收缩 ⇒ 内容把滚动容器撑高 ⇒
       容器超出页根 ⇒ 页面与滚动区**双层滚动**（多余滚动 + 底部空白）。各页 `.scroll-wrap` 亦各自声明（双保险）。
-   ② 底部留白**不再全局兜底**（原 `padding-bottom: calc(--tabbar-height + --spacing-md + safe)` 已删）：
+   ② 底部留白**不再全局兜底**（仅自带自绘 TabBar 的页让出菜单栏）：
       只有自带**自绘 TabBar** 的页（home / mine）需要让出菜单栏，且由页面自身承担（home = 页根 `padding-bottom`、
       mine = 页脚 `padding-bottom`）。全局兜底会让**非 Tab 页**凭空多出 ≈ tabbar(50px) + 安全区(≈34px) 的死留白，
       短内容也被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */

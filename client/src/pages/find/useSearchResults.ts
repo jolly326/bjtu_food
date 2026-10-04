@@ -1,39 +1,27 @@
 /**
- * 搜索结果态：请求 / 分页 / 三态判定。
+ * 搜索结果态：请求 / 分页 / 三态判定。发现态与结果态的切换规则见 `useFindState`。
  *
- * <p><b>为何独立成 composable</b>：原为 `pages/find/index.vue` 内约 100 行内联逻辑
- * （竞态守卫 + 首屏检索 + 触底分页 + 失败/无结果三态），与「发现态」「搜索记录」
- * 完全无关却混在同一文件，是该页 569 行的主要来源。
- *
- * <p><b>竞态守卫（`searchSeq`）</b>：慢请求结果不得覆盖后发的快请求。
- * 取自 `review.vue` 的 `searchSeq` 模式（参照实现）。仅**最新一次**请求可写状态 / 清提交中，
- * 过期请求返回时直接丢弃。
- *
- * <p><b>三态互斥</b>：`searchDone` 为「请求已完成（成功或失败）」，
- * 与 `searchFailed` 组合出「加载中 / 失败 / 无结果」三态 —— 失败**不得**伪装成空结果，
- * 否则用户会被误导去「推荐这道菜」而不是重试。
- *
- * <p><b>分页口径</b>：结束判据只能是「本页返回条数 < pageSize」——
- * 后端 `PageResult` 只下发 `records`，**无 `total`**（见 `constants/paging`）。
- * 分页失败静默回退页码（不置失败态、不打断滚动），再次触底即重试同一页。
+ * 竞态与三态的口径：
+ * - 守卫（`createSeqGuard`，单一真源）保证慢响应不得覆盖后发的请求；
+ * - `searchDone`（请求已完成，含失败）与 `searchFailed` 组合出「加载中 / 失败 / 无结果」三态 ——
+ *   失败**不得**伪装成空结果，否则用户会被误导去「推荐这道菜」而不是重试。
  */
 import { ref } from 'vue'
 import type { DishListItem, MixedResultItem } from '@/types/dish'
 import { RESULT_PAGE_SIZE } from '@/constants/paging'
 import { joinLocation } from '@/utils/dish'
-import { mergePagedRows } from '@/composables/usePagedList'
+import { createSeqGuard, mergePagedRows } from '@/composables/usePagedList'
 import { useDishStore } from '@/stores/dish'
 
-/** 菜品行 → 结果卡行（唯一映射口径：图片取列表字段 coverImage，位置行走 utils/dish.joinLocation） */
+/** 菜品行 → 结果卡行（图片取列表字段 coverImage，位置行走 utils/dish.joinLocation） */
 function toResults(list: DishListItem[]): MixedResultItem[] {
   return list
     .map((d) => ({
       type: 'dish' as const,
       id: d.id,
       name: d.name,
-      // 列表唯一图片字段 coverImage（列表 VO 不含 images 数组）
+      // 列表 VO 不含 images 数组，无图时 coverImage 为空串
       image: d.coverImage || '',
-      // 副信息：食堂名 + 档口名（口径统一走 utils/dish.joinLocation）
       sub: joinLocation(d.canteen, d.stallName),
       price: d.price,
       rating: d.rating,
@@ -59,17 +47,16 @@ export function useSearchResults() {
   const resultsFinished = ref(false)
   const mixedResults = ref<MixedResultItem[]>([])
 
-  /** 竞态守卫序号；退出结果态时自增使在途旧请求失效 */
-  let searchSeq = 0
+  /** 竞态守卫：仅最新一次请求可写状态；退出结果态时 invalidate 使在途旧请求失效 */
+  const guard = createSeqGuard()
   /** 当前已加载到的页码（新搜索重置为 1，触底 +1） */
   let resultPage = 1
 
   /** 进入结果态并检索（发现态点词条与输入框提交共用此入口） */
   async function search(keyword: string) {
     if (!keyword) return
-    // 不设防重入锁：竞态守卫已保证后发请求覆盖先发结果；
-    // 加锁会让用户连续搜索新词时被静默丢弃、界面停留在旧结果。
-    const seq = ++searchSeq
+    // 不设防重入锁：守卫已保证后发请求覆盖先发结果；加锁会让用户连续搜索新词时被静默丢弃
+    const seq = guard.begin()
     inFilter.value = true
     searchDone.value = false
     searchFailed.value = false
@@ -81,7 +68,7 @@ export function useSearchResults() {
         page: 1,
         pageSize: RESULT_PAGE_SIZE,
       })
-      if (seq !== searchSeq) return
+      if (!guard.isCurrent(seq)) return
       // 结果顺序即后端返回口径（端上不排序、不算距离）
       mixedResults.value = toResults(list)
       resultPage = 1
@@ -89,14 +76,14 @@ export function useSearchResults() {
       searchDone.value = true
     } catch (err) {
       console.error('[find] 搜索失败', err)
-      if (seq !== searchSeq) return
+      if (!guard.isCurrent(seq)) return
       mixedResults.value = []
       resultPage = 1
       resultsFinished.value = false
       searchDone.value = true
       searchFailed.value = true
     } finally {
-      if (seq === searchSeq) searching.value = false
+      if (guard.isCurrent(seq)) searching.value = false
     }
   }
 
@@ -111,7 +98,8 @@ export function useSearchResults() {
     if (resultsFinished.value || loadingMore.value || searching.value) return
     const kw = keyword.trim()
     if (!kw) return
-    const seq = searchSeq
+    // 分页**不取号**：只借当前号判定自己是否已被新搜索淘汰（取号会使在途首屏响应被误判过期）
+    const seq = guard.peek()
     loadingMore.value = true
     try {
       const list = await dishStore.search({
@@ -120,20 +108,21 @@ export function useSearchResults() {
         pageSize: RESULT_PAGE_SIZE,
       })
       // 期间若发起了新搜索或退出结果态，丢弃本次过期结果
-      if (seq !== searchSeq) return
+      if (!guard.isCurrent(seq)) return
       resultPage += 1
       // 合并 + 封底（单一真源 mergePagedRows）：去重追加、0 长度封口、满页未封底
       const merged = mergePagedRows(mixedResults.value, toResults(list), RESULT_PAGE_SIZE)
       mixedResults.value = merged.rows
       resultsFinished.value = merged.finished
     } catch (err) {
+      // 分页失败静默（不置失败态、不打断滚动），再次触底即重试同一页
       console.error('[find] 结果分页加载失败', err)
     } finally {
       loadingMore.value = false
     }
   }
 
-  /** 退出结果态回发现态：自增序号使在途旧请求失效，避免其返回后写回结果造成数据残留 */
+  /** 退出结果态回发现态：作废在途旧请求，避免其返回后写回结果造成数据残留 */
   function exit() {
     inFilter.value = false
     mixedResults.value = []
@@ -141,7 +130,7 @@ export function useSearchResults() {
     searchFailed.value = false
     resultsFinished.value = false
     resultPage = 1
-    searchSeq += 1
+    guard.invalidate()
   }
 
   return {

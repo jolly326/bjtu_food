@@ -1,30 +1,30 @@
-<template>
+﻿<template>
   <CardSection>
     <!-- 菜品信息卡（**本稿修订 **）：
-         ① **名称行**（菜名 ≤2 行 + **「信息有误?」入口** + 价格组）→ ② 评分（左）/ 位置（右）同行
+         ① **名称行**（菜名 ≤2 行 + **「菜品有问题?」入口** + 价格组）→ ② 评分（左）/ 位置（右）同行
          → ③ 简介（**固定 ≤2 行截断、无展开**；`description` 为空则整块隐藏）
          → ④ **全卡唯一一条浅灰分隔线**（仅渲染在简介与属性容器之间，简介隐藏时一并消失）
          → ⑤ 描述四维（无底色 / 无边框 / 四列等分居中）。
          · 模块之间**靠垂直留白区分**（`--spacing-md`），除第 ④ 条外**不加任何分隔线**；
-         · 卡内唯一可点件 = **「信息有误?」**（文字 + 小图标，**禁实色填充按钮**）；
+         · 卡内唯一可点件 = **「菜品有问题?」**（文字 + 小图标，**禁实色填充按钮**）；
          · 卡片内不做分享按钮（复用微信原生右上角分享）；
-         · **「信息有误?」= 全页唯一纠错入口**（本稿自底栏迁入本卡名称行、位于价格左侧）；
+         · **「菜品有问题?」= 全页唯一问题反馈入口**（本稿自底栏迁入本卡名称行、位于价格左侧）；
          · **不绘制评分进度条、不展示评价人数**（「有无评分」的唯一判据 = `avgRating` 是否为 `null`）。 -->
     <view class="dish-info">
-      <!-- ① 名称行（flex 横向、垂直居中）：菜名（**≤2 行截断**）→「**信息有误?**」入口（价格左侧、视觉权重压低、图标与文字同色 `--text-tertiary`）→ 价格组
+      <!-- ① 名称行（flex 横向、垂直居中）：菜名（**≤2 行截断**）→「**菜品有问题?**」入口（价格左侧、视觉权重压低、图标与文字同色 `--text-tertiary`）→ 价格组
            价格唯一数据源 = price（现价）；仅 originalPrice > price 时并列划线原价 -->
       <view class="title-row">
         <text class="dish-name" aria-label="菜品名称">{{ dish.name }}</text>
         <view
           class="correct-entry"
           role="button"
-          aria-label="信息有误，前往提交菜品纠错"
+          aria-label="菜品有问题，前往提交反馈"
           hover-class="correct-entry--pressed"
           hover-stay-time="80"
           @tap="emit('correct')"
         >
           <IconSvg name="alert" :size="24" :color="COLOR_MAP['text-tertiary']" class="correct-icon" />
-          <text class="correct-text">信息有误?</text>
+          <text class="correct-text">菜品有问题?</text>
         </view>
         <view class="price-group">
           <text class="price-text">¥{{ formatPrice(dish.price) }}</text>
@@ -46,7 +46,7 @@
         </view>
       </view>
 
-      <!-- ③ 简介：**固定最多 2 行截断、超出省略**（**已删除「展开 / 收起」**，文本独占卡片整宽 —— 不存在文字与按钮的排版冲突）；
+      <!-- ③ 简介：**固定最多 2 行截断、超出省略**，文本独占卡片整宽（不存在文字与按钮的排版冲突）；
            `description` 为空则整块不渲染（不占页面空间） -->
       <view v-if="dish.description" class="desc-row">
         <text class="desc-content">{{ dish.description }}</text>
@@ -93,7 +93,7 @@ const props = defineProps<{
 const ratingText = computed(() => formatRating(props.rating))
 
 const emit = defineEmits<{
-  /** 「信息有误?」入口：页面侧跳独立纠错页（`correctionUrl(dishId)`，免认证） */
+  /** 「菜品有问题?」入口：页面侧跳独立反馈页（`correctionUrl(dishId)`，免认证） */
   (e: 'correct'): void
 }>()
 
@@ -117,14 +117,14 @@ const dims = computed(() => {
   return list
 })
 
-/* 注：「信息有误?」为本稿新增—— 点击上抛 `correct`，由页面编排
-   `useDishPage.onCorrectDishInfo` 跳独立纠错页（`correctionUrl(dishId)`，免认证、游客可直达）。 */
+/* 注：「菜品有问题?」为本稿新增—— 点击上抛 `correct`，由页面编排
+   `useDishPage.onCorrectDishInfo` 跳独立反馈页（`correctionUrl(dishId)`，免认证、游客可直达）。 */
 </script>
 
 <style scoped>
 /* ===== 模块垂直节奏（唯一来源）：除简介下方那条分隔线外，全部用留白区分 —— 不加任何额外分割线 ===== */
 
-/* ① 名称行（flex 横向、**垂直居中**）：菜名（≤2 行截断）+「信息有误?」入口（价格左侧）+ 价格组 */
+/* ① 名称行（flex 横向、**垂直居中**）：菜名（≤2 行截断）+「菜品有问题?」入口（价格左侧）+ 价格组 */
 .title-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .dish-name {
   flex: 1 1 auto;
@@ -142,7 +142,7 @@ const dims = computed(() => {
   overflow: hidden;
   word-break: break-word;
 }
-/* 「信息有误?」入口：文字 + 线性小图标、**视觉权重压低**（图标与文字同色 `--text-tertiary`），
+/* 「菜品有问题?」入口：文字 + 线性小图标、**视觉权重压低**（图标与文字同色 `--text-tertiary`），
    位于价格左侧；命中区经 ::after **仅纵向**扩至 ≥88rpx（a11y 44pt 下限）。
    按压反馈 = opacity 微降（**禁 `transform: scale`** —— 全站红线）。 */
 .correct-entry {

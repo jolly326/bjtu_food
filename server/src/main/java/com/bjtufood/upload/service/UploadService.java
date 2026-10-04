@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
  * 两条链路：
  * <ul>
  *   <li>{@link #uploadImage(MultipartFile)}：管理端 multipart 直传
- *       （入口 {@code POST /admin/upload/image}，口令守卫）。
+ *       （入口 {@code POST /admin/upload}，口令守卫）。
  *       COS 已配置时转存 COS，未配置时降级本地磁盘存储（开发环境无 COS 仍可用）；</li>
  *   <li>{@link #uploadCloudImage(String)}：小程序云存储 fileID 转存（UGC 配图主链路，
  *       入口 {@code POST /upload/cloud-image}，学生 JWT）。

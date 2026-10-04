@@ -1,7 +1,5 @@
 <template>
   <!-- 空态块（公共组件，UI 统一 Loop Round 2 上提）
-       背景：空态此前由各页各自手写（notifications / my-reviews / find /
-       DishReviewSection / feedback 等 6 套），结构雷同但字号、颜色、内距各异。
        视觉基线（与失败态 `RetryBlock` 同语言、但**更轻**）：**无底色**的居中极简列 ——
        可选图标 + 主文案（次级文字色）+ 可选次文案（三级文字色）+ 可选 CTA（主色胶囊）。
        ⚠️ 与 `RetryBlock` 的分工：RetryBlock = **失败态**（凹陷卡 + 整块可点 + 固定重试语义）；

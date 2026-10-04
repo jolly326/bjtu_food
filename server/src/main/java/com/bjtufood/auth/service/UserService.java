@@ -3,6 +3,7 @@ package com.bjtufood.auth.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.dto.UserBriefVO;
+import com.bjtufood.auth.dto.UserOverviewVO;
 import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.entity.User;
 
@@ -31,7 +32,13 @@ public interface UserService {
      * @param status   状态筛选（可选）
      * @return 分页用户列表
      */
-    IPage<UserVO> listUsers(int page, int pageSize, String status);
+    /**
+     * 管理端用户列表（分页）。
+     *
+     * @param status  状态筛选（`active`/`disabled`/`deleted`；不传 = 全部）
+     * @param keyword 关键词（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位；可空）
+     */
+    IPage<UserVO> listUsers(int page, int pageSize, String status, String keyword);
 
     /**
      * 根据邮箱查询用户。
@@ -125,4 +132,11 @@ public interface UserService {
      * @return userId → {@link UserBriefVO} 映射
      */
     Map<Long, UserBriefVO> mapBriefByIds(Collection<Long> userIds);
+
+    /**
+     * 用户规模计数（D1 看板概况）：总数（**不含已注销**）+ 已认证数（`bind_email` 非空）。
+     *
+     * @return 用户规模计数
+     */
+    UserOverviewVO countOverview();
 }

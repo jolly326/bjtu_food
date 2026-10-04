@@ -4,13 +4,13 @@
  * 真源归属（2026-10-01 UI 规范统一）：
  *   · 颜色取值 → src/theme/tokens.ts（COLOR_MAP / CSS_VARS）→ src/theme/generated-colors.css
  *   · 非颜色取值 → **本文件**
- * 对照表（文档侧）→ docs/client/ui/client-设计变量.md
+ * 对照表（文档侧）→ docs/ui/client/设计变量.md
  *
  * 为何以 `page{}` 承载：微信小程序 WXSS 不支持 `:root` 选择器，且 uni.scss 的 `:root`
  * 在编译为 WXSS 时会被丢弃 ⇒ 变量声明必须落在 page 选择器内、并由 App.vue @import 引入
  * （构建期由 vite/postcss 内联进 app.wxss）。
  *
- * 维护口径：改非颜色值只改本文件，并同步 docs/client/ui/client-设计变量.md §2 对照表。
+ * 维护口径：改非颜色值只改本文件，并同步 docs/ui/client/设计变量.md §2 对照表。
  * 页面 / 组件 SHALL NOT 裸写本文件已定义的尺寸、圆角、字重、时长、层级（见文档 §3 红线）。
  * ======================================================================== */
 page {
@@ -71,12 +71,12 @@ page {
   /* 搜索栏高度（SearchBar 单胶囊；由「与微信原生胶囊等高 32px」加大到 96rpx≈48px，
      ≥ Apple 44pt 触达下限，也让内嵌「搜索」按钮有足够内胆空间） */
   --search-bar-height: 96rpx;
-  /* 表单页底部固定操作栏统一高度（§4.9 / T24，profile 提交栏 / review 提交栏 / contact 提交栏同源避让） */
+  /* 表单页底部固定操作栏统一高度（profile 提交栏 / review 提交栏 / contact 提交栏同源避让） */
   --action-bar-height: 120rpx;
 
-  /* ===== 结构尺寸（2026-10-01 UI 规范统一新增）=====
+  /* ===== 结构尺寸 =====
      与 --spacing-*（**留白**）严格区分：这里是「元素自身多大」，不是「之间留多少」。
-     这些值此前以裸数值散落各页（88rpx 出现 40 处等），现收编为语义 token。 */
+     全站结构尺寸收编为语义 token，避免在各页以裸数值散落。 */
   --tap-target-size: 88rpx;    /* 触达下限（≥44pt，Apple HIG）：按钮 / 可点行 / 胶囊 / 方形点击区的尺寸 */
   --strip-height: 6rpx;        /* 细条：身份卡顶部条纹 / 未读竖条 / 标签下划线 */
   --chip-size: 96rpx;          /* 宫格圆底 chip 边长（与 --search-bar-height 同值、语义不同） */

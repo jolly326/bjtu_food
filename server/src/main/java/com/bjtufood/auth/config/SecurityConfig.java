@@ -141,7 +141,7 @@ public class SecurityConfig {
                         // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
                         // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
                         .requestMatchers(mvcMatchers("/admin/**")).permitAll()
-                        // 管理端图片上传已归入 /admin/**（POST /admin/upload/image），随上行放行并由过滤器口令把关；
+                        // 管理端图片上传已归入 /admin/**（POST /admin/upload），随上行放行并由过滤器口令把关；
                         // 学生端上传 /upload/cloud-image 走 JWT。
                         // 其他接口需要登录
                         .anyRequest().authenticated()

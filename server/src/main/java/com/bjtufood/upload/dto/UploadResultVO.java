@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 图片上传出参（{@code POST /upload/cloud-image}、{@code POST /admin/upload/image}）。
+ * 图片上传出参（{@code POST /upload/cloud-image}、{@code POST /admin/upload}）。
  * <p>
  * {@code relativeUrl} 仅本地磁盘降级链路返回（COS 链路无相对路径），故以
  * {@link JsonInclude.Include#NON_NULL} 保持「键缺省」语义，不产出 {@code "relativeUrl": null}。

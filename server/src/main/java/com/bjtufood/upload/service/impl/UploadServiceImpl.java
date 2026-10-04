@@ -92,9 +92,7 @@ public class UploadServiceImpl implements UploadService {
     // ==================== 链路一：multipart 直传（保留，H5/独立服务器场景） ====================
 
     @Override
-    @Deprecated(since = "2026-09", forRemoval = true)
     public UploadResultVO uploadImage(MultipartFile file) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         if (file == null || file.isEmpty()) {
             throw new BusinessException("文件不能为空");
         }

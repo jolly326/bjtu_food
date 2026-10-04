@@ -13,7 +13,7 @@ import lombok.Data;
 @Schema(description = "评价创建成功出参")
 public class ReviewCreatedVO {
 
-    @Schema(description = "新评价 ID（供重新评价 PUT /reviews/{id} 与本地写回）", example = "9")
+    @Schema(description = "新评价 ID（供本地写回）", example = "9")
     private Long id;
 
     public ReviewCreatedVO(Long id) {

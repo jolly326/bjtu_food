@@ -6,14 +6,19 @@ import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
+import jakarta.mail.Message;
+import jakarta.mail.Session;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeUtility;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -50,6 +55,18 @@ class EmailCodeServiceImplTest {
         MapperBuilderAssistant assistant =
                 new MapperBuilderAssistant(new MybatisConfiguration(), EmailCodeServiceImplTest.class.getName());
         TableInfoHelper.initTableInfo(assistant, EmailVerificationCode.class);
+    }
+
+    /**
+     * 被测类用 {@code MimeMessage}（为了带发件人显示名）后，须让 {@code createMimeMessage()} 返回<b>真实实例</b>：
+     * {@code MimeMessageHelper} 会真实地读写它的 header 与 content，mock 出来的空壳读不到断言所需的正文。
+     * <p>
+     * {@code Session} 传 {@code null} 是合法的——设置发件人/收件人/主题/正文都不需要会话，
+     * 只有真正投递时才用得到，而投递在测试里被 mock 掉了。
+     */
+    @BeforeEach
+    void stubMimeMessage() {
+        when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
     }
 
     private final EmailVerificationCodeMapper mapper = mock(EmailVerificationCodeMapper.class);
@@ -107,7 +124,7 @@ class EmailCodeServiceImplTest {
                     .satisfies(ex -> assertThat(((BusinessException) ex).getMessage()).isEqualTo("请填写学号"));
         }
         verify(mapper, never()).insert(any());
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
     // ==================== 发送频控（防刷核心）====================
@@ -121,7 +138,7 @@ class EmailCodeServiceImplTest {
                 .satisfies(ex -> assertThat(((BusinessException) ex).getMessage()).contains("发送太频繁"));
 
         verify(mapper, never()).insert(any());
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
     @Test
@@ -156,7 +173,7 @@ class EmailCodeServiceImplTest {
 
     @Test
     @DisplayName("成功路径：先 insert 后发信，且落库为哈希（不存明文验证码）")
-    void insertsHashBeforeSendingMail() {
+    void insertsHashBeforeSendingMail() throws Exception {
         when(mapper.selectOne(any())).thenReturn(lastRecord(120));
         when(passwordEncoder.encode(any())).thenReturn("$2a$10$hashed");
 
@@ -171,10 +188,17 @@ class EmailCodeServiceImplTest {
         assertThat(saved.getPurpose()).isEqualTo("verify");
         assertThat(saved.getExpiresAt()).isAfter(LocalDateTime.now());
 
-        ArgumentCaptor<SimpleMailMessage> mail = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        ArgumentCaptor<MimeMessage> mail = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(mail.capture());
-        assertThat(mail.getValue().getTo()).containsExactly("20240001@bjtu.edu.cn");
-        assertThat(mail.getValue().getFrom()).isEqualTo("noreply@bjtu.edu.cn");
+        MimeMessage sent = mail.getValue();
+        // MimeMessage 没有 getTo() 便捷方法（那是 SimpleMailMessage 的），须按 RecipientType 取
+        assertThat(((InternetAddress) sent.getRecipients(Message.RecipientType.TO)[0]).getAddress())
+                .isEqualTo("20240001@bjtu.edu.cn");
+        // 发件人 = 「品牌显示名 + 真实地址」：收件人看到的是「知行食记」，而非一串陌生 SMTP 账号。
+        // ⚠️ getPersonal() 拿到的是 encoded-word（如 =?UTF-8?B?...?=），必须解码后再比，否则断言毫无意义。
+        InternetAddress from = (InternetAddress) sent.getFrom()[0];
+        assertThat(from.getAddress()).isEqualTo("noreply@bjtu.edu.cn");
+        assertThat(MimeUtility.decodeText(from.getPersonal())).isEqualTo("知行食记");
     }
 
     @Test
@@ -183,7 +207,7 @@ class EmailCodeServiceImplTest {
         when(mapper.selectOne(any())).thenReturn(lastRecord(120));
         when(passwordEncoder.encode(any())).thenReturn("$2a$10$hashed");
         givenInsertBackfillsId(4242L);
-        doThrow(new RuntimeException("smtp down")).when(mailSender).send(any(SimpleMailMessage.class));
+        doThrow(new RuntimeException("smtp down")).when(mailSender).send(any(MimeMessage.class));
 
         assertThatThrownBy(() -> service().sendCode("20240001"))
                 .isInstanceOf(RuntimeException.class);
@@ -208,6 +232,51 @@ class EmailCodeServiceImplTest {
         // 关键：判空发生在 insert 之前，不得留下占用限流窗口的孤儿码
         verify(mapper, never()).insert(any());
     }
+
+    // ==================== 邮件文案（收件人唯一可见的信息面） ====================
+
+    @Test
+    @DisplayName("邮件文案：学生端品牌「知行食记」+ 6 位验证码 + 有效期 + 防泄露话术（占位符不得退化）")
+    void mailContentCarriesSourceCodeExpiryAndWarning() throws Exception {
+        // 为什么对成品邮件正文断言而非断言源码字符串：
+        // %s / %d 是 String.format 的硬约束——漏掉占位符会让「验证码」静默缺失（不抛异常），
+        // 多写一个裸 % 则抛异常并被 sendCode 回滚记录（用户侧表现为发送失败）。
+        // 两种退化都只在成品正文上才现形，故此处捕获真实发出的 MimeMessage。
+        when(mapper.selectOne(any())).thenReturn(lastRecord(120));
+        when(passwordEncoder.encode(any())).thenReturn("$2a$10$hashed");
+
+        service().sendCode("20240001");
+
+        ArgumentCaptor<MimeMessage> mail = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(mail.capture());
+        MimeMessage sent = mail.getValue();
+
+        // 主题前缀【知行食记】由 sendEmail 拼接（与发件人显示名同源），是收件人第一眼看到的来源标识
+        assertThat(sent.getSubject()).startsWith("【知行食记】");
+
+        // 正文从真实 MimeMessage 取出（MimeMessageHelper 已把文本设为 text/plain 内容）
+        String body = (String) sent.getContent();
+        // 品牌口径：学生端「知行食记」+ 端上已裁决副标题（逐字对齐 client/src/pages/mine/index.vue）
+        assertThat(body).contains("知行食记").contains("北京交通大学 · 校园美食分享圈");
+        // ⚠️ 反向护栏：收件人是学生，管理后台品牌「食在交大」或后端技术名「校园食堂信息系统」
+        // 一旦泄漏进正文，会被当成陌生来源的钓鱼邮件——2026-10-03 曾发生此误，故显式禁止。
+        assertThat(body).doesNotContain("食在交大");
+        assertThat(body).doesNotContain("校园食堂信息系统");
+        // 文本块靠「内容行与结束分隔符缩进对齐」剥离前导空白（incidental whitespace）：
+        // 二者错位时每行都会带前导空格并原样进入邮件正文，首行精确断言即该退化的护栏。
+        String firstLine = body.lines().findFirst().orElse("");
+        assertThat(firstLine).isEqualTo("知行食记");
+        // %s 已被替换为 6 位数字码：空文案 / 占位符丢失都过不了这条
+        assertThat(body).containsPattern("[0-9]{6}");
+        // %d 已被替换为有效期（改 CODE_EXPIRE_MINUTES 时本条不需同步改）
+        assertThat(body).containsPattern("[0-9]+ 分钟内有效");
+        // 防泄露 + 防钓鱼话术：社工场景下用户在正文里唯一的提示
+        assertThat(body).contains("请勿泄露给任何人");
+        assertThat(body).contains("不会以任何形式向您索要此验证码");
+        // 误填学号 / 他人误触发的兜底出口
+        assertThat(body).contains("若这不是您本人的操作");
+    }
+
 
     @Test
     @DisplayName("SMTP 发件邮箱未配置 → 明确报错（不静默吞掉），且**不落库**（无需回滚）")

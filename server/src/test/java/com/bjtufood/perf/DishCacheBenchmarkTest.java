@@ -11,7 +11,15 @@ import com.bjtufood.dish.view.DishViewVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
 import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
+import com.bjtufood.common.utils.JsonMapUtil;
+import com.bjtufood.dish.entity.DishAttributeValue;
+import com.bjtufood.dish.entity.DishFilterView;
+import com.bjtufood.dish.mapper.DishAttributeValueMapper;
+import com.bjtufood.dish.mapper.DishFilterViewMapper;
+import com.bjtufood.dish.service.DishViewCatalog;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.service.DishAttributeAdminService;
+import com.bjtufood.dish.service.DishCategoryAdminService;
 import com.bjtufood.dish.service.DishAttributeCatalog;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.dish.service.impl.DishServiceImpl;
@@ -72,9 +80,38 @@ class DishCacheBenchmarkTest {
 
     private DishMapper dishMapper;
     private DishAttributeDimensionMapper dimensionMapper;
+    /** 取值字典（A4 落地后的**候选值真源**）：声明为字段以便打桩 */
+    private DishAttributeValueMapper valueMapper;
+    private DishAttributeAdminService attributeAdminService;
+    /** 视图目录（A6）：`GET /dishes/views` 的取数与缓存都收在这里 */
+    private DishFilterViewMapper viewMapper;
+    private DishViewCatalog viewCatalog;
     private DishAttributeCatalog catalog;
     private CacheManager cacheManager;
     private DishService dishService;
+
+    /**
+     * 取值字典样本（4 维 × 2~3 个取值）。
+     * <p>
+     * <b>2026-10-03 口径变更</b>：候选值不再来自「扫全库在售菜品 attributes 按频次去重」，
+     * 而是直读本字典（A4 落地）—— 故本类不再需要合成 {@code ON_SALE_ROWS} 行 attributes JSON。
+     */
+    private static List<DishAttributeValue> attributeValues() {
+        return List.of(
+                value(10L, 1L, "清淡", 1), value(11L, 1L, "半荤", 2),
+                value(20L, 2L, "微辣", 1), value(21L, 2L, "中辣", 2), value(22L, 2L, "重辣", 3),
+                value(30L, 3L, "酸", 1), value(31L, 3L, "辣", 2),
+                value(40L, 4L, "热食", 1), value(41L, 4L, "冷食", 2));
+    }
+
+    private static DishAttributeValue value(Long id, Long dimensionId, String label, int order) {
+        DishAttributeValue v = new DishAttributeValue();
+        v.setId(id);
+        v.setDimensionId(dimensionId);
+        v.setLabel(label);
+        v.setOrder(order);
+        return v;
+    }
 
     /** 纯 Mockito 无 Spring 上下文，MyBatis-Plus 的 lambda 缓存需显式初始化 */
     @BeforeAll
@@ -83,6 +120,8 @@ class DishCacheBenchmarkTest {
                 new MapperBuilderAssistant(new MybatisConfiguration(), DishCacheBenchmarkTest.class.getName());
         TableInfoHelper.initTableInfo(assistant, Dish.class);
         TableInfoHelper.initTableInfo(assistant, DishAttributeDimension.class);
+        // A4 后候选值查询走 dish_attribute_value 的 LambdaQueryWrapper，同样需要 lambda 缓存
+        TableInfoHelper.initTableInfo(assistant, DishAttributeValue.class);
     }
 
     @BeforeEach
@@ -90,12 +129,24 @@ class DishCacheBenchmarkTest {
         dishMapper = mock(DishMapper.class);
         dimensionMapper = mock(DishAttributeDimensionMapper.class);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);
-        when(dishMapper.selectAttributesJsonOnSale(anyInt())).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
+        // 候选值真源 = 取值字典（A4）；原 dishMapper.selectAttributesJsonOnSale 桩已随扫描逻辑退役
+        valueMapper = mock(DishAttributeValueMapper.class);
+        when(valueMapper.selectList(any())).thenReturn(attributeValues());
+        attributeAdminService = mock(DishAttributeAdminService.class);
+        // 出参翻译不属本次测量口径：原样透传（解析 JSON 即 identity），保证维度数不变
+        when(attributeAdminService.translateForRead(any()))
+                .thenAnswer(inv -> JsonMapUtil.parseObject(inv.getArgument(0)));
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        when(dishMapper.selectInStockMealTypes()).thenReturn(List.of("staple", "dish"));
+        // A6：视图字典改表驱动 —— 「为你推荐」（条件空）+ 一个大类视图；可见性靠 enabled + 匹配数判定
+        viewMapper = mock(DishFilterViewMapper.class);
+        when(viewMapper.selectList(any())).thenReturn(List.of(
+                view(1L, "recommend", "为你推荐", 1),
+                view(2L, "noodle", "面食粉类", 2)));
+        // 匹配数 > 0 ⇒ 可见（匹配数 0 不下发）
+        when(dishMapper.selectCount(any())).thenReturn(1L);
 
         cacheManager = CacheConfig.buildCacheManager();
-        DishAttributeCatalog target = new DishAttributeCatalog(dishMapper, dimensionMapper, cacheManager);
+        DishAttributeCatalog target = new DishAttributeCatalog(dimensionMapper, valueMapper, cacheManager);
         // 手工挂上生产同款的缓存 advice。注意必须显式 afterPropertiesSet()：CacheInterceptor 是
         // InitializingBean，缓存解析器（cacheResolvers）在该回调里构建——不经 Spring 生命周期手工 new 时
         // 若漏掉这一步，它会**安静地什么都不缓存**（不报错、不降速，只有命中率是零），
@@ -120,10 +171,16 @@ class DishCacheBenchmarkTest {
         factory.addAdvice(interceptor);
         catalog = (DishAttributeCatalog) factory.getProxy();
 
-        // service 同样要过代理：listDishViews 的 @Cacheable 落在它身上，
-        // 直接 new 出来的实例上注解同样惰性无效。
+        // 视图目录同样要过代理：A6 后 DISH_VIEWS 的 @Cacheable 落在 DishViewCatalog#visible 上
+        ProxyFactory viewFactory = new ProxyFactory(new DishViewCatalog(viewMapper, dishMapper, cacheManager));
+        viewFactory.setProxyTargetClass(true);
+        viewFactory.addAdvice(interceptor);
+        viewCatalog = (DishViewCatalog) viewFactory.getProxy();
+
+        // service 也要过代理（listDishViews 已无 @Cacheable，缓存上移到目录；此处保留代理以贴合生产装配）
         ProxyFactory serviceFactory = new ProxyFactory(new DishServiceImpl(dishMapper, mock(StallService.class),
-                mock(ApplicationEventPublisher.class), mock(ImageUrlUtil.class), catalog));
+                mock(ApplicationEventPublisher.class), mock(ImageUrlUtil.class), catalog, attributeAdminService,
+                mock(DishCategoryAdminService.class), viewCatalog));
         serviceFactory.setInterfaces(DishService.class);
         serviceFactory.addAdvice(interceptor);
         dishService = (DishService) serviceFactory.getProxy();
@@ -148,7 +205,7 @@ class DishCacheBenchmarkTest {
         double perRequestCalls = (countCalls() - before) / (double) (CALLS - 1);
 
         PerfMetrics.emit("server.mapper_calls.dish_attributes_edit_cached", perRequestCalls, "次/请求",
-                "热路径（第 2~" + CALLS + " 次）；基线=3（单次取行 + 维度字典 + 全库扫描）；冷路径仍为 " + coldCalls);
+                "热路径（第 2~" + CALLS + " 次）；基线=1（单次取行；维度字典与取值字典均命中缓存）；冷路径 " + coldCalls);
         PerfMetrics.emit("server.dish_attributes_edit.latency_ms_warm_cached",
                 warmNanos / 1_000_000.0 / (CALLS - 1), "ms",
                 "同参数重复调用均值；基线 warm≈14ms（无缓存时热=冷）");
@@ -169,13 +226,22 @@ class DishCacheBenchmarkTest {
         double repeatCalls = countCalls() - afterFirst;
 
         PerfMetrics.emit("server.mapper_calls.dish_views_cached", repeatCalls, "次/请求",
-                "第二次进入首页的 Mapper 增量；基线=1（每次都查一次在售大类集合）");
+                "第二次进入首页的 Mapper 增量；基线=1（旧口径：每次查一次在售大类集合）");
         // 诊断/护栏：先确认「缓存里真有条目」，再谈增量——若此处为 0，说明 @Cacheable 根本没接上，
         // 后面的 0 增量断言就没有意义（避免把「装配错误」误读成「性能没提升」）。
         assertThat(cachedEntries(CacheConfig.DISH_VIEWS))
                 .as("@Cacheable 未写入缓存：检查 CacheInterceptor 装配与代理是否生效").isEqualTo(1L);
+        // A6 口径：**缓存的是「计算后的可见列表」**（含逐视图计数），故热路径零查询 ——
+        // 若只缓存原始行，这里会是「视图数」次计数查询。
         assertThat(repeatCalls).isZero();
         assertThat(second).isEqualTo(first);
+        // 可见性靠 enabled + 匹配数判定，顺序按 order 升序
+        assertThat(first).extracting(DishViewVO::getKey).containsExactly("recommend", "noodle");
+
+        // 写后显式失效 ⇒ 保存即生效（不必等 TTL）
+        viewCatalog.invalidateViews();
+        dishService.listDishViews();
+        assertThat(countCalls() - afterFirst).isPositive();
     }
 
     @Test
@@ -190,9 +256,10 @@ class DishCacheBenchmarkTest {
 
         long recompute = countCalls() - before;
         PerfMetrics.emit("server.cache.candidates_recompute_after_write", recompute, "次/请求",
-                "失效后首次请求的 Mapper 调用（取行 + 候选重算；维度字典仍命中）");
-        // 护栏③：失效必须真的生效——否则新写入的取值最长要等一整个 TTL 才出现在候选里
-        assertThat(recompute).isEqualTo(2L);
+                "失效后首次请求的 Mapper 调用（取行 + 维度字典 + 取值字典重算；维度字典已单独缓存故此处仅候选路径重查）");
+        // 护栏③：失效必须真的生效——否则新写入的取值最长要等一整个 TTL 才出现在候选里。
+        // 口径变更（A4）：候选重算现由「维度字典 + 取值字典」两次查询构成 ⇒ 取行(1) + 维度(1) + 取值(1) = 3。
+        assertThat(recompute).isEqualTo(3L);
         assertThat(after).hasSize(4);
 
         CacheStats stats = cacheStats(CacheConfig.ATTRIBUTE_CANDIDATES);
@@ -213,9 +280,29 @@ class DishCacheBenchmarkTest {
                 .getNativeCache().estimatedSize();
     }
 
+    /**
+     * 读路径的 Mapper 调用总数。
+     * <p>
+     * <b>2026-10-03 口径变更（A4）</b>：候选值真源由「扫 dish.attributes」改为「直读取值字典」，
+     * 故 `valueMapper` 必须纳入计数 —— 否则「失效后候选是否真的重算」会因为计数器看不到字典查询
+     * 而变成一个**恒真**的空断言（这正是本次改动暴露出来的盲区）。
+     */
     private long countCalls() {
         return mockingDetails(dishMapper).getInvocations().size()
-                + mockingDetails(dimensionMapper).getInvocations().size();
+                + mockingDetails(dimensionMapper).getInvocations().size()
+                + mockingDetails(valueMapper).getInvocations().size()
+                + mockingDetails(viewMapper).getInvocations().size();
+    }
+
+    /** 视图行样本（A6）：表行只给展示态，逻辑（条件 / 排序）由 DishViewDefs 按 key 提供 */
+    private static DishFilterView view(Long id, String key, String label, int order) {
+        DishFilterView v = new DishFilterView();
+        v.setId(id);
+        v.setKey(key);
+        v.setLabel(label);
+        v.setOrder(order);
+        v.setEnabled(true);
+        return v;
     }
 
     private static DishAttributeDimension dimension(Long id, String fieldKey, String name,

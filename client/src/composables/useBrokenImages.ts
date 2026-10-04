@@ -20,5 +20,17 @@ export function useBrokenImages() {
     broken.value = new Set()
   }
 
-  return { broken, markBroken, clear }
+  /**
+   * 预览大图：过滤破图项后再预览，并把 `current` 定位到被点击的那张（`mapUrl` 可做绝对化等加工）。
+   * 破图 / 无有效图时静默返回 —— 点击不可见图片不该弹出空白预览。
+   */
+  function previewAt(images: string[], index: number, mapUrl: (u: string) => string = (u) => u): void {
+    if (broken.value.has(index)) return
+    const okIdx = images.map((_, i) => i).filter((i) => !broken.value.has(i))
+    const urls = okIdx.map((i) => mapUrl(images[i]))
+    if (!urls.length) return
+    uni.previewImage({ urls, current: urls[Math.max(okIdx.indexOf(index), 0)] })
+  }
+
+  return { broken, markBroken, clear, previewAt }
 }

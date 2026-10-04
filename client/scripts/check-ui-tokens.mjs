@@ -1,7 +1,7 @@
 /**
  * UI Token 护栏（2026-10-01 UI 规范统一）
  * ========================================================================
- * 把 docs/client/ui/client-设计变量.md §3 的红线从「文档自觉」变成「可执行」：
+ * 把 docs/ui/client/设计变量.md §3 的红线从「文档自觉」变成「可执行」：
  *
  *   ① 裸色值        —— `#hex` / `rgb()` / `rgba()`（字体栈、currentColor、transparent 除外）
  *   ② 裸尺寸        —— 未走 `var(--…)` 的 `N rpx` / `N px`
@@ -33,7 +33,7 @@ const EXEMPT = new Set(
   ['src/theme/generated-colors.css', 'src/theme/design-tokens.css'].map((p) => p.split('/').join(sep)),
 )
 
-/** 允许项：值级（物理/渲染量）+ 文件级（组件私有尺寸）；理由登记于 docs/client/ui/client-设计变量.md §6 */
+/** 允许项：值级（物理/渲染量）+ 文件级（组件私有尺寸）；理由登记于 docs/ui/client/设计变量.md §6 */
 const ALLOW = JSON.parse(readFileSync(join(CLIENT_ROOT, 'scripts', 'ui-token-allow.json'), 'utf8'))
 const ALLOW_VALUES = new Set(ALLOW.values || [])
 const ALLOW_FILES = new Map(
@@ -157,7 +157,7 @@ for (const f of findings) {
 const labelOf = (id) => RULES.find((r) => r.id === id).label
 const countOf = (list, id) => list.filter((f) => f.rule === id).length
 
-console.log('\n=== UI Token 护栏报告（docs/client/ui/client-设计变量.md §3） ===\n')
+console.log('\n=== UI Token 护栏报告（docs/ui/client/设计变量.md §3） ===\n')
 if (!findings.length) {
   console.log('✓ 无违规：裸色值 0 ｜ 裸尺寸 0 ｜ @click 0\n')
 } else {

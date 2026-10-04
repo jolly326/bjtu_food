@@ -5,7 +5,7 @@
     <Header title="我的主页" @back="backToHome" />
 
     <scroll-view class="scroll-wrap v-scroll" scroll-y @scroll="onScroll" @scrolltolower="loadMore">
-      <!-- 用户信息卡：主页的身份版面（头像 / 主行 / 副行），内容与排版真源见 docs/client/ui/client-公共组件与形态基线.md §三：
+      <!-- 用户信息卡：主页的身份版面（头像 / 主行 / 副行），内容与排版真源见 docs/ui/client/公共组件与形态基线.md §三：
            认证态副行 = 校园邮箱 + 右侧「编辑个人信息」→ 独立个人信息编辑页；
            游客态副行 = 「未完成校园认证」且**不渲染动作位**（编辑身份信息是认证态才具备的能力）。
            ⚠️ 块间距**必须**落在页面自己的节点上 —— mp-weixin 下给自定义组件传的 class 落进**组件宿主节点**
@@ -66,18 +66,14 @@
 
 <script setup lang="ts">
 /**
- * 我的主页：个人信息版面 + 名下评价列表的**复合页**（「我的」页用户卡点击进入）。
- * - 上半部 = 用户信息卡（头像 / 主行 / 副行；认证态副行 = 校园邮箱，游客态副行 = 「未完成校园认证」），
- *   「编辑个人信息」入口**仅认证态渲染** → 独立编辑页；
- *   下半部 = 本人的评价列表（区块标题「我的评价」），评价卡复用公共组件 ReviewItem（与详情页同一实现），
- *   本人视角专属信息经 dishName 可选 prop 注入
- * - 数据源 GET /my/reviews（后端联表返回 dishName），删除复用 DELETE /reviews/{id}；
- *   删除入口 = 卡片右上角三点 → 底部 ActionSheet「删除评价」→ 二次确认（与详情页同链路）
+ * 我的主页：个人信息卡 + 名下评价列表的**复合页**（「我的」页用户卡点击进入）。
+ * - 「编辑个人信息」入口**仅认证态渲染**；评价卡复用公共 ReviewItem，本人视角经 dishName prop 注入
+ * - 数据源 GET /my/reviews，删除入口 = 卡片右上角三点 → ActionSheet → 二次确认（与详情页同链路）
  * - 空态两态：游客 = 认证引导；认证态「删除清空」= 轻提示；认证态首次进入静默
- * - 失败态（MP-012）：首屏失败渲染「加载失败 · 点击重试」块；分页失败保持静默，可再触底重试
+ * - 空态两态：游客 = 认证引导；认证态「删除清空」= 轻提示；认证态首次进入静默
+ * - 失败态：首屏失败渲染「加载失败 · 点击重试」块；分页失败保持静默，可再触底重试
  */
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
@@ -90,7 +86,7 @@ import IdentityCard from '@/components/IdentityCard.vue'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
 import { useUserStore } from '@/stores/user'
 import { listMyReviews, deleteReview } from '@/api/review'
-import { isResourceNotFound } from '@/api/http'
+import { isResourceNotFound } from '@/api/errors'
 import type { Review, MyReview } from '@/types/review'
 import { backToHome } from '@/utils/back'
 import { PATH } from '@/utils/routes'
@@ -203,15 +199,10 @@ function onDelete(r: MyReview) {
 }
 
 /**
- * onShow 重拉闸门（MP-07）：首次进入必拉；之后 30s 内返回本页不再全量重拉第 1 页、
+ * onShow 重拉闸门：首次进入必拉；之后 30s 内返回本页不再全量重拉第 1 页、
  * 也不重置分页（本页无跨页写操作入口，删除已在本地移除条目）。
- * 失败重试块不经过闸门（用户显式意图 → 直接 load）。
  */
-const { refreshOnShow } = useOnShowRefresh(load)
-
-onShow(() => {
-  refreshOnShow()
-})
+useOnShowRefresh(load)
 
 /* 触底加载更多由模板 `scroll-view` 的 `@scrolltolower="loadMore"` 触发。
    本页为「顶栏 + `scroll-view`（`flex: 1`）+ 页面 `height: 100vh`」，**页面自身不滚动** ⇒

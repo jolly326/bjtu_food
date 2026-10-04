@@ -24,7 +24,7 @@ public interface NotificationService {
      * 架构收口 P0-1，feedback / correction 等投递方不再 import notify 的实体，
      * 实体只在 notify 内部构造（{@code isRead} 由实现侧统一置 0，调用方无需关心）。
      *
-     * @param cmd 通知入参（type 取 {@code NotificationConst.TYPE_*}）
+     * @param cmd 通知入参（跨域投递；实体仅在 notify 内部构造）
      */
     void notify(NotificationCmd cmd);
 
@@ -49,7 +49,7 @@ public interface NotificationService {
     void markRead(Long userId, Long notificationId);
 
     /**
-     * 全部标记已读（spec §7.18）：将当前用户全部未读通知一次性置为已读。
+     * 全部标记已读：将当前用户全部未读通知一次性置为已读。
      * <p>
      * 单条批量 UPDATE（{@code WHERE user_id = ? AND is_read = 0}），不逐条循环；
      * 幂等：无未读时返回 0，不报错。

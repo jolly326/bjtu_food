@@ -14,7 +14,7 @@
       <!-- 卡片 A：个人信息 + 快捷功能 -->
       <view class="mine-card">
         <!-- 用户信息模块（卡片 A 内第 1 段）：认证态 = 昵称 + 校园邮箱；游客态 = 昵称 +「未完成校园认证」。
-             内容与排版真源见 docs/client/ui/README.md §身份卡。
+             内容与排版真源见 docs/ui/client/README.md §身份卡。
              整段点击进入「我的主页」（游客与认证态同达，无认证拦截）；
              认证动作的单一入口为宫格「身份认证」格，本段不放「去认证」按钮 -->
         <IdentityCard
@@ -92,7 +92,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { showTab } from '@/stores/route'
+import { useRouteStore } from '@/stores/route'
+const routeStore = useRouteStore()
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -125,7 +126,7 @@ onLoad(() => {
 // 每次进入「我的」刷新未读通知数（宫格红点角标；消息中心为登录级能力，游客与认证态同权刷新）
 onShow(() => {
   // 锚定底部菜单栏：我的页始终显示并高亮
-  showTab(TAB_PROFILE)
+  routeStore.showTab(TAB_PROFILE)
   notifyStore.fetchUnread()
 })
 
@@ -205,8 +206,8 @@ const moreRows = [
    —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则）。 */
 .mine-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .mine-scroll { flex: 1; min-height: 0; }
-/* 容器级 tabbar 留白**已删除** —— 本页页脚（`.app-footer`，恒渲染、是滚动区最后一块）已自带
-   `calc(--tabbar-height + safe + --spacing-md)` 的底部避让；两处叠加会在列表末尾多出 ≈100rpx 死空白，
+/* 本页不再额外加容器级 tabbar 留白 —— 页脚（`.app-footer`，滚动区最后一块）已自带
+   `calc(--tabbar-height + safe + --spacing-md)` 底部避让；若再叠加会多出 ≈100rpx 死空白，
    且短内容会被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 
 /* ===== 双卡片外壳（UI 稿「双卡片定稿版」）=====

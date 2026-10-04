@@ -20,7 +20,7 @@
       </template>
     </Header>
 
-    <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门（MP-07）+ 失败重试块 @tap」，容器为普通滚动容器。 -->
+    <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门 + 失败重试块 @tap」，容器为普通滚动容器。 -->
     <scroll-view class="scroll-wrap v-scroll" scroll-y @scroll="onScroll" @scrolltolower="loadMore">
       <view class="list">
         <!-- 单张白卡：全部通知行收纳在同一张卡内，行间 1rpx 浅分隔线 -->
@@ -65,7 +65,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import IconSvg from '@/components/IconSvg.vue'
@@ -144,11 +143,10 @@ async function onReadAll() {
 }
 
 /**
- * onShow 重拉闸门（MP-07）：首次进入必拉；之后从二级页（如菜品详情）返回时，
+ * onShow 重拉闸门：首次进入必拉；之后从二级页（如菜品详情）返回时，
  * 30s 内且本页无「写失败遗留」则跳过重拉，避免列表被无谓重置、浏览位置丢失。
- * 失败重试块不经过闸门（用户显式意图 → 直接 load）。
  */
-const { markDirty, refreshOnShow } = useOnShowRefresh(load)
+const { markDirty } = useOnShowRefresh(load)
 
 /**
  * 点击通知：仅标记已读。
@@ -168,10 +166,6 @@ async function onTap(n: Notification) {
     }
   }
 }
-
-onShow(() => {
-  refreshOnShow()
-})
 </script>
 
 <style scoped>

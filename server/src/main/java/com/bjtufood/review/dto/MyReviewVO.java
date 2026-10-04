@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 「我的评价」视图对象（VO）—— **本人视角，恰 7 字段**。
  * <p>
- * <b>与公开视角分型</b>（docs/client/README.md R9）：同一契约的两视角 MUST 是两个类型，
+ * <b>与公开视角分型</b>（docs/func/client/README.md R9）：同一契约的两视角 MUST 是两个类型，
  * 端上 SHALL NOT 用单一 interface 复用，故本类<b>不继承</b> {@link ReviewVO}
  * （继承会让类型系统宣称「我的评价也有 userId / userNickname / userAvatar」，
  * 而这三个字段在本人视角恒等于本人、属零信息，不得下发）。
@@ -19,7 +19,7 @@ import java.util.List;
  * （{@code id} / {@code rating} / {@code content} / {@code images} / {@code createdAt}）
  * + 本人视角专属 2 项（{@code dishId} / {@code dishName}）。
  * <p>
- * 逐字段口径以 {@code docs/client/A-浏览与发现/A3-菜品详情.md} 的公开评价字段表为唯一真源。
+ * 逐字段口径以 {@code docs/api/client/dishes.md} 的公开评价字段表为唯一真源。
  */
 @Data
 @Schema(description = "我的评价展示信息（本人视角，7 字段）")

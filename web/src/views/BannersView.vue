@@ -1,142 +1,165 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+/**
+ * A5 首页 Banner 管理（页面规格见 [列表页模板.md 的 A5 差异节](../../../docs/ui/web/列表页模板.md)）。
+ *
+ * <p>要点：卡片网格、**不分页不筛选**（启用 ≤6）；**拖拽排序**（提交**全量行**）；
+ * 新增 / 编辑 = **抽屉**（**含图片上传 ⇒ 按基线 §1.10 判据走抽屉**，不用弹窗）；
+ * 启停为**显式传目标状态**（非 toggle）。
+ */
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { confirmDelete } from '@/utils/confirm'
+import { fail } from '@/utils/error'
+import { useReorder } from '@/composables/useReorder'
 import {
-  listBanners,
   createBanner,
-  updateBanner,
-  toggleBannerStatus,
   deleteBanner,
+  listBanners,
+  sortBanners,
+  updateBanner,
+  updateBannerStatus,
 } from '@/api/banners'
 import type { BannerAdminVO, BannerSaveReq } from '@/types/common'
-import StatusTag from '@/components/StatusTag.vue'
-import BaseModal from '@/components/BaseModal.vue'
+import { useSimpleList } from '@/composables/useSimpleList'
+import BaseDrawer from '@/components/BaseDrawer.vue'
 import ImageUpload from '@/components/ImageUpload.vue'
-import StateBox from '@/components/StateBox.vue'
+import ListState from '@/components/ListState.vue'
+import StatusTag from '@/components/StatusTag.vue'
 
-const list = ref<BannerAdminVO[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
+  useSimpleList<BannerAdminVO>(() => listBanners())
+
+/* ==================== 新增 / 编辑（抽屉） ==================== */
 const open = ref(false)
 const editing = ref<BannerAdminVO | null>(null)
-const form = ref<BannerSaveReq>({ imageUrl: '', sortOrder: 0 })
-const bannerImages = ref<string[]>([])
 const saving = ref(false)
+const bannerImages = ref<string[]>([])
 
-async function load(): Promise<void> {
-  loading.value = true
-  error.value = null
-  try {
-    list.value = await listBanners()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
+const title = computed(() => (editing.value ? '编辑 Banner' : '新建 Banner'))
+
 function openCreate(): void {
   editing.value = null
   bannerImages.value = []
-  form.value = { imageUrl: '', sortOrder: 0 }
   open.value = true
 }
-function openEdit(r: BannerAdminVO): void {
-  editing.value = r
-  bannerImages.value = r.imageUrl ? [r.imageUrl] : []
-  form.value = { imageUrl: r.imageUrl, sortOrder: r.sortOrder }
+
+function openEdit(row: BannerAdminVO): void {
+  editing.value = row
+  bannerImages.value = row.imageUrl ? [row.imageUrl] : []
   open.value = true
 }
+
 async function save(): Promise<void> {
-  const imageUrl = bannerImages.value[0] || ''
+  const imageUrl = bannerImages.value[0] ?? ''
   if (!imageUrl) {
     ElMessage.warning('请上传 Banner 图片')
     return
   }
-  const req: BannerSaveReq = { imageUrl, sortOrder: form.value.sortOrder }
+  const req: BannerSaveReq = { imageUrl }
   saving.value = true
   try {
     if (editing.value) await updateBanner(editing.value.id, req)
     else await createBanner(req)
-    ElMessage.success('已保存')
+    ElMessage.success(editing.value ? '已保存' : '已新建')
     open.value = false
-    load()
+    await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '保存失败')
+    fail(e, '保存失败')
   } finally {
     saving.value = false
   }
 }
-async function toggle(r: BannerAdminVO): Promise<void> {
+
+/* ==================== 启停 / 删除 ==================== */
+async function toggle(row: BannerAdminVO): Promise<void> {
+  const next = row.status === 'on' ? 'off' : 'on'
   try {
-    await toggleBannerStatus(r.id)
-    ElMessage.success('已更新')
-    load()
+    await updateBannerStatus(row.id, next)
+    ElMessage.success(next === 'on' ? '已启用' : '已停用')
+    await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '操作失败')
+    fail(e)
   }
 }
-async function remove(r: BannerAdminVO): Promise<void> {
+
+async function remove(row: BannerAdminVO): Promise<void> {
   try {
-    await ElMessageBox.confirm('确认删除该 Banner？', '提示', { type: 'warning' })
+    await confirmDelete('确认删除该 Banner？删除后首页轮播立即不再展示。', { title: '删除 Banner' })
   } catch {
     return
   }
   try {
-    await deleteBanner(r.id)
+    await deleteBanner(row.id)
     ElMessage.success('已删除')
-    load()
+    await load()
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '删除失败')
+    fail(e, '删除失败')
   }
 }
 
-onMounted(load)
+/* ==================== 拖拽排序（提交全量行） ==================== */
+const { dragIndex, onDragStart, onDrop } = useReorder(items, sortBanners, load)
+
+onMounted(() => load())
 </script>
 
 <template>
   <div class="page">
     <div class="page-header">
-      <h2>首页 Banner 管理</h2>
+      <h2>首页 Banner</h2>
       <button class="btn-primary" type="button" v-press @click="openCreate">新建 Banner</button>
     </div>
-    <StateBox v-if="loading" status="loading" />
-    <StateBox v-else-if="error" status="error" :message="error" @retry="load" />
-    <div v-else class="banner-grid">
-      <div v-for="r in list" :key="r.id" class="card banner-card">
-        <img :src="r.imageUrl" alt="" class="banner-img" />
+
+    <!-- 四态：加载 / 会话失效 / 错误 / 空 / 有数据 -->
+    <ListState
+      :loading="firstLoading"
+      :session-invalid="sessionInvalid"
+      :error="error"
+      :empty="isEmpty"
+      empty-message="暂无 Banner"
+      @retry="load"
+    />
+    <div v-if="hasData" class="banner-grid">
+      <div
+        v-for="(row, index) in items"
+        :key="row.id"
+        class="card banner-card"
+        draggable="true"
+        @dragstart="onDragStart(index)"
+        @dragover.prevent
+        @drop="onDrop(index)"
+      >
+        <img :src="row.imageUrl" alt="" class="banner-img" />
         <div class="banner-meta">
           <div class="banner-row">
-            <StatusTag :status="r.status" kind="onoff" />
-            <span class="muted">排序 {{ r.sortOrder }}</span>
+            <StatusTag :status="row.status" kind="onoff" />
+            <span class="muted">排序 {{ row.order }}</span>
           </div>
           <div class="banner-actions">
-            <button class="link" type="button" @click="openEdit(r)">编辑</button>
-            <button class="link" type="button" @click="toggle(r)">
-              {{ r.status === 'on' ? '停用' : '启用' }}
+            <button class="link" type="button" @click="openEdit(row)">编辑</button>
+            <button class="link" type="button" @click="toggle(row)">
+              {{ row.status === 'on' ? '停用' : '启用' }}
             </button>
-            <button class="link danger" type="button" @click="remove(r)">删除</button>
+            <button class="link danger" type="button" @click="remove(row)">删除</button>
           </div>
         </div>
       </div>
-      <div v-if="!list.length" class="card empty-card"><StateBox status="empty" /></div>
     </div>
 
-    <BaseModal :title="editing ? '编辑 Banner' : '新建 Banner'" :open="open" @close="open = false">
+    <!-- 含图片 ⇒ 抽屉（基线 §1.10 载体判据） -->
+    <BaseDrawer :title="title" :open="open" @close="open = false">
       <div class="field">
-        <label>配图（建议 750×320）</label>
-        <ImageUpload v-model="bannerImages" :max="1" ratio-hint="建议 750×320" />
-      </div>
-      <div class="field">
-        <label>排序</label>
-        <input class="form-input" type="number" v-model.number="form.sortOrder" />
+        <label>Banner 图片</label>
+        <ImageUpload v-model="bannerImages" :max="1" ratio-hint="建议 750×320" :aria-label="'Banner 图片'" />
+        <div class="hint">单张、建议比例 750:320；上传成功后地址由服务端返回</div>
       </div>
       <template #actions>
-        <button class="btn-ghost" type="button" @click="open = false">取消</button>
+        <button class="btn-secondary" type="button" @click="open = false">取消</button>
         <button class="btn-primary" type="button" :disabled="saving" v-press @click="save">
           {{ saving ? '保存中…' : '保存' }}
         </button>
       </template>
-    </BaseModal>
+    </BaseDrawer>
   </div>
 </template>
 
@@ -149,6 +172,7 @@ onMounted(load)
 .banner-card {
   overflow: hidden;
   padding: 0;
+  cursor: grab;
 }
 .banner-img {
   width: 100%;
@@ -175,7 +199,9 @@ onMounted(load)
   color: var(--text-muted);
   font-size: var(--font-sm);
 }
-.empty-card {
-  padding: var(--space-8);
+.hint {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
 }
 </style>

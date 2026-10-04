@@ -7,24 +7,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 纠错落库（**最小化事务边界**）。
+ * 反馈落库（**最小化事务边界**：先机审、不占连接，再落库、才开事务）。
  * <p>
- * 背景：
- * 此前 {@code CorrectionServiceImpl#submit} 直接标注 {@code @Transactional} —— 事务从**方法入口**就开始，
- * 横跨「微信内容安全检测」这一次外部 HTTP 外呼（超时 5s）。期间数据库连接被持续占用，
- * 而 HikariCP 默认池仅 10 条，并发稍高即被占满并拖垮只读请求（连接池雪崩）。
+ * <b>为何独立成 Bean</b>：{@code submit} 的机审是一次外部 HTTP 外呼（微信内容安全检测，超时 5s）。
+ * 若事务从方法入口就开始，期间数据库连接被持续占用，而 HikariCP 默认池仅 10 条，并发稍高即被占满
+ * 并拖垮只读请求（连接池雪崩）。本类持有唯一的 {@code @Transactional}，主 Service 的 {@code submit}
+ * 不标注事务 —— 机审在事务外完成，落库才开事务。
  * <p>
- * 修法：<b>先机审（无事务、不占连接）→ 再落库（才开事务）</b>。为此把落库收敛到本类，
- * 由它持有唯一的 {@code @Transactional}；主 Service 的 {@code submit} 不再标注事务。
- * <p>
- * <b>为何必须是独立 Bean 而不是本类的 private 方法</b>：Spring 声明式事务靠<b>代理</b>生效，
+ * <b>为何必须是独立 Bean 而不是同类 private 方法</b>：Spring 声明式事务靠<b>代理</b>生效，
  * 同一类内自调用（{@code this.insert(...)}）<b>不经过代理 ⇒ 事务根本不会开启</b>。
  * <p>
  * 仅 {@code submit} 需要此处理：{@code adopt} / {@code reject} 不含外部 HTTP 调用，
- * 事务边界保持原样（写回 dish 与归档纠错必须原子）。
- * <p>
- * 可见行为不变：落库字段值、错误码、失败语义均与原实现一致
- * （由 {@code CorrectionServiceImplTest} 逐条断言）。
+ * 事务边界保持原样（写回 dish 与归档反馈必须原子）。
  */
 @Component
 @RequiredArgsConstructor

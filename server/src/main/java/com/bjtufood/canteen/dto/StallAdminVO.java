@@ -9,9 +9,7 @@ import java.util.List;
 
 @Data
 @Schema(description = "后台档口列表展示信息")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class StallAdminVO {
-    // ⚠️ 冻结：管理端（Web 后台）视图对象，待后期整体重构时移除。本期保留可编译，不删除。
 
     @Schema(description = "档口ID")
     private Long id;
@@ -19,13 +17,21 @@ public class StallAdminVO {
     @Schema(description = "所属食堂ID")
     private Long canteenId;
 
+    /** 所属食堂名（联表带出，列表直接可读；口径见 docs/api/web/stalls.md） */
+    @Schema(description = "所属食堂名", example = "第一食堂")
+    private String canteenName;
+
+    /** 其下菜品数（跨域计数由 controller 编排填充；供删除前判断） */
+    @Schema(description = "其下菜品数", example = "12")
+    private Long dishCount;
+
     @Schema(description = "档口名称", example = "面食窗口")
     private String name;
 
     @Schema(description = "档口位置")
     private String location;
 
-    @Schema(description = "楼层（如 1F/2F）", example = "1F")
+    @Schema(description = "楼层（受控字典、值即汉字：负一层/一层/二层/三层/四层）", example = "二层")
     private String floor;
 
     @Schema(description = "窗口号", example = "3号窗口")

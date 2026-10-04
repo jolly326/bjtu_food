@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 学生端图片上传（小程序云存储配图主链路）。
  * 鉴权：学生 JWT（{@code Authorization: Bearer}）。
- * 管理端 multipart 上传见 {@link AdminUploadController}（{@code POST /admin/upload/image}）。
+ * 管理端 multipart 上传见 {@link AdminUploadController}（{@code POST /admin/upload}）。
  */
 @Tag(name = "07. 图片上传（学生端）", description = "小程序 UGC 配图：云存储 fileID → imgSecCheck → COS 转存。鉴权：学生 JWT。")
 @RestController

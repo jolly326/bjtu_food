@@ -9,6 +9,7 @@ import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
+import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
 import com.bjtufood.review.mapper.ReviewMapper;
@@ -65,13 +66,15 @@ class ReviewServiceImplTest {
     private final ImageUrlUtil imageUrlUtil = mock(ImageUrlUtil.class);
     private final LocalSensitiveFilter localSensitiveFilter = mock(LocalSensitiveFilter.class);
     private final ContentSecurityService contentSecurityService = mock(ContentSecurityService.class);
+    private final NotificationService notificationService = mock(NotificationService.class);
 
     /** 构造器参数顺序须与 {@code ReviewServiceImpl} 的 final 字段声明顺序逐字一致（@RequiredArgsConstructor） */
     private ReviewServiceImpl service() {
         // 落库 Bean 用**真实实现**包裹 mock 的 mapper 与事件发布器：事务边界收窄（机审移出事务）后，
         // 本类断言仍原样落在 reviewMapper.insert / update 与 eventPublisher 上 —— 即「可见行为未变」的直接证据。
         return new ReviewServiceImpl(reviewMapper, new ReviewPersister(reviewMapper, eventPublisher),
-                userService, dishService, eventPublisher, imageUrlUtil, localSensitiveFilter, contentSecurityService);
+                userService, dishService, eventPublisher, imageUrlUtil, localSensitiveFilter, contentSecurityService,
+                notificationService);
     }
 
     private static Review review(Long id, Long userId, Long dishId, int rating) {

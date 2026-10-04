@@ -152,7 +152,7 @@ public class VerifyCodePersister {
     }
 
     /**
-     * 数据归属迁移（spec §5.y.3）：把旧账号 user_id 下的业务数据改挂到新账号。
+     * 数据归属迁移：把旧账号 user_id 下的业务数据改挂到新账号。
      * <p>
      * P0-1 架构收口：本方法不再持有 review / feedback / notify 的 Mapper，改为发布
      * {@code UserOwnershipMigratedEvent}，由各域监听器自理本域表（review 独有的

@@ -44,28 +44,29 @@ interface UsePagedListReturn<T> {
   loadMore: () => Promise<void>
 }
 
+/** 结束判据（单一真源）：后端 `PageResult` 无 total ⇒ 本页条数 < `pageSize` 即到底 */
+export function isLastPage(rows: { length: number }, pageSize: number): boolean {
+  return rows.length < pageSize
+}
+
 /**
  * 分页增量合并（单一真源）：把新一页 `incoming` 去重追加到 `current`，并判定是否到底。
  *
- * <p>去重：以 `id` 为唯一键，丢弃已在列表中的行（极端分页跳号防护，与 `usePagedList` 同源）。
- * <p>封底：本页 `incoming.length === 0` 或 `< pageSize` 即到底（`finished = true`）——
- * 后端 `PageResult` 仅下发明细、无 total，故「满页」不能判定还有下一页，必须靠 0 长度封口。
+ * 以 `id` 为唯一键去重（极端分页跳号防护）；本页 0 长度或不足 `pageSize` 即封底
+ * —— 后端仅下发明细、无 total，「满页」不能判定还有下一页，必须靠短页 / 0 长度封口。
  *
- * <p>调用方保留自己的「竞态守卫（seq）/ 重入锁 / 失败回退页码」逻辑；本函数只负责
- * 「合并 + 封底」这一份纯逻辑，供 find / review / 首页复用，避免各自手抄一份。
+ * 调用方保留自己的「竞态守卫 / 重入锁 / 失败回退页码」逻辑；本函数只负责「合并 + 封底」。
  */
 export function mergePagedRows<T extends { id?: number }>(
   current: T[],
   incoming: T[],
   pageSize: number,
 ): { rows: T[]; finished: boolean } {
-  if (incoming.length === 0) {
-    // 0 长度：无新增，封口到底；不触碰 current（避免空态闪现）
-    return { rows: current, finished: true }
-  }
+  // 0 长度：无新增，封口到底；不触碰 current（避免空态闪现）
+  if (incoming.length === 0) return { rows: current, finished: true }
   const existIds = new Set(current.map((it) => it.id))
   const rows = current.concat(incoming.filter((it) => !existIds.has(it.id)))
-  return { rows, finished: incoming.length < pageSize }
+  return { rows, finished: isLastPage(incoming, pageSize) }
 }
 
 export function usePagedList<T extends { id: number }>(
@@ -102,7 +103,7 @@ export function usePagedList<T extends { id: number }>(
       loadFailed.value = false
       list.value = rows
       page = 1
-      finished.value = rows.length < pageSize
+      finished.value = isLastPage(rows, pageSize)
       onLoadSuccess?.(rows)
     } catch {
       // 失败仅置态（页面渲染可重试失败块），不再打日志
@@ -125,13 +126,12 @@ export function usePagedList<T extends { id: number }>(
     try {
       page += 1
       const rows = await fetchPage(page, pageSize)
-      // 合并 + 封底（单一真源 mergePagedRows）：去重追加、0 长度封口、满页未封底。
-      // 0 长度即「无新增」⇒ 封口到底且 page 已 +1 不再触发后续请求（finished 守卫拦截）。
+      // 0 长度封口时 page 已 +1，但 finished 守卫会拦截后续请求，不会跳页
       const merged = mergePagedRows(list.value, rows, pageSize)
       list.value = merged.rows
       finished.value = merged.finished
     } catch {
-      // 失败回退页码（保持静默：不打断滚动；再次触底会重试同一页）
+      // 失败回退页码（静默：不打断滚动；再次触底会重试同一页）
       page -= 1
     } finally {
       loading.value = false
@@ -156,6 +156,8 @@ export function createSeqGuard() {
     begin: (): number => ++current,
     /** 响应到达后判定：`false` = 已被更新的请求淘汰，应丢弃本次结果 */
     isCurrent: (seq: number): boolean => seq === current,
+    /** 读取当前号但**不取号**：供「分页借当前号判定自己是否被淘汰」用（取号会误杀在途的重置请求） */
+    peek: (): number => current,
     /** 作废所有在途请求（只自增不取号）：如重置详情时让旧请求的响应一律失效 */
     invalidate: (): void => {
       current += 1
@@ -163,32 +165,19 @@ export function createSeqGuard() {
   }
 }
 
-/** 结束判据（单一真源）：后端 `PageResult` 无 total ⇒ 本页条数 < `pageSize` 即到底 */
-export function isLastPage(rows: { length: number }, pageSize: number): boolean {
-  return rows.length < pageSize
-}
-
 /**
- * 虚拟列表（`scroll-view` 专用）：只渲染**可视窗口**内的条目，把长列表 DOM 节点数从 O(n) 降到 O(窗口)。
+ * 虚拟列表（scroll-view 专用）：只渲染**可视窗口**内的条目，把长列表 DOM 节点数从 O(n) 降到 O(窗口)。
  *
- * <p><b>⚠️ 为什么放在本文件（而非独立的 `useVirtualList.ts`）</b>：mp-weixin 的模块注册只覆盖
- * **主包入口可达**的模块；仅被**分包**引用的独立模块不进主包模块图 ⇒ 分包 `require` 时报
- * `module 'composables/xxx.js' is not defined`（与 manifest 中 MP-019「按需注入」是同一类坑）。
- * 本文件已被主包 `stores/dish.ts` 引用、可稳定从分包加载，故虚拟列表并入此处 ——
- * **不要再拆成独立文件**，否则三个分包页面（通知 / 我的评价 / 详情评价区）会立刻复发。
+ * ⚠️ **不要再拆成独立的 useVirtualList.ts**：mp-weixin 的模块注册只覆盖主包入口可达的模块，仅被分包引用的
+ * 独立模块不进主包模块图 ⇒ 分包 require 时报 module 'composables/xxx.js' is not defined（MP-019 同类坑）。
+ * 本文件已被主包 stores/dish.ts 引用、可稳定从分包加载。
  *
- * <p><b>适配小程序的两点约束</b>：
- * <ol>
- *   <li>`scroll-view` 会渲染全部子节点 ⇒ 用「上下占位 + 窗口切片」模拟整段高度；</li>
- *   <li>行高不定长 ⇒ 维护**实测高度表**（未实测项用 `estimateHeight` 兜底），随渲染逐项收敛；
- *       实测取不到（如宿主节点）时保持估算，不阻塞渲染。</li>
- * </ol>
- *
- * <p><b>用法</b>：`scroll-view` 绑 `@scroll="onScroll"` 并加类 `v-scroll`；条目容器内首尾各放一个占位
- * `view`（`topPad` / `bottomPad`），中间 `v-for="x in visible"`；每个条目根节点加 `class="v-item"`。
- * 条目数 ≤ `threshold` 时**不虚拟化**（全渲染）⇒ 短列表行为与改造前**逐字一致**（零回归面）。
+ * 用法：scroll-view 绑 @scroll="onScroll" 并加类 v-scroll；条目容器内首尾各放一个占位 view
+ * （topPad / bottomPad），中间 v-for="x in visible"；每个条目根节点加 class="v-item"。
+ * 条目数 ≤ threshold 时**不虚拟化**（全渲染）⇒ 短列表零回归面。
  */
-export interface UseVirtualListOptions<T> {
+
+interface UseVirtualListOptions<T> {
   /** 全量数据源（分页列表的 `list`） */
   items: Ref<T[]>
   /** 未实测条目的估算高度（px）：仅作兜底，实测后逐项收敛 */
@@ -328,3 +317,6 @@ export function useVirtualList<T>(opts: UseVirtualListOptions<T>) {
 
   return { onScroll, visible, topPad, bottomPad, enabled, startIndex, endIndex }
 }
+
+
+

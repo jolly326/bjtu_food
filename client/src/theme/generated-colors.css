@@ -1,15 +1,15 @@
 /* =========================================================================
- * generated-colors.css —— 色值唯一真源导出（spec §4.2 / §7.39）
+ * generated-colors.css —— 色值唯一真源导出
  * 真源：src/theme/tokens.ts 的 CSS_VARS（值引用 COLOR_MAP 同键同值）
  *
  * 生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不在本工作区，本文件**手工维护**（含本注释头）。
  *    维护规则不变：内容 SHALL 与 tokens.ts 的 CSS_VARS 逐键一致；
  *    改色值只改 tokens.ts，随后同步本文件；禁止在本文件引入 tokens.ts 没有的键。
- *    恢复脚本化生成须重新登记（见 spec §4.2 / §7.39）。
+ *    恢复脚本化生成须重新登记。
  * ======================================================================== */
 
 page {
-  /* ===== 主色（暖橙黄，§4.1）===== */
+  /* ===== 主色（暖橙黄）===== */
   --color-primary: #B4531A;
   --color-primary-fill: #B4531A;
   --color-primary-text: #B4531A;
@@ -45,12 +45,12 @@ page {
   --text-placeholder: #B5A594;
   /* ===== 背景 ===== */
   --bg-page: #FFF8EF;
-  /* --bg-page-grad-from / --bg-page-grad-to 已移除（原「页面顶部渐变」随切片方案废止、零引用；见 tokens.ts） */
+  /* 无独立页面顶部渐变键（装饰色走 --bg-soft-* 档） */
   --bg-soft-orange: #FFE8D1;
   --bg-soft-yellow: #FFF3D6;
-  /* --bg-warm 已移除（零消费，见 theme/tokens.ts 注释；手工同步保持一致） */
+  /* 无 --bg-warm（页面底统一 --bg-page，手工同步保持一致） */
   --bg-card: #FFFFFF;
-  /* --card-bg 已移除（与 --bg-card 同值的重复键、零引用；见 tokens.ts） */
+  /* 无 --card-bg（与 --bg-card 同值的重复键，手工同步保持一致） */
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
   --bg-placeholder: #F0ECE8;

@@ -16,7 +16,14 @@ import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
 import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;
+import com.bjtufood.common.utils.JsonMapUtil;
+import com.bjtufood.dish.entity.DishAttributeValue;
+import com.bjtufood.dish.entity.DishFilterView;
+import com.bjtufood.dish.mapper.DishAttributeValueMapper;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.service.DishAttributeAdminService;
+import com.bjtufood.dish.service.DishCategoryAdminService;
+import com.bjtufood.dish.service.DishViewCatalog;
 import com.bjtufood.dish.service.DishAttributeCatalog;
 import com.bjtufood.dish.service.impl.DishServiceImpl;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -89,7 +96,38 @@ class DishReadPathBenchmarkTest {
 
     private DishMapper dishMapper;
     private DishAttributeDimensionMapper dimensionMapper;
+    /** 取值字典（A4 落地后的**候选值真源**）：声明为字段以便打桩 */
+    private DishAttributeValueMapper valueMapper;
     private DishServiceImpl dishService;
+
+    /** 视图样本（A6）：逻辑（空条件 + `random`）由 DishViewDefs 按 key 提供，表行只给展示态 */
+    private static DishFilterView sampleView() {
+        DishFilterView v = new DishFilterView();
+        v.setId(1L);
+        v.setKey("recommend");
+        v.setLabel("为你推荐");
+        v.setOrder(1);
+        v.setEnabled(true);
+        return v;
+    }
+
+    /** 取值字典样本（4 维 × 2~3 个取值）；A4 后候选值不再来自菜品 attributes 扫描 */
+    private static List<DishAttributeValue> attributeValues() {
+        return List.of(
+                value(10L, 1L, "清淡", 1), value(11L, 1L, "半荤", 2),
+                value(20L, 2L, "微辣", 1), value(21L, 2L, "中辣", 2), value(22L, 2L, "重辣", 3),
+                value(30L, 3L, "酸", 1), value(31L, 3L, "辣", 2),
+                value(40L, 4L, "热食", 1), value(41L, 4L, "冷食", 2));
+    }
+
+    private static DishAttributeValue value(Long id, Long dimensionId, String label, int order) {
+        DishAttributeValue v = new DishAttributeValue();
+        v.setId(id);
+        v.setDimensionId(dimensionId);
+        v.setLabel(label);
+        v.setOrder(order);
+        return v;
+    }
 
     /** 纯 Mockito 无 Spring 上下文，MyBatis-Plus 的 lambda 缓存需显式初始化 */
     @BeforeAll
@@ -98,6 +136,8 @@ class DishReadPathBenchmarkTest {
                 new MapperBuilderAssistant(new MybatisConfiguration(), DishReadPathBenchmarkTest.class.getName());
         TableInfoHelper.initTableInfo(assistant, Dish.class);
         TableInfoHelper.initTableInfo(assistant, DishAttributeDimension.class);
+        // A4 后候选值查询走 dish_attribute_value 的 LambdaQueryWrapper，同样需要 lambda 缓存
+        TableInfoHelper.initTableInfo(assistant, DishAttributeValue.class);
     }
 
     @BeforeEach
@@ -111,9 +151,20 @@ class DishReadPathBenchmarkTest {
         when(imageUrlUtil.toAbsoluteUrls(any())).thenAnswer(invocation -> invocation.getArgument(0));
         // 刻意用「未加代理」的 catalog：@Cacheable 靠 Spring 代理生效，纯 Mockito 下注解惰性无效，
         // 因此本类度量的始终是**无缓存基线**（缓存生效后的对照见 DishCacheBenchmarkTest）。
-        DishAttributeCatalog catalog =
-                new DishAttributeCatalog(dishMapper, dimensionMapper, CacheConfig.buildCacheManager());
-        dishService = new DishServiceImpl(dishMapper, stallService, publisher, imageUrlUtil, catalog);
+        valueMapper = mock(DishAttributeValueMapper.class);
+        when(valueMapper.selectList(any())).thenReturn(attributeValues());
+        DishAttributeAdminService attributeAdminService = mock(DishAttributeAdminService.class);
+        // 出参翻译不属本次测量口径：原样透传（解析 JSON 即 identity），保证维度数不变
+        when(attributeAdminService.translateForRead(any()))
+                .thenAnswer(inv -> JsonMapUtil.parseObject(inv.getArgument(0)));
+        DishAttributeCatalog catalog = new DishAttributeCatalog(dimensionMapper, valueMapper,
+                CacheConfig.buildCacheManager());
+        // 视图目录打桩：A6 后 listDishes 走**查表**取视图行（未登记 → 4001 之前先 400），
+        // 故此处桩定一个视图（random + 无条件，即「为你推荐」）
+        DishViewCatalog viewCatalog = mock(DishViewCatalog.class);
+        when(viewCatalog.byKey(any())).thenReturn(sampleView());
+        dishService = new DishServiceImpl(dishMapper, stallService, publisher, imageUrlUtil, catalog,
+                attributeAdminService, mock(DishCategoryAdminService.class), viewCatalog);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);
     }
 
@@ -128,7 +179,8 @@ class DishReadPathBenchmarkTest {
 
         // ---------- GET /dishes/{id}/attributes ----------
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        when(dishMapper.selectAttributesJsonOnSale(anyInt())).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
+        // 候选值真源已改为取值字典（A4，见 setUp 中的 valueMapper 桩）；
+        // 原 dishMapper.selectAttributesJsonOnSale 桩与方法一并退役。
         PerfMetrics.emit("server.mapper_calls.dish_attributes_edit",
                 measureCalls(() -> dishService.listDishAttributes(1L)), "次/请求",
                 "现状=单次取行（存在性+在售态+属性）+ 维度字典 + 全库attributes扫描（rows=" + ON_SALE_ROWS + "）");
@@ -141,9 +193,10 @@ class DishReadPathBenchmarkTest {
                 "现状=单条分页联表查询");
 
         // ---------- GET /dishes/views（筛选视图字典） ----------
-        when(dishMapper.selectInStockMealTypes()).thenReturn(List.of("staple", "dish"));
+        // A6 落地后 `GET /dishes/views` 的取数已收进 DishViewCatalog（缓存的是**计算后的可见列表**）；
+        // 本类注入的是 mock 目录 ⇒ 度量的是「Service 层零额外查询」，真实口径见 DishCacheBenchmarkTest 的目录缓存用例。
         PerfMetrics.emit("server.mapper_calls.dish_views", measureCalls(dishService::listDishViews), "次/请求",
-                "现状=每次进入首页都查一次在售大类集合");
+                "Service 层（目录已缓存时的稳态）= 0；冷态与逐视图计数见 DishViewCatalog");
 
         // ---------- GET /dishes/guess-like ----------
         PerfMetrics.emit("server.mapper_calls.guess_like",
@@ -154,7 +207,8 @@ class DishReadPathBenchmarkTest {
     @DisplayName("候选值聚合耗时：预热后测冷路径与热路径（无缓存时热 ≈ 冷）")
     void attributeCandidateLatency() {
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        when(dishMapper.selectAttributesJsonOnSale(anyInt())).thenReturn(onSaleAttributesJson(ON_SALE_ROWS));
+        // A4 落地后候选值真源 = 取值字典（字典规模由管理端维护控制，不再随菜品行数线性膨胀）；
+        // 原 dishMapper.selectAttributesJsonOnSale 桩随扫描逻辑一并退役。
         // 预热：让 JIT 完成热点编译，避免把编译成本算进「冷路径」
         for (int i = 0; i < 3; i++) {
             dishService.listDishAttributes(1L);

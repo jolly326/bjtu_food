@@ -184,14 +184,17 @@
         />
       </view>
 
-      <!-- ④ 图片（选填，≤3 张；上传 / 预览 / 删除 / 破图占位由公共 ImagePicker 承担） -->
+      <!-- ④ 图片（选填，**≤5 张** —— 纠正常需「菜品 + 价签 + 档口牌」多张佐证，宽于评价 / 反馈的 3 张；
+           上传 / 预览 / 删除 / 破图占位由公共 ImagePicker 承担） -->
       <view class="img-block">
-        <text class="img-title">补充实拍图片（选填，最多 3 张）</text>
+        <text class="img-title">补充实拍图片（选填，最多 {{ CORRECTION_IMAGE_MAX }} 张）</text>
         <ImagePicker
+          ref="imagePickerRef"
           :model-value="model.images"
-          :max="UGC_IMAGE_MAX"
+          :max="CORRECTION_IMAGE_MAX"
           :disabled="!!submitting"
           @update:model-value="onImagesChange"
+          @pick="emit('pick-image')"
         />
       </view>
 
@@ -199,7 +202,7 @@
       <text class="submit-note">提交后人工审核，审核通过更新菜品信息</text>
       <view class="submit-area" @tap="onSubmitTap">
         <AppButton
-          :text="submitting ? '提交中…' : '提交纠错'"
+          :text="submitting ? '提交中…' : '提交菜品问题反馈'"
           :disabled="!canSubmit"
           :loading="!!submitting"
           @press="emit('submit')"
@@ -213,7 +216,7 @@
 
 <script setup lang="ts">
 /**
- * CorrectionForm —— 菜品纠错页根组件（表单数据渲染 + 校验错误呈现 + 提交触发）
+ * CorrectionForm —— 菜品问题反馈页「信息有误」型的表单区（渲染 + 校验错误呈现 + 提交触发）
  *
  * 职责边界：本组件**不持有业务状态**（表单值 / 校验 / patch 组装 / 提交全在 `useCorrection`），
  * 只负责「六段结构」的渲染与字段级写回（`props.model` 就地写回，父级 reactive 为唯一真源）。
@@ -227,10 +230,11 @@ import ImagePicker from '@/components/ImagePicker.vue'
 import AttributeGroup from './AttributeGroup.vue'
 import FloorPickerSheet from './FloorPickerSheet.vue'
 import { COLOR_MAP } from '@/theme/tokens'
-import { UGC_IMAGE_MAX } from '@/constants/ugc'
+import { CORRECTION_IMAGE_MAX } from '@/constants/ugc'
 import { toastInfo } from '@/utils/error'
 import { FLOOR_OPTIONS, floorDisplay } from './useCorrection'
 import type { CorrectionFormModel } from './useCorrection'
+import type { PickSource } from '@/components/imagePickSource'
 
 /**
  * 基础信息字段键（R40 起**逐字段显式渲染**，不再由 `FIELDS` 配置 `v-for` 驱动）。
@@ -267,7 +271,22 @@ const emit = defineEmits<{
   (e: 'clear', key: string): void
   /** 提交（仅在可提交时触发；置灰态由外层热区 toast 兜底） */
   (e: 'submit'): void
+  /**
+   * 请求选择**配图来源**（拍照 / 相册）——由页面根级弹层承接。
+   * <p>本组件位于 scroll-view 内，不能自带 fixed 弹层（层级会被压扁/裁剪）。
+   */
+  (e: 'pick-image'): void
 }>()
+
+/**
+ * ImagePicker 的 startPick 中转（拉起选图 → 压缩校验 → 安检上传）。
+ * <p>来源弹层在页面根级，故经宿主页选中来源后再透传下来。
+ */
+const imagePickerRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
+function startPick(source: PickSource) {
+  imagePickerRef.value?.startPick(source)
+}
+defineExpose({ startPick })
 
 /** 聚焦字段键（聚焦时底线切主色；空 = 无聚焦） */
 const focused = ref('')

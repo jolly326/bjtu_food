@@ -90,6 +90,57 @@ class ContentSecurityServiceTest {
                 .andRespond(withSuccess(body, MediaType.TEXT_PLAIN));
     }
 
+    /**
+     * 防回归：安检失败的提示必须<b>带 errcode 且能指明归因</b>，不得再退回笼统的
+     * 「内容安全检测服务暂不可用」——2026-10-02 起三次线上事故（40164 白名单 / 40125 凭据 /
+     * 配置缺失）全都被这句话掩盖，导致每次都必须翻服务端日志才能定位。
+     * <p>
+     * errcode 不含敏感信息，透出到端上使「看到提示」=「知道怎么修」，零日志往返。
+     */
+    @Test
+    @DisplayName("imgSecCheck errcode=40164（IP 未加白名单）→ 提示须直指「出口 IP 加入白名单」")
+    void shouldAttributeIpWhitelistErrcode() {
+        expectStableToken();
+        server.expect(once(), requestTo(startsWith(IMG_SEC_CHECK_URL)))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("{\"errcode\":40164,\"errmsg\":\"invalid ip\"}",
+                        MediaType.TEXT_PLAIN));
+
+        assertThatThrownBy(() -> contentSecurityService.checkImage(new byte[]{1, 2, 3}))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("40164")
+                .hasMessageContaining("IP 白名单");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("imgSecCheck errcode=40125（AppSecret 配错）→ 提示须指明凭据不匹配，而非笼统的「暂不可用」")
+    void shouldAttributeCredentialErrcode() {
+        expectStableToken();
+        server.expect(once(), requestTo(startsWith(IMG_SEC_CHECK_URL)))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("{\"errcode\":40125,\"errmsg\":\"invalid appsecret\"}",
+                        MediaType.TEXT_PLAIN));
+
+        assertThatThrownBy(() -> contentSecurityService.checkImage(new byte[]{1, 2, 3}))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("40125")
+                .hasMessageContaining("AppSecret");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("msgSecCheck errcode 未归类（如 45011）→ 提示须含 errcode 与接口名，便于一眼定位")
+    void shouldAlwaysCarryErrcodeForUnclassifiedCodes() {
+        expectStableToken();
+        expectMsgSecCheck("{\"errcode\":45011,\"errmsg\":\"api minute-quota reach\"}");
+
+        assertThatThrownBy(() -> contentSecurityService.detectText("oX-openid", "一份番茄炒蛋", 2))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("45011");
+        server.verify();
+    }
+
     @Test
     @DisplayName("msgSecCheck v2 suggest=pass → PASS（请求体含 version=2/scene/openid/content）")
     void shouldReturnPassOnSuggestPass() {

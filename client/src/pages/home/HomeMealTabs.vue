@@ -4,7 +4,7 @@
        ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/views`）——
        含「为你推荐」这类**聚合视图**，端上**零文案、零拼接、零兜底项**：
        改文案 / 加视图（如「折扣」）只在服务端 `DishViewConst` + `listDishViews()` 出口处装配，端上无需发版。
-       字典未加载 / 失败 ⇒ 判空**整体不渲染**（不留空栏、不占位）；列表仍按默认视图加载。 -->
+       字典未加载 / 失败 ⇒ 判空**整体不渲染**（不留空栏、不占位）；列表仍按首个启用视图加载。 -->
   <view v-if="tabs.length > 0" class="mt-bar">
     <scroll-view
       class="mt-scroll"
@@ -38,7 +38,7 @@
 import { computed } from 'vue'
 import type { DishView } from '@/types/dish'
 
-/** 标签项：`key` 原样回传（无 null 特例：默认视图「为你推荐」也是普通 key）；文案一律来自服务端 */
+/** 标签项：`key` 原样回传（无 null 特例：首个启用视图「为你推荐」也是普通 key）；文案一律来自服务端 */
 interface ViewTab {
   key: string
   label: string
@@ -81,7 +81,7 @@ function onSelect(key: string) {
 
 <style scoped lang="scss">
 /* 标签栏落在页面底色区（与上方白色搜索卡在明度上可区分 —— 形态与色彩口径真源见
-   docs/client/ui/client-公共组件与形态基线.md；色板取色边界见 docs/client/ui/client-首页菜品浏览.md §10）。
+   docs/ui/client/公共组件与形态基线.md；色板取色边界见 docs/ui/client/首页菜品浏览.md §10）。
    自身上下 padding **归零**：与搜索区、与网格的间距各由
    `.mt-tab` 的行内上偏置 / 吸顶容器 padding 单独承担 —— 两处叠加会把间隙撑到 20px+。 */
 .mt-bar {

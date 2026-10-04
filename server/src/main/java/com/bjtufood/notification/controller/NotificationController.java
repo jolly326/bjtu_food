@@ -53,7 +53,7 @@ public class NotificationController {
     }
 
     /**
-     * 全部已读（spec §7.18）。
+     * 全部已读。
      * <p>
      * 路径冲突规避：本方法声明在 {@link #readAll()} 之前只是「字面路径优先」的额外保险，
      * 真正的规避点在于单条已读路径是 {@code /my/notifications/{id}/read}（含后缀 {@code /read}），

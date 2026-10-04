@@ -58,19 +58,19 @@ public class Dish {
     @Schema(description = "描述属性（JSON：键=维度 fieldKey，值=机器值/数组）", example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\"]}")
     private String attributes;
 
-    /** 菜品大类：值域由 DishViewConst 派生（单一真源）；
+    /** 菜品大类：值域由视图字典表派生（单一真源）；
      *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），
      *  仅供「大类视图」筛选与视图字典下发 */
-    @Schema(description = "菜品大类枚举键（值域由 DishViewConst 派生）", example = "noodle")
+    @Schema(description = "菜品分类键（值域 = dish_category_value 分类值字典；自由输入自动登记）", example = "noodle")
     private String mealType;
 
-    /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 schema.sql dish 表注释） */
+    /** 状态：on（上架）/ off（下架）（菜品审核语义已整体退役，见 docs/schema/dish.md） */
     @Schema(description = "状态", example = "on")
     private String status;
 
     // dish.reject_reason / dish.created_by 已于用户拍板「零消费即删除」退役：
     // reject_reason 恒 NULL（审核语义退役后无写入入口）、created_by 只写不读（upsert 留痕撤销）；
-    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
+    // CREATE TABLE 已移除，存量库已直连远程库清理。
 
     /** 浏览量 */
     @Schema(description = "浏览量")

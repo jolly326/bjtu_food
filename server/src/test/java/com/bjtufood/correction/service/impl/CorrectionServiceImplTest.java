@@ -18,6 +18,10 @@ import com.bjtufood.correction.dto.StallConfirmVO;
 import com.bjtufood.correction.entity.DishCorrection;
 import com.bjtufood.correction.mapper.DishCorrectionMapper;
 import com.bjtufood.dish.dto.DishCorrectionCmd;
+import com.bjtufood.correction.dto.DishCorrectionDetailVO;
+import com.bjtufood.correction.dto.DishCorrectionDifferenceVO;
+import com.bjtufood.dish.dto.DishAdminVO;
+import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
@@ -83,10 +87,35 @@ class CorrectionServiceImplTest {
 
     /** 构造器参数顺序须与 {@code CorrectionServiceImpl} 的 final 字段声明顺序逐字一致（@RequiredArgsConstructor） */
     private CorrectionServiceImpl service() {
+        // B4 逐项采纳的前置：采纳项必须「此刻仍有差异」⇒ 详情对照需一份可取的**实时菜品**。
+        // 默认给「处处不同于快照」的实时值（各用例只关心档口 / 楼层分支，不关心具体差异内容）。
+        when(dishService.getForAdmin(anyLong())).thenReturn(liveDish());
         // 落库 Bean 用**真实实现**包裹 mock 的 mapper：事务边界收窄（机审移出事务）后，
         // 本类断言仍原样落在 correctionMapper.insert 上 —— 即「可见行为未变」的直接证据。
         return new CorrectionServiceImpl(correctionMapper, new CorrectionPersister(correctionMapper), dishService,
-                stallService, userService, localSensitiveFilter, contentSecurityService, notificationService, imageUrlUtil);
+                mock(DishAttributeAdminService.class), stallService, userService, localSensitiveFilter,
+                contentSecurityService, notificationService, imageUrlUtil);
+    }
+
+    /** 实时菜品（处处不同于 {@link #pendingCorrection} 的快照，使 name/canteenName/stallName 都是「仍有差异」项） */
+    private static DishAdminVO liveDish() {
+        DishAdminVO live = new DishAdminVO();
+        live.setId(3L);
+        live.setStallId(10L);
+        live.setName("旧菜名");
+        live.setCanteenName("旧食堂");
+        live.setStallName("旧档口");
+        live.setPrice(1200);
+        live.setImages(List.of());
+        live.setAttributes(Map.of());
+        return live;
+    }
+
+    /** 采纳请求：只勾选给定差异项（B4「逐项采纳」） */
+    private static DishCorrectionAdoptReq adoptReq(String... fields) {
+        DishCorrectionAdoptReq req = new DishCorrectionAdoptReq();
+        req.setAcceptedFields(List.of(fields));
+        return req;
     }
 
     private DishCorrectionReq req() {
@@ -353,7 +382,7 @@ class CorrectionServiceImplTest {
         when(userService.mapNicknameByIds(any())).thenReturn(Map.of(1L, "交大干饭王", 2L, "食堂常客"));
         when(dishService.mapNameByIds(any())).thenReturn(Map.of(3L, "牛肉拉面"));
 
-        List<DishCorrectionAdminVO> records = service().listForAdmin(null, 1, 10).getRecords();
+        List<DishCorrectionAdminVO> records = service().listForAdmin(null, null, 1, 10).getRecords();
 
         assertThat(records).hasSize(2);
         assertThat(records.get(0).getFloor()).isEqualTo("2F");
@@ -363,11 +392,11 @@ class CorrectionServiceImplTest {
     // ==================== adopt：幂等与两段式档口确认 ====================
 
     @Test
-    @DisplayName("adopt：纠错不存在 → 400")
-    void adopt_notFound_400() {
+    @DisplayName("adopt：纠错不存在 → 4001（目标态契约，见 docs/api/web/corrections.md）")
+    void adopt_notFound_4001() {
         when(correctionMapper.selectById(anyLong())).thenReturn(null);
         assertThatThrownBy(() -> service().adopt(9L, null))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
     }
 
     @Test
@@ -404,7 +433,7 @@ class CorrectionServiceImplTest {
         when(s.getName()).thenReturn("清真面档B");
         when(stallService.listBriefCandidates(any())).thenReturn(List.of(s));
 
-        StallConfirmVO result = service().adopt(9L, null);
+        StallConfirmVO result = service().adopt(9L, adoptReq("stallName"));
 
         assertThat(result).isNotNull();
         // record 访问器：needStallConfirm() / candidates()
@@ -421,7 +450,7 @@ class CorrectionServiceImplTest {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
         when(dishService.existsById(anyLong())).thenReturn(true);
         when(stallService.existsById(anyLong())).thenReturn(false);
-        DishCorrectionAdoptReq req = new DishCorrectionAdoptReq();
+        DishCorrectionAdoptReq req = adoptReq("stallName");
         req.setStallId(404L);
 
         assertThatThrownBy(() -> service().adopt(9L, req))
@@ -438,7 +467,8 @@ class CorrectionServiceImplTest {
         when(stallService.getNameById(10L)).thenReturn("清真面档");
         when(dishService.applyCorrection(any())).thenReturn(true);
 
-        assertThat(service().adopt(9L, null)).isNull();   // 命中即直接采纳，无需二次确认
+        // 命中即直接采纳，无需二次确认（采纳了档口项才走两段式解析）
+        assertThat(service().adopt(9L, adoptReq("stallName"))).isNull();
 
         ArgumentCaptor<DishCorrectionCmd> cmd = ArgumentCaptor.forClass(DishCorrectionCmd.class);
         verify(dishService).applyCorrection(cmd.capture());
@@ -466,7 +496,7 @@ class CorrectionServiceImplTest {
         when(stallService.getNameById(10L)).thenReturn("清真面档");
         when(dishService.applyCorrection(any())).thenReturn(true);
 
-        assertThat(service().adopt(9L, null)).isNull();
+        assertThat(service().adopt(9L, adoptReq("stallName", "floor"))).isNull();
 
         // 落点 = 本次采纳解析出的目标档口（两段式确认的最终结果），而非提交名对应的档口
         verify(stallService).updateFloor(10L, "2F");
@@ -478,28 +508,25 @@ class CorrectionServiceImplTest {
     }
 
     @Test
-    @DisplayName("adopt：档口名未改动（快照 null）+ 管理端指定档口 + 楼层改动 → 写回该档口 floor，且归档不 NPE")
-    void adopt_explicitStallWithFloor_writesBackToThatStall() {
+    @DisplayName("adopt：只采纳 floor（未采纳档口项）→ 不触发两段式确认，楼层写回该菜**当前所属档口**，且归档不 NPE")
+    void adopt_floorOnlyWithoutStallItem_writesToCurrentStall() {
         DishCorrection c = pendingCorrection(1L);
         c.setFloor("B1");
-        c.setStallName(null);   // 档口名未改动的局部提交：楼层改动照常写回最终档口
+        c.setStallName(null);   // 档口名未改动的局部提交
         c.setCanteenName(null);
         when(correctionMapper.selectById(anyLong())).thenReturn(c);
         when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.existsById(22L)).thenReturn(true);
-        when(stallService.getNameById(22L)).thenReturn("留园包点");
         when(dishService.applyCorrection(any())).thenReturn(true);
 
-        DishCorrectionAdoptReq req = new DishCorrectionAdoptReq();
-        req.setStallId(22L);
+        // 只勾选 floor：档口未变 ⇒ 不需要（也不应要求）管理端确认档口
+        assertThat(service().adopt(9L, adoptReq("floor"))).isNull();
 
-        assertThat(service().adopt(9L, req)).isNull();
-
-        verify(stallService).updateFloor(22L, "B1");
-        // 档口名快照为 null 时归档「实际挂靠档口名」也必须成功（原实现在此 NPE ⇒ 采纳 500）
+        // 楼层写回该菜**当前所属档口**（liveDish.stallId=10L），而不是提交/指定的档口
+        verify(stallService).updateFloor(10L, "B1");
+        // 档口名快照为 null 时归档也必须成功（原实现在此 NPE ⇒ 采纳 500）；未采纳档口项 ⇒ 不重命名
         ArgumentCaptor<DishCorrection> saved = ArgumentCaptor.forClass(DishCorrection.class);
         verify(correctionMapper).updateById(saved.capture());
-        assertThat(saved.getValue().getStallName()).isEqualTo("留园包点");
+        assertThat(saved.getValue().getStallName()).isNull();
         assertThat(saved.getValue().getStatus()).isEqualTo(CorrectionConst.STATUS_ADOPTED);
     }
 
@@ -512,7 +539,7 @@ class CorrectionServiceImplTest {
         when(stallService.getNameById(10L)).thenReturn("清真面档");
         when(dishService.applyCorrection(any())).thenReturn(true);
 
-        assertThat(service().adopt(9L, null)).isNull();
+        assertThat(service().adopt(9L, adoptReq("stallName"))).isNull();
 
         verify(stallService, never()).updateFloor(any(), any());
         verify(dishService).applyCorrection(any());
@@ -531,7 +558,7 @@ class CorrectionServiceImplTest {
         when(s.getName()).thenReturn("清真面档B");
         when(stallService.listBriefCandidates(any())).thenReturn(List.of(s));
 
-        StallConfirmVO result = service().adopt(9L, null);
+        StallConfirmVO result = service().adopt(9L, adoptReq("stallName", "floor"));
 
         assertThat(result.needStallConfirm()).isTrue();
         // 关键：档口未落定前不写 dish、不写 stall.floor、不改纠错状态
@@ -549,9 +576,82 @@ class CorrectionServiceImplTest {
         when(stallService.getNameById(10L)).thenReturn("清真面档");
         when(dishService.applyCorrection(any())).thenReturn(false);
 
-        assertThatThrownBy(() -> service().adopt(9L, null))
+        assertThatThrownBy(() -> service().adopt(9L, adoptReq("stallName")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
         verify(correctionMapper, never()).updateById(any());
+    }
+
+    // ==================== B4 详情 + 逐项采纳（2026-10-03 新增能力的护栏） ====================
+
+    @Test
+    @DisplayName("adopt：acceptedFields 缺失或空 → 400 且不写回（「什么都不采纳」不是采纳，是拒绝）")
+    void adopt_acceptedFieldsMissingOrEmpty_400() {
+        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
+        when(dishService.existsById(anyLong())).thenReturn(true);
+
+        assertThatThrownBy(() -> service().adopt(9L, null))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+        assertThatThrownBy(() -> service().adopt(9L, adoptReq()))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+        verify(dishService, never()).applyCorrection(any());
+        verify(correctionMapper, never()).updateById(any());
+    }
+
+    @Test
+    @DisplayName("adopt：采纳项「已无差异」→ 400 且不写回（避免采纳一个已经相同的值）")
+    void adopt_acceptedFieldAlreadySynced_400() {
+        DishCorrection c = pendingCorrection(1L);
+        when(correctionMapper.selectById(anyLong())).thenReturn(c);
+        when(dishService.existsById(anyLong())).thenReturn(true);
+        CorrectionServiceImpl svc = service();
+        // 实时菜品与快照**逐字段一致** ⇒ 差异清单为空 ⇒ 任何采纳项都无效
+        DishAdminVO same = liveDish();
+        same.setName(c.getName());
+        same.setCanteenName(c.getCanteenName());
+        same.setStallName(c.getStallName());
+        when(dishService.getForAdmin(anyLong())).thenReturn(same);
+
+        assertThatThrownBy(() -> svc.adopt(9L, adoptReq("name")))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+        verify(dishService, never()).applyCorrection(any());
+    }
+
+    @Test
+    @DisplayName("getDetail：differences 只列「仍有差异」项，oldValue 取实时值（不是快照值）")
+    void getDetail_listsOnlyRemainingDifferencesWithLiveValues() {
+        DishCorrection c = pendingCorrection(1L);
+        c.setPrice(1600);   // 快照含价格改动
+        when(correctionMapper.selectById(anyLong())).thenReturn(c);
+        when(dishService.existsById(anyLong())).thenReturn(true);
+        CorrectionServiceImpl svc = service();
+        when(dishService.mapNameByIds(any())).thenReturn(Map.of(3L, "牛肉拉面"));
+        when(userService.mapNicknameByIds(any())).thenReturn(Map.of(1L, "交大干饭王"));
+
+        DishCorrectionDetailVO vo = svc.getDetail(9L);
+
+        assertThat(vo.getDishName()).isEqualTo("牛肉拉面");
+        assertThat(vo.getDifferences()).extracting(DishCorrectionDifferenceVO::getField)
+                .containsExactlyInAnyOrder("name", "canteenName", "stallName", "price");
+        // oldValue = 实时值（liveDish 的「旧菜名」），而非快照的「牛肉拉面」
+        DishCorrectionDifferenceVO nameDiff = vo.getDifferences().stream()
+                .filter(d -> "name".equals(d.getField())).findFirst().orElseThrow();
+        assertThat(nameDiff.getOldValue()).isEqualTo("旧菜名");
+        assertThat(nameDiff.getNewValue()).isEqualTo("牛肉拉面");
+        // 提交快照（仅改动项）
+        assertThat(vo.getSubmitted()).containsEntry("name", "牛肉拉面").containsEntry("price", 1600);
+    }
+
+    @Test
+    @DisplayName("getDetail：目标菜品已物理删除 → differences 为空且不抛（采纳本身另有 4001）")
+    void getDetail_dishDeleted_emptyDifferences() {
+        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
+        when(dishService.existsById(anyLong())).thenReturn(false);
+        CorrectionServiceImpl svc = service();
+
+        DishCorrectionDetailVO vo = svc.getDetail(9L);
+
+        assertThat(vo.getDifferences()).isEmpty();
+        assertThat(vo.getDishName()).isNull();
     }
 
     // ==================== reject：结论与必填校验 ====================
@@ -565,11 +665,11 @@ class CorrectionServiceImplTest {
     }
 
     @Test
-    @DisplayName("reject：纠错不存在 → 400")
-    void reject_notFound_400() {
+    @DisplayName("reject：纠错不存在 → 4001（目标态契约）")
+    void reject_notFound_4001() {
         when(correctionMapper.selectById(anyLong())).thenReturn(null);
         assertThatThrownBy(() -> service().reject(9L, handleReq(null, "已核实", "价格一致")))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
     }
 
     @Test
@@ -594,15 +694,23 @@ class CorrectionServiceImplTest {
     }
 
     @Test
-    @DisplayName("reject：回复 / 不采纳原因 为空或纯空白 → 400")
-    void reject_blankReplyOrReason_400() {
+    @DisplayName("reject：不采纳原因 为空或纯空白 → 400（**回复留空合法**：B4 起 reply 可选）")
+    void reject_blankReason_400_replyOptional() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
 
-        assertThatThrownBy(() -> service().reject(9L, handleReq(null, "  ", "价格一致")))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+        // 不采纳原因缺失 / 纯空白 → 400（必填不变）
         assertThatThrownBy(() -> service().reject(9L, handleReq(null, "已核实", "   ")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+        assertThatThrownBy(() -> service().reject(9L, handleReq(null, "已核实", null)))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         verify(correctionMapper, never()).updateById(any());
+
+        // 回复留空 + 原因非空 ⇒ **合法**（回执正文退化为不采纳原因）
+        service().reject(9L, handleReq(null, "  ", "价格一致"));
+        ArgumentCaptor<DishCorrection> saved = ArgumentCaptor.forClass(DishCorrection.class);
+        verify(correctionMapper).updateById(saved.capture());
+        assertThat(saved.getValue().getStatus()).isEqualTo(CorrectionConst.STATUS_REJECTED);
+        assertThat(saved.getValue().getRejectReason()).isEqualTo("价格一致");
     }
 
     @Test

@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   DishListItem, DishDetail, DishQuery,
   DishAttribute, GuessLike, DishView,
 } from '@/types/dish'
@@ -67,11 +67,9 @@ function toDishDetail(raw: DishDetailVO): DishDetail {
 }
 
 /**
- * 通用菜品检索（首页网格无限加载 + 搜索结果）。
- * <p>
- * 复用 `GET /dishes`，**仅支持 `keyword` / `view` / `page` / `pageSize` / `seed`**
- * （食堂 / 价格 / 排序筛选不提供；筛选与排序由服务端按所选视图唯一决定）。
- * 分页壳只有 `records`：调用方以「本页返回条数 < `pageSize`」判到底。
+ * 通用菜品检索（首页网格无限加载 + 搜索结果）：`GET /dishes`。
+ * 仅支持 `keyword` / `view` / `page` / `pageSize` / `seed`（食堂 / 价格 / 排序筛选不提供，
+ * 筛选与排序由服务端按所选视图唯一决定）。分页壳只有 `records`：调用方以「本页条数 < `pageSize`」判到底。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[] }> {
   const params: Record<string, unknown> = {
@@ -82,12 +80,11 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: DishLi
   if (query.view) params.view = query.view
   if (query.seed) params.seed = query.seed
 
-  // 强类型：元素类型取自生成契约，后端改 DishListItemVO 字段即编译期报错
   const res = await get<RawPage<DishListItemVO>>('/dishes', params)
   return { list: recordsOf<DishListItemVO>(res).map(toDishListItem) }
 }
 
-/** 兼容旧调用：返回平铺 `DishListItem[]`（find 搜索流消费） */
+/** `searchDishesPage` 的平铺形态（find 搜索流消费） */
 export async function searchDishes(query: DishQuery): Promise<DishListItem[]> {
   return (await searchDishesPage(query)).list
 }
@@ -118,7 +115,7 @@ export async function listGuessLike(seed?: string): Promise<GuessLike[]> {
 /** 首页筛选视图字典（GET /dishes/views）：横向筛选栏数据源，文案与顺序全由后端下发 */
 export async function listDishViews(): Promise<DishView[]> {
   const raw = await get<DishViewVO[]>('/dishes/views')
-  // 端上只认 key + label（无 null 特例：默认视图「为你推荐」也是普通 key）
+  // 端上只认 key + label（无 null 特例：首个启用视图「为你推荐」也是普通 key）
   return (raw || []).map((item) => ({
     key: String(item.key ?? ''),
     label: String(item.label || ''),
@@ -128,10 +125,10 @@ export async function listDishViews(): Promise<DishView[]> {
 /**
  * 编辑态属性维度项（`GET /dishes/{id}/attributes` 出参）。
  *
- * **按需**（进菜品纠错编辑界面时才请求）：只返回**该菜现有维度**的参考候选
+ * **按需**（进菜品问题反馈「信息有误」编辑界面时才请求）：只返回**该菜现有维度**的参考候选
  * —— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。
  */
-export interface DishEditAttribute {
+interface DishEditAttribute {
   /** 维度键（camelCase），与详情 `attributes[].fieldKey` 对齐 */
   fieldKey: string
   /** 取值类型：`single`（单值）｜ `multi`（多值，值取数组） */

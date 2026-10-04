@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.dto.UserBriefVO;
+import com.bjtufood.auth.dto.UserOverviewVO;
 import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.constant.UserConst;
@@ -32,17 +33,33 @@ public class UserServiceImpl implements UserService {
     private static final String NICKNAME_PLACEHOLDER = "食客新友";
 
     private final UserMapper userMapper;
+
+    @Override
+    public UserOverviewVO countOverview() {
+        UserOverviewVO vo = new UserOverviewVO();
+        // 概况是「平台规模」：已注销用户不计入；已认证以 bind_email 非空为唯一判据（与端上认证态同源）
+        vo.setUserCount(userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .ne(User::getStatus, UserConst.STATUS_DELETED)));
+        vo.setVerifiedUserCount(userMapper.selectCount(new LambdaQueryWrapper<User>()
+                .ne(User::getStatus, UserConst.STATUS_DELETED)
+                .isNotNull(User::getBindEmail)));
+        return vo;
+    }
     private final ImageUrlUtil imageUrlUtil;
     private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
 
     @Override
-    @Deprecated(since = "2026-09", forRemoval = true)
-    public IPage<UserVO> listUsers(int page, int pageSize, String status) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
+    public IPage<UserVO> listUsers(int page, int pageSize, String status, String keyword) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
+        // C2：关键词 = 昵称 / 账号（email）/ 绑定邮箱 三路模糊（与列表页「按人定位」用途对齐）。
+        // 该形态无法走索引（前置通配），与 client / 菜品搜索同属已知取舍；用户量级下可接受。
+        String kw = StringUtils.hasText(keyword) ? keyword.trim() : null;
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(StringUtils.hasText(status), User::getStatus, status)
+                .and(kw != null, w -> w.like(User::getNickname, kw)
+                        .or().like(User::getEmail, kw)
+                        .or().like(User::getBindEmail, kw))
                 .orderByDesc(User::getCreatedAt);
         return userMapper.selectPage(new Page<>(page, pageSize), wrapper).convert(this::toVO);
     }
@@ -96,9 +113,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Deprecated(since = "2026-09", forRemoval = true)
     public void updateStatus(Long id, String status) {
-        // ⚠️ 冻结：管理端（Web 后台）方法，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
         // 枚举校验：本接口契约仅允许 active/disabled（对齐 AdminManagerServiceImpl.updateStatus），
         // 非法值（含 deleted）一律 400，避免垃圾值直接落库
         if (!UserConst.STATUS_ACTIVE.equals(status) && !UserConst.STATUS_DISABLED.equals(status)) {
@@ -136,6 +151,8 @@ public class UserServiceImpl implements UserService {
         vo.setWechatBound(user.getOpenid() != null);
         vo.setBindEmail(user.getBindEmail());
         vo.setCreatedAt(user.getCreatedAt());
+        // C2：列表统一带 updatedAt（表已有列，无需 DDL）
+        vo.setUpdatedAt(user.getUpdatedAt());
         return vo;
     }
 

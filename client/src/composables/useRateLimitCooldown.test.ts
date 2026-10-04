@@ -1,4 +1,4 @@
-import { RateLimitedError } from '@/api/http'
+import { RateLimitedError } from '@/api/errors'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 /**

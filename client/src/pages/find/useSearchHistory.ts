@@ -1,10 +1,9 @@
 /**
  * 搜索记录（纯本地，不上服务端）。
  *
- * <p><b>为何独立成 composable</b>：原为 `pages/find/index.vue` 内的 45 行内联逻辑
- * （storage 读写 + 上限裁剪 + 三种增删 + 二次确认），而它有 **3 个调用点**
- * （`onMounted` / `onShow` / `exitFilter`）——页面被栈缓存时 `onMounted` 不再执行，
- * 须靠 `onShow` 重读，以存储为唯一真源（此前只读一次导致「刚搜的词回发现态看不到」）。
+ * <p><b>为何独立成 composable</b>：搜索历史是纯本地 storage 逻辑（读写 + 上限裁剪 + 增删 + 二次确认），
+ * 被 `onMounted` / `onShow` / `exitFilter` 三处复用；页面被栈缓存时 `onMounted` 不再执行，
+ * 须靠 `onShow` 重读，以存储为唯一真源。
  *
  * <p><b>关键约束</b>：读失败时**保留内存副本**，不清空 —— 本模块会在多次
  * `onShow` 中被调用，瞬时失败不应清掉用户已看到的记录。

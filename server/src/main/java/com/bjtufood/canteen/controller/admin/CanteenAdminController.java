@@ -1,11 +1,14 @@
 package com.bjtufood.canteen.controller.admin;
 
+import com.bjtufood.canteen.dto.CanteenAdminVO;
 import com.bjtufood.canteen.dto.StallAdminVO;
 import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.canteen.service.StallService;
+import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.result.Result;
+import com.bjtufood.dish.service.DishService;
 import com.bjtufood.review.dto.StallAvgRatingVO;
 import com.bjtufood.review.service.ReviewQueryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,23 +26,24 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 后台食堂/档口字典接口：
- * 食堂/档口是菜品的属性，不独立建档——独立新增端点 {@code POST /admin/canteens}、{@code POST /admin/stalls}
- * 已删除；字典的写入入口收敛为「菜品录入按名 upsert」（DishServiceImpl，同名不重复建档）。
- * 本 Controller 仅保留只读列表与改名（编辑）能力。
+ * 后台食堂/档口管理接口（管理端维护的**主数据实体**，口径见
+ * docs/api/web/stalls.md）。
+ * <p>
+ * 生命周期 = <b>列表 / 新增 / 改名 / 删除</b>；归属由实体下拉提供（`stallId`），
+ * **不再走「菜品录入按名 upsert」**（该路径制造重复档口，已退役）。
  */
-@Tag(name = "08. 后台食堂档口管理", description = "管理员维护食堂/档口筛选属性字典。生命周期仅「改名（编辑）＋列表查询」——独立新增端点已下线，"
-        + "新食堂/档口由菜品录入按名 upsert 自动建档（POST/PUT /admin/dishes 传 canteenName/stallName）。无删除。需要管理员 token。")
+@Tag(name = "08. 后台食堂档口管理", description = "管理员维护食堂 / 档口主数据：列表（档口可按 canteenId 筛选）/ 新增 / 改名 / 删除。"
+        + "删除受阻：食堂下仍有档口、档口下仍有菜品 → 400。需要管理员 token。")
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "adminToken")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class CanteenAdminController {
-    // ⚠️ 冻结：管理端（Web 后台）接口，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     private final CanteenService canteenService;
     private final StallService stallService;
+    /** 删除档口的「其下仍有菜品」受阻判据由本层编排（跨域计数，避免 canteen → dish 反向依赖）。 */
+    private final DishService dishService;
     /**
      * 评价域只读投影。
      * <p>
@@ -57,8 +61,7 @@ public class CanteenAdminController {
         return Result.success(canteenService.listAllForAdmin());
     }
 
-    @Operation(summary = "编辑食堂", description = "用途：修改食堂名称、图片、位置、描述、排序。"
-            + "新增食堂不再开放独立端点——由菜品录入按名 upsert 自动建档。")
+    @Operation(summary = "编辑食堂", description = "用途：修改食堂名称（新名重名 → 400）。")
     @PutMapping("/canteens/{id}")
     public Result<Void> updateCanteen(
             @Parameter(description = "食堂ID", example = "1")
@@ -69,12 +72,52 @@ public class CanteenAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "后台档口列表", description = "用途：浏览器管理端查看全部档口（筛选属性字典）。images 返回可访问的完整 URL 数组。")
+    @Operation(summary = "后台档口列表", description = "用途：浏览器管理端查看档口，可按 canteenId 筛选（不传=全部）。images 返回可访问的完整 URL 数组。")
     @GetMapping("/stalls")
-    public Result<?> listStalls() {
-        List<StallAdminVO> stalls = stallService.listAllForAdmin();
+    public Result<List<StallAdminVO>> listStalls(
+            @Parameter(description = "食堂ID（可选，不传=全部）", example = "1")
+            @RequestParam(required = false) Long canteenId) {
+        List<StallAdminVO> stalls = stallService.listAllForAdmin(canteenId);
         fillAvgRatings(stalls);
+        // 其下菜品数（A2 新出参）：跨域计数由本层编排，避免 canteen → dish 反向依赖
+        for (StallAdminVO vo : stalls) {
+            vo.setDishCount(dishService.countByStallId(vo.getId()));
+        }
         return Result.success(stalls);
+    }
+
+    @Operation(summary = "新增食堂", description = "用途：管理端新建食堂。名称应用层查重（重名 400）。")
+    @PostMapping("/canteens")
+    public Result<CanteenAdminVO> createCanteen(@Valid @RequestBody Canteen canteen) {
+        return Result.success(canteenService.createCanteen(canteen.getName()));
+    }
+
+    @Operation(summary = "删除食堂", description = "用途：删除食堂。其下仍有档口 → 400（避免孤儿档口）；不存在 → 4001。")
+    @DeleteMapping("/canteens/{id}")
+    public Result<Void> deleteCanteen(
+            @Parameter(description = "食堂ID", example = "1")
+            @PathVariable Long id) {
+        canteenService.deleteCanteen(id);
+        return Result.success();
+    }
+
+    @Operation(summary = "新增档口", description = "用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。")
+    @PostMapping("/stalls")
+    public Result<StallAdminVO> createStall(@Valid @RequestBody Stall stall) {
+        return Result.success(stallService.createStall(stall));
+    }
+
+    @Operation(summary = "删除档口", description = "用途：删除档口。其下仍有菜品 → 400（由本层编排跨域计数）；不存在 → 4001。")
+    @DeleteMapping("/stalls/{id}")
+    public Result<Void> deleteStall(
+            @Parameter(description = "档口ID", example = "1")
+            @PathVariable Long id) {
+        long dishCount = dishService.countByStallId(id);
+        if (dishCount > 0) {
+            throw new BusinessException("该档口下仍有 " + dishCount + " 个菜品，不能删除");
+        }
+        stallService.deleteStall(id);
+        return Result.success();
     }
 
     /**
@@ -104,8 +147,8 @@ public class CanteenAdminController {
         }
     }
 
-    @Operation(summary = "编辑档口", description = "用途：修改档口基础信息。"
-            + "新增档口不再开放独立端点——由菜品录入按名 upsert 自动建档。")
+    @Operation(summary = "编辑档口", description = "用途：修改档口基础信息（canteenId / name / floor / windowNo）。"
+            + "同食堂下重名 → 400；floor 不在楼层字典 → 400。")
     @PutMapping("/stalls/{id}")
     public Result<Void> updateStall(
             @Parameter(description = "档口ID", example = "1")

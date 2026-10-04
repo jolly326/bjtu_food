@@ -1,7 +1,7 @@
 package com.bjtufood.feedback.controller.admin;
 
 import com.bjtufood.common.result.Result;
-import com.bjtufood.common.result.PageResult;
+import com.bjtufood.common.result.AdminPageResult;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.service.FeedbackService;
@@ -22,15 +22,16 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/admin/feedbacks")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "adminToken")
-@Deprecated(since = "2026-09", forRemoval = true)
 public class FeedbackAdminController {
-    // ⚠️ 冻结：管理端（Web 后台）接口，待后期整体重构时移除。本期保留可编译、保留功能，不删除。
 
     private final FeedbackService feedbackService;
 
-    @Operation(summary = "反馈列表", description = "ADM。按 status/type/userId/keyword 过滤；不传 status 则返回全部状态（含已处理，供回看）。")
+    @Operation(summary = "反馈列表", description = "ADM。B2 意见反馈与 B3 举报管理**共用本端点**，用 category 分流"
+            + "（feedback = 排除 report；report = 仅 report；不传 = 全部）；再按 status/type/userId/keyword 过滤。")
     @GetMapping
-    public Result<PageResult<FeedbackAdminVO>> list(
+    public Result<AdminPageResult<FeedbackAdminVO>> list(
+            @Parameter(description = "板块：feedback=意见反馈（B2）/ report=举报（B3）；不传=全部；非法值 400")
+            @RequestParam(required = false) String category,
             @Parameter(description = "处理状态：pending/handled")
             @RequestParam(required = false) String status,
             @Parameter(description = "反馈类型：suggestion/add/error/report（历史类型 bug/other 亦可筛选存量数据）；非法值 400")
@@ -41,8 +42,8 @@ public class FeedbackAdminController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.success(PageResult.of(
-                feedbackService.listForAdmin(status, type, userId, keyword, page, pageSize)));
+        return Result.success(AdminPageResult.of(
+                feedbackService.listForAdmin(category, status, type, userId, keyword, page, pageSize)));
     }
 
     @Operation(summary = "处理反馈", description = "ADM。标记 handled + 写 reply/处理结论/handled_at。仅接受 JSON body（{reply, outcome, rejectReason}）："

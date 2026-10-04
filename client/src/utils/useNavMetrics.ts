@@ -15,8 +15,7 @@ export function useNavMetrics() {
   const statusBarPx = ref(20)
   /** 导航行高（px）：胶囊所在那一行的真实高度——标题带行高必须取它，标题才会与胶囊**同中心** */
   const navBarHeightPx = ref(44)
-  /* 注：原 `capsuleHeightPx`（胶囊高）已移除——
-     它唯一消费方是搜索栏（旧版与原生胶囊等高对齐），现搜索栏高度改由 `--search-bar-height` 自持。 */
+  /* 注：胶囊高不单独暴露——搜索栏高度由 `--search-bar-height` 自持。 */
   /** 右侧胶囊避让量（CSS 长度串）：标题 / 可点件不得进入胶囊水平范围 */
   const navPadRight = ref('180rpx')
 

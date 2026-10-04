@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 纯展示组件：不向外派发任何事件（MP-017，可点元素由父级自行绑定 @tap） -->
   <view class="icon-svg" :style="rootStyle">
     <!-- 微信小程序无原生 <svg> 组件，改用 <image> + SVG data-uri 渲染矢量图标，
@@ -11,43 +11,38 @@
 import { computed } from 'vue'
 
 /**
- * IconSvg —— 统一矢量图标组件
+ * IconSvg —— 统一矢量图标组件（线性 SVG，24px 网格 / 2px 描边，替代 emoji）。
  *
- * 设计约束：
- *  - 全部图标为线性 SVG（24px 网格、2px 描边、圆角端点一致），替代 Unicode emoji。
- *  - 通过 stroke 注入颜色，支持随主题 / 语义变色（如喜欢=红）。
- *  - 微信小程序不支持原生 <svg> 组件，故改用 <image> + SVG data-uri 渲染，
- *    真机零加载、可变色；内联 ICONS map 为唯一真源，assets/icons/*.svg 冗余副本已清理。
+ * 微信小程序无原生 <svg>，故用 `<image>` + SVG data-uri 渲染：真机零加载、可注入描边色。
+ * 内联 `ICONS` 为唯一真源（无外部 .svg 依赖）。
  *
  * 用法：<IconSvg name="thumb" :size="26" :color="COLOR_MAP['text-tertiary']" />
  *
  * **尺寸与颜色的契约**：
  *  - `size`：数字 = **rpx**（`:size="40"` → 40rpx），也可传带单位字符串（`size="20px"`）。
  *  - `color`：**必须传实色**（`COLOR_MAP['xxx']` 或 `#RRGGBB`）。`var(--x)` 与 `currentColor`
- *    都会被回退为兜底近黑色 —— 因为 SVG data-uri 是独立文档，解析不了 `var()`、也继承不到父级文字色。
- *  - **居中 / 防压缩**：根节点 inline-flex + 居中 + `flex: none` **内联自持**（不依赖消费方样式）。
- *    ⚠️ 组件**未开启** `virtualHost` —— 当前 uni-app 版本两种写法（`defineOptions({ options })` /
- *    显式 `<script>` 块）都不会把 `virtualHost` 写入产物 json，且双 `<script>` 会触发 `@/` 别名解析失败
- *    。⇒ 组件在 flex 父级里多一层**宿主节点**；若发现图标垂直不居中，
- *    用消费方 class 把宿主定为 flex 盒即可（示例见 `SearchBar` 的 `.search-bar-icon`）。
+ *    都会被回退为兜底近黑色 —— SVG data-uri 是独立文档，解析不了 `var()`、也继承不到父级文字色。
+ *  - 居中 / 防压缩由根节点 inline-flex + `flex: none` 内联自持（不依赖消费方样式）。
+ *    ⚠️ 组件**未开启** `virtualHost`（当前 uni-app 版本两种写法都不会写入产物 json）
+ *    ⇒ flex 父级里会多一层宿主节点；图标不居中时用消费方 class 把宿主定为 flex 盒。
  */
 
-// 24px 网格下各图标 path（唯一真源，无外部 .svg 依赖）
-// 图标键登记口径（零消费即不登记）：收藏 'heart' / 'heart-filled'、评价发送 'send-simple' / 'send'、
-// 回顶 'up'、联系入口 'contact'、线性灯泡 'lightbulb' 不在注册表（端上零 `name=` 引用）；
-// 'thumb-filled' 亦不在（仅 'thumb' 线性键在用）。
-// 'thumb' / 'clock' / 'fire' 虽无 `name=` 引用，但按设计资产口径保留并登记，
-// 与 Web 端 / 文档的图标语义表保持一致。
-// ⚠️ 'home-filled' / 'profile-filled' 必须保留：TabBar.vue 以 `${icon}-filled` 动态拼接选中态图标，
-//    静态 grep 会误判为零消费（P0-06 点赞图标同类陷阱）。
+/**
+ * 24px 网格下各图标 path（唯一真源）。
+ *
+ * 登记口径：零消费即不登记；仅保留确有消费点的图标。
+ * ⚠️ 两类键**必须保留**，静态 grep 会误判为零消费：
+ *  - `home-filled` / `profile-filled`：TabBar 以 `${icon}-filled` 动态拼接选中态；
+ *  - `thumb` / `clock` / `fire`：按设计资产口径与 Web 端 / 文档的图标语义表保持一致。
+ */
 const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: number; cy: number; r: number; fill?: string }[] }> = {
   thumb: { path: ['M7 10v11', 'M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z'] },
   // 放大镜：镜片圆心 (11,11)、r=8 + 手柄至 (21,21) ⇒ 含 2px 描边后**包围盒恰为 2→22，几何中心 = 12**（24 网格正中）。
-  // ⚠️ 旧版 r=7 时包围盒为 3→22（中心 12.5），图标在画布内整体偏右下 —— 放大后肉眼可见"不居中"。
+  // ⚠️ r=8 时包围盒恰为 2→22（几何中心 12），图标在 24 网格正中、放大后不偏移。
   search: { path: ['M11 11m-8 0a8 8 0 1 0 16 0a8 8 0 1 0 -16 0', 'm21 21-4.35-4.35'] },
   arrow: { path: ['m9 18 6-6-6-6'] },
   close: { path: ['M18 6 6 18', 'm6 6 12 12'] },
-  // `filter`（漏斗）键不在注册表：唯一消费点 FilterBar 已移除，成为零消费键（PR-05：零消费图标不留存）。
+  // 零消费图标不留存（PR-05）：仅确有消费点的图标登记于此。
   comment: { path: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'] },
   report: { path: ['M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z', 'M12 9v4', 'M12 17h.01'] },
   plus: { path: ['M12 5v14', 'M5 12h14'] },
@@ -65,6 +60,8 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   check: { path: ['M20 6 9 17l-5-5'] },
   dish: { path: ['M3 11h18a9 9 0 0 1-18 0z', 'M12 3v3', 'M5 21h14'] },
   image: { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'M9 9m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', 'm21 15-5-5L5 21'] },
+    // 拍照（配图来源二选一：camera 拍 / image 从相册选；二者成对出现，勿单独删其一）
+    camera: { path: ['M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z', 'M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'] },
   // 图片破损：`image` 画框 + 山线 + 一条对角断线 ⇒ 读作「图片不可用」。
   // 全站图片缺失 / 加载失败的标准占位图标（经 `ImagePlaceholder` 消费），SHALL NOT 再用 `empty` / `dish` 顶替。
   'image-broken': { path: ['M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z', 'm21 15-5-5L5 21', 'M3 3 21 21'] },
@@ -96,9 +93,9 @@ const ICONS: Record<string, { path?: string[]; fill?: boolean; circle?: { cx: nu
   // 我的（人形实心：头部为实心圆 + 肩部闭合半圆，避免填充开放弧线导致形状畸变）
   'profile-filled': { path: ['M4 21a8 8 0 0 1 16 0z'], circle: [{ cx: 12, cy: 8, r: 4, fill: 'currentColor' }], fill: true },
   'badge-check': { circle: [{ cx: 12, cy: 12, r: 9.2 }], path: ['m8.2 12.3 2.6 2.6 5-5.2'] },
-  // 提示（信息圈 + 短竖线 + 圆点）：菜品纠错页顶部提示横幅前导图标（禁 emoji 的语义替代）
+  // 提示（信息圈 + 短竖线 + 圆点）：菜品问题反馈页顶部提示横幅前导图标（禁 emoji 的语义替代）
   info: { circle: [{ cx: 12, cy: 12, r: 9.2 }], path: ['M12 11.2v5.2', 'M12 7.6h.01'] },
-  // 警示（信息圈 + 感叹号）：菜品详情信息卡「信息有误?」前导图标（线性；禁 emoji 的语义替代）
+  // 警示（信息圈 + 感叹号）：菜品详情信息卡「菜品有问题?」前导图标（线性；禁 emoji 的语义替代）
   alert: { circle: [{ cx: 12, cy: 12, r: 9.2 }], path: ['M12 7.6v5.2', 'M12 16.4h.01'] },
   // ── feedback-forms-ux-polish：圆润填充（胖）glyph（意见反馈页顶部/选项等使用；SVG data-uri，禁 emoji） ──
   // 灯泡实心（提个想法）：圆润灯身 + 灯座

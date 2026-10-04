@@ -8,14 +8,14 @@
  *
  * 端上定型说明：
  * - 金额一律「元」：API 层由分转元（`fenToYuan`），视图层直取展示；
- * - `canteenName` → 端上别名 `canteen`，`avgRating` → `rating`；
- * - 列表**不得回流** `images` 数组，图片只给 `coverImage`（后端首图绝对 URL；无图空串）；
+ * - `canteenName` → `canteen`，`avgRating` → `rating`；
+ * - 列表**不得回流** `images` 数组，图片只给 `coverImage`（绝对 URL；无图空串）；
  * - 描述属性 `attributes` 的**值即中文**（`value`）：端上直接渲染、零翻译、不拉字典。
  */
 export interface DishListItem {
   id: number
   name: string
-  /** 现价（元；API 层已由分转元）。价格展示唯一数据源 */
+  /** 现价（元）；价格展示唯一数据源 */
   price: number
   /** 原价（元，可空）；有值且大于 price 时端上划线表示折扣 */
   originalPrice?: number | null
@@ -23,9 +23,7 @@ export interface DishListItem {
   coverImage: string
   /** 平均评分（口径 = 仅未隐藏评价）；**零评价为 `null`（不渲染评分区）** */
   rating: number | null
-  /** 食堂名称 */
   canteen: string
-  /** 档口名称 */
   stallName: string
 }
 
@@ -60,9 +58,10 @@ export interface DishDetail {
 
 /**
  * 搜索结果项（**页面视图模型**，非接口出参）：find 页把 `GET /dishes` 的行投影成它，供结果卡渲染。
- * ⚠️ 与 `DishListItem` 的区别：字段按**展示语义**收敛（`coverImage → image`），只含结果卡用到的字段。
+ * 与 `DishListItem` 的区别：字段按**展示语义**收敛（`coverImage → image`），只含结果卡用到的字段。
  */
 export interface MixedResultItem {
+  /** 行类型判别位（结果卡按此分派渲染） */
   type: 'dish'
   id?: number
   name: string
@@ -87,7 +86,7 @@ export interface MixedResultItem {
  */
 export interface DishQuery {
   keyword?: string
-  /** 筛选视图键（值取自 `GET /dishes/views` 的 `key`；不传 = 默认视图） */
+  /** 筛选视图键（值取自 `GET /dishes/views` 的 `key`；不传 = 首个启用视图） */
   view?: string
   /**
    * 会话随机种子：端上**冷启动生成一次、会话内恒定**，翻页沿用同一值。

@@ -7,13 +7,13 @@
          本页改为与首页 §11 **同构** ——
          标题带恒透明、其下滚动区 ⇒ **没有内容从带背后经过** ⇒ 零切片 / 零实底切换 / 零承接条
          （原自绘 `.dish-nav` 的"透明→实底/渐显"与 `.no-dish-bar` 承接条已退役）。 -->
-    <AppTitleBand back :title="dishName" :title-opacity="navOpacity" @back="backToHome" />
+    <AppTitleBand back :title="dp.dishName" :title-opacity="dp.navOpacity" @back="dp.backToHome" />
 
     <!-- 详情拉取失败 / 菜品不存在 / 缺少 ID：明确文案 + 恢复路径，不得只留纯空白页。
          加载期间（!dish && 未失败）保持空白静默，不新增骨架屏 / loading 指示。
          缺 ID 无重试意义，仅给「返回」。 -->
     <view
-      v-if="!dish && (detailFailed || detailNotFound || missingDishId)"
+      v-if="!dp.dish && (dp.detailFailed || dp.detailNotFound || dp.missingDishId)"
       class="detail-fail-host"
     >
       <!-- 统一失败块：**双 CTA 形态**，取代原自绘 `.detail-fail` 按钮组。
@@ -23,13 +23,13 @@
            不是页面级 loading 指示（口径已按裁决调整）。 -->
       <RetryBlock
         strong
-        :title="detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开'"
-        :hint="detailNotFound ? '它可能已被下架或移除' : '可能是网络暂时不可用'"
+        :title="dp.detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开'"
+        :hint="dp.detailNotFound ? '它可能已被下架或移除' : '可能是网络暂时不可用'"
         :loading="detailReloading"
-        :primary-text="!missingDishId && !detailNotFound ? '重新加载' : ''"
+        :primary-text="!dp.missingDishId && !dp.detailNotFound ? '重新加载' : ''"
         secondary-text="返回"
         @retry="onRetryDetailClick"
-        @secondary="backToHome"
+        @secondary="dp.backToHome"
       />
     </view>
 
@@ -38,19 +38,19 @@
          内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。
          `@scroll` 只驱动菜名淡入；`@scrolltolower` 承接评价分页（原页面级 onReachBottom 退役）。 -->
     <scroll-view
-      v-if="dish"
+      v-if="dp.dish"
       class="dish-scroll"
       scroll-y
-      @scroll="onScroll"
-      @scrolltolower="onReviewsReachBottom"
+      @scroll="dp.onScroll"
+      @scrolltolower="dp.onReviewsReachBottom"
     >
       <!-- hero 卡（滚动区首块）：四周留白 12px + 圆角 + 16:10 —— 与首页 Banner **同语言**；
            随滚动 1:1 上移、在标题带下沿被**裁掉**（"移出屏幕"，与首页 Banner 逐字一致）。
            大图关闭自动轮播（autoplay=false），仅手动滑动、保留指示点。 -->
-      <view class="hero-card" :style="{ height: `${heroHeightPx}px` }">
+      <view class="hero-card" :style="{ height: `${dp.heroHeightPx}px` }">
         <ImageSwiper
-          :images="heroImages"
-          :height="`${heroHeightPx}px`"
+          :images="dp.heroImages"
+          :height="`${dp.heroHeightPx}px`"
           :autoplay="false"
           label="菜品图片"
           :placeholder-size="96"
@@ -58,59 +58,57 @@
       </view>
 
     <template>
-      <!-- 私有组件编排：信息卡（含评分行）/ 评价（卡内触底加载）。
-           原「综合评分」独立卡**取消** ——
-           均分 + 人数 + 分布并入信息卡一行（同源同刻），减少一块版面与一次视觉重复。
-           ⚠️ 原 `dishBodyMin`（保证页面可滚动 ≥ pinStart，好让大图定格）已随定格方案退役（R16 口径 c） -->
+      <!-- 私有组件编排：信息卡（含评分行）/ 评价（卡内触底加载）；
+           均分 + 人数 + 分布并入信息卡一行（同源同刻），减少一块版面与一次视觉重复。 -->
       <view class="dish-body">
         <DishInfoCard
-          :dish="dish"
-          :location-text="locationText"
-          :rating="dish.rating"
-          @correct="onCorrectDishInfo"
+          :dish="dp.dish"
+          :location-text="dp.locationText"
+          :rating="dp.dish.rating"
+          @correct="dp.onCorrectDishInfo"
         />
         <DishReviewSection
-          :reviews="reviewList"
-          :count="reviewList.length"
-          :load-failed="reviewFailed"
-          :pending="reviewPending"
-          :scroll-top="scrollTop"
-          @more="onReviewMore"
-          @retry="onRetryReviews"
-          @write="onOpenReviewComposer"
+          :reviews="dp.reviewList"
+          :count="dp.reviewList.length"
+          :load-failed="dp.reviewFailed"
+          :pending="dp.reviewPending"
+          :scroll-top="dp.scrollTop"
+          @more="dp.onReviewMore"
+          @retry="dp.onRetryReviews"
+          @write="dp.onOpenReviewComposer"
         />
       </view>
     </template>
     </scroll-view>
 
     <!-- 页面底部**无任何常驻操作栏**：
-         写评价入口 = 评价标题行右侧按钮；纠错入口 = 信息卡名称行「信息有误?」。 -->
+         写评价入口 = 评价标题行右侧按钮；纠错入口 = 信息卡名称行「菜品有问题?」。 -->
 
     <!-- 写评价底部抽屉（挂 scroll-view 外；BaseSheet 受控显隐，close 回写关闭）。
          恒为**空表单**：不做任何写前判定、不预填旧值（同一用户重复提交由服务端覆盖旧评价）。 -->
     <ReviewComposer
-      v-if="dish"
-      :visible="composerOpen"
-      :dish-id="dishId"
-      :dish-name="dish.name"
-      @close="composerOpen = false"
-      @submitted="onReviewSubmitted"
+      v-if="dp.dish"
+      :visible="dp.composerOpen"
+      :dish-id="dp.dishId"
+      :dish-name="dp.dish.name"
+      @close="dp.composerOpen = false"
+      @submitted="dp.onReviewSubmitted"
     />
 
     <!-- 举报底部弹层：原因单选（字典下发） -->
     <ReportModal
-      :open="reportOpen"
-      :submitting="reportSubmitting"
-      @update:open="reportOpen = $event"
-      @submit="submitReport"
+      :open="dp.reportOpen"
+      :submitting="dp.reportSubmitting"
+      @update:open="dp.reportOpen = $event"
+      @submit="dp.submitReport"
     />
 
     <!-- 评价三点菜单：删除/举报（通用 ActionSheet） -->
     <ActionSheet
-      :open="reviewMoreOpen"
-      :items="reviewMoreItems"
-      @close="reviewMoreOpen = false"
-      @select="onReviewMoreSelect"
+      :open="dp.reviewMoreOpen"
+      :items="dp.reviewMoreItems"
+      @close="dp.reviewMoreOpen = false"
+      @select="dp.onReviewMoreSelect"
     />
 
     <!-- 认证弹层：评价等需认证入口统一底部弹出 -->
@@ -124,6 +122,8 @@
  *   写评价 / 重新评价弹层 / 三点菜单 / 举报 / 分享）。
  * - 本文件仅保留模板贴片组装与包内子件引用（ImageSwiper / ReviewComposer /
  *   DishInfoCard（含评分行）/ DishReviewSection / useDishPage）；生命周期见 useDishPage。
+ * - 编排绑定以单一 `dp` 对象下发（来自 `useDishPage()` 的 `reactive` 返回），降低与
+ *   `useDishPage` 的耦合面：新增 / 重命名绑定无需回改本文件的解构清单。
  */
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import ReportModal from './ReportModal.vue'
@@ -143,50 +143,19 @@ const { titleBandPx } = useNavMetrics()
 
 /** 详情重拉在途：驱动 `RetryBlock` 的旋转环。
  *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（口径已按裁决调整）。
- *  声明在 `useDishPage()` 解构之前是安全的：函数体在**点击时**才解析 `onRetryDetail`（闭包调用期解析）。 */
+ *  声明在 `useDishPage()` 解构之前是安全的：函数体在**点击时**才解析 `dp.onRetryDetail`（闭包调用期解析）。 */
 const detailReloading = ref(false)
 async function onRetryDetailClick() {
   if (detailReloading.value) return
   detailReloading.value = true
   try {
-    await onRetryDetail()
+    await dp.onRetryDetail()
   } finally {
     detailReloading.value = false
   }
 }
 
-const {
-  dish,
-  dishId,
-  dishName,
-  heroImages,
-  heroHeightPx,
-  navOpacity,
-  onScroll,
-  scrollTop,
-  locationText,
-  reviewList,
-  reviewFailed,
-  reviewPending,
-  detailFailed,
-  detailNotFound,
-  missingDishId,
-  composerOpen,
-  reportOpen,
-  reportSubmitting,
-  reviewMoreOpen,
-  reviewMoreItems,
-  backToHome,
-  onRetryDetail,
-  onReviewMore,
-  onReviewMoreSelect,
-  onCorrectDishInfo,
-  onOpenReviewComposer,
-  onReviewSubmitted,
-  onRetryReviews,
-  onReviewsReachBottom,
-  submitReport,
-} = useDishPage()
+const dp = useDishPage()
 </script>
 
 <style scoped>

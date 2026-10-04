@@ -8,5 +8,5 @@ export interface UploadResult {
 export function uploadImage(file: File): Promise<UploadResult> {
   const form = new FormData()
   form.append('file', file)
-  return post<UploadResult>('/admin/upload/image', form, { isForm: true })
+  return post<UploadResult>('/admin/upload', form, { isForm: true })
 }

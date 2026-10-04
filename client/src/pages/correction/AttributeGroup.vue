@@ -159,7 +159,7 @@ function onSheetUpdate(next: string[]) {
   color: var(--text-secondary);
 }
 /* picker 单元格（同 `.row-field--picker`）：88rpx = 44pt 触达 + 仅底部横线（禁全包围矩形框）；
-   整行可点 ⇒ 88rpx 是**独立可点件**的基线，不适用旧「密集 chip 67rpx」例外（该例外已作废） */
+   整行可点 ⇒ 88rpx 即**独立可点件**基线 */
 .ag-field {
   flex: 1 1 auto;
   min-width: 0;

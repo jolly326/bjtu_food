@@ -13,6 +13,7 @@ import com.bjtufood.feedback.dto.FeedbackReq;
 import com.bjtufood.feedback.dto.ReportReq;
 import com.bjtufood.feedback.entity.Feedback;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
+import com.bjtufood.feedback.service.ReportReasonService;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.notification.dto.NotificationCmd;
@@ -28,8 +29,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -72,6 +75,8 @@ class FeedbackServiceImplTest {
     private final ContentSecurityService contentSecurityService = mock(ContentSecurityService.class);
     private final ImageUrlUtil imageUrlUtil = mock(ImageUrlUtil.class);
     private final ReviewService reviewService = mock(ReviewService.class);
+    /** 举报原因字典真源（A7 落地后为 `report_reason` 表；原为 `FeedbackConst` 常量） */
+    private final ReportReasonService reportReasonService = mock(ReportReasonService.class);
 
     /**
      * 构造器参数顺序须与 {@code FeedbackServiceImpl} 的 final 字段声明顺序逐字一致（@RequiredArgsConstructor）。
@@ -81,12 +86,23 @@ class FeedbackServiceImplTest {
      */
     private FeedbackServiceImpl service() {
         return new FeedbackServiceImpl(feedbackMapper, new FeedbackPersister(feedbackMapper), userService, dishService,
-                localSensitiveFilter, notificationService, contentSecurityService, imageUrlUtil, reviewService);
+                localSensitiveFilter, notificationService, reportReasonService, contentSecurityService, imageUrlUtil,
+                reviewService);
     }
 
     /** 本地词库默认原样返回（不脱敏），便于断言落库值 */
     private void stubFilterPassThrough() {
         when(localSensitiveFilter.filter(any())).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    /**
+     * 举报原因可提交（真源为 `report_reason` 表：存在且**启用**）。
+     * <p>
+     * 此处直接桩定 —— 表驱动逻辑（上/下限、引用计数、停用）由 `ReportReasonServiceImpl` 的单测覆盖；
+     * 本类只关心「不可提交时 400 且不落库」这一条契约。
+     */
+    private void stubReasonSubmittable() {
+        when(reportReasonService.isSubmittable(anyString())).thenReturn(true);
     }
 
     private FeedbackReq feedbackReq(String type, String content) {
@@ -154,16 +170,17 @@ class FeedbackServiceImplTest {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(false);
 
-        assertThatThrownBy(() -> service().report(7L, 99L, reportReq(FeedbackConst.REPORT_SPAM, "")))
+        assertThatThrownBy(() -> service().report(7L, 99L, reportReq("spam", "")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
         verify(feedbackMapper, never()).insert(any());
     }
 
     @Test
-    @DisplayName("report：举报原因缺失或不在字典白名单 → 400 且不落库")
+    @DisplayName("report：举报原因缺失 / 不在字典（含已停用）→ 400 且不落库")
     void report_illegalReason_rejected400AndNotPersisted() {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
+        // 不加桩 ⇒ isSubmittable 返回 false，等价于「原因不存在或已停用」
 
         assertThatThrownBy(() -> service().report(7L, 99L, reportReq(null, "")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
@@ -178,8 +195,9 @@ class FeedbackServiceImplTest {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
         when(feedbackMapper.selectCount(any())).thenReturn(1L);
+        stubReasonSubmittable();
 
-        assertThatThrownBy(() -> service().report(7L, 99L, reportReq(FeedbackConst.REPORT_SPAM, "")))
+        assertThatThrownBy(() -> service().report(7L, 99L, reportReq("spam", "")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         verify(feedbackMapper, never()).insert(any());
     }
@@ -190,15 +208,16 @@ class FeedbackServiceImplTest {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
         when(feedbackMapper.selectCount(any())).thenReturn(0L);
+        stubReasonSubmittable();
 
-        service().report(7L, 99L, reportReq(FeedbackConst.REPORT_ABUSE, "辱骂内容"));
+        service().report(7L, 99L, reportReq("abuse", "辱骂内容"));
 
         ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
         verify(feedbackMapper).insert(captor.capture());
         Feedback saved = captor.getValue();
         assertThat(saved.getUserId()).isEqualTo(7L);
         assertThat(saved.getType()).isEqualTo(FeedbackConst.TYPE_REPORT);
-        assertThat(saved.getSub()).isEqualTo(FeedbackConst.REPORT_ABUSE);
+        assertThat(saved.getSub()).isEqualTo("abuse");
         assertThat(saved.getRelatedType()).isEqualTo(FeedbackConst.RELATED_REVIEW);
         assertThat(saved.getRelatedId()).isEqualTo(99L);
         assertThat(saved.getStatus()).isEqualTo(FeedbackConst.STATUS_PENDING);
@@ -209,8 +228,9 @@ class FeedbackServiceImplTest {
     void report_guest_skipsDuplicateCheck() {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
+        stubReasonSubmittable();
 
-        service().report(null, 99L, reportReq(FeedbackConst.REPORT_SPAM, ""));
+        service().report(null, 99L, reportReq("spam", ""));
 
         // 游客无 userId 可判重 ⇒ 不发起 selectCount，但仍要落一条匿名举报
         verify(feedbackMapper, never()).selectCount(any());
@@ -228,27 +248,46 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("handle：反馈不存在 → 400")
-    void handle_notFound_400() {
+    @DisplayName("handle：反馈不存在 → 4001（目标态契约，见 docs/api/web/feedback.md）")
+    void handle_notFound_4001() {
         when(feedbackMapper.selectById(anyLong())).thenReturn(null);
         FeedbackHandleReq req = new FeedbackHandleReq();
         req.setReply("已处理");
 
         assertThatThrownBy(() -> service().handle(5L, req))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
         verify(feedbackMapper, never()).updateById(any());
     }
 
     @Test
-    @DisplayName("handle：回复为 null / 空串 / 纯空白 → 400（空回复等于空通知）")
-    void handle_blankReply_400() {
+    @DisplayName("handle：回复可留空（B2 起可选）→ 正常处理；回执正文退化为固定文案，不产生空通知")
+    void handle_blankReply_allowed() {
         when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(1L));
         for (String blank : new String[]{null, "", "   "}) {
+            // 每次都要一条**新的 pending 记录**：处理过后再处理会 400「该记录已处理」
+            when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(1L));
             FeedbackHandleReq req = new FeedbackHandleReq();
             req.setReply(blank);
-            assertThatThrownBy(() -> service().handle(5L, req))
-                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+            service().handle(5L, req);
         }
+        ArgumentCaptor<NotificationCmd> cmd = ArgumentCaptor.forClass(NotificationCmd.class);
+        verify(notificationService, times(3)).notify(cmd.capture());
+        // 关键：回执正文**始终有可读内容**，不得出现「：」后为空的空通知
+        for (NotificationCmd c : cmd.getAllValues()) {
+            assertThat(c.getContent()).isNotBlank();
+            assertThat(c.getContent()).doesNotEndWith("：");
+        }
+    }
+
+    @Test
+    @DisplayName("handle：rejected 结论下不采纳原因缺失 / 纯空白 → 400（结论必填项不变）")
+    void handle_blankRejectReason_400() {
+        when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(1L));
+        FeedbackHandleReq req = new FeedbackHandleReq();
+        req.setOutcome("rejected");
+        req.setRejectReason("   ");
+        assertThatThrownBy(() -> service().handle(5L, req))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         verify(feedbackMapper, never()).updateById(any());
     }
 

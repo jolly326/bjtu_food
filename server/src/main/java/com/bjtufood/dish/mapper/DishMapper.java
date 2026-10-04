@@ -3,6 +3,8 @@ package com.bjtufood.dish.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.bjtufood.dish.dto.DishAdminListItemVO;
+import com.bjtufood.dish.dto.DishAdminListQuery;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
@@ -26,7 +28,8 @@ public interface DishMapper extends BaseMapper<Dish> {
      * <p>
      * 出参为**列表专用** {@link DishListItemVO}（8 字段，D 项拆分）；
      * 取数条件与排序口径均由 {@link DishListQuery}（视图解析结果）决定：
-     * keyword 三路模糊 / mealType 等值 / discountOnly 折扣，以及 sortKind 决定的 ORDER BY。
+     * keyword 三路模糊 / `conditions`（字段白名单 + 参数化，见 DishViewConditions），
+     * 以及 sortKind 决定的 ORDER BY（7 种口径）。
      */
     IPage<DishListItemVO> selectDishPage(Page<?> page, @Param("q") DishListQuery q);
 
@@ -48,14 +51,16 @@ public interface DishMapper extends BaseMapper<Dish> {
      * @param limit 最多返回的行数（上限由 {@code DishAttributeCatalog} 侧常量给出）
      * @return 在售菜品 attributes JSON 串列表（NULL 行不返回；按 id 升序保证截断点稳定）
      */
-    List<String> selectAttributesJsonOnSale(@Param("limit") int limit);
+    // 方法下线（2026-10-03，A4 落地）：selectAttributesJsonOnSale 的原消费方是
+    // DishAttributeCatalog 的「扫全库 attributes 聚合候选值」；候选值改由 dish_attribute_value 字典
+    // 直供后本方法**全仓零消费**，已连同 XML 映射一并删除（NON_NULL 语义的读路径不再需要它）。
 
     /**
      * 查询全部菜品列表（含已下架），联表档口和食堂名称
      * <p>
      * 分页：菜品量增长后避免单次全表加载。分页上限由调用方 {@code PageUtil.normalize} 约束。
      */
-    IPage<DishAdminVO> selectAllForAdmin(Page<DishAdminVO> page);
+    IPage<DishAdminListItemVO> selectAdminListPage(Page<DishAdminListItemVO> page, @Param("q") DishAdminListQuery q);
 
     /**
      * 猜你喜欢：抽取在售菜品名（原「热搜词条」，改名 + 语义变更）
@@ -91,11 +96,13 @@ public interface DishMapper extends BaseMapper<Dish> {
      * <p>
      * 供 {@code GET /dishes/views} 字典下发使用：
      * **空类自动隐藏**——某大类在售菜品数为 0 时不下发；重新有菜后自动出现。
-     * 标签文案与顺序由 {@code DishViewConst} 提供（单一真源），本查询只回答「哪些类目下当前有菜」。
+     * 标签文案与顺序由视图字典表提供（单一真源），本查询只回答「哪些类目下当前有菜」。
      *
      * @return 在售菜品覆盖的大类枚举键（去重）
      */
-    List<String> selectInStockMealTypes();
+    // 方法下线（2026-10-03，A6 落地）：selectInStockMealTypes 的原消费方是「常量视图 + 在售大类集合」
+    // 驱动的 GET /dishes/views 空类过滤；视图改表驱动后，下发改由 DishViewCatalog.visible() 按
+    // **条件匹配数**判定（口径更准：支持任意条件，不只是大类），本方法全仓零消费，已连同 XML 一并删除。
 
     /**
      * 列出「有评价」的菜品 ID（评分对账用，D3）。

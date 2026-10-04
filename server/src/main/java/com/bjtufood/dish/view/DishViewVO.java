@@ -8,13 +8,13 @@ import lombok.NoArgsConstructor;
 /**
  * 首页筛选视图项（{@code GET /dishes/views} 出参）。
  * <p>
- * 顺序由服务端下发次序表达（{@link DishViewConst#ALL} 声明序），端上按数组顺序渲染、不读序号字段。
+ * 顺序由服务端下发次序表达，端上按数组顺序渲染、不读序号字段。
  * 标签文案是<b>服务端资产</b>（含「为你推荐」等虚拟导航视图），端上零硬编码。
  * <p>
  * 出参恰 {@code key} / {@code label} 两项：{@code key} 供端上回传（{@code GET /dishes?view=<key>}），
  * {@code label} 供端上直接渲染。
  *
- * @see DishViewConst
+
  */
 @Data
 @NoArgsConstructor

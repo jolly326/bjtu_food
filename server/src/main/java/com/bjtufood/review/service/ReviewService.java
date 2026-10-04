@@ -5,6 +5,7 @@ import com.bjtufood.review.dto.MyReviewVO;
 import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
+import com.bjtufood.review.dto.ReviewRelatedBriefVO;
 
 /**
  * 评价服务接口
@@ -91,20 +92,27 @@ public interface ReviewService {
      *
      * @param page     页码
      * @param pageSize 每页条数
-     * @param isHidden 是否隐藏（可选）
+     * @param hidden   是否隐藏（**boolean**；不传 = 全部。B1 口径：原 `isHidden`(0/1) 已改为布尔）
+     * @param dishId   按菜品筛选（可选；从菜品视角看评价）
      * @param userId   提交用户ID（可选）
      * @param keyword  评价正文关键词（可选，模糊匹配）
-     * @return 分页评价列表
+     * @return 分页评价列表（排序 `createdAt DESC`）
      */
-    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Integer isHidden, Long userId, String keyword);
+    IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Boolean hidden, Long dishId, Long userId,
+                                         String keyword);
 
     /**
-     * 设置评价隐藏状态（显式，非 toggle）
+     * 设置评价隐藏状态（显式，非 toggle）。
+     * <p>
+     * 隐藏时向作者投递站内回执（口径见 docs/func/web/B-UGC治理/B1-评价管理.md）：
+     * 有附注 ⇒ 正文「你的评价已被管理员隐藏。说明：&lt;note&gt;」；无附注 ⇒ 固定文案。
+     * 投递判据 = `userId &gt; 0`（静默登录的游客同样收到；匿名无归属不投递）。已隐藏再隐藏视为幂等改附注。
      *
      * @param id     评价ID
-     * @param hidden true=隐藏 false=显示
+     * @param hidden true=隐藏 false=显示（恢复显示时清空附注）
+     * @param note   隐藏附注（可选，≤200 字；仅 hidden=true 时有意义）
      */
-    void setHidden(Long id, boolean hidden);
+    void setHidden(Long id, boolean hidden, String note);
 
     /**
      * 管理员删除评价
@@ -112,6 +120,36 @@ public interface ReviewService {
      * @param id 评价ID
      */
     void deleteByAdmin(Long id);
+
+    /**
+     * **批量**关联评价摘要（B3：举报列表内嵌「被举报内容 + 所属菜品 + 是否已隐藏」）。
+     * <p>
+     * 只选 4 列（`id` / `dish_id` / `content` / `is_hidden`），菜品名经 dish 域只读契约**批量**补齐 ——
+     * 逐行取会退化成 N+1。评价不存在则不入图（端上按「评价已删除」展示）。
+     *
+     * @param reviewIds 被举报评价 ID（空集合返回空 Map，不发查询）
+     * @return reviewId → 摘要
+     */
+    java.util.Map<Long, ReviewRelatedBriefVO> mapRelatedBriefByIds(java.util.Collection<Long> reviewIds);
+
+    /**
+     * **联动隐藏**（B3）：处置举报时顺带隐藏被举报评价。
+     * <p>
+     * 与 {@link #setHidden} 的差别：本方法是**幂等且自解释**的 —— 评价不存在或**已被隐藏**时
+     * 返回 {@code false}（不重复投递回执、不覆盖既有附注），只有「这次真的隐藏了」才返回
+     * {@code true}，供调用方在处置回执里写明「已隐藏该评价」。
+     *
+     * @param reviewId 被举报评价 ID
+     * @return 本次是否真的执行了隐藏
+     */
+    boolean hideIfVisible(Long reviewId);
+
+    /**
+     * 评价总数（D1 看板概况：**含已隐藏** —— 概况回答的是「平台规模」，不是「可见量」）。
+     *
+     * @return 评价总数
+     */
+    long countAll();
 
     // ==================== 跨域写契约（P0-1：由本域 event 监听器消费，不对外暴露给业务域） ====================
 

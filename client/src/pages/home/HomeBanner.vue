@@ -1,5 +1,5 @@
 <template>
-  <!-- 16:10 轮播 Banner（docs/client/ui/client-首页菜品浏览.md §3）
+  <!-- 16:10 轮播 Banner（docs/ui/client/首页菜品浏览.md §3）
        · 清单来自 `GET /banners`（服务端已按序、只返回启用项）：端上按返回顺序渲染，不排序、不写死 URL 与张数；
        · 多张自动轮播 + 指示点；仅一张不轮播、不显示指示点；
        · 空数组 / 请求失败 / 单张失败 → 灰底 + 居中**中性 `empty` 占位**（不得用 `dish` 图标冒充）；
@@ -52,6 +52,13 @@ defineProps<{
   heightPx: number
 }>()
 
+/**
+ * 上报「是否真的有轮播图」：父级（首页）据此决定**是否保留 Banner 占位块**——
+ * 全停用 / 加载失败时整块收起，避免首页顶部长期挂着一块无意义的 16:10 灰块。
+ * 初始（加载中）父级默认保留槽位，加载完成且无图时再收起。
+ */
+const emit = defineEmits<{ (e: 'ready', has: boolean): void }>()
+
 /** 多图自动轮播间隔（ms）；仅一张时不自动轮播 */
 const AUTOPLAY_INTERVAL = 4000
 /** 指示点色：微信原生 <swiper> 不接受 var()，取 tokens.ts 登记的原生例外常量 */
@@ -71,6 +78,8 @@ async function load() {
     console.error('加载首页轮播图失败', e)
     list.value = []
   }
+  // 无论成功失败都上报真实「有无图」状态，父级据此收起占位块
+  emit('ready', list.value.length > 0)
 }
 
 onMounted(() => {

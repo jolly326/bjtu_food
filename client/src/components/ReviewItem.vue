@@ -116,12 +116,8 @@ const props = defineProps<{
   /** 菜名行（可选，本人视角列表用）：非空时在 meta 行下展示关联菜品名 */
   dishName?: string
 }>()
-// `hideReport` / `deletable` 两个 prop 全仓零传入（「我的评价」页复用本组件、经 `dishName` prop 注入菜名），
-// 按 PR-05 删除；三点菜单收敛为常驻唯一入口。
 
-/* 事件**只有一个出口**：`more`（右上角竖三点）。
-   原 `report` / `delete` 两个事件在组件内**从未被触发**（无任何调用点）
-   —— 本人删除 / 他人举报统一由父页 `ActionSheet` 处理 ⇒ 按「零消费即删」移除。 */
+/* 事件**只有一个出口**：`more`（右上角竖三点）；本人删除 / 他人举报统一由父页 `ActionSheet` 处理。 */
 const emit = defineEmits<{
   (e: 'more', review: Review | MyReview): void
 }>()
@@ -139,31 +135,22 @@ const authorNickname = computed(() => {
   return name || ANONYMOUS_AUTHOR
 })
 
-/**
- * 星级渲染颗数（1–5，最低 1 颗）：Round 28 —— 原为**模板内表达式**（每次渲染重算），改 `computed` 缓存。
- */
+/** 星级渲染颗数（1–5，最低 1 颗） */
 const starCount = computed(() => Math.min(Math.max(Math.round(props.review.rating || 0), 1), 5))
 
 /* ===== 配图展示（≤3 张 COS URL，点击预览大图） ===== */
-const reviewImages = computed(() =>
-  Array.isArray(props.review.images) ? props.review.images.filter(Boolean) : [],
-)
+// `images` 在类型上是可选字段，故此处保留判空兜底（可能为 undefined）
+const reviewImages = computed(() => props.review.images?.filter(Boolean) ?? [])
 /** 破图下标集合：error 后切 empty 中性占位；images 变化（列表重拉）时重置 */
-const { broken: brokenImages, markBroken: onImageError, clear } = useBrokenImages()
-watch(
-  () => props.review.images,
-  () => clear(),
-)
-// 头像破图态同样随数据变化复位（组件实例复用、同 key 换评价时避免旧破图态残留）
-watch(authorAvatar, () => { avatarOk.value = true })
-/** 预览大图（仅未破图可进入；current 定位到点击那张） */
+const { broken: brokenImages, markBroken: onImageError, clear, previewAt } = useBrokenImages()
+// 配图与头像的破图态都随本行数据变化复位（组件实例复用、同 key 换评价时避免旧破图态残留）
+watch([() => props.review.images, authorAvatar], () => {
+  clear()
+  avatarOk.value = true
+})
+/** 预览大图（仅未破图可进入，current 定位到点击那张；URL 需绝对化） */
 function onPreviewImage(i: number) {
-  if (brokenImages.value.has(i)) return
-  const okIdx = reviewImages.value.map((_, idx) => idx).filter((idx) => !brokenImages.value.has(idx))
-  const okUrls = okIdx.map((idx) => getImageUrl(reviewImages.value[idx]))
-  if (!okUrls.length) return
-  const cur = okIdx.indexOf(i)
-  uni.previewImage({ urls: okUrls, current: okUrls[Math.max(cur, 0)] })
+  previewAt(reviewImages.value, i, getImageUrl)
 }
 
 /** 右上角三点菜单：操作由父页面以 ActionSheet 呈现（举报他人 / 删除本人） */
@@ -203,7 +190,7 @@ function onMore() {
   padding: 0;
 }
 .review-item--flat.review-item-pressed { opacity: 0.5; }
-/* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言，spec ）。
+/* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言）。
    类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */
 .review-item.review-item-pressed { opacity: 0.6; }
 

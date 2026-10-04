@@ -52,15 +52,14 @@ public class User {
 
     // user.password / user.unionid 已于用户拍板「零消费即删除」退役：
     // password 零读（唯一写点=注销置 NULL）、unionid 只写不读（多应用预留撤销）；
-    // CREATE TABLE 已移除，存量库由 schema.sql 末尾 drop_zero_consumer_columns 幂等段清理。
+    // CREATE TABLE 已移除，存量库已直连远程库清理。
 
     /**
      * 已认证绑定邮箱（仅存认证关系，可空）——**认证状态的唯一真源**：非空即已认证（可写 UGC），
      * NULL 即游客态；判据见 {@link com.bjtufood.auth.support.AuthStateUtil#isVerified(String)}。
      * <p>
      * user.verified / user.verified_at 两列已于用户拍板退役（与 bind_email 同源冗余、
-     * 历史写入路径恒成对写）；CREATE TABLE 已移除列定义，存量库由 schema.sql 末尾
-     * drop_verified_columns 幂等段清理，两列不得回流。
+     * 历史写入路径恒成对写）；CREATE TABLE 已移除列定义，存量库已直连远程库清理，两列不得回流。
      */
     @Schema(description = "已认证绑定邮箱（可空；非空即已认证，认证状态唯一真源）")
     private String bindEmail;

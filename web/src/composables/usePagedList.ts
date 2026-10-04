@@ -1,40 +1,89 @@
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
+import { createListState } from './listState'
+import type { AdminPage } from '@/types/common'
 
 /**
- * 分页加载组合式（按 docs/web/feature 分页约定：结束判据 = 本页条数 < pageSize）。
- * fetcher 返回当前页 records 数组。
+ * 管理端分页组合式（**页码 + 共 N 条**，非「加载更多」）。
+ *
+ * 契约真源：`AdminPageResult` = `{ records, total }`（[api/README](../../../docs/api/README.md)）；
+ * 结束判据 = **`total`**（不再靠「本页条数 < pageSize」推断）。
+ * 状态口径见 {@link createListState}；分页列表页另有第 ⑤ 态 `total/pageCount`。
  */
 export function usePagedList<T>(
-  fetcher: (page: number, pageSize: number) => Promise<T[]>,
+  fetcher: (page: number, pageSize: number) => Promise<AdminPage<T>>,
   pageSize = 20,
 ) {
   const items = shallowRef<T[]>([])
+  const total = ref(0)
   const page = ref(1)
-  const loading = ref(false)
-  const finished = ref(false)
-  const error = ref<string | null>(null)
+  const state = createListState(items)
 
-  async function load(reset = false): Promise<void> {
-    if (loading.value) return
-    if (reset) {
-      page.value = 1
-      finished.value = false
-      items.value = []
-    }
-    loading.value = true
-    error.value = null
+  /** 总页数（`total = 0` 时返回 1，调用方以 `total === 0` 判定是否渲染分页条） */
+  const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
+
+  /**
+   * 加载指定页。
+   * @param targetPage 目标页（默认当前页；筛选 / 重置请显式传 `1`）
+   */
+  async function load(targetPage: number = page.value): Promise<void> {
+    if (state.loading.value) return
+    state.begin()
     try {
-      const rows = await fetcher(page.value, pageSize)
-      if (reset) items.value = [...rows]
-      else items.value.push(...rows)
-      if (rows.length < pageSize) finished.value = true
-      else page.value += 1
+      const res = await fetcher(Math.max(1, targetPage), pageSize)
+      items.value = [...res.records]
+      total.value = res.total
+      page.value = Math.max(1, targetPage)
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '加载失败'
+      state.fail(e)
     } finally {
-      loading.value = false
+      state.settle()
     }
   }
 
-  return { items, loading, finished, error, load }
+  /** 重新加载**当前页**（保存 / 删除 / 启停 / 处置后调用：保持筛选与页码） */
+  function reload(): Promise<void> {
+    return load(page.value)
+  }
+
+  /** 回到**第 1 页并加载**（筛选变更 / 重置后调用） */
+  function reloadFirstPage(): Promise<void> {
+    return load(1)
+  }
+
+  /** 翻页（翻页后滚动回表格顶部，避免长表格翻页后停在页脚） */
+  function goToPage(target: number): Promise<void> {
+    const clamped = Math.min(Math.max(1, target), pageCount.value)
+    if (clamped === page.value) return Promise.resolve()
+    const p = load(clamped)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return p
+  }
+
+  function prevPage(): Promise<void> {
+    return goToPage(page.value - 1)
+  }
+
+  function nextPage(): Promise<void> {
+    return goToPage(page.value + 1)
+  }
+
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+    pageCount,
+    loading: state.loading,
+    firstLoading: state.firstLoading,
+    isEmpty: state.isEmpty,
+    hasData: state.hasData,
+    error: state.error,
+    sessionInvalid: state.sessionInvalid,
+    load,
+    reload,
+    reloadFirstPage,
+    goToPage,
+    prevPage,
+    nextPage,
+  }
 }

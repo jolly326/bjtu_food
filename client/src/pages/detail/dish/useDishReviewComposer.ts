@@ -47,7 +47,7 @@ export function useDishReviewComposer(opts: {
   }
 
   /**
-   * 「信息有误?」（信息卡名称行）：跳**独立纠错页**并携带当前菜品。
+   * 「菜品有问题?」（信息卡名称行）：跳**独立纠错页**并携带当前菜品。
    * 落点用唯一构造函数 `correctionUrl`（禁止手拼 URL）；**免认证** ——
    * `POST /dishes/{id}/correction` 属公开写，游客同样可直达，故不经 `requireAuth`。
    */

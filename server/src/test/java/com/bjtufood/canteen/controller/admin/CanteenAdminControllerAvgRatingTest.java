@@ -5,6 +5,7 @@ import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.canteen.service.impl.StallServiceImpl;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.dish.service.DishService;
 import com.bjtufood.review.dto.StallAvgRatingVO;
 import com.bjtufood.review.service.ReviewQueryService;
 import org.junit.jupiter.api.DisplayName;
@@ -62,11 +63,11 @@ class CanteenAdminControllerAvgRatingTest {
         ReviewQueryService reviewQuery = mock(ReviewQueryService.class);
         // 必须是可变 List：controller 原地回填后，断言要看的是同一个对象实例的字段
         List<StallAdminVO> stalls = new ArrayList<>(List.of(vo(1L), vo(2L), vo(3L)));
-        when(stallService.listAllForAdmin()).thenReturn(stalls);
+        when(stallService.listAllForAdmin(any())).thenReturn(stalls);
         when(reviewQuery.findAvgRatingByStallIds(any()))
                 .thenReturn(List.of(rating(1L, "4.5"), rating(3L, "3.2")));
 
-        new CanteenAdminController(mock(CanteenService.class), stallService, reviewQuery).listStalls();
+        new CanteenAdminController(mock(CanteenService.class), stallService, mock(DishService.class), reviewQuery).listStalls(null);
 
         assertThat(stalls.get(0).getAvgRating()).isEqualByComparingTo("4.50");
         assertThat(stalls.get(1).getAvgRating()).isEqualByComparingTo("0.00");  // 无评价
@@ -81,10 +82,10 @@ class CanteenAdminControllerAvgRatingTest {
         List<StallAdminVO> stalls = new ArrayList<>(List.of(vo(1L), vo(2L)));
         stalls.get(0).setAvgRating(new BigDecimal("0.00"));
         stalls.get(1).setAvgRating(new BigDecimal("0.00"));
-        when(stallService.listAllForAdmin()).thenReturn(stalls);
+        when(stallService.listAllForAdmin(any())).thenReturn(stalls);
         when(reviewQuery.findAvgRatingByStallIds(any())).thenReturn(List.of(rating(1L, "4.567")));
 
-        new CanteenAdminController(mock(CanteenService.class), stallService, reviewQuery).listStalls();
+        new CanteenAdminController(mock(CanteenService.class), stallService, mock(DishService.class), reviewQuery).listStalls(null);
 
         assertThat(stalls.get(0).getAvgRating()).isEqualByComparingTo("4.57");   // HALF_UP 到 2 位
         assertThat(stalls.get(1).getAvgRating()).isEqualByComparingTo("0.00");   // 无评价 → 保留兜底
@@ -95,9 +96,9 @@ class CanteenAdminControllerAvgRatingTest {
     void skipsReviewQueryForEmptyStallList() {
         StallService stallService = mock(StallService.class);
         ReviewQueryService reviewQuery = mock(ReviewQueryService.class);
-        when(stallService.listAllForAdmin()).thenReturn(List.of());
+        when(stallService.listAllForAdmin(any())).thenReturn(List.of());
 
-        new CanteenAdminController(mock(CanteenService.class), stallService, reviewQuery).listStalls();
+        new CanteenAdminController(mock(CanteenService.class), stallService, mock(DishService.class), reviewQuery).listStalls(null);
 
         verify(reviewQuery, never()).findAvgRatingByStallIds(any());
     }

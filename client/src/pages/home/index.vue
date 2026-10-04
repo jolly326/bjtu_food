@@ -15,7 +15,7 @@
            而是"卡片会从吸顶容器背后滚过"时唯一能遮挡的表面；未吸顶时该切片不渲染 ⇒ 与页底天然连续。 -->
     <PageWallpaper fixed :height-px="viewportHeightPx" />
 
-    <!-- ===== 固定标题带（跨页统一，docs/client/ui/client-首页菜品浏览.md §1） =====
+    <!-- ===== 固定标题带（跨页统一，docs/ui/client/首页菜品浏览.md §1） =====
          · `position: fixed` **永久固定在页面左上角**，不随页面滚动移动、不随 Banner 滚出；
          · 与微信右上角**原生胶囊同一条水平线**（行高 = 胶囊高、垂直中心对齐），右侧按胶囊避让；
          · 文案**按页配置**（首页 = 「知行食记」，搜索页等各填自己的），位置 / 高度 / 对齐 / 配色跨页一致；
@@ -43,7 +43,8 @@
              多张自动轮播 + 指示点 / 空与单张失败「灰底 + 中性 empty」空态。
              左右 12px 边距与四角圆角在组件内；上间距（标题带下沿 → Banner 上缘 12px）
              由 `.home-scroll-body` 的 padding-top 承担；块高由本页下发（16:10，§3.3）。 -->
-        <HomeBanner :height-px="bannerHeightPx" />
+        <!-- Banner：有图才占 16:10 槽位；全停用 / 加载失败时**整块收起**。 -->
+        <HomeBanner v-if="showBanner" :height-px="bannerHeightPx" @ready="onBannerReady" />
 
         <!-- ===== 吸顶容器（搜索区 + 横向大类标签栏）：**一个组件、一起吸顶** =====
              · **原生粘性定位**（`position: sticky` + `top: 0` = 滚动区顶 = 固定标题带下沿）：
@@ -53,7 +54,7 @@
                切片位置 = **背景图去掉顶部标题带那一段**（内层按实测基准上移，使切片盒子落回视口原点
                ⇒ 显示的就是"该位置本来那一段壁纸"，与页底逐像素同源）；
                因为吸顶后容器顶边是**常量**，这里只按常量偏移 ⇒ **不逐帧采样** ⇒ 不滞后 1–2 帧 ⇒ 不撕裂；
-             · 纵向间距（§7.1）：上 padding = Banner 下缘 → 搜索区 16px；
+             · 纵向间距（见 UI 稿《首页菜品浏览》「顶部各块」）：上 padding = Banner 下缘 → 搜索区 16px；
                搜索区 ↔ 标签栏由 `.mt-tab` 内偏置（24rpx = 12px）承担；
                下 padding 8px **+ 标签行自带 ≈8px 行底余量** = 标签栏 → 网格 ≈16px。 -->
         <view class="home-sticky">
@@ -84,7 +85,7 @@
           />
         </view>
 
-        <!-- 双列瀑布流（默认视图 = 推荐流·会话种子伪随机序；大类视图 = 该类热度序） -->
+        <!-- 双列瀑布流（首个启用视图 = 推荐流·会话种子伪随机序；大类视图 = 该类热度序） -->
         <HomeContent @retry="retryWaterfall" />
       </view>
     </scroll-view>
@@ -99,7 +100,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad, onShow, onShareAppMessage } from '@dcloudio/uni-app'
-import { showTab } from '@/stores/route'
+import { useRouteStore } from '@/stores/route'
+const routeStore = useRouteStore()
 import { useDishStore } from '@/stores/dish'
 import { buildSharePayload, clearShareState } from '@/utils/share-state'
 import { PATH, TAB_HOME } from '@/utils/routes'
@@ -173,7 +175,13 @@ const bannerHeightPx = computed(() => Math.max(
   BANNER_MIN_HEIGHT_PX,
 ))
 
-/* ===== Banner 数据由其自身组件 `HomeBanner.vue` 拉取（§12 组件拆分）；本页只下发块高 ===== */
+/* ===== Banner 数据由其自身组件 `HomeBanner.vue` 拉取（§12 组件拆分）；本页只下发块高 =====
+   是否保留 Banner 槽位由 `showBanner` 决定（详见 HomeBanner 的 `ready` 事件）：
+   加载中默认保留（避免首屏跳动），加载完成且无图时收起 —— 同步重置吸顶锁定点（lockScrollPx）。 */
+const showBanner = ref(true)
+function onBannerReady(has: boolean) {
+  showBanner.value = has
+}
 
 /**
  * 页面骨架内联样式（§11 结构性决议）：
@@ -193,8 +201,9 @@ const pageStyle = computed(() => ({
 
 /** Banner **上缘**与固定标题带下沿的间距（px）：§3.1（滚动区 `padding-top`） */
 const BANNER_TOP_GAP_PX = 12
-/** 吸顶锁定所需的滚动距离（px）= `H_gap + H_b`（§11 常量 `L`，≈231）：容器流内落点即 Banner 下缘 */
-const lockScrollPx = computed(() => BANNER_TOP_GAP_PX + bannerHeightPx.value)
+/** 吸顶锁定所需的滚动距离（px）= `H_gap + H_b`（§11 常量 `L`，≈231）：容器流内落点即 Banner 下缘。
+ *  Banner 收起（无图）时归零 —— 吸顶容器直接顶到滚动区顶，不会因上方空槽而过早锁死。 */
+const lockScrollPx = computed(() => showBanner.value ? BANNER_TOP_GAP_PX + bannerHeightPx.value : 0)
 
 /* ===== 切片显隐：**只在吸顶态铺**=====
    未吸顶 ⇒ 完全透明（此时容器背后就是页底壁纸本体，天然连续、无接缝）；
@@ -225,8 +234,7 @@ const SLICE_OFFSET_TUNE_PX = 0
  * ⚠️ 为什么直接用 `titleBandPx`（而不是另测一次"滚动区顶边"）：
  *   · `titleBandPx` 同时就是 ① `AppTitleBand` 的 `height`（`bandStyle`）② 页面的 `padding-top`
  *     （= 滚动区顶边）③ 吸顶后容器的顶边 ⇒ **三者同源**，取它即可精确对齐，无需任何二次测量；
- *   · 曾额外用 `createSelectorQuery` 量过一次滚动区顶边（理论值应与 `titleBandPx` 相等），
- *     但引入了异步查询 + 回退分支 + 时序风险 —— **很可能就是"偏高"的元凶**，故已删除。
+ *   · 不另测滚动区顶边（`titleBandPx` 即滚动区顶边，三者同源），避免引入异步查询 + 回退分支 + 时序风险。
  *
  * 注：`titleBandPx` **不是写死的常量**（各机型状态栏 + 胶囊高度不同：iPhone SE / 14 Pro / 安卓各异），
  * 但由 `useNavMetrics()` 统一实测 ⇒ 每台设备上是**确定值**，且页面 SHALL NOT 自算导航尺寸。
@@ -272,13 +280,13 @@ function onScrollToLower() {
 
 onLoad(() => {
   // Banner 自持数据加载（`HomeBanner.vue` 挂载时发起），与列表**并行**：Banner 失败不阻塞首屏网格
-  // 视图字典：不 await（失败降级为默认视图），保证首屏列表不被字典阻塞
+  // 视图字典：不 await（失败降级为首个启用视图），保证首屏列表不被字典阻塞
   void dishStore.fetchDishViews()
   void dishStore.fetchHomeDishes(true)
 })
 
 onShow(() => {
-  showTab(TAB_HOME)
+  routeStore.showTab(TAB_HOME)
   clearShareState()
   // 视图字典兜底重试：**仅「从未成功」时才真发请求**（store 内 `viewLoaded` 守卫），失败不阻塞首屏。
   // 先前注释承诺的守卫并不存在（每次 onShow 都真发一次请求），本轮已在 store 内补齐 ⇒ 注释与实现一致。
@@ -321,8 +329,7 @@ onShareAppMessage(() => {
 /* ===== 页面底壁纸层（§11.1）=====
    **页面级**壁纸层：`fixed` 视口锚定 + 偏移 0，铺满整个视口 —— 连顶部标题带那一条也已覆盖。
    层级由组件自身的 `--z-page-bg`（−1）承担：负层级压在本页背景之上、流内内容之下 ⇒ **本页不再覆写 z-index**
-   （旧实现曾把它抬到 0、并把下面 `.scroll-wrap` 抬到 1，二者互为补丁；组件 token 化后全站同一机制，
-   首页无需例外 —— UI 统一 Loop Round 5）。
+   （层级由 `--z-page-bg` 统一机制承担，首页无需例外 —— UI 统一 Loop Round 5）。
    ⚠️ 与「吸顶容器切片」的关系（UI 统一 Loop Round 9 核对结论）：切片的 `z-index: -1` 是**相对于
    `.home-sticky` 自己的层叠上下文**（该容器 `position: sticky` + `z-index: var(--z-header)` ⇒ 自成上下文），
    与本层的 `--z-page-bg` **互不影响** ⇒ 页底壁纸层与吸顶切片可并存、**无层叠冲突**。 */
@@ -334,7 +341,7 @@ onShareAppMessage(() => {
 /* ===== 吸顶容器（搜索区 + 大类标签栏）：**一个组件、一起吸顶** =====
    · `position: sticky` + `top: 0`（= 滚动区顶 = 固定标题带下沿）⇒ 位移由渲染层原生驱动，
      **不监听滚动、不做逐帧对齐、无状态**；
-   · 纵向间距（§7.1）：padding-top 16px = Banner 下缘 → 搜索区；
+   · 纵向间距（见 UI 稿《首页菜品浏览》「顶部各块」）：padding-top 16px = Banner 下缘 → 搜索区；
      搜索区 ↔ 标签栏 = `.mt-tab` 内偏置 24rpx（12px）；
      padding-bottom 8px **+ 标签行自带 ≈8px 行底余量** = 标签栏 → 网格 ≈16px。 */
 .home-sticky {
