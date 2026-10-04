@@ -1,10 +1,9 @@
 /**
  * 菜品详情态（**按页实例**，脱离全局 store）。
  *
- * <p><b>为什么按页</b>：详情态此前挂在 pinia 全局单例（`currentDish` / `reviewList` 等）上，
- * 一旦出现「详情页叠详情页」或快速返回，两页会互相覆盖全局态。本 composable 在
- * `useDishPage()` 内创建**一份本页私有**的响应式状态与竞态守卫，由本页的
- * `useDishReviewCore` / `useDishReviewComposer` 经参数注入共享 ⇒ 根除跨页串态。
+ * <p><b>为什么按页</b>：详情态为**本页私有**的响应式状态与竞态守卫（在 `useDishPage()` 内创建），
+ * 由本页的 `useDishReviewCore` / `useDishReviewComposer` 经参数注入共享，避免「详情页叠详情页」
+ * 或快速返回时两页互相覆盖全局态。
  *
  * <p><b>保留竞态语义</b>：用 `createSeqGuard` 在「重置式重拉 / 翻页 / 切菜品」交错时丢弃过期响应，
  * 与抽取前的 store 实现逐字等价。

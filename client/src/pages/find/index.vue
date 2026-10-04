@@ -103,8 +103,8 @@
       </scroll-view>
 
       <!-- ============ 搜索结果态（仅结果态渲染）============
-           原 `FindResults` 并入本页 —— 抽出结果卡后其职责只剩「滚动容器 + 列表编排」，
-           单独成件无意义；结果卡 = 页内私有 `DishResultCard`（布局规格见 docs/client/ui/client-搜索.md §2「结果行布局」）。 -->
+           结果态由本页承担「滚动容器 + 列表编排」，结果卡 = 页内私有 `DishResultCard`
+           （布局规格见 docs/client/ui/client-搜索.md §2「结果行布局」）。 -->
       <!-- ⚠️ 触底事件必须由本 scroll-view 承载：页面根 overflow:hidden + 定高容器下，
            页面级 onReachBottom 不会触发（踩坑记录见 usePagedList 注释） -->
       <scroll-view
@@ -125,7 +125,7 @@
       </scroll-view>
       <!-- 搜索失败重试块（MP-012，P3-03 上提为公共组件）：请求已完成且失败 → 失败态块，
            先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据）。
-           与空态**共用 `.state-host`**（原 `.find-retry-host` / `.find-empty-host` 两条规则逐字相同）。 -->
+           与空态**共用 `.state-host`**。 -->
       <view v-else-if="inFilter && searchDone && searchFailed" class="state-host">
         <RetryBlock title="搜索加载失败" aria-label="搜索失败，点击重试" :margin="false" @retry="onRetrySearch" />
       </view>
@@ -254,10 +254,9 @@ onShow(() => {
    `flex: 1 + min-height: 0` ⇒ 容器定高 ⇒ 内容未超高时既不出现滚动条、也没有可滚的空白。 */
 .discover-body { flex: 1; min-height: 0; padding-bottom: var(--spacing-lg); }
 /* 分组卡外壳（**页面自有节点**，不是组件宿主）：承担每张卡的左右 gutter + 纵向块间距。
-   ⚠️ Round 27c（真因，此前两版都没修对）：间距**必须落在页面自己的节点上** ——
-   曾把本类直接传给 `<CardSection>`：小程序端该类落进**组件宿主节点**，而宿主默认**不是块级盒**
-   ⇒ `margin` 被**静默忽略**（横向全丢、纵向也丢 ⇒ 「卡片左右贴屏幕边 + 两张卡相贴」）。
-   现由外层 `<view>` 承担，卡壳只传 `flush`（把自身外边距归零，避免双层）。
+   ⚠️ 间距**必须落在页面自己的节点上**：本类直接传给 `<CardSection>` 时，小程序端该类落进
+   **组件宿主节点**，而宿主默认**不是块级盒** ⇒ `margin` 被**静默忽略**（横向全丢、纵向也丢 ⇒
+   「卡片左右贴屏幕边 + 两张卡相贴」）；故卡壳只传 `flush`（把自身外边距归零，避免双层）。
    首卡上间距的**唯一来源 = 搜索行下 padding**（UI 文档 §2：块间 `--spacing-lg`），故本类上外边距为 0。
    ⚠️ 选型理由（实测教训）：小程序 WXSS 支持的选择器仅 `.class / #id / element / element,element / ::after / ::before`
    —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
@@ -272,9 +271,8 @@ onShow(() => {
 }
 /* 结果列表：左右 gutter + 底部间距；卡间纵向间距用 **flex gap** ——
    不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，本文件上方有登记）。
-   Round 21e（用户拍板）：结果**顶部对齐**、自上而下自然阅读 —— 原「单条结果垂直居中」
-   （.mixed-list.single，为修「悬顶读作没加载完」而设）已移除；空白读感由「搜索行常驻 +
-   结果态与发现态/空态/失败态互斥」缓解，不再用居中补偿。 */
+   Round 21e（用户拍板）：结果**顶部对齐**、自上而下自然阅读；空白读感由「搜索行常驻 +
+   结果态与发现态/空态/失败态互斥」保证，不靠居中补偿。 */
 .mixed-list {
   margin: 0 var(--spacing-md) var(--spacing-md);
   display: flex;

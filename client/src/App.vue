@@ -82,7 +82,7 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 /* ===== 主滚动区尺寸口径（全站唯一真源，Round 26 复核）=====
    ① `min-height: 0` **必需**：flex 子项默认 `min-height: auto`，不收缩 ⇒ 内容把滚动容器撑高 ⇒
       容器超出页根 ⇒ 页面与滚动区**双层滚动**（多余滚动 + 底部空白）。各页 `.scroll-wrap` 亦各自声明（双保险）。
-   ② 底部留白**不再全局兜底**（原 `padding-bottom: calc(--tabbar-height + --spacing-md + safe)` 已删）：
+   ② 底部留白**不再全局兜底**（仅自带自绘 TabBar 的页让出菜单栏）：
       只有自带**自绘 TabBar** 的页（home / mine）需要让出菜单栏，且由页面自身承担（home = 页根 `padding-bottom`、
       mine = 页脚 `padding-bottom`）。全局兜底会让**非 Tab 页**凭空多出 ≈ tabbar(50px) + 安全区(≈34px) 的死留白，
       短内容也被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */

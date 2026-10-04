@@ -11,7 +11,7 @@
        · **恒透明、不铺任何表面**（结构性决议）：调用方的滚动区已从「标题带 + 常驻工具栏」之下开始
          （首页见 §11；搜索页同样把根层 `padding-top` 让给标题带）⇒ **没有内容从带背后经过**，
          带背后直接露出 `fixed` 页底壁纸即可，不需要切片 / 纯色底 / 材质。
-         ⚠️ 组件**不提供**任何「纱 / 渐变 / 透明度」能力（原 `veilOpacity` 已按「零消费即删」移除）。 -->
+         ⚠️ 组件**不提供**任何「纱 / 渐变 / 透明度」能力（无 `veilOpacity` 类能力）。 -->
   <view class="title-band" :style="bandStyle">
     <!-- ===== 左区 ===== -->
     <view class="band-left">
@@ -81,8 +81,7 @@ const bandStyle = computed(() => ({
   paddingTop: 'max(' + statusBarPx.value + 'px, env(safe-area-inset-top))',
 }))
 
-/* 三处字号统一 `--font-title`（与首页「知行食记」同档）：原 `leftSize` / `centerSize` 两个
-   覆盖 prop 全仓零传入（PR-05 零消费即删），改为在样式里声明一次（`.band-back-text,
+/* 三处字号统一 `--font-title`（与首页「知行食记」同档），在样式里声明一次（`.band-back-text,
    .band-title-left, .band-title-center`），不再经内联 style 下发。 */
 </script>
 

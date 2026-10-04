@@ -46,7 +46,7 @@
         </view>
       </view>
 
-      <!-- ③ 简介：**固定最多 2 行截断、超出省略**（**已删除「展开 / 收起」**，文本独占卡片整宽 —— 不存在文字与按钮的排版冲突）；
+      <!-- ③ 简介：**固定最多 2 行截断、超出省略**，文本独占卡片整宽（不存在文字与按钮的排版冲突）；
            `description` 为空则整块不渲染（不占页面空间） -->
       <view v-if="dish.description" class="desc-row">
         <text class="desc-content">{{ dish.description }}</text>

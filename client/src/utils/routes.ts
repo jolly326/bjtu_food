@@ -39,19 +39,16 @@ export const ROUTE_KEY_BY_URL: Record<string, string> = {
   [PATH.mine.slice(1)]: TAB_PROFILE,
 }
 
-/* ========== 带参路由便捷构造函数（禁止手拼 URL） ========== */
+/* ========== 带参路由便捷构造函数（禁止调用点手拼 URL） ========== */
 
 /** 菜品详情：/pages/detail/dish/index?id= */
 export function dishDetailUrl(id: number | string): string {
   return `${PATH.dishDetail}?id=${id}`
 }
 
-/* ===== 意见反馈页 / 菜品纠错页落点（唯一构造函数，禁止调用点手拼 URL） ===== */
-
 /**
- * 意见反馈页 URL（**单一形态**：Bug / 产品建议 / 其他问题 + 描述 + 截图）。
+ * 意见反馈页 URL（**单一形态**，无模式参数）。
  * 入口：「我的」页宫格；搜索页「没搜到 → 推荐这道菜」。
- * ⚠️ 起**菜品纠错已迁出本页**（见 `correctionUrl`），本页不再有模式参数。
  */
 export function feedbackUrl(): string {
   return PATH.feedback
@@ -59,8 +56,7 @@ export function feedbackUrl(): string {
 
 /**
  * 菜品纠错页 URL（独立页面，**仅**菜品详情页底栏「反馈错误」触发）：
- * 进页即按 `dishId` 预绑定该菜品并拉详情预填（名称 / 价格 / 食堂名 / 档口 / 描述属性 / 图片），
- * 表单内不可切换菜品，提交**只传改动项**。
+ * 进页即按 `dishId` 预绑定该菜品并拉详情预填，表单内不可切换菜品，提交**只传改动项**。
  */
 export function correctionUrl(dishId: number | string): string {
   return `${PATH.correction}?dishId=${dishId}`

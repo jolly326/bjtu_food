@@ -11,7 +11,7 @@
  *
  * 视觉：`bg-card` + `radius-card` + `shadow-card` + 内距 `--spacing-md`、
  * 外距 `--spacing-sm --spacing-md`（首个卡片上边距收紧为 `--spacing-md`）。
- * ⚠️ UI 统一 Loop Round 12 起：**新卡片一律用它**，不再手写三件套（历史曾散落 10 套）。
+ * ⚠️ **新卡片一律用它**，不再手写三件套。
  */
 withDefaults(defineProps<{
   /** `true` = 去掉自身外边距（块间距由父级容器统管，如详情页评价区 `.review-section`） */

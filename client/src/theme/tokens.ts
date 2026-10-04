@@ -2,11 +2,9 @@
 // WXSS 不接受 var() 的原生 API 常量兜底色登记于此；其余一律走 CSS 变量 var(--xxx)。
 
 // ===== 全站色板「暖橙黄」（§7.39 裁决，真源 = docs/client/ui/client-首页菜品浏览.md §10.2）=====
-// 旧「暖砖红橙档」（primary #C2410C / primary-text #B93A0A / primary-bright #EA580C /
-// 页底 #F7F3EF / 渐变 #FFF9F3→#FFEFE0 / 文字 #262626 三阶）**整体退役**。
-// 主色由「单档」细分为语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），并补齐 §4.1 的全部 token 名
+// 主色按语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），token 名对齐 §4.1
 // （`--color-primary-fill` / `--color-primary-text` / `--text-title` / `--text-body` / `--bg-soft-yellow` …），
-// 使页面文档可直接引用。
+// 页面文档可直接引用。
 export const COLOR_MAP = {
   /* ===== 主色（暖橙黄）=====
      填充 / 文字档 #B4531A（「白字安全橙」）：白字 on 它 5.01:1 ✅；作 #FFF8EF 上的文字 4.75:1 ✅。
@@ -62,13 +60,10 @@ export const COLOR_MAP = {
   'text-placeholder': '#B5A594',
   /* ===== 背景（§4.1）===== */
   'bg-page': '#FFF8EF',
-  /* ⚠️ 原「页面顶部渐变」`bg-page-grad-from/to` 已随「切片方案全部废止」退役并删除
-     。装饰色按需取下方 `--bg-soft-*` 档。 */
+  /* ⚠️ 无独立页面顶部渐变键——装饰色按需取下方 `--bg-soft-*` 档。 */
   'bg-soft-orange': '#FFE8D1',
   'bg-soft-yellow': '#FFF3D6',
-  /* 注：`bg-warm`（#FAF6F0）已移除 —— 原本只有意见反馈页消费，UI 统一 Loop Round 1 后该页
-     随全局 `--bg-page`，此 token 零消费（零消费即删）。页面底一律 `.page { background: var(--bg-page) }`
-     + 全站壁纸层，不再允许页面私有底色。 */
+  /* 页面底统一走 `.page { background: var(--bg-page) }` + 全站壁纸层，不另设页面私有底色。 */
   'bg-card': '#FFFFFF',
   'bg-input': '#F7F5F2',
   'bg-soft': '#EDE9E5',
@@ -187,17 +182,13 @@ export const CSS_VARS: Record<string, string> = {
   '--page-wash': COLOR_MAP['page-wash'],
 }
 
-// ========== 原生属性例外登记（uni-app 限制） ==========
-// 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，
-// 必须用真实色值（见 pages/detail/dish/ImageSwiper.vue）。删除 uni.scss 后，原例外说明迁此。
+// ========== 原生属性例外登记（uni-app 限制：不接受 var()，只能给实色） ==========
+// <swiper> 的 indicator-active-color / indicator-color，见 pages/detail/dish/ImageSwiper.vue
 export const SWIPER_INDICATOR_ACTIVE_COLOR = '#ffffff'
 export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
-// uni.showModal 的 confirmColor 不接受 var()，必须用真实色值（危险操作确认按钮，与 --color-error 同值）
-// （见 pages/detail/dish/useDishPage.ts、pages/my-reviews/index.vue、pages/find/index.vue）
+// uni.showModal 的 confirmColor。危险操作确认按钮，与 --color-error 同值
 export const MODAL_CONFIRM_DANGER_COLOR = '#C62828'
-// uni.showModal 的 confirmColor 不接受 var()，必须用真实色值（重要操作确认按钮）
-// 取「文字档」--color-primary-text 的字面量（§4.1 起两档同值 #B4531A）
-// （见 pages/mine/index.vue 注销账号确认弹窗）
+// uni.showModal 的 confirmColor。重要操作确认按钮，取「文字档」--color-primary-text 的字面量
 export const MODAL_CONFIRM_PRIMARY_COLOR = '#B4531A'
 // IconSvg 描边兜底色：var() 形态与空值统一落到本常量（见 components/IconSvg.vue）
 export const ICON_FALLBACK_COLOR = '#1C1C1E'

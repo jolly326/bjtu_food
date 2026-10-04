@@ -1,8 +1,7 @@
 <template>
   <!-- 全站**唯一**的图片占位视觉：
        灰底（`--bg-placeholder`）+ 居中图标。图片「无值 / 加载失败 / 破图」三种情况一律走本组件，
-       SHALL NOT 各页再自绘占位（此前存在 `empty` / `dish` / `user` 三套图标 + `--bg-page` / `--bg-card` /
-       `--bg-soft` / `--bg-placeholder` 四种底色，同一屏内观感不一）。 -->
+       SHALL NOT 各页再自绘占位（统一视觉：灰底 + 居中图标）。 -->
   <view class="img-ph" role="img" :aria-label="ariaLabel">
     <IconSvg :name="name" :size="size" :color="COLOR_MAP['text-tertiary']" />
   </view>

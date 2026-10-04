@@ -5,6 +5,7 @@ import * as userApi from '@/api/user'
 import { useAuthStore } from '@/stores/auth'
 import { STORAGE_KEY_TOKEN, STORAGE_KEY_USER } from '@/constants/storage'
 
+/** 从 storage 读回用户资料；损坏 / 缺失一律降级为 null（不抛，游客态可继续浏览） */
 function loadUserInfo(): UserInfo | null {
   try {
     const raw = uni.getStorageSync(STORAGE_KEY_USER)
@@ -12,11 +13,6 @@ function loadUserInfo(): UserInfo | null {
   } catch {
     return null
   }
-}
-
-function saveAuth(tokenValue: string, info: UserInfo) {
-  uni.setStorageSync(STORAGE_KEY_TOKEN, tokenValue)
-  uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(info))
 }
 
 /** 静默登录进行中标志（供启动流程并发去重） */
@@ -27,10 +23,26 @@ export const useUserStore = defineStore('user', () => {
   const token = ref(uni.getStorageSync(STORAGE_KEY_TOKEN) || '')
   const userInfo = ref<UserInfo | null>(loadUserInfo())
   const loading = ref(false)
+
   /**
-   * 最近一次静默登录的失败原因（AUD-BE-02）。
-   * silentLogin 刻意不抛错（保证游客可继续浏览），但原因必须可查证——
-   * 否则「未配置 / 凭证无效 / 服务不可用」等部署事故在端上只剩间接症状，排障与提示都会失真。
+   * 用户资料持久化**单一出口**：内存态与 storage 必须同步更新，否则换页 / 重启后漂移。
+   */
+  function persistUserInfo(info: UserInfo | null) {
+    userInfo.value = info
+    if (info) uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(info))
+    else uni.removeStorageSync(STORAGE_KEY_USER)
+  }
+
+  /** 登录态落盘：token 与资料成对写入（内存态与 storage 同步，避免换页 / 重启后漂移） */
+  function saveAuth(tokenValue: string, info: UserInfo) {
+    token.value = tokenValue
+    uni.setStorageSync(STORAGE_KEY_TOKEN, tokenValue)
+    persistUserInfo(info)
+  }
+
+  /**
+   * 最近一次静默登录的失败原因：silentLogin 刻意不抛错（保证游客可继续浏览），
+   * 但原因必须可查证 —— 否则「未配置 / 凭证无效 / 服务不可用」等部署事故在端上只剩间接症状。
    */
   const lastLoginError = ref('')
 
@@ -46,12 +58,10 @@ export const useUserStore = defineStore('user', () => {
     silentLoginPending.value = true
     silentLoginPromise = (async () => {
       try {
-        // 已有登录态：直接复用，仅尝试刷新资料（游客/认证态均读 GET /auth/profile，见 ）
+        // 已有登录态：直接复用，仅尝试刷新资料（游客/认证态均读 GET /auth/profile）
         if (token.value) {
           try {
-            const fresh = await userApi.getProfile()
-            userInfo.value = fresh
-            uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(fresh))
+            persistUserInfo(await userApi.getProfile())
             return
           } catch {
             // 资料刷新失败（token 失效）：清空后走静默登录重登
@@ -68,8 +78,6 @@ export const useUserStore = defineStore('user', () => {
           })
         })
         const res = await userApi.wechatLogin(code)
-        token.value = res.token
-        userInfo.value = res.userInfo
         saveAuth(res.token, res.userInfo)
         lastLoginError.value = ''
         // #endif
@@ -102,10 +110,9 @@ export const useUserStore = defineStore('user', () => {
     }
     loading.value = true
     try {
-      const info = await userApi.verifyEmail(code)
       // 仅刷新 userInfo：JWT 不含 bind_email、后端实时查库判定认证态，无需（也不应）替换 token
-      userInfo.value = info
-      uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(info))
+      const info = await userApi.verifyEmail(code)
+      persistUserInfo(info)
       return info
     } finally {
       loading.value = false
@@ -114,24 +121,20 @@ export const useUserStore = defineStore('user', () => {
 
   async function updateProfile(data: { nickname?: string; avatar?: string }) {
     const res = await userApi.updateProfile(data)
-    userInfo.value = res
-    uni.setStorageSync(STORAGE_KEY_USER, JSON.stringify(res))
+    persistUserInfo(res)
     return res
   }
 
-  /** 统一清登录态：清内存态 + 清 storage；被 http 层 401/403 事件复用，避免登录态分裂。
-   * 同时联动重置各业务 store 的「用户态数据」（通知红点等），避免换用户后串数据（登录态一致性）。
-   * 用动态 import 避免 store 间的循环依赖。
-   * 注：评价行不含任何用户维度字段（无用标记重置）。 */
+  /** 统一清登录态：清内存态 + 清 storage；被请求层 401/403 复用，避免登录态分裂。
+   *  同时联动重置各业务 store 的「用户态数据」（通知红点等），避免换用户后串数据。
+   *  用动态 import 避免 store 间的循环依赖。 */
   function forceLogout() {
     token.value = ''
-    userInfo.value = null
     uni.removeStorageSync(STORAGE_KEY_TOKEN)
-    uni.removeStorageSync(STORAGE_KEY_USER)
-    // 联动重置：通知未读数红点
-    void import('@/stores/notify').then(({ useNotifyStore }) => {
-      try { useNotifyStore().reset() } catch { /* 忽略未初始化 */ }
-    }).catch(() => {})
+    persistUserInfo(null)
+    void import('@/stores/notify')
+      .then(({ useNotifyStore }) => useNotifyStore().reset())
+      .catch(() => { /* store 未初始化 / 分包未加载，忽略 */ })
   }
 
   /** 是否有登录态（token+userInfo；微信静默登录后恒为 true，即游客态） */
@@ -141,19 +144,17 @@ export const useUserStore = defineStore('user', () => {
 
   /**
    * 是否已邮箱认证（权限矩阵）：true 解锁 UGC 写操作；false = 游客态。
-   * <p>
-   * **唯一判据 = `bindEmail` 非空**（spec 修订）：出参不含量 `verified` 布尔
-   * （与 bindEmail 同源冗余、服务端列同批退役），故全端判定收敛在本方法一处；
-   * 页面 / 组件一律调用本方法，不得各自散写 `!!userInfo.bindEmail` 造成判据分裂。
+   *
+   * **唯一判据 = `bindEmail` 非空**：出参不含 `verified` 布尔（与 bindEmail 同源冗余），
+   * 故全端判定收敛在本方法一处；页面 / 组件不得散写 `!!userInfo.bindEmail` 造成判据分裂。
    */
   function isVerified(): boolean {
     return !!userInfo.value?.bindEmail
   }
 
   /**
-   * 需认证入口守卫（权限矩阵）：未认证（bindEmail 为空）时跳转独立认证页并返回 false，
-   * 已认证（bindEmail 非空）返回 true 直接执行 action。
-   * 传入 action 时：认证成功返回原页后由原页 onShow 续接该动作（游客操作 → 认证页 → 返回 → 继续原动作）。
+   * 需认证入口守卫：未认证时跳转认证页并返回 false（认证成功返回后由原页 onShow 续接该动作）；
+   * 已认证返回 true 直接执行。
    */
   function requireAuth(action?: () => void): boolean {
     if (!isVerified()) {
@@ -163,8 +164,8 @@ export const useUserStore = defineStore('user', () => {
     return true
   }
 
-  // MP-06：token / lastLoginError 零外部消费，收敛为内部状态（token 供请求层 getStorageSync，
-  // lastLoginError 供本 store 内静默登录失败透传），不再出现在 store 返回对象。
+  // token / lastLoginError 零外部消费，收敛为内部状态：前者供请求层 getStorageSync，
+  // 后者供本 store 内静默登录失败透传。
   return {
     userInfo,
     silentLogin,

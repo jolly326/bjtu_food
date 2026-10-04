@@ -53,6 +53,7 @@ import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { DishCorrectionPayload } from '@/types/feedback'
 import { buildCorrectionDiff, priceValid as isPriceValid, snapshotAttributes } from './correctionDiff'
 import { backToHome } from '@/utils/back'
+import { joinLocation } from '@/utils/dish'
 import { toastInfo, toastSuccess } from '@/utils/error'
 import { CORRECTION_IMAGE_MAX } from '@/constants/ugc'
 
@@ -92,9 +93,6 @@ export interface CorrectionFormModel {
 const REQUIRED_KEYS = ['name', 'price', 'canteenName', 'floor', 'stallName'] as const
 
 export function useCorrection() {
-  /** 全页唯一返回实现 = `backToHome`（有返回栈 navigateBack；无返回栈 reLaunch 首页） */
-  const goBack = backToHome
-
   // 页面级定时器句柄：均登记于此，`onUnload` 统一清理（避免回调打到已销毁页 / 已卸载组件）
   /** 提交成功自动返回 */
   let goBackTimer: ReturnType<typeof setTimeout> | null = null
@@ -122,7 +120,7 @@ export function useCorrection() {
   const loadFailed = ref(false)
   /** 锚定卡展示：菜品名（只读） */
   const dishName = ref('')
-  /** 锚定卡展示：「食堂 · 楼层 · 档口」（三段；段数 / 顺序与本页锚定卡一致，故不复用两段口径的 `joinLocation`） */
+  /** 锚定卡展示：「食堂 · 楼层 · 档口」（三段，楼层段走 `floorDisplay` 映射） */
   const dishLocation = ref('')
 
   /**
@@ -170,9 +168,11 @@ export function useCorrection() {
       dishName.value = detail.name
       // 锚定卡楼层段**同步走字典映射**（R40）：与下方楼层单元格同为汉字，避免同页一处汉字一处 `B1`；
       // 未命中字典时 `floorDisplay` 原样返回存储值，锚定卡照实显示（不做二次加工）。
-      dishLocation.value = [detail.canteen, floorDisplay(detail.floor || '')[0], detail.stallName]
-        .filter(Boolean)
-        .join(' · ')
+      dishLocation.value = joinLocation(
+        detail.canteen,
+        floorDisplay(detail.floor || '')[0],
+        detail.stallName,
+      )
 
       form.name = detail.name
       // 详情 price 已由 API 层分 → 元（页面不换算金额）
@@ -344,7 +344,7 @@ export function useCorrection() {
       clearCooldown()
       toastSuccess('提交成功，等待审核')
       if (goBackTimer) clearTimeout(goBackTimer)
-      goBackTimer = setTimeout(goBack, 1500)
+      goBackTimer = setTimeout(backToHome, 1500)
     } catch (e) {
       // 限频：请求层已弹过 toast（内含「请 N 秒后再试」），此处只进倒计时退避、不重复 toast；
       // 其它失败（业务 400 / 网络）同样**不改表单**，只把原因落在页面底部橙字提示上。
@@ -365,7 +365,7 @@ export function useCorrection() {
     }
     // 缺 dishId：本页不提供跨菜品选择（入口唯一），直接提示并返回
     toastInfo('缺少菜品信息')
-    goBack()
+    backToHome()
   })
 
   /**
@@ -375,7 +375,8 @@ export function useCorrection() {
    * `hasChange` 已并入 `canSubmit` / `gateHint`），故不再导出，避免死接口。
    */
   return {
-    goBack,
+    /** 全页唯一返回实现（有返回栈 navigateBack；无返回栈 reLaunch 首页） */
+    goBack: backToHome,
     dishName,
     dishLocation,
     loading,

@@ -1,6 +1,6 @@
 /**
  * 方形图网格（3 等分）—— `ImagePicker`（可增删配图）与 `ReviewItem`（只读展示配图）共用的网格语言。
- * 此前两处 CSS **逐字重复**（grid / cell / box / media 各一份），改动需同步两处，故归口至此。
+ * `ImagePicker` 与 `ReviewItem` 共用同一套网格语言，归口至此避免重复。
  *
  * 用法：消费方 `<style scoped lang="scss">` 顶部 `@use '../styles/media-grid' as grid;`，
  * 再在自有类名上 `@include grid.cell;` 等（sass 在 scoped 转换前内联，规则照常带作用域，不会泄漏）。

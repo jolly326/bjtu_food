@@ -27,11 +27,8 @@ import { activeTab, tabVisible, syncRoute, ensureTabForUrl } from '@/stores/rout
 import { TAB_HOME, TAB_PROFILE, TAB_URL_BY_KEY } from '@/utils/routes'
 import { COLOR_MAP } from '@/theme/tokens'
 
-/* ⚠️ 本组件**无 props**：
-   · 已删除「壁纸切片」与其视口高测量—— 切片曾用于裁出一条同源壁纸并挡住滚上来的卡片，
-     现改为**全部不铺**：菜单栏恒透明，背后即 `fixed` 页底壁纸；
-   · 已删除 `wallpaper` prop 与其白底分支：两个主根页（home / mine）均传 `true` ⇒ 白底分支**零消费**，
-     按「零消费即删」移除，透明底成为唯一行为（调用方简化为 `<TabBar />`）。 */
+/* ⚠️ 本组件**无 props**：菜单栏恒透明（背后即 `fixed` 页底壁纸）、不再有壁纸切片或 `wallpaper` prop 分支，
+   透明底为唯一行为（调用方简化为 `<TabBar />`）。 */
 
 const tabs = [
   { key: TAB_HOME, label: '首页', icon: 'home', url: TAB_URL_BY_KEY[TAB_HOME] },

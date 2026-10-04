@@ -111,7 +111,7 @@ const emit = defineEmits<{
 /* 本地镜像为唯一写者：避免同一轮上传循环内多次 emit 时读到未刷新的 props 造成丢张 */
 const urls = ref<string[]>([...props.modelValue])
 /** 破图下标集合（评审 m4）：error 后切 empty 占位 + 预览过滤；urls 变化（外部重置/删增）时清空 */
-const { broken: brokenImages, markBroken: onImageError, clear } = useBrokenImages()
+const { broken: brokenImages, markBroken: onImageError, clear, previewAt } = useBrokenImages()
 watch(
   () => props.modelValue,
   (v) => {
@@ -263,32 +263,30 @@ async function normalizeForPlatform(input: { path: string; size: number }): Prom
 /* ===== 添加图片：来源由父页决定 → 逐张 校验→上传→追加；单张失败不中断其余 ===== */
 const uploading = ref(false)
 
+/** 可否继续加图：未禁用、未在途、且未达张数上限 */
+function canAdd(): boolean {
+  if (props.disabled || uploading.value) return false
+  return props.max - urls.value.length > 0
+}
+
 /**
  * 点「添加图片」：**只抛意图，不自己弹层**。
- * <p>
- * 原因：来源选择弹层（ActionSheet → BaseSheet）内部是 `position: fixed`，
- * 而本组件在「意见反馈」「菜品纠错」两处都位于 `<scroll-view>` 之内——
- * 小程序 scroll-view 内的 fixed 层级会被压扁/裁剪（见 ReviewComposer 顶部注释）。
- * 故沿用 ReviewItem 的既有范式：弹层由**页面根级**持有，本组件经事件把意图上抛，
- * 父页拿到来源后再调用 {@link startPick} 落地。
+ *
+ * 原因：来源选择弹层（ActionSheet → BaseSheet）内部是 `position: fixed`，而本组件位于
+ * `<scroll-view>` 之内 —— 小程序 scroll-view 内的 fixed 层级会被压扁/裁剪。
+ * 故弹层由**页面根级**持有，本组件经事件把意图上抛，父页拿到来源后再调用 {@link startPick}。
  */
 function onAdd() {
-  if (props.disabled || uploading.value) return
-  const remain = props.max - urls.value.length
-  if (remain <= 0) return
-  emit('pick')
+  if (canAdd()) emit('pick')
 }
 
 /**
  * 按父页给定的来源真正拉起选图（父页在 ActionSheet 选中项后调用）。
- * <p>
- * 内部为「拉起 → 逐张压缩校验 → 上传 → 追加」全流程，与加号格直接选图等价；
- * 拍照一次仅回 1 张，由 {@link pick} 内部强制 count=1 收口。
+ * 内部为「拉起 → 逐张收敛 → 上传 → 追加」全流程；拍照一次仅回 1 张，由 {@link pick} 收口。
  */
 async function startPick(source: PickSource) {
-  if (props.disabled || uploading.value) return
+  if (!canAdd()) return
   const remain = props.max - urls.value.length
-  if (remain <= 0) return
   uploading.value = true
   try {
     const files = await pick(remain, source)
@@ -322,13 +320,9 @@ function onRemove(i: number) {
   emit('update:modelValue', [...urls.value])
 }
 
-/** 预览大图（评审 m4：仅未破图进入预览，urls 过滤破图；current 定位到点击那张） */
+/** 预览大图（仅未破图可进入，urls 过滤破图，current 定位到点击那张） */
 function onPreview(i: number) {
-  if (brokenImages.value.has(i)) return
-  const okIdx = urls.value.map((_, idx) => idx).filter((idx) => !brokenImages.value.has(idx))
-  if (!okIdx.length) return
-  const okUrls = okIdx.map((idx) => urls.value[idx])
-  uni.previewImage({ urls: okUrls, current: okUrls[Math.max(okIdx.indexOf(i), 0)] })
+  previewAt(urls.value, i)
 }
 </script>
 

@@ -67,11 +67,9 @@ function toDishDetail(raw: DishDetailVO): DishDetail {
 }
 
 /**
- * 通用菜品检索（首页网格无限加载 + 搜索结果）。
- * <p>
- * 复用 `GET /dishes`，**仅支持 `keyword` / `view` / `page` / `pageSize` / `seed`**
- * （食堂 / 价格 / 排序筛选不提供；筛选与排序由服务端按所选视图唯一决定）。
- * 分页壳只有 `records`：调用方以「本页返回条数 < `pageSize`」判到底。
+ * 通用菜品检索（首页网格无限加载 + 搜索结果）：`GET /dishes`。
+ * 仅支持 `keyword` / `view` / `page` / `pageSize` / `seed`（食堂 / 价格 / 排序筛选不提供，
+ * 筛选与排序由服务端按所选视图唯一决定）。分页壳只有 `records`：调用方以「本页条数 < `pageSize`」判到底。
  */
 export async function searchDishesPage(query: DishQuery): Promise<{ list: DishListItem[] }> {
   const params: Record<string, unknown> = {
@@ -82,12 +80,11 @@ export async function searchDishesPage(query: DishQuery): Promise<{ list: DishLi
   if (query.view) params.view = query.view
   if (query.seed) params.seed = query.seed
 
-  // 强类型：元素类型取自生成契约，后端改 DishListItemVO 字段即编译期报错
   const res = await get<RawPage<DishListItemVO>>('/dishes', params)
   return { list: recordsOf<DishListItemVO>(res).map(toDishListItem) }
 }
 
-/** 兼容旧调用：返回平铺 `DishListItem[]`（find 搜索流消费） */
+/** `searchDishesPage` 的平铺形态（find 搜索流消费） */
 export async function searchDishes(query: DishQuery): Promise<DishListItem[]> {
   return (await searchDishesPage(query)).list
 }

@@ -233,8 +233,7 @@ const SLICE_OFFSET_TUNE_PX = 0
  * ⚠️ 为什么直接用 `titleBandPx`（而不是另测一次"滚动区顶边"）：
  *   · `titleBandPx` 同时就是 ① `AppTitleBand` 的 `height`（`bandStyle`）② 页面的 `padding-top`
  *     （= 滚动区顶边）③ 吸顶后容器的顶边 ⇒ **三者同源**，取它即可精确对齐，无需任何二次测量；
- *   · 曾额外用 `createSelectorQuery` 量过一次滚动区顶边（理论值应与 `titleBandPx` 相等），
- *     但引入了异步查询 + 回退分支 + 时序风险 —— **很可能就是"偏高"的元凶**，故已删除。
+ *   · 不另测滚动区顶边（`titleBandPx` 即滚动区顶边，三者同源），避免引入异步查询 + 回退分支 + 时序风险。
  *
  * 注：`titleBandPx` **不是写死的常量**（各机型状态栏 + 胶囊高度不同：iPhone SE / 14 Pro / 安卓各异），
  * 但由 `useNavMetrics()` 统一实测 ⇒ 每台设备上是**确定值**，且页面 SHALL NOT 自算导航尺寸。
@@ -329,8 +328,7 @@ onShareAppMessage(() => {
 /* ===== 页面底壁纸层（§11.1）=====
    **页面级**壁纸层：`fixed` 视口锚定 + 偏移 0，铺满整个视口 —— 连顶部标题带那一条也已覆盖。
    层级由组件自身的 `--z-page-bg`（−1）承担：负层级压在本页背景之上、流内内容之下 ⇒ **本页不再覆写 z-index**
-   （旧实现曾把它抬到 0、并把下面 `.scroll-wrap` 抬到 1，二者互为补丁；组件 token 化后全站同一机制，
-   首页无需例外 —— UI 统一 Loop Round 5）。
+   （层级由 `--z-page-bg` 统一机制承担，首页无需例外 —— UI 统一 Loop Round 5）。
    ⚠️ 与「吸顶容器切片」的关系（UI 统一 Loop Round 9 核对结论）：切片的 `z-index: -1` 是**相对于
    `.home-sticky` 自己的层叠上下文**（该容器 `position: sticky` + `z-index: var(--z-header)` ⇒ 自成上下文），
    与本层的 `--z-page-bg` **互不影响** ⇒ 页底壁纸层与吸顶切片可并存、**无层叠冲突**。 */

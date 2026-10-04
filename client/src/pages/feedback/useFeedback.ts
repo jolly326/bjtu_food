@@ -1,15 +1,12 @@
 /**
  * useFeedback —— 意见反馈页（pages/feedback/index.vue）编排逻辑
  *
- * 页面定位：**面向小程序本身的通用反馈** ——
- * 反馈类型 3 选 1（程序功能Bug / 产品功能建议 / 其他相关问题）+ 具体描述（≤600 字、占位随类型切换）
- * + 截图（选填 ≤3 张）+ 本地草稿；提交 `POST /feedback`（type ∈ bug / suggestion / other）。
+ * 面向小程序本身的通用反馈：类型 3 选 1（Bug / 建议 / 其他）+ 描述（≤600 字、占位随类型切换）
+ * + 截图（选填）+ 本地草稿；提交 `POST /feedback`。
+ * 「菜品信息纠错」已迁出为独立页面 `pages/correction/`，本页只有一套字段、无表单形态切换。
  *
- * 「菜品信息纠错」**已迁出**为独立页面 `pages/correction/`（仅菜品详情页底栏「反馈错误」进入），
- * 本页因此**只有一套字段**、无表单形态切换。
- *
- * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useFeedback()，
- * 使 onLoad/onUnload/watch 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
+ * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用，使 onLoad/onUnload/watch
+ * 均在组件实例上下文中注册（模块顶层注册会报 "no active component instance"）。
  */
 import { ref, reactive, computed, watch } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
@@ -19,16 +16,10 @@ import { backToHome } from '@/utils/back'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 
-/** 描述字数上限（用户口径：600 字；服务端上限仍为 1000，端上更严） */
+/** 描述字数上限（用户口径 600 字；服务端上限 1000，端上更严） */
 export const CONTENT_MAX = 600
 
 export function useFeedback() {
-  /**
-   * 全页唯一返回实现 = `backToHome`（有返回栈 navigateBack；无返回栈 reLaunch 首页）。
-   * 手动返回与成功态自动返回（scheduleAutoBack）共用本函数，不再各写一份栈判断。
-   */
-  const goBack = backToHome
-
   // ---- ① 表单字段（全页唯一一套） ----
   const form = reactive({
     /** 反馈类型（`''` = 未选；选中值 = FeedbackType，与后端写入值域同源） */
@@ -113,14 +104,13 @@ export function useFeedback() {
   }
 
   function markErrors(errs: Record<string, string>) {
-    Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
+    for (const k of Object.keys(fieldErrors)) delete fieldErrors[k]
     const keys = Object.keys(errs)
     if (!keys.length) return
     keys.forEach((k) => { fieldErrors[k] = errs[k] })
     // 「类型」无独立滚动锚点（表单首屏可见），只登记文案不定位
-    const target = keys[0] === 'form.content' ? 'f-form-content' : ''
     scrollIntoView.value = ''
-    if (target) setTimeout(() => { scrollIntoView.value = target }, 50)
+    if (keys[0] === 'form.content') setTimeout(() => { scrollIntoView.value = 'f-form-content' }, 50)
   }
 
   // ---- ⑤ 提交（防重复；成功 Toast「已提交，感谢反馈」+ 2 秒自动返回） ----
@@ -180,7 +170,7 @@ export function useFeedback() {
 
   function scheduleAutoBack() {
     if (backTimer) clearTimeout(backTimer)
-    backTimer = setTimeout(goBack, 2000)
+    backTimer = setTimeout(backToHome, 2000)
   }
 
   function cancelAutoBack() {
@@ -197,7 +187,8 @@ export function useFeedback() {
 
   /** 供页面模板/模板回调使用的全部编排绑定 */
   return {
-    goBack,
+    /** 全页唯一返回实现（有返回栈 navigateBack；无返回栈 reLaunch 首页），手动与自动返回共用 */
+    goBack: backToHome,
     form,
     typePlaceholder,
     onPickType,
