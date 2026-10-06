@@ -201,7 +201,9 @@ async function save(): Promise<void> {
     ElMessage.warning('现价须大于 0')
     return
   }
-  const originalPrice = form.value.originalPriceYuan ? yuanToFen(form.value.originalPriceYuan) : null
+  const originalPrice = form.value.originalPriceYuan
+    ? yuanToFen(form.value.originalPriceYuan)
+    : null
   if (originalPrice != null && originalPrice <= price) {
     ElMessage.warning('原价须大于现价')
     return
@@ -334,7 +336,12 @@ onMounted(async () => {
     </div>
 
     <div class="card filters">
-      <input class="form-input" v-model="fKeyword" placeholder="菜品名" @keyup.enter="reloadFirstPage" />
+      <input
+        class="form-input"
+        v-model="fKeyword"
+        placeholder="菜品名"
+        @keyup.enter="reloadFirstPage"
+      />
       <select class="form-input" v-model.number="fCanteenId" @change="reloadFirstPage">
         <option :value="0">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
@@ -390,7 +397,9 @@ onMounted(async () => {
             </td>
             <td>{{ row.name }}</td>
             <td class="num">{{ formatYuan(row.price) }}</td>
-            <td class="num">{{ row.originalPrice == null ? '—' : formatYuan(row.originalPrice) }}</td>
+            <td class="num">
+              {{ row.originalPrice == null ? '—' : formatYuan(row.originalPrice) }}
+            </td>
             <td>{{ row.canteenName }} / {{ row.stallName }}</td>
             <td>{{ row.mealTypeLabel || row.mealType || '—' }}</td>
             <td><StatusTag :status="row.status" kind="dish" /></td>
@@ -414,7 +423,13 @@ onMounted(async () => {
         </tbody>
       </table>
 
-      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
+      <Pager
+        :total="total"
+        :page="page"
+        :page-count="pageCount"
+        @prev="prevPage"
+        @next="nextPage"
+      />
     </div>
 
     <!-- 编辑：含图片 + 动态属性子表单 ⇒ 抽屉 -->
@@ -427,22 +442,41 @@ onMounted(async () => {
         <label for="dish-stall">所属档口</label>
         <select id="dish-stall" class="form-input" v-model.number="form.stallId">
           <option :value="0" disabled>请选择</option>
-          <option v-for="s in stalls" :key="s.id" :value="s.id">{{ s.canteenName }} · {{ s.name }}</option>
+          <option v-for="s in stalls" :key="s.id" :value="s.id">
+            {{ s.canteenName }} · {{ s.name }}
+          </option>
         </select>
       </div>
       <div class="row2">
         <div class="field">
           <label for="dish-price">现价（元）</label>
-          <input id="dish-price" class="form-input" type="number" step="0.01" v-model="form.priceYuan" />
+          <input
+            id="dish-price"
+            class="form-input"
+            type="number"
+            step="0.01"
+            v-model="form.priceYuan"
+          />
         </div>
         <div class="field">
           <label for="dish-original-price">原价（元，可空）</label>
-          <input id="dish-original-price" class="form-input" type="number" step="0.01" v-model="form.originalPriceYuan" />
+          <input
+            id="dish-original-price"
+            class="form-input"
+            type="number"
+            step="0.01"
+            v-model="form.originalPriceYuan"
+          />
         </div>
       </div>
       <div class="field">
         <label for="dish-meal-type">菜品分类</label>
-        <input id="dish-meal-type" class="form-input" v-model="form.mealType" placeholder="如 主食 / 饮品；可填新分类，保存时自动登记" />
+        <input
+          id="dish-meal-type"
+          class="form-input"
+          v-model="form.mealType"
+          placeholder="如 主食 / 饮品；可填新分类，保存时自动登记"
+        />
       </div>
       <div class="field">
         <label for="dish-description">描述</label>
@@ -491,7 +525,9 @@ onMounted(async () => {
         <label for="copy-name">新菜品名称</label>
         <input id="copy-name" class="form-input" v-model="copyName" @keyup.enter="submitCopy" />
       </div>
-      <p class="hint">其余字段（价格 / 分类 / 属性 / 图片）全部复制源菜品；**副本默认下架**，确认内容后再上架。</p>
+      <p class="hint">
+        其余字段（价格 / 分类 / 属性 / 图片）全部复制源菜品；**副本默认下架**，确认内容后再上架。
+      </p>
       <template #actions>
         <button class="btn-secondary" type="button" @click="copyOpen = false">取消</button>
         <button class="btn-primary" type="button" :disabled="copying" v-press @click="submitCopy">

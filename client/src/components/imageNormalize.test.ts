@@ -135,7 +135,7 @@ describe('normalizeImage · 尺寸超限', () => {
 
   it('尺寸读取失败 → 不阻断，交大小校验兜底', async () => {
     const { a } = adapters({
-      compress: async (src, o) => (o.quality ? 'q80' : ''),
+      compress: async (_src, o) => (o.quality ? 'q80' : ''),
       sizes: { q80: 100 * 1024 },
     })
     const bad: ImageNormalizeAdapters = {
@@ -150,7 +150,7 @@ describe('normalizeImage · 尺寸超限', () => {
   it('缩边无产出 → 保持当前图（低基础库不支持）', async () => {
     const { a } = adapters({
       dims: { q80: { width: 3000, height: 3000 } },
-      compress: async (src, o) => (o.compressedWidth ? '' : 'q80'),
+      compress: async (_src, o) => (o.compressedWidth ? '' : 'q80'),
       sizes: { q80: 100 * 1024 },
     })
     expect(await normalizeImage({ path: 'p1', size: 0 }, a)).toBe('q80')
@@ -183,7 +183,7 @@ describe('normalizeImage · 降质阶梯', () => {
 
   it('降质无产出 → 停止并按超限抛错', async () => {
     const { a } = adapters({
-      compress: async (src, o) => (o.quality === 80 ? 'q80' : ''),
+      compress: async (_src, o) => (o.quality === 80 ? 'q80' : ''),
       sizes: { q80: 2 * ONE_MB },
     })
     await expect(normalizeImage({ path: 'p1', size: 2 * ONE_MB }, a)).rejects.toThrow('图片过大')
@@ -217,7 +217,7 @@ describe('normalizeImage · 降质阶梯', () => {
 describe('normalizeImage · 容错', () => {
   it('首压抛错 → 用原图继续（网络抖动不该让用户选不了图）', async () => {
     const { a, calls } = adapters({
-      compress: async (src, o) => {
+      compress: async (_src, o) => {
         if (o.quality === 80) throw new Error('compress fail')
         return 'q60'
       },

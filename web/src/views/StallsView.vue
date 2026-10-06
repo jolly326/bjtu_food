@@ -185,7 +185,12 @@ onMounted(async () => {
       </div>
       <div class="field">
         <label for="stall-window">窗口号</label>
-        <input id="stall-window" class="form-input" v-model="form.windowNo" placeholder="如 3号窗口" />
+        <input
+          id="stall-window"
+          class="form-input"
+          v-model="form.windowNo"
+          placeholder="如 3号窗口"
+        />
       </div>
       <template #actions>
         <button class="btn-secondary" type="button" @click="open = false">取消</button>

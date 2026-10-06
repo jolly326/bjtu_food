@@ -10,6 +10,7 @@ import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.notification.dto.NotificationCmd;
 import com.bjtufood.notification.service.NotificationService;
+import com.bjtufood.notification.util.NotificationUtil;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.review.dto.MyReviewVO;
@@ -40,6 +41,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
+
+    private static final int MAX_REVIEW_CONTENT_LEN = 500;
 
     private final ReviewMapper reviewMapper;
     /**
@@ -118,7 +121,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     public Long submitReview(Long userId, Long dishId, ReviewReq req) {
         // 防御性拦截：评论内容为空或超长（@Valid 已做基础校验，此处兜底防止绕过）
-        if (req.getContent() != null && req.getContent().length() > 500) {
+        if (req.getContent() != null && req.getContent().length() > MAX_REVIEW_CONTENT_LEN) {
             throw new BusinessException("评论内容不能超过500字");
         }
         // 唯一键 uk_review_user_dish：至多一条，取已有行决定 INSERT / 覆盖
@@ -385,11 +388,7 @@ public class ReviewServiceImpl implements ReviewService {
         if (userId == null || userId <= 0) {
             return;
         }
-        try {
-            notificationService.notify(new NotificationCmd(userId, title, content));
-        } catch (Exception ignored) {
-            // 回执失败不阻塞处置；真正的失败由 NotificationServiceImpl#notify 内部记 error 日志，不静默
-        }
+        NotificationUtil.notifySafe(notificationService, new NotificationCmd(userId, title, content));
     }
 
     /** 隐藏附注规范化：trim；空白视为未填（null） */

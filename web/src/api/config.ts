@@ -16,8 +16,7 @@
  */
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080/api/v1'
 
-export const API_BASE_URL: string =
-  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
 /**
  * 🔴 本模块**只放构建期配置**，不放任何凭证。

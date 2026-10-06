@@ -135,7 +135,7 @@ async function remove(row: ReportReasonAdminVO): Promise<void> {
 }
 
 /* ==================== 拖拽排序（提交全量行） ==================== */
-const { dragIndex, onDragStart, onDrop } = useReorder(items, sortReportReasons, load)
+const { onDragStart, onDrop } = useReorder(items, sortReportReasons, load)
 
 onMounted(() => load())
 </script>
@@ -180,7 +180,9 @@ onMounted(() => load())
           >
             <td class="drag-col" title="拖拽排序">⋮⋮</td>
             <td>{{ row.label }}</td>
-            <td><code>{{ row.value }}</code></td>
+            <td>
+              <code>{{ row.value }}</code>
+            </td>
             <td class="num">{{ row.feedbackCount }}</td>
             <td><StatusTag :status="row.status" kind="onoff" /></td>
             <td class="muted">{{ row.updatedAt }}</td>
@@ -203,12 +205,22 @@ onMounted(() => load())
     <BaseModal title="新建举报原因" :open="createOpen" @close="createOpen = false">
       <div class="field">
         <label for="rr-new-value">机器值</label>
-        <input id="rr-new-value" class="form-input" v-model="newValue" placeholder="小写字母 / 数字 / -（如 spam）" />
+        <input
+          id="rr-new-value"
+          class="form-input"
+          v-model="newValue"
+          placeholder="小写字母 / 数字 / -（如 spam）"
+        />
         <div class="hint">全站唯一，**在用后不可修改**</div>
       </div>
       <div class="field">
         <label for="rr-new-label">中文标签</label>
-        <input id="rr-new-label" class="form-input" v-model="newLabel" placeholder="如 垃圾广告 / 营销刷屏" />
+        <input
+          id="rr-new-label"
+          class="form-input"
+          v-model="newLabel"
+          placeholder="如 垃圾广告 / 营销刷屏"
+        />
       </div>
       <template #actions>
         <button class="btn-secondary" type="button" @click="createOpen = false">取消</button>
@@ -222,7 +234,12 @@ onMounted(() => load())
     <BaseModal title="原因改名" :open="renameOpen" @close="renameOpen = false">
       <div class="field">
         <label for="rr-rename-label">中文标签</label>
-        <input id="rr-rename-label" class="form-input" v-model="renameLabel" @keyup.enter="submitRename" />
+        <input
+          id="rr-rename-label"
+          class="form-input"
+          v-model="renameLabel"
+          @keyup.enter="submitRename"
+        />
       </div>
       <p class="hint">改名免费：历史举报的「原因」会同步显示新文案（数据锚在机器值）。</p>
       <template #actions>

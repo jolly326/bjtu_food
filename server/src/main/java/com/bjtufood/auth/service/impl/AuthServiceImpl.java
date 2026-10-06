@@ -24,12 +24,9 @@ import com.bjtufood.auth.event.UserAccountClosedEvent;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -53,7 +50,6 @@ public class AuthServiceImpl implements AuthService {
     private final VerifyCodePersister verifyCodePersister;
     private final EmailVerificationCodeMapper emailVerificationCodeMapper;
     private final EmailCodeService emailCodeService;
-    private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final WechatService wechatService;
     /**

@@ -135,7 +135,12 @@ onMounted(() => reloadFirstPage())
         <option value="add">新增菜品</option>
         <option value="error">信息有误</option>
       </select>
-      <input class="form-input" v-model="fKeyword" placeholder="内容 / 回复" @keyup.enter="reloadFirstPage" />
+      <input
+        class="form-input"
+        v-model="fKeyword"
+        placeholder="内容 / 回复"
+        @keyup.enter="reloadFirstPage"
+      />
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
     </div>
@@ -182,7 +187,12 @@ onMounted(() => reloadFirstPage())
             </td>
             <td class="muted">{{ row.createdAt }}</td>
             <td class="actions">
-              <button v-if="row.status === 'pending'" class="link" type="button" @click="openHandle(row)">
+              <button
+                v-if="row.status === 'pending'"
+                class="link"
+                type="button"
+                @click="openHandle(row)"
+              >
                 处理
               </button>
               <span v-else class="muted">已处理</span>
@@ -191,13 +201,21 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
+      <Pager
+        :total="total"
+        :page="page"
+        :page-count="pageCount"
+        @prev="prevPage"
+        @next="nextPage"
+      />
     </div>
 
     <!-- 处置抽屉：只读内容区 + 结论 + 回复 + 不采纳原因 -->
     <BaseDrawer title="处理反馈" :open="open" @close="open = false">
       <div class="ctx">
-        <div class="ctx-label">{{ typeLabel(current?.type ?? '') }} · {{ current?.userNickname || '游客' }}</div>
+        <div class="ctx-label">
+          {{ typeLabel(current?.type ?? '') }} · {{ current?.userNickname || '游客' }}
+        </div>
         <div class="ctx-body">{{ current?.content }}</div>
         <div v-if="current?.images?.length" class="thumbs ctx-thumbs">
           <img v-for="(img, i) in current.images" :key="i" :src="img" alt="" />
@@ -250,7 +268,13 @@ onMounted(() => reloadFirstPage())
 
       <template #actions>
         <button class="btn-secondary" type="button" @click="open = false">取消</button>
-        <button class="btn-primary" type="button" :disabled="submitting" v-press @click="submitHandle">
+        <button
+          class="btn-primary"
+          type="button"
+          :disabled="submitting"
+          v-press
+          @click="submitHandle"
+        >
           {{ submitting ? '提交中…' : '提交处置' }}
         </button>
       </template>

@@ -11,9 +11,7 @@ import type {
  * - `category=feedback` → 意见反馈列表（B2）
  * - `category=report` → 举报列表（B3）
  */
-export function listFeedbacks(
-  params: FeedbackListParams,
-): Promise<AdminPage<FeedbackAdminVO>> {
+export function listFeedbacks(params: FeedbackListParams): Promise<AdminPage<FeedbackAdminVO>> {
   return getAdminPage<FeedbackAdminVO>('/admin/feedbacks', params)
 }
 

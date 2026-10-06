@@ -45,7 +45,14 @@ function remove(i: number): void {
   <div class="img-upload" role="group" :aria-label="ariaLabel ?? '图片上传'">
     <div class="thumb" v-for="(u, i) in modelValue" :key="i">
       <img :src="u" alt="" />
-      <button class="thumb-del" type="button" :aria-label="`删除${ariaLabel ?? '图片'} ${i + 1}`" @click="remove(i)">×</button>
+      <button
+        class="thumb-del"
+        type="button"
+        :aria-label="`删除${ariaLabel ?? '图片'} ${i + 1}`"
+        @click="remove(i)"
+      >
+        ×
+      </button>
     </div>
     <button
       class="thumb add"

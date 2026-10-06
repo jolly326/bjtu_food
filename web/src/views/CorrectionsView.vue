@@ -204,7 +204,10 @@ onMounted(() => reloadFirstPage())
           :aria-selected="fType === t.value"
           :class="{ active: fType === t.value }"
           v-press
-          @click="fType = t.value; reloadFirstPage()"
+          @click="
+            fType = t.value
+            reloadFirstPage()
+          "
         >
           {{ t.label }}
         </button>
@@ -218,7 +221,12 @@ onMounted(() => reloadFirstPage())
         <option value="adopted">已采纳</option>
         <option value="rejected">已拒绝</option>
       </select>
-      <input class="form-input" v-model="fDishId" placeholder="菜品 ID" @keyup.enter="reloadFirstPage" />
+      <input
+        class="form-input"
+        v-model="fDishId"
+        placeholder="菜品 ID"
+        @keyup.enter="reloadFirstPage"
+      />
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
     </div>
@@ -285,7 +293,13 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
+      <Pager
+        :total="total"
+        :page="page"
+        :page-count="pageCount"
+        @prev="prevPage"
+        @next="nextPage"
+      />
     </div>
 
     <!-- 处置抽屉：`field` = 差异对照（逐项勾选）；`gone` = 反馈佐证（说明 / 图片 / 人数） -->
@@ -382,9 +396,17 @@ onMounted(() => reloadFirstPage())
         </div>
 
         <!-- 档口两段式确认（仅 `field` 型采纳了档口名时才触发） -->
-        <div v-if="outcome === 'adopted' && !isGone && needStallConfirm" class="field stall-confirm">
+        <div
+          v-if="outcome === 'adopted' && !isGone && needStallConfirm"
+          class="field stall-confirm"
+        >
           <label for="corr-stall">档口归属确认</label>
-          <select id="corr-stall" class="form-input" v-model.number="chosenStallId" :disabled="createIfMissing">
+          <select
+            id="corr-stall"
+            class="form-input"
+            v-model.number="chosenStallId"
+            :disabled="createIfMissing"
+          >
             <option v-for="c in candidates" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
           <label class="check-line">
@@ -394,8 +416,15 @@ onMounted(() => reloadFirstPage())
         </div>
 
         <div v-if="outcome === 'rejected'" class="field">
-          <label for="corr-reject-reason">{{ isGone ? '仍在售的原因（必填，≤200 字）' : '不采纳原因（必填，≤200 字）' }}</label>
-          <input id="corr-reject-reason" class="form-input" v-model="rejectReason" maxlength="200" />
+          <label for="corr-reject-reason">{{
+            isGone ? '仍在售的原因（必填，≤200 字）' : '不采纳原因（必填，≤200 字）'
+          }}</label>
+          <input
+            id="corr-reject-reason"
+            class="form-input"
+            v-model="rejectReason"
+            maxlength="200"
+          />
         </div>
 
         <div class="field">

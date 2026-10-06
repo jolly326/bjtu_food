@@ -121,7 +121,13 @@ onMounted(() => load())
     <BaseModal :title="title" :open="open" @close="open = false">
       <div class="field">
         <label for="canteen-name">食堂名称</label>
-        <input id="canteen-name" class="form-input" v-model="name" placeholder="如 学一食堂" @keyup.enter="save" />
+        <input
+          id="canteen-name"
+          class="form-input"
+          v-model="name"
+          placeholder="如 学一食堂"
+          @keyup.enter="save"
+        />
       </div>
       <template #actions>
         <button class="btn-secondary" type="button" @click="open = false">取消</button>

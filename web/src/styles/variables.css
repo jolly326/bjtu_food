@@ -10,9 +10,9 @@
      端上取「白字安全橙」#B4531A（其上白字对比 5.01:1 ≥4.5；同时 ≥3:1 可作图形色）；
      hover 提亮用小程序图形档 #E67E22，active 加深沿用 #9A3412。
      注：深色主题的**文字档**仍取提亮值（见下 --color-primary-text），套用端上浅色档会在深底不达标。 */
-  --color-primary: #B4531A;
-  --color-primary-light: #E67E22;        /* hover 提亮（图形档橙） */
-  --color-primary-dark: #9A3412;         /* active 加深 */
+  --color-primary: #b4531a;
+  --color-primary-light: #e67e22; /* hover 提亮（图形档橙） */
+  --color-primary-dark: #9a3412; /* active 加深 */
   --color-primary-bg: rgba(180, 83, 26, 0.12);
   /* ===== 主色「文字档」（浅底 / 深底上的主色文字；与小程序端同名 token）=====
      分工口径（与端上一致）：**填充底（承载白字）用 --color-primary**；
@@ -22,40 +22,40 @@
      取值 #F97316 实测：对 --bg-card #1F1F1F **5.88:1**、对 --color-primary-bg（叠于 card）**5.36:1**、
      对 primary-bg 叠最亮底（--bg-soft #2B2B2B）**4.63:1** —— 各底均 ≥4.5:1。
      命名与 --color-primary-light / -dark 同风格。 */
-  --color-primary-text: #F97316;
-  --color-on-primary: #FFFFFF;           /* 主色上的文字（白字，保证深朱砂红底对比） */
-  --color-star: #FBBF24;                 /* 星级（语义色） */
+  --color-primary-text: #f97316;
+  --color-on-primary: #ffffff; /* 主色上的文字（白字，保证深朱砂红底对比） */
+  --color-star: #fbbf24; /* 星级（语义色） */
 
   /* ===== 状态色（功能语义，深色下提亮） ===== */
-  --color-success: #4ADE80;
+  --color-success: #4ade80;
   --color-success-bg: rgba(74, 222, 128, 0.12);
-  --color-warning: #FBBF24;
+  --color-warning: #fbbf24;
   /* 实底 + 白字（hover 按钮）专用更深档，两态同值：保证白字 ≥5:1，同时保留鲜亮态用于标签文字/描边 */
-  --color-success-hover: #15803D;
-  --color-error-hover: #C81E1E;
+  --color-success-hover: #15803d;
+  --color-error-hover: #c81e1e;
   --color-warning-bg: rgba(251, 191, 36, 0.12);
-  --color-error: #F87171;
+  --color-error: #f87171;
   --color-error-bg: rgba(248, 113, 113, 0.12);
 
   /* ===== 文字色（浅色灰阶，深底对比 >4.5:1） ===== */
-  --text-primary: #F0F0F0;
-  --text-secondary: #B5B5B5;
+  --text-primary: #f0f0f0;
+  --text-secondary: #b5b5b5;
   --text-muted: #959595;
-  --text-light: #8A8A8A;
-  --text-white: #FFFFFF;
+  --text-light: #8a8a8a;
+  --text-white: #ffffff;
 
   /* ===== 背景（近黑 / 深灰） ===== */
   --bg-page: #141414;
-  --bg-card: #1F1F1F;
-  --bg-soft: #2B2B2B;
+  --bg-card: #1f1f1f;
+  --bg-soft: #2b2b2b;
   --bg-hover: #262626;
   --bg-gray: #333333;
 
   /* ===== 边框 / 分隔线（深灰，提亮保证可见） ===== */
-  --border-color: #6B6B6B;
+  --border-color: #6b6b6b;
   --border-light: #303030;
-  --border-strong: #7A7A80;
-  --border-soft: #2C2C2C;
+  --border-strong: #7a7a80;
+  --border-soft: #2c2c2c;
 
   /* ===== 圆角（适中，沉稳；UI-06：卡片 16px） ===== */
   --radius-xs: 4px;
@@ -66,14 +66,14 @@
   --radius-pill: 999px;
 
   /* ===== 价格色（归中性，浅色） ===== */
-  --color-price: #F0F0F0;
-  --color-price-soft: #2A2A2A;
-  --color-warning-soft: rgba(251, 191, 36, 0.10);
+  --color-price: #f0f0f0;
+  --color-price-soft: #2a2a2a;
+  --color-warning-soft: rgba(251, 191, 36, 0.1);
 
   /* ===== 阴影（深色下加深） ===== */
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.40);
-  --shadow-hover: 0 6px 16px rgba(0,0,0,0.50);
-  --shadow-pop: 0 12px 32px rgba(0,0,0,0.60);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.6);
 
   /* ===== 材质 ===== */
   --blur-material: blur(20px) saturate(180%);
@@ -101,7 +101,8 @@
   --btn-secondary-text: var(--text-secondary);
   --btn-secondary-hover-border: var(--border-strong);
   --btn-secondary-hover-text: var(--text-primary);
-  --press-transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out),
+  --press-transition:
+    transform 160ms var(--ease-out), opacity 160ms var(--ease-out),
     box-shadow 160ms var(--ease-out), background 200ms var(--ease-out),
     border-color 200ms var(--ease-out), color 200ms var(--ease-out);
 
@@ -145,20 +146,20 @@
   --nav-blur: blur(20px) saturate(180%);
   --nav-height: 56px;
   --nav-item-active-bg: rgba(232, 232, 232, 0.12);
-  --nav-item-active-color: #E8E8E8;
+  --nav-item-active-color: #e8e8e8;
 
   /* ===== Component 层 token ===== */
   /* 数据表格：表头略亮区分 + 行分隔线可见 */
-  --table-header-bg: #2A2A2A;
-  --table-row-hover: #2A2A2A;   /* 深色下需明显亮于卡片 #1F1F1F */
+  --table-header-bg: #2a2a2a;
+  --table-row-hover: #2a2a2a; /* 深色下需明显亮于卡片 #1F1F1F */
   --table-row-active: rgba(232, 232, 232, 0.08);
-  --table-border: #2E2E2E;
+  --table-border: #2e2e2e;
   --table-th-padding: var(--space-3) var(--space-4);
   --table-td-padding: var(--space-3) var(--space-4);
   /* 聚合 tab */
   --agg-tabs-bg: rgba(255, 255, 255, 0.06);
-  --agg-tab-active-bg: #2E2E2E;
-  --agg-tab-active-shadow: 0 1px 2px rgba(0,0,0,0.40);
+  --agg-tab-active-bg: #2e2e2e;
+  --agg-tab-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   /* 卡片 hover 抬升 */
   --card-hover-shadow: var(--shadow-hover);
   /* --stat-icon-lg / --stat-icon-md 随 StatCard 的 inline 变体一并删除
@@ -172,53 +173,53 @@
  * ============================================================ */
 @media (prefers-color-scheme: light) {
   :root {
-    --color-primary: #B4531A;            /* 浅色主题主色（白字安全橙） */
-    --color-primary-light: #E67E22;      /* hover 提亮（图形档橙） */
-    --color-primary-dark: #9A3412;       /* active 加深 */
-    --color-primary-bg: rgba(180, 83, 26, 0.10);
+    --color-primary: #b4531a; /* 浅色主题主色（白字安全橙） */
+    --color-primary-light: #e67e22; /* hover 提亮（图形档橙） */
+    --color-primary-dark: #9a3412; /* active 加深 */
+    --color-primary-bg: rgba(180, 83, 26, 0.1);
     /* 文字档（浅色主题，与小程序端同值 #B4531A）：对白卡 #FFFFFF 5.01:1 /
        对 --color-primary-bg（叠于白卡）≈4.6:1 / 对页底 #F5F5F5 ≈4.7:1，均 ≥4.5:1 */
-    --color-primary-text: #B4531A;
-    --color-on-primary: #FFFFFF;
+    --color-primary-text: #b4531a;
+    --color-on-primary: #ffffff;
 
-    --text-primary: #1F1F1F;
-    --text-secondary: #4A4A4A;
-    --text-muted: #6E6E6E;
-    --text-light: #8A8A8A;
-    --text-white: #1F1F1F;
+    --text-primary: #1f1f1f;
+    --text-secondary: #4a4a4a;
+    --text-muted: #6e6e6e;
+    --text-light: #8a8a8a;
+    --text-white: #1f1f1f;
     /* 浅色态显式落地状态色（此前继承深态 #4ADE80/#F87171，实底白字仅 ≈1.7:1 不达标）：
        加深后白字 on 该色 ≥5:1（见 设计变量.md §2.5 ③） */
-    --color-success: #15803D;
-    --color-error: #C81E1E;
-    --color-warning: #B45309;
+    --color-success: #15803d;
+    --color-error: #c81e1e;
+    --color-warning: #b45309;
 
-    --bg-page: #F5F5F5;
-    --bg-card: #FFFFFF;
-    --bg-soft: #F0F0F0;
-    --bg-hover: #ECECEC;
-    --bg-gray: #E0E0E0;
+    --bg-page: #f5f5f5;
+    --bg-card: #ffffff;
+    --bg-soft: #f0f0f0;
+    --bg-hover: #ececec;
+    --bg-gray: #e0e0e0;
 
-    --border-color: #8A8A90;
-    --border-light: #E6E6E6;
-    --border-strong: #7A7A80;
-    --border-soft: #EDEDED;
+    --border-color: #8a8a90;
+    --border-light: #e6e6e6;
+    --border-strong: #7a7a80;
+    --border-soft: #ededed;
 
-    --color-price: #1F1F1F;
-    --color-price-soft: #F0F0F0;
+    --color-price: #1f1f1f;
+    --color-price-soft: #f0f0f0;
 
-    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.10);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.14);
     --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.18);
 
-    --table-header-bg: #F0F0F0;
-    --table-row-hover: #F5F5F5;
+    --table-header-bg: #f0f0f0;
+    --table-row-hover: #f5f5f5;
     --table-row-active: rgba(43, 43, 43, 0.08);
-    --table-border: #E6E6E6;
+    --table-border: #e6e6e6;
 
     --agg-tabs-bg: rgba(0, 0, 0, 0.05);
-    --agg-tab-active-bg: #FFFFFF;
-    --nav-bg: color-mix(in srgb, #FFFFFF 82%, transparent);
-    --nav-item-active-bg: rgba(43, 43, 43, 0.10);
-    --nav-item-active-color: #2B2B2B;
+    --agg-tab-active-bg: #ffffff;
+    --nav-bg: color-mix(in srgb, #ffffff 82%, transparent);
+    --nav-item-active-bg: rgba(43, 43, 43, 0.1);
+    --nav-item-active-color: #2b2b2b;
   }
 }

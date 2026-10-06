@@ -69,13 +69,7 @@ const groups: NavGroup[] = [
       <nav class="nav">
         <div v-for="g in groups" :key="g.title" class="nav-group">
           <div class="nav-group-title">{{ g.title }}</div>
-          <RouterLink
-            v-for="item in g.items"
-            :key="item.to"
-            :to="item.to"
-            class="nav-item"
-            v-press
-          >
+          <RouterLink v-for="item in g.items" :key="item.to" :to="item.to" class="nav-item" v-press>
             {{ item.label }}
           </RouterLink>
         </div>
@@ -171,7 +165,9 @@ const groups: NavGroup[] = [
   text-decoration: none;
   font-size: var(--font-base);
   font-weight: var(--weight-medium);
-  transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
+  transition:
+    background 0.2s var(--ease-out),
+    color 0.2s var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .nav-item:hover {

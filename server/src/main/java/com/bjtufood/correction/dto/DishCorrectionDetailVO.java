@@ -5,7 +5,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 纠错**详情**（{@code GET /admin/corrections/{id}}）：列表字段 + 差异对照 + 提交快照。

@@ -33,6 +33,7 @@ import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.notification.dto.NotificationCmd;
 import com.bjtufood.notification.service.NotificationService;
+import com.bjtufood.notification.util.NotificationUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -997,16 +998,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (userId == null || userId == ANONYMOUS_USER_ID) {
             return;
         }
-        try {
-            String body = receiptBody(outcome, gone, reply, adoptedLabels, rejectedLabels, rejectReason);
-            notificationService.notify(new NotificationCmd(userId, receiptTitle(outcome, gone), body));
-        } catch (Exception ignored) {
-            // 回执失败不阻塞处理流程
-            //
-            // 边界说明：与 FeedbackServiceImpl 同源 —— 本 catch 只拦得住「提交任务」阶段的异常，
-            // 拦不住「异步线程内写库失败」（@Async 异常不回传）。真正的失败由
-            // NotificationServiceImpl#notify 内部 catch 记 error 日志，不静默。
-        }
+        String body = receiptBody(outcome, gone, reply, adoptedLabels, rejectedLabels, rejectReason);
+        NotificationUtil.notifySafe(notificationService, new NotificationCmd(userId, receiptTitle(outcome, gone), body));
     }
 
     /** 回执标题（按结论 + `type` 分派；口径见 B4 功能文档「回执文案」） */

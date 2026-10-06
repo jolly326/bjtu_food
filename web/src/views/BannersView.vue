@@ -98,7 +98,7 @@ async function remove(row: BannerAdminVO): Promise<void> {
 }
 
 /* ==================== 拖拽排序（提交全量行） ==================== */
-const { dragIndex, onDragStart, onDrop } = useReorder(items, sortBanners, load)
+const { onDragStart, onDrop } = useReorder(items, sortBanners, load)
 
 onMounted(() => load())
 </script>
@@ -150,7 +150,12 @@ onMounted(() => load())
     <BaseDrawer :title="title" :open="open" @close="open = false">
       <div class="field">
         <label>Banner 图片</label>
-        <ImageUpload v-model="bannerImages" :max="1" ratio-hint="建议 750×320" :aria-label="'Banner 图片'" />
+        <ImageUpload
+          v-model="bannerImages"
+          :max="1"
+          ratio-hint="建议 750×320"
+          :aria-label="'Banner 图片'"
+        />
         <div class="hint">单张、建议比例 750:320；上传成功后地址由服务端返回</div>
       </div>
       <template #actions>
