@@ -83,6 +83,10 @@ class PublicPathWhitelistTest {
     @MockBean
     private com.bjtufood.common.ratelimit.IpRateLimiter ipRateLimiter;
 
+    /** AdminAuthFilter 依赖账号回查（凭证吊销，TD-25）；切片打桩避免上下文缺 bean */
+    @MockBean
+    private com.bjtufood.auth.service.AdminAccountService adminAccountService;
+
     /**
      * 核心用例：游客（无 Authorization 头）访问 {@code GET /dishes} 必须放行。
      * <p>

@@ -98,7 +98,7 @@ export interface paths {
     get: operations["getDish"];
     /**
      * 编辑菜品
-     * @description 用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端口令鉴权（AdminTokenFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。
+     * @description 用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端 JWT 鉴权（AdminAuthFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。
      */
     put: operations["updateDish"];
     /**
@@ -176,7 +176,7 @@ export interface paths {
   "/admin/corrections/{id}": {
     /**
      * 问题反馈详情
-     * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**）+ submitted 提交快照，供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences/submitted 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
+     * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**），供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
      */
     get: operations["detail"];
     /**
@@ -426,6 +426,13 @@ export interface paths {
      */
     post: operations["create_2"];
   };
+  "/admin/auth/login": {
+    /**
+     * 管理员账密登录
+     * @description 公开端点。账号密码正确后签发管理端 JWT（默认 24h 有效）。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。同 IP 限频 5/分 · 20/时。
+     */
+    post: operations["login"];
+  };
   "/report-reasons": {
     /**
      * 举报原因字典
@@ -478,7 +485,7 @@ export interface paths {
   "/dishes/{id}/attributes": {
     /**
      * 菜品描述属性编辑态选项（按菜现有维度）
-     * @description 用途：菜品纠错 / 编辑界面的属性表单（进编辑时才取，按需）。
+     * @description 用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
      * 只返回**该菜现有维度**的候选值：每项含 fieldKey（维度键，与 GET /dishes/{id} 的
      * attributes[].fieldKey 对齐）/ valueType（single|multi）/
      * options（该维度全部候选值，按 order 升序；每项 valueKey / label）。
@@ -557,6 +564,13 @@ export interface paths {
      * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
      */
     get: operations["list_5"];
+  };
+  "/admin/auth/me": {
+    /**
+     * 读取当前登录的管理员
+     * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效。
+     */
+    get: operations["me"];
   };
   "/reviews/{id}": {
     /**
@@ -1725,6 +1739,32 @@ export interface components {
       message?: string;
       data?: components["schemas"]["BannerAdminVO"];
     };
+    AdminLoginReq: {
+      username: string;
+      password: string;
+    };
+    /** @description 数据 */
+    AdminLoginVO: {
+      token?: string;
+      username?: string;
+      /** Format: int64 */
+      expiresIn?: number;
+    };
+    /** @description 统一响应结果 */
+    ResultAdminLoginVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminLoginVO"];
+    };
     /** @description 举报原因字典项 */
     ReportReasonVO: {
       /**
@@ -1908,7 +1948,7 @@ export interface components {
        * @example 牛肉拉面
        */
       name?: string;
-      /** @description 封面图URL（原 images[0]，无图为空串） */
+      /** @description 封面图URL（取 images[0]，无图为空串） */
       coverImage?: string;
       /**
        * Format: int32
@@ -2880,7 +2920,7 @@ export interface components {
       message?: string;
       data?: components["schemas"]["AdminPageResultDishCorrectionAdminVO"];
     };
-    /** @description 菜品纠错详情（含差异对照） */
+    /** @description 菜品问题反馈详情（含差异对照） */
     DishCorrectionDetailVO: {
       /**
        * Format: int64
@@ -2926,10 +2966,6 @@ export interface components {
       goneUserCount?: number;
       /** @description 差异对照清单（仅仍有差异的项） */
       differences?: components["schemas"]["DishCorrectionDifferenceVO"][];
-      /** @description 用户提交的原始快照（仅改动项：name/price/canteenName/stallName/floor/attributes/images） */
-      submitted?: {
-        [key: string]: Record<string, never>;
-      };
       /** @description 提交的菜品图片 URL 列表（COS 绝对地址） */
       images?: string[];
       /** @description 处理回复 */
@@ -2996,6 +3032,26 @@ export interface components {
       message?: string;
       /** @description 数据 */
       data?: components["schemas"]["BannerAdminVO"][];
+    };
+    /** @description 数据 */
+    AdminMeVO: {
+      username?: string;
+      lastLoginAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultAdminMeVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminMeVO"];
     };
   };
   responses: never;
@@ -3683,7 +3739,7 @@ export interface operations {
   };
   /**
    * 编辑菜品
-   * @description 用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端口令鉴权（AdminTokenFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。
+   * @description 用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端 JWT 鉴权（AdminAuthFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。
    */
   updateDish: {
     parameters: {
@@ -4284,7 +4340,7 @@ export interface operations {
   };
   /**
    * 问题反馈详情
-   * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**）+ submitted 提交快照，供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences/submitted 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
+   * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**），供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
    */
   detail: {
     parameters: {
@@ -6022,6 +6078,49 @@ export interface operations {
     };
   };
   /**
+   * 管理员账密登录
+   * @description 公开端点。账号密码正确后签发管理端 JWT（默认 24h 有效）。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。同 IP 限频 5/分 · 20/时。
+   */
+  login: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminLoginReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultAdminLoginVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
    * 举报原因字典
    * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂「反馈提交」下语义错位）→ /report-reasons，无过渡别名。测试示例：/report-reasons
    */
@@ -6291,7 +6390,7 @@ export interface operations {
   };
   /**
    * 菜品描述属性编辑态选项（按菜现有维度）
-   * @description 用途：菜品纠错 / 编辑界面的属性表单（进编辑时才取，按需）。
+   * @description 用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
    * 只返回**该菜现有维度**的候选值：每项含 fieldKey（维度键，与 GET /dishes/{id} 的
    * attributes[].fieldKey 对齐）/ valueType（single|multi）/
    * options（该维度全部候选值，按 order 升序；每项 valueKey / label）。
@@ -6727,6 +6826,44 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultAdminPageResultDishCorrectionAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 读取当前登录的管理员
+   * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效。
+   */
+  me: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultAdminMeVO"];
         };
       };
       /** @description Bad Request */

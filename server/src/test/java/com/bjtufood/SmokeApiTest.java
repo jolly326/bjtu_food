@@ -51,6 +51,7 @@ import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.upload.controller.UploadController;
 import com.bjtufood.upload.service.UploadService;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -193,6 +194,21 @@ class SmokeApiTest {
         jwt.setExpirationSeconds(3600L);
         props.setJwt(jwt);
         return "Bearer " + new AdminJwtUtil(props).createToken(1L, "smoke-admin");
+    }
+
+    /**
+     * 打桩：管理端 JWT 内账号 ID=1 的账号**存在且启用**。
+     * <p>
+     * {@code AdminAuthFilter} 验签后按 token 内 ID 回查 {@code admin_account.status}
+     * （凭证吊销，TD-25）；切片不连库，未打桩则回查为 null ⇒ 401。
+     * 用 {@code lenient()} 避免「未触发该回查的用例」被判无用桩。
+     */
+    @BeforeEach
+    void stubActiveAdminAccount() {
+        AdminAccount account = new AdminAccount();
+        account.setId(1L);
+        account.setStatus("on");
+        org.mockito.Mockito.lenient().when(adminAccountService.findById(1L)).thenReturn(account);
     }
 
     /** AdminAuthFilter 鉴权失败时的对外文案（断言 401 来自该过滤器） */
