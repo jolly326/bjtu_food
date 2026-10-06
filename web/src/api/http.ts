@@ -80,10 +80,7 @@ export async function request<T>(
   }
 
   const controller = new AbortController()
-  const timer = setTimeout(
-    () => controller.abort(),
-    options.timeout ?? 30000,
-  )
+  const timer = setTimeout(() => controller.abort(), options.timeout ?? 30000)
 
   const init: RequestInit = {
     method,
@@ -113,7 +110,8 @@ export async function request<T>(
   }
 
   const code = parsed?.code ?? res.status
-  const message = parsed?.message || (parsed ? `请求失败（${code}）` : `响应解析失败（HTTP ${res.status}）`)
+  const message =
+    parsed?.message || (parsed ? `请求失败（${code}）` : `响应解析失败（HTTP ${res.status}）`)
 
   // 🔴 401 = 会话失效：清 token → 跳登录页（跳转由路由层注册的 handler 负责）。
   //    HTTP 状态与 body.code **任一**为 401 都算：`AdminAuthFilter` 回 HTTP 401，
@@ -138,11 +136,7 @@ export function get<T>(path: string, params?: object): Promise<T> {
   return request<T>('GET', qs ? `${path}?${qs}` : path)
 }
 
-export function post<T>(
-  path: string,
-  body?: unknown,
-  options?: RequestOptions,
-): Promise<T> {
+export function post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
   return request<T>('POST', path, body, options)
 }
 

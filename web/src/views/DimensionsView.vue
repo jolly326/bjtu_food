@@ -23,11 +23,7 @@ import {
   updateDimension,
   updateValue,
 } from '@/api/dimensions'
-import type {
-  DishDimensionAdminVO,
-  DishDimensionSaveReq,
-  DishValueAdminVO,
-} from '@/types/common'
+import type { DishDimensionAdminVO, DishDimensionSaveReq, DishValueAdminVO } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
 import BaseModal from '@/components/BaseModal.vue'
 import BaseDrawer from '@/components/BaseDrawer.vue'
@@ -79,9 +75,12 @@ async function saveDimension(): Promise<void> {
 
 async function removeDimension(row: DishDimensionAdminVO): Promise<void> {
   try {
-    await confirmDelete(`确认删除维度「${row.name}」？其下 ${row.valueCount} 个取值、${row.dishCount} 个菜品正在使用；被引用时将无法删除。`, {
-      title: '删除维度',
-    })
+    await confirmDelete(
+      `确认删除维度「${row.name}」？其下 ${row.valueCount} 个取值、${row.dishCount} 个菜品正在使用；被引用时将无法删除。`,
+      {
+        title: '删除维度',
+      },
+    )
   } catch {
     return
   }
@@ -96,7 +95,7 @@ async function removeDimension(row: DishDimensionAdminVO): Promise<void> {
 }
 
 /* ==================== 维度：拖拽排序（提交全量行） ==================== */
-const { dragIndex, onDragStart, onDrop } = useReorder(items, sortDimensions, load)
+const { onDragStart, onDrop } = useReorder(items, sortDimensions, load)
 
 /* ==================== 取值：抽屉内管理 ==================== */
 const valuesOpen = ref(false)
@@ -189,8 +188,11 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
 }
 
 /* 取值拖拽排序（提交全量行，复用 useReorder） */
-const { dragIndex: valueDragIndex, onDragStart: onValueDragStart, onDrop: onValueDrop } =
-  useReorder(values, (req) => sortValues(currentDim.value!.id, req), loadValues)
+const { onDragStart: onValueDragStart, onDrop: onValueDrop } = useReorder(
+  values,
+  (req) => sortValues(currentDim.value!.id, req),
+  loadValues,
+)
 
 onMounted(() => load())
 </script>
@@ -235,7 +237,9 @@ onMounted(() => load())
           >
             <td class="drag-col" title="拖拽排序">⋮⋮</td>
             <td>{{ row.name }}</td>
-            <td><code>{{ row.fieldKey }}</code></td>
+            <td>
+              <code>{{ row.fieldKey }}</code>
+            </td>
             <td>{{ row.valueType === 'single' ? '单选' : '多选' }}</td>
             <td class="num">{{ row.valueCount }}</td>
             <td class="num">{{ row.dishCount }}</td>
@@ -282,9 +286,18 @@ onMounted(() => load())
     </BaseModal>
 
     <!-- 取值管理：抽屉 + 紧凑表格 -->
-    <BaseDrawer :title="`取值管理 · ${currentDim?.name ?? ''}`" :open="valuesOpen" @close="valuesOpen = false">
+    <BaseDrawer
+      :title="`取值管理 · ${currentDim?.name ?? ''}`"
+      :open="valuesOpen"
+      @close="valuesOpen = false"
+    >
       <div class="add-row">
-        <input class="form-input" v-model="newLabel" placeholder="新增取值名称（≤32 字）" @keyup.enter="addValue" />
+        <input
+          class="form-input"
+          v-model="newLabel"
+          placeholder="新增取值名称（≤32 字）"
+          @keyup.enter="addValue"
+        />
         <button class="btn-primary" type="button" v-press @click="addValue">新增</button>
       </div>
 

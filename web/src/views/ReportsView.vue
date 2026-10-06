@@ -10,12 +10,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fail } from '@/utils/error'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
-import type {
-  AdminPage,
-  FeedbackListParams,
-  FeedbackStatus,
-  ReportAdminVO,
-} from '@/types/common'
+import type { AdminPage, FeedbackListParams, FeedbackStatus, ReportAdminVO } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
@@ -123,7 +118,12 @@ onMounted(() => reloadFirstPage())
         <option value="pending">待处理</option>
         <option value="handled">已处理</option>
       </select>
-      <input class="form-input" v-model="fReason" placeholder="举报原因" @keyup.enter="reloadFirstPage" />
+      <input
+        class="form-input"
+        v-model="fReason"
+        placeholder="举报原因"
+        @keyup.enter="reloadFirstPage"
+      />
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
     </div>
@@ -167,7 +167,12 @@ onMounted(() => reloadFirstPage())
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ row.createdAt }}</td>
             <td class="actions">
-              <button v-if="row.status === 'pending'" class="link" type="button" @click="openHandle(row)">
+              <button
+                v-if="row.status === 'pending'"
+                class="link"
+                type="button"
+                @click="openHandle(row)"
+              >
                 处置
               </button>
               <span v-else class="muted">已处置</span>
@@ -176,15 +181,19 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
+      <Pager
+        :total="total"
+        :page="page"
+        :page-count="pageCount"
+        @prev="prevPage"
+        @next="nextPage"
+      />
     </div>
 
     <!-- 处置抽屉：被举报评价只读摘要 + 同时隐藏复选 + 结论 + 回复 -->
     <BaseDrawer title="处置举报" :open="open" @close="open = false">
       <div class="ctx">
-        <div class="ctx-label">
-          被举报评价 · {{ current?.reviewDishName ?? '菜品已删除' }}
-        </div>
+        <div class="ctx-label">被举报评价 · {{ current?.reviewDishName ?? '菜品已删除' }}</div>
         <div class="ctx-body">{{ current?.reviewContent ?? '（评价已删除）' }}</div>
         <div class="ctx-meta">
           <StatusTag :status="current?.reviewHidden ? 'hidden' : 'visible'" kind="review" />
@@ -193,7 +202,9 @@ onMounted(() => reloadFirstPage())
 
       <div class="field">
         <label>举报原因</label>
-        <div class="readonly">{{ current?.reasonLabel }}<span v-if="current?.content"> · {{ current.content }}</span></div>
+        <div class="readonly">
+          {{ current?.reasonLabel }}<span v-if="current?.content"> · {{ current.content }}</span>
+        </div>
       </div>
 
       <div class="field">
@@ -242,7 +253,13 @@ onMounted(() => reloadFirstPage())
 
       <template #actions>
         <button class="btn-secondary" type="button" @click="open = false">取消</button>
-        <button class="btn-primary" type="button" :disabled="submitting" v-press @click="submitHandle">
+        <button
+          class="btn-primary"
+          type="button"
+          :disabled="submitting"
+          v-press
+          @click="submitHandle"
+        >
           {{ submitting ? '提交中…' : '提交处置' }}
         </button>
       </template>

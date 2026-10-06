@@ -12,6 +12,11 @@ RUN mvn clean package -DskipTests -B
 # ===== 运行阶段 =====
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+# 时区统一：容器默认 UTC 会让 LocalDateTime.now()（含 MybatisMetaObjectHandler 的 createdAt/updatedAt、
+# 各 handledAt/lastLogin 等持久化时间戳）落 UTC，与 DateTimeUtil.now()（Asia/Shanghai 硬编码）不一致。
+# 显式设为上海，使全部新数据时间戳统一为上海时区；过期判定字段本就用 DateTimeUtil.now()，不受影响。
+# 历史 UTC 审计行保留（仅显示差 8h，无功能影响）。
+ENV TZ=Asia/Shanghai
 COPY --from=build /app/target/bjtu-food-1.0.0.jar app.jar
 # 堆上限按 0.5G 实例保守设置（512m 会因 JVM 额外开销被 OOMKilled）；实例规格 ≥1G 可调回 512m。
 ENV JAVA_OPTS="-Xms192m -Xmx384m"

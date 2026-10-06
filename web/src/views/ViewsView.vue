@@ -116,7 +116,9 @@ onMounted(() => load())
           >
             <td class="drag-col" title="拖拽排序">⠿</td>
             <td>{{ row.label }}</td>
-            <td><code class="view-key">{{ row.key }}</code></td>
+            <td>
+              <code class="view-key">{{ row.key }}</code>
+            </td>
             <td class="num">
               {{ row.matchedCount }}
               <span v-if="row.matchedCount === 0" class="no-match">无匹配，客户端不显示</span>
@@ -133,7 +135,8 @@ onMounted(() => load())
         </tbody>
       </table>
       <p class="foot-note">
-        下发规则：启用中且匹配数不为 0 的视图才会出现在首页筛选栏；新增 / 删除 tab 走代码（本页无新建、无删除入口）。
+        下发规则：启用中且匹配数不为 0 的视图才会出现在首页筛选栏；新增 / 删除 tab
+        走代码（本页无新建、无删除入口）。
       </p>
     </div>
 

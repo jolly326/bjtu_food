@@ -145,7 +145,13 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
+      <Pager
+        :total="total"
+        :page="page"
+        :page-count="pageCount"
+        @prev="prevPage"
+        @next="nextPage"
+      />
     </div>
   </div>
 </template>

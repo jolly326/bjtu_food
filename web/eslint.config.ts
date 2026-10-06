@@ -22,5 +22,13 @@ export default defineConfigWithVueTs(
 
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
+  // 组件命名规范：`Pager` 为项目既有单词组件（非 HTML 元素，无命名冲突风险），显式放行。
+  {
+    name: 'app/component-name-exceptions',
+    rules: {
+      'vue/multi-word-component-names': ['error', { ignores: ['Pager'] }],
+    },
+  },
+
   skipFormatting,
 )

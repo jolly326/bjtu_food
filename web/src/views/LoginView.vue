@@ -86,7 +86,9 @@ async function submit(): Promise<void> {
             :aria-describedby="usernameError ? 'login-username-error' : undefined"
             @input="usernameError = ''"
           />
-          <p v-if="usernameError" id="login-username-error" class="field-error">{{ usernameError }}</p>
+          <p v-if="usernameError" id="login-username-error" class="field-error">
+            {{ usernameError }}
+          </p>
         </div>
 
         <div class="field">
@@ -101,7 +103,9 @@ async function submit(): Promise<void> {
             :aria-describedby="passwordError ? 'login-password-error' : undefined"
             @input="passwordError = ''"
           />
-          <p v-if="passwordError" id="login-password-error" class="field-error">{{ passwordError }}</p>
+          <p v-if="passwordError" id="login-password-error" class="field-error">
+            {{ passwordError }}
+          </p>
         </div>
 
         <button class="btn-primary submit" type="submit" :disabled="submitting">

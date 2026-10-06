@@ -99,9 +99,12 @@ async function unhide(row: ReviewAdminVO): Promise<void> {
 
 async function remove(row: ReviewAdminVO): Promise<void> {
   try {
-    await confirmDelete(`确认删除这条评价？删除后**不可恢复**，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`, {
-      title: '删除评价',
-    })
+    await confirmDelete(
+      `确认删除这条评价？删除后**不可恢复**，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`,
+      {
+        title: '删除评价',
+      },
+    )
   } catch {
     return
   }
@@ -130,9 +133,24 @@ onMounted(() => reloadFirstPage())
     <div class="page-header"><h2>评价管理</h2></div>
 
     <div class="card filters">
-      <input class="form-input" v-model="fKeyword" placeholder="评价内容" @keyup.enter="reloadFirstPage" />
-      <input class="form-input" v-model="fDishId" placeholder="菜品 ID" @keyup.enter="reloadFirstPage" />
-      <input class="form-input" v-model="fUserId" placeholder="用户 ID" @keyup.enter="reloadFirstPage" />
+      <input
+        class="form-input"
+        v-model="fKeyword"
+        placeholder="评价内容"
+        @keyup.enter="reloadFirstPage"
+      />
+      <input
+        class="form-input"
+        v-model="fDishId"
+        placeholder="菜品 ID"
+        @keyup.enter="reloadFirstPage"
+      />
+      <input
+        class="form-input"
+        v-model="fUserId"
+        placeholder="用户 ID"
+        @keyup.enter="reloadFirstPage"
+      />
       <select class="form-input" v-model="fHidden" @change="reloadFirstPage">
         <option value="">全部状态</option>
         <option :value="false">显示中</option>
@@ -188,7 +206,13 @@ onMounted(() => reloadFirstPage())
         </tbody>
       </table>
 
-      <Pager :total="total" :page="page" :page-count="pageCount" @prev="prevPage" @next="nextPage" />
+      <Pager
+        :total="total"
+        :page="page"
+        :page-count="pageCount"
+        @prev="prevPage"
+        @next="nextPage"
+      />
     </div>
 
     <!-- 隐藏：显式置位 + 可选附注（随回执下发） -->
@@ -211,7 +235,13 @@ onMounted(() => reloadFirstPage())
       </div>
       <template #actions>
         <button class="btn-secondary" type="button" @click="hideOpen = false">取消</button>
-        <button class="btn-primary" type="button" :disabled="submitting" v-press @click="submitHide">
+        <button
+          class="btn-primary"
+          type="button"
+          :disabled="submitting"
+          v-press
+          @click="submitHide"
+        >
           {{ submitting ? '提交中…' : '确认隐藏' }}
         </button>
       </template>

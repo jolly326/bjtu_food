@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.service.StallService;
-import com.bjtufood.common.config.CacheConfig;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;

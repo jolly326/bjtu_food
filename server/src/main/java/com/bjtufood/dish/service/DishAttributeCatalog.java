@@ -2,7 +2,6 @@ package com.bjtufood.dish.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.config.CacheConfig;
-import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.dish.entity.DishAttributeDimension;
 import com.bjtufood.dish.entity.DishAttributeValue;
 import com.bjtufood.dish.mapper.DishAttributeDimensionMapper;

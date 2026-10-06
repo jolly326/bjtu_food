@@ -1,10 +1,5 @@
 import { getAdminPage, put, del } from './http'
-import type {
-  AdminPage,
-  ReviewAdminVO,
-  ReviewListParams,
-  ReviewHiddenReq,
-} from '@/types/common'
+import type { AdminPage, ReviewAdminVO, ReviewListParams, ReviewHiddenReq } from '@/types/common'
 
 /** B1 评价管理：列表（排序 `createdAt DESC`） */
 export function listReviews(params: ReviewListParams): Promise<AdminPage<ReviewAdminVO>> {

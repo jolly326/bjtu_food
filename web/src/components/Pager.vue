@@ -20,9 +20,18 @@ defineEmits<{ prev: []; next: [] }>()
   <div v-if="total > 0" class="pager">
     <span class="pager-total">共 {{ total }} 条</span>
     <div class="pager-actions">
-      <button class="btn-secondary" type="button" :disabled="page <= 1" @click="$emit('prev')">上一页</button>
+      <button class="btn-secondary" type="button" :disabled="page <= 1" @click="$emit('prev')">
+        上一页
+      </button>
       <span class="pager-page">第 {{ page }} / {{ pageCount }} 页</span>
-      <button class="btn-secondary" type="button" :disabled="page >= pageCount" @click="$emit('next')">下一页</button>
+      <button
+        class="btn-secondary"
+        type="button"
+        :disabled="page >= pageCount"
+        @click="$emit('next')"
+      >
+        下一页
+      </button>
     </div>
   </div>
 </template>
