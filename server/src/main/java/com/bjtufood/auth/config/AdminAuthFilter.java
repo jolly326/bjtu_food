@@ -117,6 +117,13 @@ public class AdminAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
+        // 🔴 CORS 预检（OPTIONS）必须放行：预检**不携带任何凭证**，若照常校验则必 401，
+        //    而 401 响应不含 CORS 头 ⇒ 浏览器判定「跨域被拦」，管理端全部 /admin 请求失败
+        //    （2026-10-06 线上实测：OPTIONS /admin/auth/me → 401 无 ACAO）。预检无副作用，
+        //    放行后由后续 CorsFilter 统一应答。
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         String uri = applicationPath(request);
         // 取不到 URI ⇒ applicationPath 返回 null ⇒ **不跳过**（fail-closed）：
         // 宁可多校验一次，也不放行来源可疑的请求

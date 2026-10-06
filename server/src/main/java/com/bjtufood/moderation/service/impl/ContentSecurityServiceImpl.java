@@ -85,10 +85,20 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         this.tokenProvider = tokenProvider;
     }
 
+    /**
+     * 内容安全专用 RestTemplate。
+     * <p>
+     * 🔴 <b>必须关闭输出流式（{@code setOutputStreaming(false)}）</b>：图片安检走 multipart 上传，
+     * 流式输出会让 JDK {@code HttpURLConnection} 以 {@code Transfer-Encoding: chunked} 发送
+     * （无 {@code Content-Length}），而<b>微信网关对 chunked 的 multipart 直接回
+     * {@code 412 Precondition Failed}（空 body）</b> ⇒ 图片安检恒失败。关闭后请求体先缓冲、
+     * 携带 {@code Content-Length}，微信正常受理（实测：带 Content-Length → 200，chunked → 412）。
+     */
     private static RestTemplate defaultRestTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(WECHAT_TIMEOUT_MS);
         factory.setReadTimeout(WECHAT_TIMEOUT_MS);
+        factory.setOutputStreaming(false);
         return new RestTemplate(factory);
     }
 
@@ -257,7 +267,16 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("media", new ByteArrayResource(image));
+        // 🔴 part 必须带 filename：微信 img_sec_check 要求 `media` 是「文件」项 —— 缺 filename
+        //    （退化为普通表单字段）会回 errcode=47001「data format error」（实测）。文件名仅用于让
+        //    Spring 写出 filename 与 part Content-Type；微信按字节嗅探实际类型（实测声明类型与实际
+        //    内容不符亦受理）。同理不可省：请求体须带 Content-Length，见 defaultRestTemplate()。
+        body.add("media", new ByteArrayResource(image) {
+            @Override
+            public String getFilename() {
+                return "image.jpg";
+            }
+        });
         String respBody;
         try {
             respBody = restTemplate.postForObject(
