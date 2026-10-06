@@ -47,6 +47,9 @@ public class UploadServiceImpl implements UploadService {
 
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
 
+    /** COS 临时下载链接有效期（秒）= 2h，与微信 batchdownloadfile 文档一致 */
+    private static final int COS_DOWNLOAD_URL_MAX_AGE_SECONDS = 7200;
+
     /** 单图大小上限 5MB（与 spring.servlet.multipart.max-file-size 一致，服务层再兜底一次） */
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
 
@@ -229,7 +232,7 @@ public class UploadServiceImpl implements UploadService {
 
         Map<String, Object> reqBody = Map.of(
                 "env", env,
-                "file_list", List.of(Map.of("fileid", fileId, "max_age", 7200)));
+                "file_list", List.of(Map.of("fileid", fileId, "max_age", COS_DOWNLOAD_URL_MAX_AGE_SECONDS)));
 
         String body;
         try {

@@ -26,6 +26,14 @@ import {
 } from './authFlow'
 
 /** 响应体外壳（仅本模块消费） */
+/** 微信云托管调用回调的最小类型（平台回调透传，仅取所需字段） */
+interface WxCloudCallResult {
+  data?: unknown
+}
+interface WxCloudCallError {
+  errMsg?: string
+}
+
 interface ApiResponse<T = unknown> {
   code: number
   message: string
@@ -109,8 +117,8 @@ async function transportWxCloud(
         ...header,
       },
       // 平台例外：微信回调透传，仅取其 data 字段
-      success: (r: any) => { clearTimer(); done(() => resolve({ data: r?.data })) },
-      fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
+      success: (r: WxCloudCallResult) => { clearTimer(); done(() => resolve({ data: r?.data })) },
+      fail: (err: WxCloudCallError) => { clearTimer(); done(() => reject(new Error(err.errMsg || '网络请求失败'))) },
     })
   })
 }

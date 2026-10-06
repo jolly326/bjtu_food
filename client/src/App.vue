@@ -100,8 +100,14 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 /* 可访问性：尊重「减少动态效果」系统偏好（Apple 设计原则 #14）。
    全局基线仅降级动效时长（去除 vestibular 触发），保留 opacity 类状态变化作为必要反馈；
    子组件（如 RetryBlock 的加载环）各自的 reduced-motion 分支在其作用域内仍生效。 */
+/* 微信 WXSS 编译期不支持通用选择器 `*` —— 故显式枚举原生元素作为降级基线；
+   自定义组件（如 RetryBlock 的加载环）各自的 reduced-motion 分支在其作用域内仍生效。 */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  page, view, text, button, image, navigator, scroll-view, swiper, swiper-item,
+  input, textarea, picker, picker-view, slider, switch, movable-view, movable-area,
+  cover-view, cover-image, icon, progress, label, form, checkbox, radio, rich-text,
+  web-view, video, audio, map, canvas,
+  view::before, view::after, text::before, text::after, button::before, button::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

@@ -9,15 +9,20 @@ import type { MenuButtonRect } from '@/utils/device'
  * `client-page-structure` 明确要求「页面 SHALL NOT 各自计算状态栏高度、导航行高或胶囊避让量」，
  * 故首页与搜索页的固定标题带、搜索行一律经本 composable 取值（避免各页自行计算导致 header 高度漂移）。
  *
- * 消费方：`components/AppTitleBand.vue`（标题带 / 返回 icon）、`components/SearchBar.vue`（胶囊高）。
+ * 消费方：`components/AppTitleBand.vue`（标题带 / 返回 icon）。（搜索栏高度由 `--search-bar-height` CSS 变量自持，间接沿用本 composable 的度量）
  */
+const DEFAULT_STATUS_BAR_PX = 20
+const DEFAULT_NAV_BAR_PX = 44
+const DEFAULT_NAV_PAD_RIGHT = '180rpx'
+const FALLBACK_NAV_BAR_PX = 56
+
 export function useNavMetrics() {
-  const statusBarPx = ref(20)
+  const statusBarPx = ref(DEFAULT_STATUS_BAR_PX)
   /** 导航行高（px）：胶囊所在那一行的真实高度——标题带行高必须取它，标题才会与胶囊**同中心** */
-  const navBarHeightPx = ref(44)
+  const navBarHeightPx = ref(DEFAULT_NAV_BAR_PX)
   /* 注：胶囊高不单独暴露——搜索栏高度由 `--search-bar-height` 自持。 */
   /** 右侧胶囊避让量（CSS 长度串）：标题 / 可点件不得进入胶囊水平范围 */
-  const navPadRight = ref('180rpx')
+  const navPadRight = ref(DEFAULT_NAV_PAD_RIGHT)
 
   onMounted(() => {
     // 跨端兼容（H5 无 wx，退化为固定值）：平台全局只经 `utils/device` 访问 ⇒ 本文件无 `@ts-ignore`
@@ -45,5 +50,5 @@ function getNavBarHeight(statusBarHeight: number, menu?: MenuButtonRect | null):
   if (menu && menu.height) {
     return (menu.top - statusBarHeight) * 2 + menu.height
   }
-  return 56
+  return FALLBACK_NAV_BAR_PX
 }

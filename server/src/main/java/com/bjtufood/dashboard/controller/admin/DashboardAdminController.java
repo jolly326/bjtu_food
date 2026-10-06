@@ -48,8 +48,8 @@ public class DashboardAdminController {
 
     /** 最近待办条数（看板的核心价值：数字之外还得能直接点进去） */
     private static final int RECENT_LIMIT = 5;
-    /** 各域各取若干条后再归并（跨两表，量级极小） */
-    private static final int PER_SOURCE_LIMIT = RECENT_LIMIT;
+    /** 摘要截断长度（看板一行放不下长正文） */
+    private static final int ABBREV_MAX_LEN = 30;
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final FeedbackService feedbackService;
@@ -103,7 +103,7 @@ public class DashboardAdminController {
     /** 反馈 / 举报的最近待办（摘要取正文，超长截断 —— 看板只做「一眼看出是什么」。 */
     private List<DashboardVO.RecentTodo> feedbackRecent(String category) {
         AdminPageResult<FeedbackAdminVO> page =
-                AdminPageResult.of(feedbackService.listForAdmin(category, "pending", null, null, null, 1, PER_SOURCE_LIMIT));
+                AdminPageResult.of(feedbackService.listForAdmin(category, "pending", null, null, null, 1, RECENT_LIMIT));
         List<DashboardVO.RecentTodo> items = new ArrayList<>(page.getRecords().size());
         for (FeedbackAdminVO row : page.getRecords()) {
             DashboardVO.RecentTodo item = new DashboardVO.RecentTodo();
@@ -119,7 +119,7 @@ public class DashboardAdminController {
     /** 纠错的最近待办（摘要取「目标菜品名」——纠错的正文是结构化改动项，菜名最能说明是哪一条） */
     private List<DashboardVO.RecentTodo> correctionRecent() {
         AdminPageResult<DishCorrectionAdminVO> page =
-                AdminPageResult.of(correctionService.listForAdmin("pending", null, 1, PER_SOURCE_LIMIT));
+                AdminPageResult.of(correctionService.listForAdmin("pending", null, 1, RECENT_LIMIT));
         List<DashboardVO.RecentTodo> items = new ArrayList<>(page.getRecords().size());
         for (DishCorrectionAdminVO row : page.getRecords()) {
             DashboardVO.RecentTodo item = new DashboardVO.RecentTodo();
@@ -161,7 +161,7 @@ public class DashboardAdminController {
             return "（无正文）";
         }
         String trimmed = text.trim();
-        return trimmed.length() <= 30 ? trimmed : trimmed.substring(0, 30) + "…";
+        return trimmed.length() <= ABBREV_MAX_LEN ? trimmed : trimmed.substring(0, ABBREV_MAX_LEN) + "…";
     }
 
     private static String format(java.time.LocalDateTime time) {

@@ -29,6 +29,7 @@ import com.bjtufood.feedback.service.FeedbackService;
 import com.bjtufood.feedback.service.ReportReasonService;
 import com.bjtufood.notification.dto.NotificationCmd;
 import com.bjtufood.notification.service.NotificationService;
+import com.bjtufood.notification.util.NotificationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -389,37 +390,27 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (userId == null) {
             return;
         }
-        try {
-            // 投递口径（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
-            // 游客提交的反馈同样收到处理回执（有 userId 即投递）。
-            // is_read 由 notify 实现侧统一置 0（P0-1：feedback 不再 import / 构造 notify 实体）
-            // B3：**回执文案按 type 分流** —— 举报（type=report）与反馈是两件事，
-            // 一律写「反馈已处理 / 反馈未采纳」会让举报人读成语义错位。
-            boolean isReport = FeedbackConst.TYPE_REPORT.equals(feedback.getType());
-            String title = isReport ? (rejected ? "举报未采纳" : "举报已受理")
-                    : (rejected ? "反馈未采纳" : "反馈已处理");
-            // 受理时若顺带隐藏了被举报评价，必须说明（用户看不到评价了，不说明即为"凭空消失"）
-            String hiddenSuffix = hiddenThisTime ? "，已隐藏该评价" : "";
-            String body;
-            if (rejected) {
-                body = (isReport ? "你提交的举报未采纳：" : "你提交的反馈未采纳：") + rejectReason
-                        + (reply == null ? "" : "。处理说明：" + reply);
-            } else {
-                body = (isReport ? "你提交的举报已受理" : "你提交的反馈已处理") + hiddenSuffix
-                        + (reply == null ? "。" : "：" + reply);
-            }
-            // reply 必填时通知不存在「无回复」分支；B2 起 reply 可选 ⇒
-            // 交由上面的 body 组装保证**始终有可读正文**，不产生空通知。
-            notificationService.notify(new NotificationCmd(userId, title, body));
-        } catch (Exception ignored) {
-            // 回执失败不阻塞反馈处理
-            //
-            // D2 澄清（边界）：本 catch 只拦得住「向线程池提交任务」阶段的异常（如池已关闭），
-            // **拦不住「异步线程内写库失败」**——@Async 下异步线程的异常不回传调用方。
-            // 真正的写入失败由 NotificationServiceImpl#notify 内部 catch 就地记 error 日志。
-            // 也就是说「不阻塞主流程」成立，但「失败可被调用方感知」不成立；
-            // 排查丢通知只能看日志（该处已 log.error，不静默）。
+        // 投递口径（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
+        // 游客提交的反馈同样收到处理回执（有 userId 即投递）。
+        // is_read 由 notify 实现侧统一置 0（P0-1：feedback 不再 import / 构造 notify 实体）
+        // B3：**回执文案按 type 分流** —— 举报（type=report）与反馈是两件事，
+        // 一律写「反馈已处理 / 反馈未采纳」会让举报人读成语义错位。
+        boolean isReport = FeedbackConst.TYPE_REPORT.equals(feedback.getType());
+        String title = isReport ? (rejected ? "举报未采纳" : "举报已受理")
+                : (rejected ? "反馈未采纳" : "反馈已处理");
+        // 受理时若顺带隐藏了被举报评价，必须说明（用户看不到评价了，不说明即为"凭空消失"）
+        String hiddenSuffix = hiddenThisTime ? "，已隐藏该评价" : "";
+        String body;
+        if (rejected) {
+            body = (isReport ? "你提交的举报未采纳：" : "你提交的反馈未采纳：") + rejectReason
+                    + (reply == null ? "" : "。处理说明：" + reply);
+        } else {
+            body = (isReport ? "你提交的举报已受理" : "你提交的反馈已处理") + hiddenSuffix
+                    + (reply == null ? "。" : "：" + reply);
         }
+        // reply 必填时通知不存在「无回复」分支；B2 起 reply 可选 ⇒
+        // 交由上面的 body 组装保证**始终有可读正文**，不产生空通知。
+        NotificationUtil.notifySafe(notificationService, new NotificationCmd(userId, title, body));
     }
 
     // ==================== 跨域写契约实现（P0-1：由本域 event 监听器调用） ====================

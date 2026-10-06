@@ -90,7 +90,7 @@ class AuthServiceImplTest {
     private AuthServiceImpl service(VerifyCodeAttemptGuard guard) {
         return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper),
                 new VerifyCodePersister(codeMapper, userMapper, passwordEncoder, eventPublisher),
-                codeMapper, emailCodeService, passwordEncoder, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
+                codeMapper, emailCodeService, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
                 localSensitiveFilter, contentSecurityService, tokenBlacklist, guard);
     }
 

@@ -3,6 +3,14 @@ import { WX_CLOUD_ENV } from './config'
 import { getWxApi } from '@/utils/device'
 import type { UploadResultVO } from './shared'
 
+/** 微信云存储上传回调的最小类型（平台回调透传，仅取 fileID） */
+interface WxCloudUploadResult {
+  fileID?: string
+}
+interface WxCloudCallError {
+  errMsg?: string
+}
+
 /** 上传结果只透出 `url`：`relativeUrl` 仅本地磁盘降级链路有值，端上展示一律用 `url`（类型仍来自契约） */
 type UploadedImage = Pick<UploadResultVO, 'url'>
 
@@ -51,8 +59,8 @@ function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       cloudPath,
       filePath: tempFilePath,
       // 平台例外：微信回调透传，仅取其 fileID
-      success: (r: any) => { clearTimer(); done(() => resolve({ url: r.fileID })) },
-      fail: (err: any) => { clearTimer(); done(() => reject(new Error(err.errMsg || '上传失败，请重试'))) },
+      success: (r: WxCloudUploadResult) => { clearTimer(); done(() => resolve({ url: r.fileID ?? '' })) },
+      fail: (err: WxCloudCallError) => { clearTimer(); done(() => reject(new Error(err.errMsg || '上传失败，请重试'))) },
     })
   })
   // #endif
