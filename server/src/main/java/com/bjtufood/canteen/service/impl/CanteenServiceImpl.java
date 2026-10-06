@@ -44,21 +44,30 @@ public class CanteenServiceImpl implements CanteenService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void update(Canteen canteen) {
-        if (canteen.getId() == null) {
-            throw new BusinessException("Canteen not found");
+    public void update(Long id, String name) {
+        if (id == null) {
+            throw new BusinessException(4001, "食堂不存在");
+        }
+        // name 是唯一可编辑字段（必填）：服务层同样持有该不变量，不依赖调用方的 DTO 校验
+        String trimmed = name == null ? null : name.trim();
+        if (trimmed == null || trimmed.isEmpty()) {
+            throw new BusinessException("食堂名称不能为空");
+        }
+        if (trimmed.length() > 64) {
+            throw new BusinessException("食堂名称不能超过 64 字");
         }
         // A1：改名同样受「名称唯一」约束 —— 只在新增时校验的话，
         // 「把 A 食堂改名成已存在的 B」会绕过约束，制造出同名食堂（数据重复的根源）。
-        if (canteen.getName() != null && !canteen.getName().isBlank()) {
-            String trimmed = canteen.getName().trim();
-            DuplicateGuard.assertUnique(canteenMapper, new LambdaQueryWrapper<Canteen>()
-                    .eq(Canteen::getName, trimmed)
-                    .ne(Canteen::getId, canteen.getId()), "食堂名称已存在");
-            canteen.setName(trimmed);
-        }
-        if (canteenMapper.updateById(canteen) == 0) {
-            throw new BusinessException("Canteen not found");
+        DuplicateGuard.assertUnique(canteenMapper, new LambdaQueryWrapper<Canteen>()
+                .eq(Canteen::getName, trimmed)
+                .ne(Canteen::getId, id), "食堂名称已存在");
+        // 局部实体 + updateById（NOT_NULL 策略）：只写 name 列，
+        // 保留列与时间列原样保留，改名不会放大成一次整行覆盖。
+        Canteen patch = new Canteen();
+        patch.setId(id);
+        patch.setName(trimmed);
+        if (canteenMapper.updateById(patch) == 0) {
+            throw new BusinessException(4001, "食堂不存在");
         }
     }
 
@@ -103,12 +112,18 @@ public class CanteenServiceImpl implements CanteenService {
         // 其下档口数：删除受阻判据 + 列表展示（量级十数条，逐行 count 可接受）
         vo.setStallCount(stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getCanteenId, canteen.getId())));
-        vo.setLocation(canteen.getLocation());
-        vo.setDescription(canteen.getDescription());
+        // 出参空值口径：可空字符串列（保留列）恒非空串，端上无需判空
+        vo.setLocation(orEmpty(canteen.getLocation()));
+        vo.setDescription(orEmpty(canteen.getDescription()));
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
         vo.setSortOrder(canteen.getSortOrder());
         vo.setCreatedAt(canteen.getCreatedAt());
         vo.setUpdatedAt(canteen.getUpdatedAt());
         return vo;
+    }
+
+    /** 出参空值归一：{@code null} → 空串（后台列表的字符串列恒非空串，端上无需判空） */
+    private static String orEmpty(String value) {
+        return value == null ? "" : value;
     }
 }

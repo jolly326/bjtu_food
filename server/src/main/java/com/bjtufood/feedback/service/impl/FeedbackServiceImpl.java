@@ -75,8 +75,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     public void submit(Long userId, FeedbackReq req) {
         // 类型写入白名单（方案 B ）：仅纯反馈三类可写（bug / suggestion / other），
-        // 非法 / 历史遗留（issue / add / error / report）→ 400（不再原样落库）；
-        // 举报已迁出为 POST /reviews/{id}/report，纠错早前迁出为 POST /dishes/{id}/correction。
+        // 其余类型（issue / add / error / report）→ 400，不落库；
+        // 举报走 POST /reviews/{id}/report，纠错走 POST /dishes/{id}/correction，均不在本端点内。
         String type = ParamValidator.requiredInWhitelist(req.getType(), FeedbackConst.WRITABLE_TYPES, "反馈类型");
         if (!StringUtils.hasText(req.getContent())) {
             throw new BusinessException(400, "反馈内容不能为空");
@@ -123,7 +123,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (!reportReasonService.isSubmittable(reason)) {
             throw new BusinessException("举报原因非法");
         }
-        // 去重：同一登录用户对同一评价的重复举报不再新增（游客 userId=null 无身份标识，不去重）
+        // 去重：同一登录用户对同一评价的重复举报不新增（游客 userId=null 无身份标识，不去重）
         if (userId != null) {
             DuplicateGuard.assertUnique(feedbackMapper, new LambdaQueryWrapper<Feedback>()
                     .eq(Feedback::getUserId, userId)
@@ -160,8 +160,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (!StringUtils.hasText(content)) {
             return;
         }
-        // 只取 openid 判定要素（P0-1：feedback 不再 import auth 实体/Mapper；
-        // 用户不存在 ⇔ getAuthContext 返回 null ⇔ openid 为空，与原实现同效）
+        // 只取 openid 判定要素（P0-1：本域不 import auth 实体/Mapper；
+        // 用户不存在 ⇔ getAuthContext 返回 null ⇔ openid 为空）
         UserAuthContextVO user = userService.getAuthContext(userId);
         String openid = user == null ? null : user.getOpenid();
         contentSecurityService.checkText(openid, content, 2);
@@ -181,7 +181,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .filter(id -> id != null)
                 .distinct()
                 .toList();
-        // 昵称投影经 auth 域只读契约下发（P0-1：不再注入 UserMapper；空集合返回空 Map，不发起查询）
+        // 昵称投影经 auth 域只读契约下发（P0-1：本域不注入 UserMapper；空集合返回空 Map，不发起查询）
         Map<Long, String> userMap = userService.mapNicknameByIds(userIds);
 
         // 关联菜品名（DEV-04）：一次 IN 查询取回本页全部 dish 关联 id → name（消除 N+1）。
@@ -249,7 +249,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (dishIds.isEmpty()) {
             return Map.of();
         }
-        // 菜品名经 dish 域只读契约下发（P0-1：不再注入 DishMapper；口径=不过滤上架态，见接口注释）
+        // 菜品名经 dish 域只读契约下发（P0-1：本域不注入 DishMapper；口径=不过滤上架态，见接口注释）
         return dishService.mapNameByIds(dishIds);
     }
 
@@ -270,7 +270,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setContent(f.getContent());
         List<String> images = JsonListUtil.parseStringList(f.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        // 联系方式已不在表中，管理端 VO 不再返回
+        // user_feedback 无联系方式列，管理端 VO 不返回该字段
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
         // 关联菜品名（DEV-04）：仅 relatedType=dish 且 relatedId 非空时按映射填充（含已下架菜品）；
@@ -326,7 +326,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             throw new BusinessException("该记录已处理");
         }
         // B2（2026-10-03）：回复**可选** —— 仅 rejected 结论要求 rejectReason；handled 允许无回复
-        // （回执退化为固定文案）。此处只卡长度，不再拦必填；空值一律归一为 null 落库。
+        // （回执退化为固定文案）。此处只卡长度，不拦必填；空值一律归一为 null 落库。
         String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
         if (trimmedReply != null && trimmedReply.isEmpty()) {
             trimmedReply = null;
@@ -336,7 +336,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             throw new BusinessException("处理回复不能超过" + FeedbackConst.REPLY_MAX_LENGTH + "字");
         }
         // 处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
-        // 白名单外一律 400（PR-06），不再静默降级；rejectReason 仅在 rejected 结论下消费与落库。
+        // 白名单外一律 400（PR-06），不静默降级；rejectReason 仅在 rejected 结论下消费与落库。
         String outcome = req.getOutcome() == null || req.getOutcome().isBlank()
                 ? FeedbackConst.OUTCOME_HANDLED
                 : req.getOutcome().trim();
@@ -390,9 +390,9 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (userId == null) {
             return;
         }
-        // 投递口径（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
+        // 投递口径（2026-10-01 拍板）：**登录级** —— 不按邮箱认证过滤，
         // 游客提交的反馈同样收到处理回执（有 userId 即投递）。
-        // is_read 由 notify 实现侧统一置 0（P0-1：feedback 不再 import / 构造 notify 实体）
+        // is_read 由 notify 实现侧统一置 0（P0-1：本域不 import / 构造 notify 实体）
         // B3：**回执文案按 type 分流** —— 举报（type=report）与反馈是两件事，
         // 一律写「反馈已处理 / 反馈未采纳」会让举报人读成语义错位。
         boolean isReport = FeedbackConst.TYPE_REPORT.equals(feedback.getType());
@@ -416,8 +416,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     // ==================== 跨域写契约实现（P0-1：由本域 event 监听器调用） ====================
 
     /**
-     * 账号归属迁移（原实现为 {@code AuthServiceImpl.migrateOwnership} 内的
-     * {@code feedbackMapper.update(...)}，仅改 {@code user_feedback.user_id}，SQL 与语义逐字保留）。
+     * 账号归属迁移：跨域写侧解耦——跨域归属迁移由 auth 域发 {@code UserOwnershipMigratedEvent}，
+     * 各域自行改本域表（auth 不直接改他域数据）；本域只改 {@code user_feedback.user_id}。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)

@@ -28,6 +28,7 @@
             role="button"
             :aria-label="`${i} 星`"
             :aria-checked="rating === i ? 'true' : 'false'"
+            hover-class="pressed"
             @tap="rating = i"
           >
             <IconSvg
@@ -67,12 +68,14 @@
         />
       </view>
 
-      <!-- 提交：主色实底；未选星或提交中禁用 -->
+      <!-- 提交：主色实底；两档态分别绑 class ——
+           未选星 = `.disabled`（灰底灰字，aria-disabled）；提交中 = `.busy`（主色实底 + opacity .6，aria-busy） -->
       <view
         class="rc-submit"
-        :class="{ disabled: !rating || submitting }"
+        :class="{ disabled: !rating, busy: submitting }"
         role="button"
-        :aria-disabled="(!rating || submitting) ? 'true' : 'false'"
+        :aria-disabled="!rating ? 'true' : 'false'"
+        :aria-busy="submitting ? 'true' : 'false'"
         @tap="onSubmit"
       >
         <text class="rc-submit-text">{{ submitting ? '提交中…' : '发布评价' }}</text>
@@ -199,7 +202,8 @@ async function onSubmit() {
 .rc-stars { display: flex; align-items: center; }
 /* 单星命中区 ≥88rpx：56rpx 图标 + 上下/side --spacing-sm(16rpx) 内边距 = 88×88rpx（视觉尺寸不变） */
 .rc-star { padding: var(--spacing-sm); transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-.rc-star:active { opacity: 0.6; }
+/* 按压反馈：星标属「小件」档（图标）⇒ 0.6（覆盖全局 `.pressed` 整块档 0.7） */
+.rc-star.pressed { opacity: 0.6; }
 .rc-star-tip { font-size: var(--font-small); color: var(--text-tertiary); }
 
 .rc-input-wrap { position: relative; }
@@ -213,6 +217,12 @@ async function onSubmit() {
 
 /* 圆角统一到全局主按钮档位 token（--radius-btn，与 AppButton 一致），不再裸 24rpx */
 .rc-submit { display: flex; align-items: center; justify-content: center; height: var(--tap-target-size); margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
-.rc-submit.disabled { opacity: 0.5; }
+/* 未填档（未选星）：灰底 + 灰字，**不降透明** —— opacity 全站只表「在途」。
+   未评分时仍可点：由 onSubmit 兜底提示「请先选择评分」。 */
+.rc-submit.disabled { background: var(--bg-input); }
+.rc-submit.disabled .rc-submit-text { color: var(--text-tertiary); }
+/* 在途档（提交中）：**保留主色实底**（`--color-primary` 不换底），仅降至 opacity 0.6
+   （与 AppButton.loading 同值）；文字仍取 `--color-on-primary`。 */
+.rc-submit.busy { opacity: 0.6; }
 .rc-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--color-on-primary); }
 </style>

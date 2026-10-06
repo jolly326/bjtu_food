@@ -8,12 +8,12 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
- * 账号归属迁移 → 评价改挂（P0-1 写侧解耦，替代原 {@code AuthServiceImpl.migrateOwnership}
- * 内直接写 review 表的两条 UPDATE）。
+ * 账号归属迁移 → 评价改挂（P0-1 跨域写侧解耦：auth 只发 {@link UserOwnershipMigratedEvent}，
+ * 改 {@code review.user_id} 由本域自理）。
  * <p>
  * 「先清冲突行、再改归属」的顺序依赖 review 的唯一键 {@code uk_review_user_dish}
  * （同一 user+dish 只能有一行），属 review 域自有知识，故收敛在
- * {@link ReviewService#migrateOwnership(Long, Long)} 一处，auth 侧不再知晓。
+ * {@link ReviewService#migrateOwnership(Long, Long)} 一处，auth 侧不持有该知识。
  */
 @Slf4j
 @Component

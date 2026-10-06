@@ -1,14 +1,5 @@
 <template>
-  <view
-    class="review-item"
-    :class="{ 'review-item-pressed': pressed, 'review-item--flat': flat }"
-    @touchstart="pressed = true"
-    @touchend="pressed = false"
-    @touchcancel="pressed = false"
-    @mousedown="pressed = true"
-    @mouseup="pressed = false"
-    @mouseleave="pressed = false"
-  >
+  <view class="review-item" :class="{ 'review-item--flat': flat }" hover-class="pressed">
     <!-- 作者头像：**仅公开视角**（`MyReviewVO` 不含 `userAvatar`）——本人视角变体不渲染头像列 -->
     <template v-if="!mine">
       <image
@@ -32,7 +23,7 @@
           <text class="review-nickname">{{ authorNickname }}</text>
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet（唯一入口，常驻） -->
-        <view class="review-more" role="button" aria-label="更多操作" @tap.stop="onMore">
+        <view class="review-more" role="button" aria-label="更多操作" hover-class="pressed" @tap.stop="onMore">
           <IconSvg name="more-v" :size="28" :color="COLOR_MAP['text-tertiary']" />
         </view>
       </view>
@@ -59,7 +50,8 @@
       <!-- 配图行（≤3 张 COS URL）：等比小方图，点击预览大图；破图兜底 empty 中性占位 -->
       <view v-if="reviewImages.length" class="review-images">
         <view v-for="(img, i) in reviewImages" :key="img" class="review-image-cell">
-          <view class="review-image-box">
+          <!-- 按压反馈：`<image>` 不支持 `hover-class` ⇒ 由外层等比盒承载（视觉与热区不变） -->
+          <view class="review-image-box" hover-class="pressed">
             <image
               v-if="!brokenImages.has(i)"
               class="review-image"
@@ -122,7 +114,6 @@ const emit = defineEmits<{
   (e: 'more', review: Review | MyReview): void
 }>()
 
-const pressed = ref(false)
 const avatarOk = ref(true)
 
 /**
@@ -189,10 +180,7 @@ function onMore() {
   box-shadow: none;
   padding: 0;
 }
-.review-item--flat.review-item-pressed { opacity: 0.5; }
-/* 轻反馈：整卡按压 opacity 微降，避免 scale 按压的整块塌陷感（bg-soft 按压语言）。
-   类名用 review-item-pressed 而非 pressed，避免与 App.vue 全局 .pressed（opacity:0.7）同名冲突。 */
-.review-item.review-item-pressed { opacity: 0.6; }
+/* 整块按压反馈统一走全局 `.pressed`（App.vue 兜底档，opacity 0.7）——本组件不自持按压覆盖。 */
 
 /* 头像：圆形浅灰底（dish-detail-visual-polish 对齐 64rpx）。
    `overflow: hidden` 用于把头像占位（`ImagePlaceholder`）裁到圆形内 —— 缺它时占位方块的直角会露在圆外 */
@@ -295,10 +283,11 @@ function onMore() {
   width: var(--tap-target-size);
   height: var(--tap-target-size);
   transform: translate(-50%, -50%);
-}
-.review-more:active { opacity: 0.5; }
+  }
+/* 按压反馈：竖三点属「小件」档（行内图标钮）⇒ 0.6（覆盖全局 `.pressed` 整块档 0.7） */
+.review-more.pressed { opacity: 0.6; }
 
-/* 正文：二级灰、行高 1.5（content-flow-visual-polish 5.2） */
+  /* 正文：二级灰、行高 1.5（content-flow-visual-polish 5.2） */
 .review-content {
   font-size: var(--font-body);
   color: var(--text-secondary);
@@ -321,7 +310,6 @@ function onMore() {
 .review-image {
   @include grid.media;
 }
-.review-image:active { opacity: 0.6; }
 /* 破图兜底：empty 中性占位（浅底居中），可点击但不进预览 */
 .review-image-fallback {
   position: absolute;

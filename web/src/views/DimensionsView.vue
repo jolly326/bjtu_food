@@ -34,6 +34,9 @@ const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
   useSimpleList<DishDimensionAdminVO>(() => listDimensions())
 
 /* ==================== 维度：新增 / 编辑 ==================== */
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 const dimOpen = ref(false)
 const editing = ref<DishDimensionAdminVO | null>(null)
 const saving = ref(false)
@@ -84,6 +87,7 @@ async function removeDimension(row: DishDimensionAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteDimension(row.id)
     ElMessage.success('已删除')
@@ -91,6 +95,8 @@ async function removeDimension(row: DishDimensionAdminVO): Promise<void> {
   } catch (e) {
     // 被引用 → 后端原文（400），提示改为「先改菜品，再删除」
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -106,11 +112,18 @@ const valuesError = ref<string | null>(null)
 const newLabel = ref('')
 const editingValueId = ref<number | null>(null)
 const editingLabel = ref('')
+/** 取值表（抽屉内）行内动作并发保护：提交中该行按钮 `:disabled`（与列表行同范式） */
+const busyValueId = ref<number | null>(null)
 
 async function openValues(row: DishDimensionAdminVO): Promise<void> {
   currentDim.value = row
   valuesOpen.value = true
-  await loadValues()
+  busyId.value = row.id
+  try {
+    await loadValues()
+  } finally {
+    busyId.value = null
+  }
 }
 
 async function loadValues(): Promise<void> {
@@ -156,6 +169,7 @@ async function commitRename(row: DishValueAdminVO): Promise<void> {
   const dim = currentDim.value
   const label = editingLabel.value.trim()
   if (!dim || !label) return
+  busyValueId.value = row.id
   try {
     await updateValue(dim.id, row.id, { label })
     editingValueId.value = null
@@ -164,6 +178,8 @@ async function commitRename(row: DishValueAdminVO): Promise<void> {
     await load()
   } catch (e) {
     fail(e, '改名失败')
+  } finally {
+    busyValueId.value = null
   }
 }
 
@@ -177,6 +193,7 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyValueId.value = row.id
   try {
     await deleteValue(dim.id, row.id)
     ElMessage.success('已删除')
@@ -184,6 +201,8 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
     await load()
   } catch (e) {
     fail(e, '删除失败')
+  } finally {
+    busyValueId.value = null
   }
 }
 
@@ -237,9 +256,30 @@ onMounted(() => load())
             <td class="num">{{ row.valueCount }}</td>
             <td class="num">{{ row.dishCount }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="openValues(row)">管理取值</button>
-              <button class="link" type="button" @click="openEdit(row)">编辑</button>
-              <button class="link danger" type="button" @click="removeDimension(row)">删除</button>
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openValues(row)"
+              >
+                管理取值
+              </button>
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openEdit(row)"
+              >
+                编辑
+              </button>
+              <button
+                class="link danger"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="removeDimension(row)"
+              >
+                删除
+              </button>
             </td>
           </tr>
         </tbody>
@@ -297,42 +337,78 @@ onMounted(() => load())
       <StateBox v-if="valuesLoading" status="loading" />
       <StateBox v-else-if="valuesError" status="error" :message="valuesError" @retry="loadValues" />
       <StateBox v-else-if="!values.length" status="empty" message="暂无取值" />
-      <table v-else class="table table--compact">
-        <thead>
-          <tr>
-            <th class="drag-col"></th>
-            <th>取值</th>
-            <th>引用菜品</th>
-            <th class="actions">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(v, index) in values" :key="v.id" @dragover.prevent @drop="onValueDrop(index)">
-            <td class="drag-col"><DragHandle @dragstart="onValueDragStart(index)" /></td>
-            <td>
-              <input
-                v-if="editingValueId === v.id"
-                class="form-input inline"
-                v-model="editingLabel"
-                @keyup.enter="commitRename(v)"
-                @keyup.esc="editingValueId = null"
-              />
-              <span v-else>{{ v.label }}</span>
-            </td>
-            <td class="num">{{ v.dishCount }}</td>
-            <td class="actions">
-              <template v-if="editingValueId === v.id">
-                <button class="link" type="button" @click="commitRename(v)">保存</button>
-                <button class="link" type="button" @click="editingValueId = null">取消</button>
-              </template>
-              <template v-else>
-                <button class="link" type="button" @click="startRename(v)">改名</button>
-                <button class="link danger" type="button" @click="removeValue(v)">删除</button>
-              </template>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- 紧凑表格包 `.table-wrap` ⇒ 窄屏获得横向滚动兜底 -->
+      <div v-else class="table-wrap">
+        <table class="table table--compact">
+          <thead>
+            <tr>
+              <th class="drag-col"></th>
+              <th>取值</th>
+              <th>引用菜品</th>
+              <th class="actions">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(v, index) in values"
+              :key="v.id"
+              @dragover.prevent
+              @drop="onValueDrop(index)"
+            >
+              <td class="drag-col"><DragHandle @dragstart="onValueDragStart(index)" /></td>
+              <td>
+                <input
+                  v-if="editingValueId === v.id"
+                  class="form-input inline"
+                  v-model="editingLabel"
+                  @keyup.enter="commitRename(v)"
+                  @keyup.esc="editingValueId = null"
+                />
+                <span v-else>{{ v.label }}</span>
+              </td>
+              <td class="num">{{ v.dishCount }}</td>
+              <td class="actions">
+                <template v-if="editingValueId === v.id">
+                  <button
+                    class="link"
+                    type="button"
+                    :disabled="busyValueId === v.id"
+                    @click="commitRename(v)"
+                  >
+                    保存
+                  </button>
+                  <button
+                    class="link"
+                    type="button"
+                    :disabled="busyValueId === v.id"
+                    @click="editingValueId = null"
+                  >
+                    取消
+                  </button>
+                </template>
+                <template v-else>
+                  <button
+                    class="link"
+                    type="button"
+                    :disabled="busyValueId === v.id"
+                    @click="startRename(v)"
+                  >
+                    改名
+                  </button>
+                  <button
+                    class="link danger"
+                    type="button"
+                    :disabled="busyValueId === v.id"
+                    @click="removeValue(v)"
+                  >
+                    删除
+                  </button>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </BaseDrawer>
   </div>
 </template>

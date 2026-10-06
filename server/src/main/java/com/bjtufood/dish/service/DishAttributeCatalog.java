@@ -37,9 +37,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DishAttributeCatalog {
 
-    // 字段下线（2026-10-03，A4 落地）：dishMapper 与 MAX_SCAN_ROWS 随「扫全库 attributes 聚合候选」
-    // 一并删除 —— 候选值改由取值字典直供后，本类不再有任何「随菜品行数线性增长」的读路径
-    // （扫描上限与其 WARN 降级策略随之移除，读路径的内存边界问题自然消失）。
+    // 本类不持有 dishMapper：候选值全部由取值字典 / 维度字典直供（A4），
+    // 读路径不随菜品行数线性增长，故无需扫描上限与 WARN 降级策略。
 
     private final DishAttributeDimensionMapper dimensionMapper;
     /** 取值字典（A4）：候选值真源 */
@@ -63,8 +62,8 @@ public class DishAttributeCatalog {
      * 编辑候选值（**取值字典驱动**，A4 落地 2026-10-03）：按维度 {@code fieldKey} 汇总
      * 该维度下**取值字典**的 `label`，按字典 `order` 升序。
      * <p>
-     * 原实现是「扫全库在售菜品 attributes、按已用值频次去重」——那套依赖「值即中文」的旧模型
-     * （A4 后 `attributes` 存的是取值 ID，聚合会得出 ID 串，语义已失效），故改为直读字典。
+     * 候选值只从取值字典直读，<b>不</b>扫全库菜品 {@code attributes} 聚合：{@code attributes} 存的是
+     * 取值 ID（A4），对 ID 串做频次去重得不到可用中文候选，聚合路径的语义不成立。
      * <p>
      * 候选仅为**参考建议、不构成写入约束**（`DishAttributeEditVO#options`）；字典变更时由
      * {@link #invalidateCandidates()} 显式失效（管理端 A4 写入口调用）。
@@ -87,8 +86,8 @@ public class DishAttributeCatalog {
     }
 
     /**
-     * 失效**维度字典**缓存：A4 维度增删改 / 排序后调用（原实现把维度当「只由建表种子维护」，
-     * A4 落地后维度已可由管理端维护）。
+     * 失效**维度字典**缓存：A4 维度增删改 / 排序后调用（维度可由管理端维护，
+     * 故字典写入必须显式失效，不假设「只由建表种子维护」）。
      */
     public void invalidateDimensions() {
         Cache cache = cacheManager.getCache(CacheConfig.ATTRIBUTE_DIMENSIONS);

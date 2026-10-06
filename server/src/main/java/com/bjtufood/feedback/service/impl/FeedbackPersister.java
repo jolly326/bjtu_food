@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 同一类内自调用（{@code this.insert(...)}）<b>不经过代理 ⇒ 事务根本不会开启</b>。
  * 故落库必须落在另一个 Bean 上，由主 Service 注入调用。
  * <p>
- * 可见行为不变：落库字段值、错误码、失败语义均与原实现一致（由 {@code FeedbackServiceImplTest} 逐条断言）。
+ * 落库字段值、错误码、失败语义为固定口径（由 {@code FeedbackServiceImplTest} 逐条断言）。
  */
 @Component
 @RequiredArgsConstructor

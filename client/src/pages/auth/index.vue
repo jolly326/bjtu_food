@@ -42,17 +42,19 @@
             @focus="focusField = 'code'"
             @blur="focusField = ''"
           />
-          <text
+          <!-- 按压反馈：`<text>` 不支持 `hover-class` ⇒ 胶囊本体改用 `<view>` 承载（视觉与热区不变） -->
+          <view
             class="code-action"
             :class="{ disabled: !codeActionEnabled }"
             role="button"
             :aria-label="codeActionLabel"
             :aria-disabled="codeActionEnabled ? 'false' : 'true'"
             :aria-busy="sendingCode ? 'true' : 'false'"
-            hover-class="code-action--pressed"
-            hover-stay-time="80"
+            hover-class="pressed"
             @tap="sendCode"
-          >{{ codeButtonText }}</text>
+          >
+            <text class="code-action-text">{{ codeButtonText }}</text>
+          </view>
         </view>
 
         <!-- 表单错误行：`role=alert` 即时播报；**无红色底块**，仅浅红文字 + alert 图标；点击即清 -->
@@ -214,13 +216,15 @@ onUnload(() => {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
+/* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：表单卡是滚动区最后一块，
+   无安全区时会被 Home Indicator 压住（同 `my-reviews` 的 `.scroll-wrap` 写法） */
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
 /* ===== 表单卡：纯白 + 24rpx 圆角 + 轻阴影，承载全部表单内容 ===== */
 .form-card {
   padding: var(--spacing-lg) var(--spacing-md);
   background: var(--bg-card);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }
@@ -257,11 +261,11 @@ onUnload(() => {
   border: 1rpx solid var(--color-primary-text);
   border-radius: var(--radius-pill);
   color: var(--color-primary-text);
-  font-size: var(--font-small);
-  font-weight: var(--weight-medium);
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
+/* 胶囊文案：字号 / 字重挂在本节点上（颜色随胶囊状态继承） */
+.code-action-text { font-size: var(--font-small); font-weight: var(--weight-medium); }
 /* 命中区经 ::after **仅纵向**扩至 ≥88rpx（a11y 44pt 下限；视觉尺寸不变） */
 .code-action::after {
   content: '';
@@ -272,8 +276,8 @@ onUnload(() => {
   height: var(--tap-target-size);
   transform: translateY(-50%);
 }
-.code-action.disabled { color: var(--text-tertiary); border-color: var(--border-color); }
-.code-action--pressed { opacity: 0.6; }
+/* 禁用档（描边 / 文字类）：中性描边 + 文字三阶末档 + 禁点（**不降透明**，opacity 只表在途 busy） */
+.code-action.disabled { color: var(--text-tertiary); border-color: var(--border-color); pointer-events: none; }
 
 /* ===== 表单错误行：**无红色底块**，仅浅红文字 + alert 图标 ===== */
 .form-error { display: flex; align-items: center; gap: var(--spacing-2xs); margin-top: var(--spacing-xs); }

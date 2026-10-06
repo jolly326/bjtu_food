@@ -233,7 +233,7 @@ const moreRows = [
 .more-group { margin-top: var(--spacing-lg); }
 /* 卡内段间浅分隔线（`--border-color` 浅淡线条，**不用深色粗线**）：**仅一处** ——
    用户信息 ↔ 功能宫格。宫格 ↔「其他」列表原有一条分隔线，现随「其他」独立成卡片 B 而移除。 */
-.card-divider { height: 2rpx; background: var(--border-color); }
+.card-divider { border-top: 1rpx solid var(--border-color); }
 
 /* 用户信息模块（卡内第 1 段）**已抽为公共组件 `IdentityCard`**（与「我的主页」同源，基线 §三）：
    条纹 / 头像 / 主副行 / 间距 / 按压反馈全部由组件自持，本页不再维护这组规则。 */
@@ -265,7 +265,23 @@ const moreRows = [
   align-items: center;
   justify-content: center;
 }
-.grid-cell-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); white-space: nowrap; text-align: center; }
+/* 宫格标签：单行居中，**超长（>4 字）省略**而非换行 ——
+   宫格是固定三列结构，标签换行会顶高该格、使同行三格的图标-文字节奏不齐；
+   省略只影响极端长标签（当前三个标签恒为 4 字），是兜底而非常态。
+   ⚠️ `align-self: stretch` 必须有：格容器是纵向 flex + `align-items: center`，
+   标签在**交叉轴**上会被收成内容宽（`nowrap` ⇒ 内容宽 = 文本全宽）⇒ 省略号不触发、直接溢出格宽。 */
+.grid-cell-label {
+  display: block;
+  align-self: stretch;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-subtitle);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  text-align: center;
+}
 /* 角标：贴卡片（图标 chip）右上角，不遮蔽图标主体 */
 .badge { position: absolute; top: -6rpx; right: -6rpx; z-index: 1; }
 /* 未读角标：14rpx 圆点。未读态**统一用橙**（与系统通知未读竖条同色），红仅留错误与危险 */

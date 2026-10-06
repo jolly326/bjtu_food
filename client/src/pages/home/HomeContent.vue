@@ -1,11 +1,27 @@
 <template>
   <view class="feed-wrap">
-    <!-- 加载失败重试块（P3-03 公共组件）：列表失败且无数据时替代静默空态 / 「还没录菜品」误导文案；
-         整块 @tap 上抛 retry 由页面走重拉路径。失败态**优先于**加载态与空态：失败 ≠ 加载中 ≠ 无内容 -->
+    <!-- 三态判断序固定 **失败 > 在途 > 空 > 内容**（有错不显示空）：
+         · 失败（且无数据）→ 公共 `RetryBlock`（P3-03）：整块 @tap 上抛 retry 由页面走重拉路径，
+           替代静默空态 / 「还没录菜品」误导文案（失败 ≠ 加载中 ≠ 无内容）；
+         · 在途（首屏 / 切大类拉取，`LOADING_KEY_HOME` 在途）→ 全局 `.list-foot` 文字行；
+         · 空（成功但 0 条）→ 公共 `EmptyState`：**不给 CTA**（同屏已有食堂 / 大类控件，属「已有可达入口」）。 -->
     <RetryBlock v-if="loadFailed" @retry="emit('retry')" />
 
-    <!-- 不设加载骨架/加载指示：loading 期间本区块不渲染任何内容，保持空白 -->
-    <template v-else-if="!loading">
+    <!-- 在途只给文字行、不给骨架屏（禁的是伪内容与抖动，不是文字）：静默 = 慢网白屏 -->
+    <view v-else-if="loading" class="list-foot">
+      <text class="list-foot-text">加载中…</text>
+    </view>
+
+    <!-- 零数据空态（显式、禁静默）：成功返回 0 条时网格区不再整块空白 -->
+    <EmptyState
+      v-else-if="!list.length"
+      icon="dish"
+      :icon-size="48"
+      title="暂无菜品"
+      desc="换个食堂或大类看看"
+    />
+
+    <template v-else>
       <view class="waterfall-grid">
         <!-- 双列瀑布流：奇偶分列（右列绝不空）；WaterfallList 已内联合并到此，减少一层组件嵌套 -->
         <view class="waterfall-col waterfall-col-left">
@@ -20,12 +36,13 @@
         </view>
       </view>
 
-      <!-- 触底态（MP-05）：到达保留页数上限给出说明；加载中给出在途提示 -->
-      <view v-if="pageLimited" class="feed-foot">
-        <text class="feed-foot-text">已展示前 {{ maxDishes }} 个结果，切换大类可查看更多</text>
+      <!-- 触底态（MP-05）：到达保留页数上限给出说明；加载更多在途给出在途提示。
+           两者均为全局 `.list-foot` 用法（与首屏在途文字行同一实现）。 -->
+      <view v-if="pageLimited" class="list-foot">
+        <text class="list-foot-text">已展示前 {{ maxDishes }} 个结果，切换大类可查看更多</text>
       </view>
-      <view v-else-if="loadingMore" class="feed-foot">
-        <text class="feed-foot-text">正在加载更多…</text>
+      <view v-else-if="loadingMore" class="list-foot">
+        <text class="list-foot-text">正在加载更多…</text>
       </view>
     </template>
   </view>
@@ -35,6 +52,7 @@
 import { computed } from 'vue'
 import DishCard from './DishCard.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useDishStore, LOADING_KEY_HOME, HOME_MAX_PAGES } from '@/stores/dish'
 import { HOME_PAGE_SIZE } from '@/constants/paging'
 import type { DishListItem } from '@/types/dish'
@@ -47,8 +65,12 @@ const emit = defineEmits<{
 
 const dishStore = useDishStore()
 
+/** 列表数据源（`store.homeList`）：空态判定与瀑布流分列共用 */
+const list = computed(() => dishStore.homeList)
+
 /**
  * 列表首屏 / 切大类在途：只订阅 `LOADING_KEY_HOME`（触底加载更多是另一个 key，不遮挡已有列表）。
+ * 在途只给文字行（全局 `.list-foot`），不给骨架屏。
  */
 const loading = computed(() => dishStore.isLoading(LOADING_KEY_HOME))
 /** 触底加载更多在途 */
@@ -57,8 +79,8 @@ const loadingMore = computed(() => dishStore.homeLoadingMore)
 const pageLimited = computed(() => dishStore.homePageLimited)
 const maxDishes = HOME_MAX_PAGES * HOME_PAGE_SIZE
 
-/** 列表最近一次请求失败且当前无数据：渲染错误重试块，失败 ≠ 无数据 */
-const loadFailed = computed(() => dishStore.homeError && dishStore.homeList.length === 0)
+/** 列表最近一次请求失败且当前无数据：渲染错误重试块，失败 ≠ 无数据（失败优先于在途与空态） */
+const loadFailed = computed(() => dishStore.homeError && list.value.length === 0)
 
 /** 双列分列：奇偶分列（右列绝不空）。卡片图为**固定 3:2 容器**，故无需按图片比例做列内等高平衡。
  *  key 仅由稳定业务主键 `id` 构成（`DishListItem.id: number` 为必填）——**不附加列内序号 idx**，
@@ -66,7 +88,7 @@ const loadFailed = computed(() => dishStore.homeError && dishStore.homeList.leng
 const splitList = computed(() => {
   const left: { item: DishListItem; key: string }[] = []
   const right: { item: DishListItem; key: string }[] = []
-  dishStore.homeList.forEach((item, idx) => {
+  list.value.forEach((item, idx) => {
     const entry = { item, key: `wf-${item.id}` }
     if (idx % 2 === 0) left.push(entry)
     else right.push(entry)
@@ -109,17 +131,6 @@ function goToDetail(dish: { id: number }) {
 
 /* 失败态块已上提为公共组件 components/RetryBlock.vue（P3-03），样式随之收敛，此处不再保留副本 */
 
-/* 触底 / 加载更多提示（MP-05）：居中次级灰小字，不抢内容焦点 */
-.feed-foot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 var(--page-gutter) var(--spacing-lg);
-}
-.feed-foot-text {
-  /* 12px 是正文可读下限（--font-aux 22rpx 在窄屏折合 ≈10px，低于下限） */
-  font-size: var(--font-small);
-  color: var(--text-tertiary);
-  text-align: center;
-}
+/* 文字行（在途 / 加载更多 / 已封顶）样式全部来自全局 `.list-foot` / `.list-foot-text`
+   （App.vue 唯一实现），页面不再保留私有副本 */
 </style>

@@ -68,7 +68,8 @@ const canSubmit = computed(() =>
 function openHandle(row: ReportAdminVO): void {
   current.value = row
   outcome.value = 'handled'
-  hideReview.value = row.reviewHidden ? true : true
+  // 复选默认勾选（页面规格 反馈与举报.md §B3）；被举报评价已隐藏时置灰锁定，取值仍为 true（见 hideLocked）
+  hideReview.value = true
   reply.value = ''
   rejectReason.value = ''
   open.value = true
@@ -154,16 +155,15 @@ onMounted(() => reloadFirstPage())
         <tbody>
           <tr v-for="row in items" :key="row.id">
             <td>{{ row.reasonLabel }}</td>
-            <td class="ellipsis">
-              <span v-if="row.reviewContent">{{ row.reviewContent }}</span>
-              <span v-else class="muted">评价已删除</span>
+            <td>
+              <ClampText :text="row.reviewContent" placeholder="评价已删除" />
               <div v-if="row.reviewDishName" class="muted">{{ row.reviewDishName }}</div>
             </td>
             <td>
               <StatusTag :status="row.reviewHidden ? 'hidden' : 'visible'" kind="review" />
             </td>
             <td>{{ row.userNickname || '游客' }}</td>
-            <td class="ellipsis">{{ row.content || '—' }}</td>
+            <td><ClampText :text="row.content" /></td>
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ row.createdAt }}</td>
             <td class="actions">
@@ -301,6 +301,7 @@ onMounted(() => reloadFirstPage())
 }
 .ctx-body {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--text-primary);
 }
 .ctx-meta {

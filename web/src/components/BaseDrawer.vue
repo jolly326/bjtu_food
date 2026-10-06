@@ -142,6 +142,8 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow: auto;
   padding: var(--space-5);
+  /* 正文超长串（URL / 无空格长词）可断行，不撑破抽屉 */
+  overflow-wrap: anywhere;
 }
 .drawer-actions {
   display: flex;

@@ -114,8 +114,8 @@ function onPickImageSource(key: string) {
   margin: var(--spacing-md) var(--page-gutter) 0;
   padding: var(--spacing-lg);
   background: var(--bg-card);
-  /* 大卡片圆角走既有圆角档 `--radius-btn`（24rpx），不新立 token */
-  border-radius: var(--radius-btn);
+  /* 卡片面圆角归档到全站卡片档 `--radius-card` */
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 

@@ -47,6 +47,11 @@ public class UserServiceImpl implements UserService {
     }
     private final ImageUrlUtil imageUrlUtil;
     private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
+    /**
+     * 「DB status 写 + TokenBlacklist 写」的临界区（详见 {@link UserStateWriteLock} 类注释）。
+     * 与 {@code AuthServiceImpl#deleteAccount} 共用同一实例，故同一 userId 的两条状态写入口互相串行。
+     */
+    private final UserStateWriteLock userStateWriteLock;
 
     @Override
     public IPage<UserVO> listUsers(int page, int pageSize, String status, String keyword) {
@@ -114,52 +119,69 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void updateStatus(Long id, String status) {
-        // 枚举校验：本接口契约仅允许 active/disabled（对齐 AdminManagerServiceImpl.updateStatus），
+        // 枚举校验：本接口契约仅允许 active/disabled（见 docs/api/web/users.md），
         // 非法值（含 deleted）一律 400，避免垃圾值直接落库
         if (!UserConst.STATUS_ACTIVE.equals(status) && !UserConst.STATUS_DISABLED.equals(status)) {
             throw new BusinessException("非法的状态：" + status);
         }
-        User user = userMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException("User not found");
-        }
-        // 说明：管理端已无登录与角色体系，用户状态变更不再做「禁止操作自身/越权」判定；
-        // 管理端接口整体由 AdminAuthFilter 的口令校验保护。
-        user.setStatus(status);
-        userMapper.updateById(user);
-        // 禁用后该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
-        // 恢复 active 时解除拉黑，使其可正常登录使用。
-        // （deleted 状态仅由微信账号合并流程在 AuthServiceImpl 内部写入，不经本接口）
-        if (UserConst.STATUS_DISABLED.equals(status)) {
-            tokenBlacklist.revokeUser(id);
-        } else {
-            tokenBlacklist.restoreUser(id);
-        }
+        // 「读现状 → 写 DB → 同步黑名单」必须整体落在同一 userId 临界区内：
+        // 否则并发「禁用 / 启用」交错可得 DB 终态 active 而该 userId 仍在拉黑中，该用户连重新登录
+        // 换到的新 token 也会被 JwtAuthFilter 一律 401（重启或 7 天窗口前不自愈）。
+        // 同一 userId 的注销路径（AuthServiceImpl#deleteAccount）持有同一把锁，故「启用 vs 注销」亦不交错。
+        userStateWriteLock.run(id, () -> {
+            // 存在性校验（契约 4001「用户不存在」）；读与后续写同处临界区，避免读到的现状事后被推翻
+            if (userMapper.selectById(id) == null) {
+                throw new BusinessException(4001, "用户不存在");
+            }
+            // 说明：管理端单一管理员模型（无角色区分），用户状态变更不做「禁止操作自身 / 越权」判定；
+            // /admin/** 整体由 AdminAuthFilter 的管理端 JWT 校验保护。
+            // 只写 status 一列（不整行回写）：整行回写会把昵称 / 头像等列一并写回，
+            // 与本人 PUT /auth/profile 的局部更新并发时互相覆盖（lost update）。
+            // updated_at 由 DB 时钟维护（见 docs/schema/README.md §时间戳写入来源）
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, id)
+                    .set(User::getStatus, status));
+            // 禁用后该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
+            // 恢复 active 时解除拉黑，使其可正常登录使用。
+            // （deleted 状态仅由微信账号合并流程在 AuthServiceImpl 内部写入，不经本接口）
+            if (UserConst.STATUS_DISABLED.equals(status)) {
+                tokenBlacklist.revokeUser(id);
+            } else {
+                tokenBlacklist.restoreUser(id);
+            }
+        });
     }
 
-    // 垂直越权防护（checkAdminOperation / resolveOperatorRole）随管理端角色体系一并移除：
-    // 后台无登录、无角色、单一使用者，管理端接口由 AdminAuthFilter 口令校验统一保护。
+    // 本域不含垂直越权防护（无 checkAdminOperation / 角色解析）：管理端为单一管理员模型，
+    // /admin/** 由 AdminAuthFilter 的管理端 JWT 校验统一保护。
 
     private UserVO toVO(User user) {
         UserVO vo = new UserVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setNickname(user.getNickname());
-        vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
+        // 出参空值口径（管理端列表）：可空字符串列恒非空串 —— avatar 无值 → 空串，端上无需判空
+        vo.setAvatar(orEmpty(imageUrlUtil.toAbsoluteUrl(user.getAvatar())));
         vo.setStatus(user.getStatus());
         // 是否绑定微信：由 openid 非空派生（不暴露 openid 明文），管理端用户列表消费
         vo.setWechatBound(user.getOpenid() != null);
-        vo.setBindEmail(user.getBindEmail());
+        // 空串 = 未认证（管理端认证态唯一判据，与端上同口径）
+        vo.setBindEmail(orEmpty(user.getBindEmail()));
         vo.setCreatedAt(user.getCreatedAt());
         // C2：列表统一带 updatedAt（表已有列，无需 DDL）
         vo.setUpdatedAt(user.getUpdatedAt());
         return vo;
     }
 
+    /** 出参空值归一：{@code null} → 空串（管理端列表的字符串列恒非空串，端上无需判空） */
+    private static String orEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
     /**
      * 游客默认昵称：食客 + ID 尾 4 位（id 不足 4 位时取全量）。
      * <p>
-     * 「游客短标识」不再作为任何接口出参：该值是 `id` 的纯派生，
+     * 「游客短标识」不作为任何接口出参：该值是 `id` 的纯派生，
      * 学生端与管理端各自按同一规则现算；此处仅用于**建号默认昵称**这一处服务端写入。
      */
     private String buildGuestNickname(Long userId) {
@@ -171,8 +193,8 @@ public class UserServiceImpl implements UserService {
     // ==================== 跨域只读契约实现（P0-1：判据唯一真源 = auth） ====================
 
     /**
-     * UGC 准入判定（原实现位于 {@code common.aspect.RequireVerifiedAspect#checkVerified}，
-     * 迁址后判据、错误码与文案逐字保留；「非 active 一律拒绝」的口径亦不变）。
+     * UGC 准入判定（{@code auth.aspect.RequireVerifiedAspect} 与各写入口共用的唯一判据：
+     * 未登录 → 401「请先登录」；账号非 active → 403「账号已被禁用」；未认证 → 4031「请先完成学号邮箱认证」）。
      */
     @Override
     public void requireUgcAuthorized(Long userId) {

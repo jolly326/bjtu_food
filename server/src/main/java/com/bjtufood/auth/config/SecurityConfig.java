@@ -47,7 +47,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    /** 管理端鉴权过滤器（校验管理端 JWT；TD-20 · 取代 AdminTokenFilter） */
+    /** 管理端鉴权过滤器（校验管理端 JWT；TD-20 · P0-4） */
     private final AdminAuthFilter adminAuthFilter;
 
     /**
@@ -83,7 +83,7 @@ public class SecurityConfig {
             // 反馈提交（PUB：产品决策「反馈不登录也能用」）
             "/feedback",
             // 举报原因字典（PUB：举报免认证，端上举报弹层实时拉取）
-            // P2 迁址：原 /feedback/report-reasons（字典挂在「反馈提交」写入口下语义错位）
+            // 举报原因字典是「举报原因」的枚举，不属「反馈提交」写入口的子资源
             "/report-reasons",
             // 评价举报提交（PUB：举报免认证，游客可提交；RESTful 子资源）
             "/reviews/*/report",
@@ -199,14 +199,13 @@ public class SecurityConfig {
      * 使用 BCrypt 算法加密密码。
      * BCrypt 每次加密结果不同（内置 salt），安全性高。
      * <p>
-     * 保留说明（BE「删除 DataInitializer」联动评估结论）：
      * 本 Bean 有<b>两处</b>消费者，摘除任一都会出问题：
      * ① <b>管理端账密登录</b>（TD-19）：{@code AdminAuthController} 用 {@code matches(输入口令, password_hash)} 比对 BCrypt；
      * ② 邮箱验证码：{@code EmailCodeServiceImpl#passwordEncoder.encode(验证码)} 与
      * {@code AuthServiceImpl#passwordEncoder.matches(输入码, code_hash)} 依赖它。
-     *
-     * 注：DataInitializer 写入的 admin/admin123 账号随该类删除；管理端账号现由 {@code admin_account} 表承载
-     * （TD-16 已建表，见 docs/schema/admin_account.md），与本 Bean 无耦合关系。
+     * <p>
+     * 管理端账号由 {@code admin_account} 表承载（TD-16，见 docs/schema/admin_account.md），
+     * 密码以 BCrypt 摘要落库。
      *
      * @return PasswordEncoder
      */

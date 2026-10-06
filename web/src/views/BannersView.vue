@@ -71,14 +71,20 @@ async function save(): Promise<void> {
 }
 
 /* ==================== 启停 / 删除 ==================== */
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function toggle(row: BannerAdminVO): Promise<void> {
   const next = row.status === 'on' ? 'off' : 'on'
+  busyId.value = row.id
   try {
     await updateBannerStatus(row.id, next)
     ElMessage.success(next === 'on' ? '已启用' : '已停用')
     await load()
   } catch (e) {
     fail(e)
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -88,12 +94,15 @@ async function remove(row: BannerAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteBanner(row.id)
     ElMessage.success('已删除')
     await load()
   } catch (e) {
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -135,11 +144,20 @@ onMounted(() => load())
             <span class="muted">排序 {{ row.order }}</span>
           </div>
           <div class="banner-actions">
-            <button class="link" type="button" @click="openEdit(row)">编辑</button>
-            <button class="link" type="button" @click="toggle(row)">
+            <button class="link" type="button" :disabled="busyId === row.id" @click="openEdit(row)">
+              编辑
+            </button>
+            <button class="link" type="button" :disabled="busyId === row.id" @click="toggle(row)">
               {{ row.status === 'on' ? '停用' : '启用' }}
             </button>
-            <button class="link danger" type="button" @click="remove(row)">删除</button>
+            <button
+              class="link danger"
+              type="button"
+              :disabled="busyId === row.id"
+              @click="remove(row)"
+            >
+              删除
+            </button>
           </div>
         </div>
       </div>

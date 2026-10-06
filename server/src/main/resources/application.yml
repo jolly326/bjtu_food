@@ -16,7 +16,7 @@ server:
     # 2026-09-28 起启用版本段（业界标准做法）：v1 为首个契约版本。
     # 破坏性变更时新增 v2 并保留 v1 一段过渡期，双份并行、端上逐步迁移后再摘除 v1。
     # 注意：版本段写在此处（context-path）而非各 Controller 的 @RequestMapping，
-    # 故 38 个端点映射零改动；SecurityConfig 白名单与 AdminTokenFilter 作用域
+    # 故各 Controller 的映射不含版本段；SecurityConfig 白名单与 AdminAuthFilter 作用域
     # 均按「应用内路径」（已剥离 context-path）判定，升版不影响二者。
     context-path: /api/v1
 
@@ -26,8 +26,8 @@ server:
 # 🔴 必须**固定**：每次启动重新生成会使已登录 token 全部失效（用户被反复踢出登录）。
 # 取值要求：≥32 字节随机串（openssl rand -base64 48）；未配置或过弱时**启动即失败**（fail-fast）。
 #
-# 🗑️ 原静态口令配置 admin.token（环境变量 ADMIN_TOKEN）已随 TD-20 删除 —— 口令须在前后端各存一份，
-#    而前端那份会被 Vite 打进产物，bundle 一旦离开本机即永久失守且无法吊销。
+# 🗑️ 不采用静态口令配置：口令须在前后端各存一份，而前端那份会被 Vite 打进产物，
+#    bundle 一旦离开本机即永久失守且无法吊销。
 admin:
   jwt:
     secret: ${ADMIN_JWT_SECRET:}
@@ -42,14 +42,14 @@ spring:
   # 凭据一律从环境变量注入，禁止在仓库写入明文。
   # 本地开发：复制 .env.example 为 server/.env，由 spring-dotenv 依赖自动加载（优先级：系统环境变量 > server/.env > 此处默认值）。
   # 云托管/生产：直接在云托管环境变量中配置同名变量（优先级最高），无需 .env 文件。
-  # 注意：原 application-secret.yml（曾含 SMTP 明文）已移除并加入 .gitignore，敏感配置全部改由环境变量注入，仓库不再保留任何明文凭据。
+  # 注意：敏感配置一律从环境变量注入，仓库不保留任何明文凭据（明文配置文件在 .gitignore 内）。
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/bjtu_food?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:}
-    # 连接池显式化（2026-09-29）：此前用 Spring 默认（maximum-pool-size=10），未显式声明 ⇒
-    # 上限随框架版本漂移、出问题难以定位。配合「机审移出事务」一并收口：
+    # 连接池显式声明（2026-09-29）：不依赖 Spring 默认（maximum-pool-size=10）——未显式声明则
+    # 上限随框架版本漂移、出问题难以定位。取值依据（配合「机审移出事务」）：
     #   · maximum-pool-size：按云托管 0.5G 实例与并发写量定为 20（写路径事务已只包住落库，占用极短）
     #   · connection-timeout：借不到连接最多等 30s 后明确报错，避免请求无限堆积
     #   · leak-detection-threshold：超过 60s 未归还即 WARN 并打印借用栈，用于发现「连接被长期占用」回归
@@ -93,9 +93,9 @@ spring:
 # ---------- MyBatis-Plus 配置 ----------
 mybatis-plus:
   # ---------- XML 映射文件扫描路径 ----------
-  # 2026-09-28 架构收口 P2：资源目录与 Java 侧分包对齐——XML 按业务域下沉到
+  # 2026-09-28 架构收口 P2：资源目录与 Java 侧分包对齐——XML 按业务域分层到
   # mapper/<域>/XxxMapper.xml（与 src/main/java/com/bjtufood/<域>/mapper 对称），
-  # 不再是扁平的单层 mapper/。通配 `**` 同时覆盖下层目录与未来新增的域。
+  # 不使用扁平的单层 mapper/。通配 `**` 同时覆盖下层目录与未来新增的域。
   # 注：显式声明而非依赖默认值，使目录约定可被本文件直接读出。
   mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
@@ -132,7 +132,7 @@ cors:
 
 # ---------- 应用公共基础 URL ----------
 app:
-  # 供上传模块拼接完整图片 URL（局域网调试改为本机 IP）
+  # 供上传模块拼接完整图片 URL（局域网调试用本机 IP）
   # 必须含版本段，与 server.servlet.context-path 保持一致，否则上传返回的图片 URL 会 404
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080/api/v1}
 

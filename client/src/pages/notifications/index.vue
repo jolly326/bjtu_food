@@ -31,6 +31,7 @@
             :key="n.id"
             class="msg-item v-item"
             :class="{ unread: !n.isRead }"
+            hover-class="pressed"
             @tap="onTap(n)"
           >
             <!-- 未读左侧暖橙细竖条（与红点共同表达未读，强化层级） -->
@@ -48,10 +49,14 @@
         </view>
       </view>
 
-      <!-- 加载失败重试块（P3-03 公共组件）：首屏请求失败 ≠ 无通知——
-           先于空态渲染，避免网络失败被误读为「暂无通知」；恢复走重试块 @tap。 -->
+      <!-- 三态判断序固定 **失败 > 在途 > 空**（有错不显示空）：
+           ① 失败（P3-03 公共组件）—— 首屏请求失败 ≠ 无通知，先于在途与空态渲染；
+           ② 在途 —— 只给文字行（全局 `.list-foot`），不给骨架屏（禁的是伪内容与抖动，不是文字）；
+           ③ 空 —— 零通知显式呈现（铃铛图标 + 标题 + 说明），避免整页空白被判读为「页面坏了」。 -->
       <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
-      <!-- 空态：零通知时展示（铃铛图标 + 标题 + 说明），避免整页空白被判读为「页面坏了」 -->
+      <view v-else-if="loading && !list.length" class="list-foot">
+        <text class="list-foot-text">加载中…</text>
+      </view>
       <EmptyState
         v-else-if="loaded && !list.length"
         icon="bell"
@@ -171,13 +176,15 @@ async function onTap(n: Notification) {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
+/* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：通知卡 / 空态 / 失败块都是滚动区末块，
+   无安全区时会被 Home Indicator 压住（同 `my-reviews` 的 `.scroll-wrap` 写法） */
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
 /* 列表容器：单张白卡装全部行；`.list` 仅作占位 wrapper（行少时不渲染空卡） */
 .list { display: block; }
 .list-card {
   background: var(--bg-card);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   overflow: hidden;
 }
@@ -221,12 +228,15 @@ async function onTap(n: Notification) {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  /* 超长无空格串（回执里的 URL / 长英文）在 2 行折叠内换行，不被硬裁 */
+  overflow-wrap: anywhere;
 }
 
 /* 空态 / 失败态样式由公共组件 EmptyState / RetryBlock 承担 */
 
 /* 「全部已读」胶囊：默认中性白底灰描边；有未读时（is-active）整体转暖橙描边 + 暖橙文字；
-   禁用态（is-disabled）常驻灰显、不可点；按压走全局 .pressed 兜底 */
+   禁用态（is-disabled）常驻中性描边 + 文字三阶末档（描边 / 文字类禁用档，**不降透明**）、不可点；
+   按压走全局 .pressed 兜底 */
 .read-all {
   display: flex;
   align-items: center;
@@ -245,6 +255,9 @@ async function onTap(n: Notification) {
   font-weight: var(--weight-medium);
   color: var(--text-tertiary);
 }
+/* 禁用档（描边 / 文字类）：回落中性描边 + 文字三阶末档，**不再降透明**（opacity 只表在途 busy） */
+.read-all.is-disabled { border-color: var(--border-color); }
+.read-all.is-disabled .read-all-text { color: var(--text-tertiary); }
 .read-all.pressed { background: var(--bg-soft); opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {

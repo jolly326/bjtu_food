@@ -209,6 +209,19 @@ public interface DishService {
     long countByStallId(Long stallId);
 
     /**
+     * 批量统计多个档口下的菜品数（管理端档口列表 {@code GET /admin/stalls} 用）。
+     * <p>
+     * 一次 {@code COUNT(*) GROUP BY stall_id} 取回「档口 → 菜品数」映射，替代逐档口调用
+     * {@link #countByStallId}（档口虽为十数条量级，逐行查询仍会随列表行数线性放大）。
+     * 计入口径与 {@link #countByStallId} <b>完全一致</b>：只按档口过滤、不筛在售状态
+     * （该计数回答「档口下还有没有菜」，下架菜同样不能随档口一起消失）。
+     *
+     * @param stallIds 档口 ID 集合（null / 空集合 → 直接返回空 Map，不发 SQL）
+     * @return 档口 ID → 菜品数；<b>无菜品的档口不会出现在结果集中</b>，调用方按需兜底 0
+     */
+    Map<Long, Long> countByStallIds(Collection<Long> stallIds);
+
+    /**
      * 菜品健康度计数（D1 看板：在售数 + 三个「当场能修」的缺失项）。
      * <p>
      * 跨域聚合由 `dashboard.controller` 编排，本方法只出**本域**的 4 个计数。

@@ -98,9 +98,9 @@ const selectedIconColor = computed(() =>
   gap: var(--spacing-2xs);
   min-height: var(--tap-target-size);
   padding: var(--spacing-sm) var(--spacing-lg);
-  /* 圆角取 `--radius-icon`(24rpx)（App.vue 无 28rpx 档，取标度内最近档；禁裸写 28rpx）。
+  /* 圆角取全圆胶囊档 `--radius-pill`（可点词条归 pill 档）。
      圆角只影响轮廓，不改变盒高。 */
-  border-radius: var(--radius-icon);
+  border-radius: var(--radius-pill);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
@@ -119,7 +119,8 @@ const selectedIconColor = computed(() =>
   background: var(--bg-soft);
   border: 2rpx solid transparent;
 }
-.tag-chip--pressed { opacity: 0.7; }
+/* chip 属「小件」档 ⇒ 按压取 0.6（与顶栏返回 / Sheet 关闭同档） */
+.tag-chip--pressed { opacity: 0.6; }
 
 .tag-chip-text {
   font-size: var(--font-aux);

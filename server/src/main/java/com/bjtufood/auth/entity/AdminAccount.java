@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 /**
  * 管理员账号（表 {@code admin_account}）。
  *
- * <p><b>与学生账号完全分离</b>：{@code user} 表是学生专用（{@code role} 列已移除），
+ * <p><b>与学生账号完全分离</b>：{@code user} 表是学生专用（无 {@code role} 列），
  * 管理端**不复用** —— 两类身份的生命周期、鉴权方式、失效条件都不同，混在一张表会让
  * 「哪些字段管学生、哪些管管理员」失去边界。
  *

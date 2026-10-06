@@ -106,6 +106,9 @@ const canSubmit = computed(() => {
   return rejectReason.value.trim().length > 0
 })
 
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function openHandle(row: CorrectionAdminVO, mode: 'adopted' | 'rejected'): Promise<void> {
   open.value = true
   detail.value = null
@@ -119,6 +122,7 @@ async function openHandle(row: CorrectionAdminVO, mode: 'adopted' | 'rejected'):
   chosenStallId.value = 0
   createIfMissing.value = false
   needStallConfirm.value = false
+  busyId.value = row.id
   try {
     const d = await getCorrection(row.id)
     detail.value = d
@@ -128,6 +132,7 @@ async function openHandle(row: CorrectionAdminVO, mode: 'adopted' | 'rejected'):
     detailError.value = e instanceof Error ? e.message : '加载详情失败'
   } finally {
     detailLoading.value = false
+    busyId.value = null
   }
 }
 
@@ -186,6 +191,12 @@ function reset(): void {
   reloadFirstPage()
 }
 
+/** 切换问题类型 Tab：改筛选条件并回到第一页（单一 handler —— 模板内联多语句会导致构建失败） */
+function pickType(value: CorrectionType | '') {
+  fType.value = value
+  reloadFirstPage()
+}
+
 onMounted(() => reloadFirstPage())
 </script>
 
@@ -204,10 +215,7 @@ onMounted(() => reloadFirstPage())
           :aria-selected="fType === t.value"
           :class="{ active: fType === t.value }"
           v-press
-          @click="
-            fType = t.value
-            reloadFirstPage()
-          "
+          @click="pickType(t.value)"
         >
           {{ t.label }}
         </button>
@@ -272,18 +280,32 @@ onMounted(() => reloadFirstPage())
               <span v-else class="muted">—</span>
             </td>
             <td><StatusTag :status="row.status" kind="correction" /></td>
-            <td class="ellipsis">
-              <span v-if="row.reply">{{ row.reply }}</span>
-              <span v-else class="muted">—</span>
-              <div v-if="row.rejectReason" class="muted">原因：{{ row.rejectReason }}</div>
+            <td>
+              <ClampText :text="row.reply" />
+              <!-- 拒绝原因同属长文本（基线 §1.4）⇒ 走 ClampText，不用单行截断 -->
+              <ClampText
+                v-if="row.rejectReason"
+                class="muted"
+                :text="`原因：${row.rejectReason}`"
+              />
             </td>
             <td class="muted">{{ row.createdAt }}</td>
             <td class="actions">
               <template v-if="row.status === 'pending'">
-                <button class="link" type="button" @click="openHandle(row, 'adopted')">
+                <button
+                  class="link"
+                  type="button"
+                  :disabled="busyId === row.id"
+                  @click="openHandle(row, 'adopted')"
+                >
                   {{ row.type === 'gone' ? '下架' : '采纳' }}
                 </button>
-                <button class="link danger" type="button" @click="openHandle(row, 'rejected')">
+                <button
+                  class="link danger"
+                  type="button"
+                  :disabled="busyId === row.id"
+                  @click="openHandle(row, 'rejected')"
+                >
                   {{ row.type === 'gone' ? '驳回' : '拒绝' }}
                 </button>
               </template>
@@ -367,32 +389,35 @@ onMounted(() => reloadFirstPage())
           下架仅把该菜品置为「已下架」，可重新上架、评价完整保留；删除请到「菜品管理」由管理员主动执行。
         </p>
 
-        <!-- `field` 型采纳：逐项勾选（楼层改动会连带同档口其它菜品，单独提示） -->
+        <!-- `field` 型采纳：逐项勾选（楼层改动会连带同档口其它菜品，单独提示）；
+             表格外包 `.table-wrap` ⇒ 窄屏获得横向滚动兜底 -->
         <div v-if="outcome === 'adopted' && !isGone" class="field">
           <label id="corr-adopt-label">采纳项（逐项勾选）</label>
-          <table class="table table--compact" aria-labelledby="corr-adopt-label">
-            <thead>
-              <tr>
-                <th class="pick-col"></th>
-                <th>字段</th>
-                <th>原值</th>
-                <th>提交值</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="diff in detail.differences" :key="diff.field">
-                <td class="pick-col">
-                  <input type="checkbox" v-model="accepted[diff.field]" />
-                </td>
-                <td>
-                  {{ diff.label }}
-                  <div v-if="diff.affectsOthers" class="warn">将连带同档口其它菜品</div>
-                </td>
-                <td class="muted">{{ diff.oldValue || '—' }}</td>
-                <td>{{ diff.newValue || '—' }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="table table--compact" aria-labelledby="corr-adopt-label">
+              <thead>
+                <tr>
+                  <th class="pick-col"></th>
+                  <th>字段</th>
+                  <th>原值</th>
+                  <th>提交值</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="diff in detail.differences" :key="diff.field">
+                  <td class="pick-col">
+                    <input type="checkbox" v-model="accepted[diff.field]" />
+                  </td>
+                  <td>
+                    {{ diff.label }}
+                    <div v-if="diff.affectsOthers" class="warn">将连带同档口其它菜品</div>
+                  </td>
+                  <td class="muted">{{ diff.oldValue || '—' }}</td>
+                  <td>{{ diff.newValue || '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- 档口两段式确认（仅 `field` 型采纳了档口名时才触发） -->
@@ -474,7 +499,7 @@ onMounted(() => reloadFirstPage())
   cursor: pointer;
 }
 .tab.active {
-  background: var(--color-primary-soft, var(--bg-gray));
+  background: var(--color-primary-bg);
   border-color: var(--color-primary);
   color: var(--color-primary);
   font-weight: var(--weight-medium);
@@ -517,7 +542,7 @@ onMounted(() => reloadFirstPage())
 .gone-info dd {
   margin: 0;
   color: var(--text-primary);
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* 用户配图（只读对比，不提供上传 / 删除） */

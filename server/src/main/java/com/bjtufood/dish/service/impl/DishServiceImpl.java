@@ -86,8 +86,8 @@ public class DishServiceImpl implements DishService {
     private final DishViewLogMapper dishViewLogMapper;
     private final StallService stallService;
     /**
-     * 事件发布器：菜品删除后的评价级联清理改由 review 域监听器承接
-     * （P0-1 写侧解耦，dish 域不再注入 ReviewMapper / ReviewService）。
+     * 事件发布器：菜品删除后的评价级联清理由 review 域监听器承接
+     * （P0-1 跨域写侧解耦，dish 域不注入 ReviewMapper / ReviewService）。
      */
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
@@ -237,7 +237,7 @@ public class DishServiceImpl implements DishService {
         }
 
         // ===== 浏览计数副作用（先于返回值组装，成功路径恒执行）=====
-        // 🔴 不累加 dish.view_count（该列停写，历史累计值仅作参考），改为向 dish_view_log 插一行明细，
+        // 🔴 不写 dish.view_count（该列停写，历史累计值仅作参考），浏览明细写入 dish_view_log，
         //    支撑管理端「近 30 天浏览量」滚动窗口（见 docs/schema/dish_view_log.md §2.4）。
         // 不去重（PV 口径）：同一用户反复看同一道菜每次都计 —— MVP 期浏览量不参与排序，被刷无用户可见危害，
         //    去重需引入 user_id 列与唯一约束，写入成本与锁竞争显著上升，收益当前无消费方。
@@ -403,8 +403,8 @@ public class DishServiceImpl implements DishService {
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus(DishConst.STATUS_ON);
         }
-        // 注：菜品审核语义已取消（dish.audit_status 列与写入同批移除）——
-        // 管理员即权威，录入/编辑后菜品直接生效，「落库默认值导致新菜不可见」的顾虑不再存在。
+        // 注：菜品无审核语义（dish 表无 audit_status 列，写入面也不含审核态）——
+        // 管理员即权威，录入/编辑后菜品直接生效。
         dishMapper.insert(dish);
         // 新菜带来的属性取值会进入「编辑候选值」的全库去重结果 → 显式失效，避免新值最长 2 分钟不可见
         attributeCatalog.invalidateCandidates();
@@ -433,6 +433,26 @@ public class DishServiceImpl implements DishService {
             return 0L;
         }
         return dishMapper.selectCount(new LambdaQueryWrapper<Dish>().eq(Dish::getStallId, stallId));
+    }
+
+    @Override
+    public Map<Long, Long> countByStallIds(Collection<Long> stallIds) {
+        if (stallIds == null || stallIds.isEmpty()) {
+            return Map.of();
+        }
+        List<DishMapper.StallDishCountRow> counts = dishMapper.countByStallIds(stallIds);
+        if (counts == null || counts.isEmpty()) {
+            return Map.of();
+        }
+        // Mapper 返回 List<Row>（规避 MyBatis 的 Map 返回类型歧义，见 Mapper 注释），
+        // 此处转成 stallId -> dishCount 便于调用方 O(1) 查表
+        Map<Long, Long> byStallId = new HashMap<>(counts.size());
+        for (DishMapper.StallDishCountRow row : counts) {
+            if (row.getStallId() != null && row.getDishCount() != null) {
+                byStallId.put(row.getStallId(), row.getDishCount());
+            }
+        }
+        return byStallId;
     }
 
     @Override
@@ -528,13 +548,13 @@ public class DishServiceImpl implements DishService {
             throw new BusinessException("菜品不存在");
         }
         // ==================== A3：**可编辑字段整体替换**（2026-10-03） ====================
-        // 原实现是「updateById 部分更新」+ 一处为清空原价而补的第二次 UPDATE 补丁 ——
-        // 既会出现「漏传字段导致旧值残留」，也需要补丁才能表达「清空」这一个语义。
-        // 现改为**一条显式 UPDATE 写全可编辑字段**：提交什么就是什么，语义单一、无补丁。
+        // 口径：**一条显式 UPDATE 写全可编辑字段** —— 提交什么就是什么，语义单一、无补丁。
+        // 不用「updateById 部分更新」+ 第二次 UPDATE 补丁来自清空：那会出现「漏传字段导致旧值残留」，
+        // 且需额外补丁才能表达「清空」这一个语义。
         //
         // 「null 的语义」逐字段定死（避免误清空）：
         //   · name / mealType：**必填**（空 → 400）—— 表单式编辑恒会提交；
-        //   · originalPrice：0 / null ⇒ **清空**（本次显式 set null，正是原补丁要解决的问题）；
+        //   · originalPrice：0 / null ⇒ **清空**（本次显式 set null）；
         //   · description：null ⇒ 空串（与详情出参「无为空串」同口径）；
         //   · images / attributes / stallId：null ⇒ **不修改**（不传即不动；要清空请传空数组 / 空对象）。
         //     理由：这三类是「结构性内容」，客户端未带时多为**未改动**而非「删除全部」；
@@ -619,8 +639,8 @@ public class DishServiceImpl implements DishService {
         if (dish == null) {
             throw new BusinessException("菜品不存在");
         }
-        // 级联清理该菜品下的全部评价（BE-108）：改为发布领域事件，由 review 域监听器删除评价，
-        // dish 域不再持有 review 表知识（P0-1）。同步监听 → 仍在本次事务内执行，失败一并回滚。
+        // 级联清理该菜品下的全部评价（BE-108）：发布领域事件，由 review 域监听器删除评价行，
+        // dish 域不持有 review 表知识（P0-1）。同步监听 → 仍在本次事务内执行，失败一并回滚。
         eventPublisher.publishEvent(new DishDeletedEvent(id));
         dishMapper.deleteById(id);
     }
@@ -628,7 +648,7 @@ public class DishServiceImpl implements DishService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，故写库与重算之间无竞态窗口
-    // （缓存设施已移除，相关失效时序说明随之删除）
+    // （评分无缓存设施，不存在缓存失效时序问题）
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
         // 计入口径（Q-110 / 归一）：仅 is_hidden=0 的评价计入（
@@ -680,7 +700,7 @@ public class DishServiceImpl implements DishService {
      * <p>
      * 所有值域校验集中在此（PR-06：非法入参必须 400 报错，不得静默降级落库）。
      * 价格口径：唯一数据源为 {@code price}（现价，已含折扣），
-     * {@code originalPrice} 为可空原价；不再存在 promo_price 第三价格字段。
+     * {@code originalPrice} 为可空原价；价格字段恰这两个，无 promo_price 第三价格字段。
      */
     private void applyReq(Dish dish, DishAdminReq req) {
         dish.setStallId(req.getStallId());
@@ -752,7 +772,7 @@ public class DishServiceImpl implements DishService {
 
     /**
      * 列表行封面图：取 {@code imageUrls} 的**首图**填入 {@code coverImage}；
-     * 无图时为空串（列表不再下发图片数组，故只取首图、不做多图回填）。
+     * 无图时为空串（列表不下发图片数组，故只取首图、不做多图回填）。
      * <p>
      * 同时施加**零评价均分兜底**（{@link DishConst#ZERO_RATING_FALLBACK}）：零评价时
      * {@code avg_rating} 为 NULL，出参下发 {@code 5.0}，避免卡片评分位空缺（仅出参层，不落库）。
@@ -815,7 +835,7 @@ public class DishServiceImpl implements DishService {
     }
 
     /**
-     * 纠错采纳写回（原实现位于 {@code CorrectionServiceImpl.applyAdoption}）：
+     * 纠错采纳写回（dish 域写契约，由 {@code CorrectionServiceImpl} 调用）：
      * 可空快照字段（name/price/stallId）不覆盖既有值（MyBatis-Plus NOT_NULL 策略跳过 null），
      * 保护「菜品首图必填」等既有不变量；images 的 JSON 序列化形态属 dish 落库口径，故收在本域。
      * <p>

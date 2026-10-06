@@ -470,13 +470,20 @@ export interface CorrectionRejectReq {
 // ===== C2 用户 =====
 export interface UserAdminVO {
   id: number
+  /** 账号标识（微信建号为 `wx_<openid 尾 16 位>`；注销后为 `deleted_{id}`） */
+  username: string
   nickname: string
+  /** 头像绝对 URL（无为空串） */
   avatar: string
-  /** 空串 = 未认证（管理端 VO 恒非空串；**认证态唯一判据**） */
-  bindEmail: string
   status: UserStatus
-  reviewCount: number
+  /** 是否已绑定微信（**只给布尔，不暴露 `openid` 明文**） */
+  wechatBound: boolean
+  /** 已认证绑定的校园邮箱（空串 = 未认证；**认证态唯一判据**） */
+  bindEmail: string
+  /** 注册时间（`yyyy-MM-dd HH:mm:ss`） */
   createdAt: string
+  /** 最近更新时间（`yyyy-MM-dd HH:mm:ss`；零值显示 `—`） */
+  updatedAt: string
 }
 
 export interface UserListParams {
@@ -487,6 +494,6 @@ export interface UserListParams {
 }
 
 export interface UserStatusReq {
-  /** `true` = 禁用；`false` = 启用（恢复 `active`） */
-  disabled: boolean
+  /** `disabled` = 禁用；`active` = 启用（恢复 `active`）；启停类端点统一用 `status` 字符串枚举 */
+  status: 'active' | 'disabled'
 }

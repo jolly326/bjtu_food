@@ -6,13 +6,13 @@
        两种交互形态（按 props 自动选择，消费方无需分支）：
          · **整块可点**（默认，`primaryText` / `secondaryText` 都不传）：整块 role="button"，点击 emit('retry')
            —— my-reviews / notifications / HomeContent / find 沿用；
-         · **双 CTA**（传 `primaryText` / `secondaryText`）：块本身不可点，改为两枚胶囊按钮
+         · **双 CTA**（传 `primaryText` / `secondaryText`）：块本身不可点，改为两枚圆角按钮（`--radius-btn`）
            —— 详情页「重新加载 + 返回」场景。
 
        ⚠️ 加载反馈：`loading` 为真时**用旋转环替换图标**并在副文案位显示
        「正在重新加载…」，同时**忽略点击**（防重复提交）。
-       口径说明（调整）：页面级仍**不设**骨架屏 / loading 指示；本处转圈是
-       **用户主动点击后的在途反馈**，不属于页面级加载指示。
+       口径说明：在途只给文字行、不给骨架屏（禁的是伪内容与抖动，不是文字）；
+       本处转圈是**用户主动点击后的在途反馈**，与页面级首屏在途的文字行是两处不同反馈。
        按压反馈走 opacity（小程序端按压语言 = bg-soft / opacity，不用 transform: scale）。
        无障碍：整块/按钮均为 role="button" + aria-label（默认可覆写）。 -->
   <view
@@ -177,7 +177,8 @@ function onPrimaryTap() {
   justify-content: center;
   height: var(--tap-target-size);
   padding: 0 var(--spacing-xl);
-  border-radius: var(--radius-pill);
+  /* CTA 圆角取全局主按钮档位 `--radius-btn`（24rpx），与 AppButton / EmptyState 同档 */
+  border-radius: var(--radius-btn);
   background: var(--bg-card);
   -webkit-tap-highlight-color: transparent;
 }

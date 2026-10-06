@@ -17,10 +17,9 @@ import org.springframework.stereotype.Component;
  * 注销：<b>硬删</b>该用户全部消息；
  * 合并：消息改挂正式账号。
  * <p>
- * <b>事务语义变化（有意为之）</b>：原实现经 {@code NotificationService} 的
- * {@code @Async + REQUIRES_NEW} 入口执行（异步、独立事务、失败不回传调用方）；
- * 现由监听器在注销/合并事务内同步执行——消息清理与账号操作要么同时成功、要么同时回滚，
- * 不再出现「账号已合并但消息仍挂在已注销账号上」的中间态。
+ * <b>事务语义</b>：不经 {@code NotificationService} 的 {@code @Async} 入口，
+ * 由监听器在注销/合并事务内<b>同步</b>执行——消息清理与账号操作要么同时成功、要么同时回滚，
+ * 不出现「账号已合并但消息仍挂在已注销账号上」的中间态。
  * <p>
  * 本类位于 notify 域内，直接操作本域 Mapper（不污染 {@code NotificationService} 的对外契约）。
  */

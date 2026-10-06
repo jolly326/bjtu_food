@@ -93,6 +93,8 @@ routeStore.syncRoute()
   height: var(--tabbar-height);
   -webkit-tap-highlight-color: transparent;
 }
+/* 按压反馈：TabBar 项属「小件」档（图标 + 文字）⇒ 0.6 */
+.tab-item.pressed { opacity: 0.6; }
 .tab-label {
   /* tab-pages-visual-polish-3：标签 24rpx */
   font-size: var(--font-small);

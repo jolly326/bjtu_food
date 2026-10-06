@@ -8,6 +8,7 @@
     :aria-disabled="disabled ? 'true' : 'false'"
     role="button"
     tabindex="0"
+    :hover-class="disabled || loading ? 'none' : 'pressed'"
     @tap="handleTap"
   >
     <text class="btn-text">{{ text }}</text>
@@ -58,8 +59,7 @@ function handleTap() {
   box-sizing: border-box;
   gap: var(--spacing-xs);
 }
-/* 禁用态：复用全局 .is-disabled 令牌（App.vue：opacity 0.5 + pointer-events:none + 轻灰度），
-   不再组件内自设 0.4 弱化档，与全站禁用口径单一来源 */
+/* 文案：主色底上的白字（禁用档下由下方 is-disabled 规则转为三阶末档灰字） */
 .btn-text {
   font-size: var(--font-subtitle);
   font-weight: var(--weight-medium);
@@ -68,8 +68,20 @@ function handleTap() {
 .btn-primary {
   background: var(--color-primary);
 }
+/* 禁用档（主色实底）：灰底 + 灰字（**不再降透明** —— opacity 只表在途 busy）；
+   禁点由全局 .is-disabled 的 pointer-events: none 承担 */
+.app-btn.is-disabled {
+  background: var(--bg-input);
+}
+.app-btn.is-disabled .btn-text {
+  color: var(--text-tertiary);
+}
 .app-btn.loading {
   opacity: 0.6;
   pointer-events: none;
+}
+/* 按压反馈：主色实底 CTA 档 ⇒ 0.85（与 EmptyState / RetryBlock 双 CTA / SearchBar 搜索钮同档） */
+.app-btn.pressed {
+  opacity: 0.85;
 }
 </style>

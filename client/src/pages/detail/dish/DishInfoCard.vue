@@ -142,7 +142,9 @@ const dims = computed(() => {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  word-break: break-word;
+  /* 断行口径（全站唯一写法）：超长无空格串（长英文 / URL）在 2 行折叠内换行，
+     不落到「无省略号硬裁」；`anywhere` 同时参与 min-content 计算，窄容器下也不会撑破 */
+  overflow-wrap: anywhere;
 }
 /* 「菜品有问题?」入口：文字 + 线性小图标、**视觉权重压低**（图标与文字同色 `--text-tertiary`），
    位于价格左侧；命中区经 ::after **仅纵向**扩至 ≥88rpx（a11y 44pt 下限）。
@@ -211,13 +213,14 @@ const dims = computed(() => {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  word-break: break-all;
+  /* 断行口径同上（`--font-*` 长简介里的长英文 / 长串不硬裁） */
+  overflow-wrap: anywhere;
 }
 
 /* ④ 全卡唯一分隔线：简介 ↔ 属性容器之间。
    下侧不再留白：分隔线 → 属性块的 --spacing-md 间距改由 `.dims` 自持，
    这样「简介缺失、分隔线同步消失」时同样的间距仍然成立（不会少掉一段留白）。 */
-.divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-sm) 0 0; }
+.divider { border-top: 1rpx solid var(--border-color); margin: var(--spacing-sm) 0 0; }
 
 /* ⑤ 描述四维：水平等分、逐维渲染（缺项不渲染该列）、
    无竖线分隔；**无底色 / 无边框 / 无内边距**（采用无容器方案）。
@@ -249,7 +252,8 @@ const dims = computed(() => {
   line-clamp: 2;
   overflow: hidden;
   white-space: normal;
-  word-break: break-word;
+  /* 断行口径同上：属性值可能是一长串无空格文本（与名称 / 简介统一） */
+  overflow-wrap: anywhere;
 }
 .dim-label { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1; }
 </style>

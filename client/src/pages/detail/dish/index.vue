@@ -9,9 +9,10 @@
          （承接条已移除）。 -->
     <AppTitleBand back :title="dp.dishName" :title-opacity="dp.navOpacity" @back="dp.backToHome" />
 
-    <!-- 详情拉取失败 / 菜品不存在 / 缺少 ID：明确文案 + 恢复路径，不得只留纯空白页。
-         加载期间（!dish && 未失败）保持空白静默，不新增骨架屏 / loading 指示。
-         缺 ID 无重试意义，仅给「返回」。 -->
+    <!-- 三态判断序固定 **失败 > 在途 > 内容**：
+         ① 失败 / 不存在 / 缺少 ID：明确文案 + 恢复路径，不得只留纯空白页（缺 ID 无重试意义，仅给「返回」）；
+         ② 在途（!dish 且未失败）：只给文字行（全局 `.list-foot`），不给骨架屏
+            （禁的是伪内容与抖动，不是文字；静默 = 慢网白屏）。 -->
     <view
       v-if="!dp.dish && (dp.detailFailed || dp.detailNotFound || dp.missingDishId)"
       class="detail-fail-host"
@@ -19,8 +20,8 @@
       <!-- 统一失败块：**双 CTA 形态**，取代原自绘 `.detail-fail` 按钮组。
            文案分流（R8）：不存在（4001）/ 缺 ID ⇒ 不可重试、只给「返回」；网络故障 ⇒ 「重新加载 + 返回」。
            文案与图标（`name="report"`，唯一近似语义键、非举报语义）由 `RetryBlock` 统一承载。
-           在途（点击后）显示旋转环 +「正在重新加载…」并忽略重复点击 —— 属**用户主动重试**的在途反馈，
-           不是页面级 loading 指示（口径已按裁决调整）。 -->
+           在途（点击后）显示旋转环 +「正在重新加载…」并忽略重复点击 —— 属**用户主动重试**的在途反馈
+           （页面级在途另给文字行，见下方 `.list-foot`）。 -->
       <RetryBlock
         strong
         :title="dp.detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开'"
@@ -31,6 +32,11 @@
         @retry="onRetryDetailClick"
         @secondary="dp.backToHome"
       />
+    </view>
+
+    <!-- 在途（首屏拉取中，未失败且尚无数据）：文字行随标题带下沿出现，替代整屏空白 -->
+    <view v-else-if="!dp.dish" class="list-foot">
+      <text class="list-foot-text">加载中…</text>
     </view>
 
     <!-- ===== 滚动区（与首页 §11 同构）=====
@@ -144,7 +150,7 @@ import { ref } from 'vue'
 const { titleBandPx } = useNavMetrics()
 
 /** 详情重拉在途：驱动 `RetryBlock` 的旋转环。
- *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（口径已按裁决调整）。
+ *  属「用户主动点击重试」的在途反馈（页面级首屏在途另给文字行）。
  *  声明在 `useDishPage()` 解构之前是安全的：函数体在**点击时**才解析 `dp.onRetryDetail`（闭包调用期解析）。 */
 const detailReloading = ref(false)
 async function onRetryDetailClick() {

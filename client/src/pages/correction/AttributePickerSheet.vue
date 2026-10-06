@@ -345,7 +345,7 @@ function onCustomInput(e: Event) {
   margin-right: -88rpx;
   -webkit-tap-highlight-color: transparent;
 }
-.aps-search-clear--pressed { opacity: 0.5; }
+.aps-search-clear--pressed { opacity: 0.6; }
 
 /* 引导 / 空态提示：最小字档 + 占位灰（不做成按钮，避免与真入口争注意力） */
 .aps-hint {

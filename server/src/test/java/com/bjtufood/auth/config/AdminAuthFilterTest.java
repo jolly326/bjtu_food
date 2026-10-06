@@ -4,6 +4,8 @@ import com.bjtufood.auth.entity.AdminAccount;
 import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.support.AdminJwtUtil;
 import com.bjtufood.common.ratelimit.IpRateLimiter;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +14,8 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -103,6 +107,23 @@ class AdminAuthFilterTest {
         return new AdminJwtUtil(props()).createToken(1L, "kingdo404");
     }
 
+    /**
+     * 造一个<b>签名合法但载荷非法</b>的 token：{@code sub} 直接写成传入的任意串。
+     *
+     * <p>不能复用 {@link AdminJwtUtil#createToken} —— 它把账号 ID 转成字符串写 {@code sub}，
+     * 造不出「非数字 sub」这一形态，而该形态正是下面用例要锁死的失效场景。
+     */
+    private String tokenWithSubject(String subject) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(subject)
+                .claim("username", "kingdo404")
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + 3_600_000L))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+    }
+
     // ==================== 路径作用域（context-path 无关性）====================
 
     @Test
@@ -190,6 +211,24 @@ class AdminAuthFilterTest {
         f.doFilter(req, resp, (r, s) -> reachedChain[0] = true);
         assertThat(resp.getStatus()).isEqualTo(401);
         assertThat(reachedChain[0]).isFalse();
+    }
+
+    @Test
+    @DisplayName("载荷畸形：签名合法但 sub 非数字 → 401（不得冒泡成 500）")
+    void malformedSubjectIsUnauthorized() throws ServletException, IOException {
+        AdminAuthFilter f = filter();
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/admin/dishes");
+        req.addHeader("Authorization", "Bearer " + tokenWithSubject("abc"));
+        MockHttpServletResponse resp = new MockHttpServletResponse();
+        boolean[] reachedChain = {false};
+
+        f.doFilter(req, resp, (r, s) -> reachedChain[0] = true);
+
+        // 验签只证明「token 是我们签的」，不保证 sub 可解析：Long.valueOf("abc") 抛 NumberFormatException。
+        // 它与「签名无效」是同一件事——凭证不可用 ⇒ 必须 401（清 token 跳登录页），不能冒泡成 500
+        // （500 会让端上读成「服务端故障」而保留坏 token，陷入反复失败的死循环）。
+        assertThat(resp.getStatus()).as("畸形 sub 必须归入「凭证无效」分支").isEqualTo(401);
+        assertThat(reachedChain[0]).as("载荷非法的请求不得触达业务链路").isFalse();
     }
 
     @Test

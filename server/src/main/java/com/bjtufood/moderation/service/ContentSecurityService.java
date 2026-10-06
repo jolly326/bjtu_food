@@ -7,20 +7,19 @@ import com.bjtufood.moderation.dto.SecSuggest;
  * <p>
  * 覆盖三条链路的审核判定：评价、反馈、昵称、以及上传配图。
  * <p>
- * 架构收口 P1-A：自 {@code content.security} 迁至 {@code moderation.service}——
+ * 命名与分层（架构收口 P1-A）：本接口位于 {@code moderation} 包、{@code service} 层——
  * 「content」在本仓库语境中大量指代「UGC 内容」（字段 {@code content}、文案「内容不能为空」），
  * 作为包名极易与「内容管理（CMS）」混淆；本类的实际职责是<b>内容审核</b>，
- * {@code moderation} 才是精确命名。同时由 {@code content.security} 的
- * {@code security} 一层改为 {@code service}，与其余 10 个业务域的分层惯例一致。
+ * {@code moderation} 才是精确命名，分层与其余业务域惯例一致。
  * <p>
- * 架构收口 P0-B：{@code getStableAccessToken()} / {@code invalidateCachedToken()} /
- * {@code isConfigured()} 已<b>剥离</b>到 {@link com.bjtufood.wechat.service.WechatAccessTokenProvider}。
- * 剥离原因：这三者是<b>微信平台凭据与 token 生命周期</b>，与「内容是否违规」无关；
- * 混在一个接口里导致 {@code upload} 域为取 token 而依赖「内容安全服务」，
- * 甚至直接 import 实现类读取常量。剥离后本接口只保留审核判定，依赖方向归正。
+ * 职责边界（架构收口 P0-B）：本接口只保留<b>审核判定</b>；
+ * {@code getStableAccessToken()} / {@code invalidateCachedToken()} / {@code isConfigured()}
+ * 不在本接口内，由 {@link com.bjtufood.wechat.service.WechatAccessTokenProvider} 承担。
+ * 边界理由：那三者是<b>微信平台凭据与 token 生命周期</b>，与「内容是否违规」无关；混在一个接口里
+ * 会让 {@code upload} 域为取 token 而依赖「内容安全服务」，破坏依赖方向。
  *
  * @see com.bjtufood.moderation.service.LocalSensitiveFilter 本地 DFA 词库过滤（审核链路的第一级）
- * @see com.bjtufood.wechat.service.WechatAccessTokenProvider 微信凭据获取（平台能力，已从本接口剥离）
+ * @see com.bjtufood.wechat.service.WechatAccessTokenProvider 微信凭据获取（平台能力，不在本接口内）
  */
 public interface ContentSecurityService {
 
@@ -29,8 +28,8 @@ public interface ContentSecurityService {
      * <p>
      * 内部完成 risky 统一拦截：判定为 risky 时抛
      * {@code BusinessException(400, "内容包含违规信息，请修改后重试")}。
-     * 返回值仅 PASS（放行）：内容安全检测 review（疑似）已归一为放行，
-     * 不再产生「待复核」语义与任何落库安全态。
+     * 返回值仅 PASS（放行）：内容安全检测 review（疑似）在判定入口归一为放行，
+     * 不产生「待复核」语义与任何落库安全态。
      *
      * @param openid  当前用户的微信 openid（msgSecCheck v2 必填）；null 时跳过检测放行并返回 PASS
      *                （历史学号账号无 openid，属产品登记边界，报告已备案）

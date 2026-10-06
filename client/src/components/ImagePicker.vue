@@ -21,7 +21,8 @@
     <!-- 已上传缩略图行：点击预览大图，右上角删除重选；
          破图切 empty 中性占位（评审 m4，与展示侧 ReviewItem 同构） -->
     <view v-for="(u, i) in urls" :key="u" class="ip-cell">
-      <view class="ip-box">
+      <!-- 按压反馈：`<image>` 不支持 `hover-class` ⇒ 由外层等比盒承载（视觉与热区不变） -->
+      <view class="ip-box" hover-class="pressed">
         <image
           v-if="!brokenImages.has(i)"
           class="ip-thumb"
@@ -38,6 +39,8 @@
           :class="{ 'ip-remove--off': disabled }"
           role="button"
           :aria-label="`删除第 ${i + 1} 张图片`"
+          hover-class="pressed"
+          hover-stop-propagation
           @tap.stop="onRemove(i)"
         >
           <IconSvg name="close" :size="22" :color="COLOR_MAP['text-white']" />
@@ -52,6 +55,7 @@
         :class="{ uploading, disabled }"
         role="button"
         :aria-label="uploading ? '图片上传中' : '添加图片'"
+        hover-class="pressed"
         @tap="onAdd"
       >
         <view v-if="uploading" class="ip-loading" />
@@ -344,7 +348,6 @@ function onPreview(i: number) {
 .ip-thumb {
   @include grid.media;
 }
-.ip-thumb:active { opacity: 0.6; }
 /* 破图兜底（评审 m4）：empty 中性占位（浅底居中），与展示侧 ReviewItem 同构 */
 .ip-thumb-fallback {
   display: flex;
@@ -378,7 +381,6 @@ function onPreview(i: number) {
   height: var(--tap-target-size);
   transform: translate(-50%, -50%);
 }
-.ip-remove:active { opacity: 0.7; }
 
 /* 添加格：浅底虚线框 + 图片语义 icon + 引导文案；上传中降透明度 */
 .ip-add {
@@ -393,13 +395,15 @@ function onPreview(i: number) {
   gap: var(--spacing-2xs);
   transition: opacity var(--duration-fast) var(--ease-out);
 }
-.ip-add:active { opacity: 0.6; }
-.ip-add.uploading { opacity: 0.55; }
-/* 禁用态（评审 m1）：提交中等 disabled 弱化，按压不再提亮（onAdd 已拦截点击） */
-.ip-add.disabled,
-.ip-add.disabled:active { opacity: 0.5; }
+.ip-add.uploading { opacity: 0.6; }
+/* 禁用态（评审 m1）：提交中等 disabled 弱化（非主色可点件保留透明档），按压不改变观感（onAdd 已拦截点击） */
+.ip-add.disabled { opacity: 0.5; }
 /* 禁用态（复审 MINOR）：提交中删除钮同步弱化（onRemove 已拦截点击） */
 .ip-remove--off { opacity: 0.5; }
+/* 按压反馈：删除钮属「小件」档（行内图标钮）⇒ 0.6；
+   提交中同时按压时保持禁用档 0.5（禁用弱化不纳入按压三档） */
+.ip-remove.pressed { opacity: 0.6; }
+.ip-remove--off.pressed { opacity: 0.5; }
 .ip-add-text {
   font-size: var(--font-aux);
   color: var(--text-tertiary);

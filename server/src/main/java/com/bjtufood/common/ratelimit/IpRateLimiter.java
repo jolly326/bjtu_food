@@ -23,9 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>每个 key（scope:ip）维护窗口内请求时间戳升序队列，检查与记录在
  *       <b>该 key 自己的队列监视器</b>内原子完成，避免并发请求同时通过；check 全部通过才记录，
  *       被拒绝的请求不消耗额度。</li>
- *   <li><b>锁粒度 = 单个客户端</b>（P1）：原实现是 {@code synchronized(this)} 全局锁，
- *       8 线程压测下拒绝分支比放行分支慢约 40%（基线 §3）——所有 IP 的判定串行在一把锁上。
- *       改为按 key 加锁后，不同 IP 互不阻塞，同一 IP 仍严格串行（限流语义不变）。</li>
+ *   <li><b>锁粒度 = 单个客户端</b>（P1）：锁加在该 key 自己的队列对象上——不同 IP 互不阻塞，
+ *       同一 IP 严格串行（限流语义不变）。<b>不用</b> {@code synchronized(this)} 全局锁：
+ *       那会把所有 IP 的判定串行在一把锁上（8 线程压测下拒绝分支比放行分支慢约 40%，基线 §3）。</li>
  *   <li>规则窗口不得超过 {@link #MAX_WINDOW_MS}（当前业务规则最大 1 小时），
  *       清理线程据此判定过期条目。</li>
  * </ul>
@@ -117,7 +117,7 @@ public class IpRateLimiter {
     /**
      * 每分钟清理滑出最大窗口的队列并移除空 key（与 TokenBlacklist 同节奏），防内存缓慢增长。
      * <p>
-     * 逐 key 持其队列监视器后判定，因此<b>不再需要全局锁</b>；摘除 key 与 {@code tryAcquire}
+     * 逐 key 持其队列监视器后判定，因此<b>无需全局锁</b>；摘除 key 与 {@code tryAcquire}
      * 的竞态由后者的归属复检（{@code hits.get(key) == window}）兜住。
      */
     @Scheduled(fixedDelay = 60_000)

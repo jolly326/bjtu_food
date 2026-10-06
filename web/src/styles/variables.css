@@ -33,9 +33,7 @@
   /* 实底 + 白字（hover 按钮）专用更深档，两态同值：保证白字 ≥5:1，同时保留鲜亮态用于标签文字/描边 */
   --color-success-hover: #15803d;
   --color-error-hover: #c81e1e;
-  --color-warning-bg: rgba(251, 191, 36, 0.12);
   --color-error: #f87171;
-  --color-error-bg: rgba(248, 113, 113, 0.12);
 
   /* ===== 文字色（浅色灰阶，深底对比 >4.5:1） ===== */
   --text-primary: #f0f0f0;
@@ -64,9 +62,6 @@
   --radius-md: 8px;
   --radius-card: 16px;
   --radius-pill: 999px;
-
-  /* ===== 价格色（归中性，浅色） ===== */
-  --color-price: #f0f0f0;
 
   /* ===== 阴影（深色下加深） ===== */
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -140,7 +135,6 @@
   /* ===== 导航（深色毛玻璃顶栏） ===== */
   --nav-bg: color-mix(in srgb, var(--bg-card) 82%, transparent);
   --nav-blur: blur(20px) saturate(180%);
-  --nav-item-active-color: #e8e8e8;
 
   /* ===== Component 层 token ===== */
   /* 数据表格：表头略亮区分 + 行分隔线可见 */
@@ -149,9 +143,6 @@
   --table-border: #2e2e2e;
   --table-th-padding: var(--space-3) var(--space-4);
   --table-td-padding: var(--space-3) var(--space-4);
-  /* 聚合 tab */
-  --agg-tab-active-bg: #2e2e2e;
-  --agg-tab-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   /* 拖拽手柄字形尺寸（DragHandle 消费；热区由 --space-1 内距扩展） */
   --drag-handle-size: 12px;
 }
@@ -176,7 +167,9 @@
     --text-secondary: #4a4a4a;
     --text-muted: #6e6e6e;
     --text-light: #8a8a8a;
-    --text-white: #1f1f1f;
+    /* 语义色实底 / 半透黑底上的文字**恒白**：浅色态同值，不回落深色文字
+       （否则 `.btn-danger/-success/-warn:hover` 会成「深字压深色实底」，不可读） */
+    --text-white: #ffffff;
     /* 浅色态显式落地状态色（此前继承深态 #4ADE80/#F87171，实底白字仅 ≈1.7:1 不达标）：
        加深后白字 on 该色 ≥5:1（见 设计变量.md §2.5 ③） */
     --color-success: #15803d;
@@ -194,8 +187,6 @@
     --border-strong: #7a7a80;
     --border-soft: #ededed;
 
-    --color-price: #1f1f1f;
-
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.14);
     --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.18);
@@ -204,8 +195,6 @@
     --table-row-hover: #f5f5f5;
     --table-border: #e6e6e6;
 
-    --agg-tab-active-bg: #ffffff;
     --nav-bg: color-mix(in srgb, #ffffff 82%, transparent);
-    --nav-item-active-color: #2b2b2b;
   }
 }

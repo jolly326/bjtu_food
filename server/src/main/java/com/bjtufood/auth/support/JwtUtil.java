@@ -33,11 +33,11 @@ public class JwtUtil {
     private final JwtProperties jwtProperties;
 
     /**
-     * 缓存的 HMAC 签名密钥。
+     * 缓存的 HMAC 签名密钥（启动时构建一次，全程复用）。
      * <p>
-     * 原实现每次 {@code validateToken}/{@code getUserIdFromToken}/{@code getUsernameFromToken}
-     * 都各自 {@code Keys.hmacShaKeyFor} 重建 Key 并完整验签一次（每请求 3 次 HMAC 验签）。
-     * 改为启动时构建一次并复用，避免每请求重复重建与多次验签的固定开销。
+     * <b>不</b>在 {@code validateToken}/{@code getUserIdFromToken}/{@code getUsernameFromToken}
+     * 各自 {@code Keys.hmacShaKeyFor} 重建：那会让同一请求重复派生 Key 并多次完整 HMAC 验签
+     * （3 个方法各一次），是纯固定开销。
      */
     private volatile SecretKey cachedKey;
 
@@ -57,7 +57,7 @@ public class JwtUtil {
      *   <li>缺失或长度 &lt; 32 字节：HMAC-SHA 算法的硬要求（{@code Keys.hmacShaKeyFor} 会直接抛
      *       WeakKeyException），<b>所有 profile 一律拒绝启动</b>；</li>
      *   <li>等于仓库内置默认密钥：<b>所有 profile 一律拒绝启动</b>（与 README「禁止默认值」口径字面一致），
-     *       dev 不再放行——本地开发必须通过环境变量 JWT_SECRET 注入自己的密钥。</li>
+     *       dev 同样不放行——本地开发必须通过环境变量 JWT_SECRET 注入自己的密钥。</li>
      * </ul>
      * 配置层另有一道闸门：application-prod.yml 将 {@code jwt.secret} 覆盖为无默认值的
      * {@code ${JWT_SECRET}}，prod 漏注入时占位符解析失败、启动直接终止。
@@ -121,7 +121,7 @@ public class JwtUtil {
      * @return 签发的 JWT 字符串
      */
     public String createToken(Long userId, String username, long expirationMillis) {
-        // 设置载荷（Payload）。注：role 不再下发——
+        // 设置载荷（Payload）。注：role 不下发——
         // 学生态 authorities 由 JwtAuthFilter 固定授予（学生接口鉴权依赖 @RequireVerified + userId，不依赖角色）
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);

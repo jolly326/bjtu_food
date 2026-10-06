@@ -45,13 +45,17 @@
             <CardSection flush>
               <SectionTitle title="搜索记录">
                 <!-- QA-03：破坏性操作补可访问角色与标签（热区见 .history-clear::after） -->
-                <text
+                <!-- 按压反馈：`<text>` 不支持 `hover-class` ⇒ 外层包 `<view>`（视觉与热区不变） -->
+                <view
                   slot="extra"
                   class="section-extra history-clear"
                   role="button"
                   aria-label="清空搜索历史"
+                  hover-class="pressed"
                   @tap="clearHistory"
-                >清空</text>
+                >
+                  <text class="history-clear-text">清空</text>
+                </view>
               </SectionTitle>
               <!-- 搜索记录收敛（find-page-layout-restructure 2.6）：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
               <view class="history-chips">
@@ -69,6 +73,8 @@
                     class="history-chip-del"
                     role="button"
                     :aria-label="`删除记录 ${kw}`"
+                    hover-class="pressed"
+                    hover-stop-propagation
                     @tap.stop="removeHistory(i)"
                   >
                     <IconSvg name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
@@ -122,7 +128,7 @@
             @select="goToMixed"
           />
         </view>
-        <!-- 触底反馈（对齐 home feed-foot）：分页在途给在途提示；已到底给「没有更多结果」 -->
+        <!-- 触底反馈（全局 `.list-foot` 用法）：分页在途给在途提示；已到底给「没有更多结果」 -->
         <view v-if="loadingMore" class="list-foot">
           <text class="list-foot-text">正在加载更多…</text>
         </view>
@@ -261,7 +267,9 @@ onShow(() => {
    `overflow: hidden` 的页根裁掉且不可达。⚠️ `scroll-view` 自身**不写** `overflow-y`
    （滚动由组件内部实现，外挂 CSS 会在 H5 叠出第二根滚动条）。
    `flex: 1 + min-height: 0` ⇒ 容器定高 ⇒ 内容未超高时既不出现滚动条、也没有可滚的空白。 */
-.discover-body { flex: 1; min-height: 0; padding-bottom: var(--spacing-lg); }
+/* 底部 = 块间距 + `env(safe-area-inset-bottom)`：本页为非 TabBar 页，
+   滚动区末块（分组卡）无安全区时会被 Home Indicator 压住 */
+.discover-body { flex: 1; min-height: 0; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
 /* 分组卡外壳（**页面自有节点**，不是组件宿主）：承担每张卡的左右 gutter + 纵向块间距。
    ⚠️ 间距**必须落在页面自己的节点上**：本类直接传给 `<CardSection>` 时，小程序端该类落进
    **组件宿主节点**，而宿主默认**不是块级盒** ⇒ `margin` 被**静默忽略**（横向全丢、纵向也丢 ⇒
@@ -272,11 +280,12 @@ onShow(() => {
    且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
 .discover-card { display: block; margin: 0 var(--page-gutter) var(--spacing-lg); }
 /* 结果态滚动容器：
-   flex 链占满剩余高度；底部留白随容器自带 */
+   flex 链占满剩余高度；底部留白随容器自带（末行为结果卡 / `.list-foot`，
+   故底部 = 块间距 + `env(safe-area-inset-bottom)`，避免压在 Home Indicator 下） */
 .results-host {
   flex: 1;
   min-height: 0;
-  padding-bottom: var(--spacing-lg);
+  padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
 }
 /* 结果列表：左右 gutter + 底部间距；卡间纵向间距用 **flex gap** ——
    不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，本文件上方有登记）。
@@ -309,7 +318,9 @@ onShow(() => {
 /* QA-03 修复：视觉保持轻量小文字链，命中区经 ::after 透明覆盖扩至 ≥88rpx（Apple 44pt 触达下限） */
 /* 「清空」是**破坏性操作**，需可被发现：字号 aux(22rpx) → small(24rpx)、色 tertiary → secondary；
    视觉仍远弱于分组标题（不抢层级），命中区继续由下方 ::after 扩至 ≥88rpx。 */
-.history-clear { position: relative; font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.history-clear { position: relative; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
+/* 「清空」文案：字号 / 颜色 / 字重挂在本节点上（外层热区只承担命中区与按压） */
+.history-clear-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); }
 .history-clear::after {
   content: '';
   position: absolute;
@@ -319,7 +330,6 @@ onShow(() => {
   height: var(--tap-target-size);
   transform: translate(-50%, -50%);
 }
-.history-clear:active { opacity: 0.55; }
 .history-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
 .history-chip {
   display: inline-flex;
@@ -352,7 +362,6 @@ onShow(() => {
   transition: opacity var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.history-chip-del:active { opacity: 0.5; }
 /* 「猜你喜欢」词条 vs 搜索记录**必须可区分**：推荐词 = 暖黄底 + 深棕字。
    fallback 仅用于色板落地前的过渡——`--bg-soft-yellow` / `--text-body` 落地（）后区分自动生效；
    ⚠️ 落地后不得再依赖 fallback（回落会让两区块 chip 完全同款）。 */

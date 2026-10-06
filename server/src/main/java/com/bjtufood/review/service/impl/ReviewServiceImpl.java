@@ -172,8 +172,8 @@ public class ReviewServiceImpl implements ReviewService {
      * {@link UserService#getAuthContext(Long)} 折算为布尔值下发）且 openid 非空
      * （msgSecCheck v2 必填 openid）。
      * <p>
-     * 判据与错误码与原实现逐字一致；差别仅在于不再返回 {@code auth.entity.User} 实体，
-     * 而返回只含判定要素的跨域投影（P0-1：review 不再 import auth 实体/Mapper）。
+     * 判据与错误码为固定口径；返回只含判定要素的跨域投影 {@link UserAuthContextVO}，
+     * 不返回 {@code auth.entity.User} 实体，本域不 import auth 实体/Mapper（P0-1）。
      *
      * @return 通过准入校验的用户准入上下文
      */
@@ -255,7 +255,7 @@ public class ReviewServiceImpl implements ReviewService {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
-                // R6：review.updated_at 列已移除（该列不再存在）
+                // R6：review 表无 updated_at 列，选取字段与排序只用 created_at
                 .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
                         Review::getContent, Review::getImages, Review::getIsHidden,
                         Review::getCreatedAt)
@@ -279,7 +279,7 @@ public class ReviewServiceImpl implements ReviewService {
         Set<Long> userIds = records.stream().map(Review::getUserId).filter(id -> id != null).collect(Collectors.toSet());
         Set<Long> dishIds = records.stream().map(Review::getDishId).filter(id -> id != null).collect(Collectors.toSet());
         // 作者昵称/头像经 auth 域只读契约下发、菜品名经 dish 域只读契约下发（P0-1：
-        // review 不再注入 UserMapper/DishMapper，也不再 import 他域实体）
+        // 本域不注入 UserMapper/DishMapper，不 import 他域实体）
         Map<Long, UserBriefVO> userMap = userService.mapBriefByIds(userIds);
         Map<Long, String> dishNameMap = dishService.mapNameByIds(dishIds);
         List<ReviewAdminVO> vos = new ArrayList<>(records.size());
@@ -287,7 +287,7 @@ public class ReviewServiceImpl implements ReviewService {
             ReviewAdminVO vo = toAdminVO(r);
             UserBriefVO u = r.getUserId() == null ? null : userMap.get(r.getUserId());
             vo.setUserNickname(u != null ? u.getNickname() : null);
-            // 头像已在 auth 侧完成相对路径 → 绝对 URL 转换，本处不再二次加工
+            // 头像由 auth 域完成相对路径 → 绝对 URL 转换，本处原样透传
             vo.setUserAvatar(u != null ? u.getAvatarUrl() : null);
             vo.setDishName(r.getDishId() == null ? null : dishNameMap.get(r.getDishId()));
             vos.add(vo);
@@ -403,8 +403,8 @@ public class ReviewServiceImpl implements ReviewService {
     // ==================== 跨域写契约实现（P0-1：由本域 event 监听器调用） ====================
 
     /**
-     * 菜品删除级联清理（原实现为 {@code DishServiceImpl.deleteDish} 内的
-     * {@code reviewMapper.delete(...)}，SQL 与语义逐字保留，仅换调用方）。
+     * 菜品删除级联清理：跨域写侧解耦——dish 域发 {@code DishDeletedEvent}，本域监听后删除本域所属
+     * 该菜品的评价行（dish 不直接改他域数据）。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -416,11 +416,11 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 账号归属迁移（原实现为 {@code AuthServiceImpl.migrateOwnership} 中的两条 review 语句，
-     * 「先清冲突行、再改归属」的顺序与 SQL 逐字保留）。
+     * 账号归属迁移：跨域写侧解耦——跨域归属迁移由 auth 域发 {@code UserOwnershipMigratedEvent}，
+     * 各域自行改本域表（auth 不直接改他域数据）；本域改挂 {@code review.user_id}，
+     * 「先清冲突行、再改归属」的顺序由唯一键 {@code uk_review_user_dish} 决定。
      * <p>
-     * 不发布 ReviewSubmittedEvent：迁移是归属改写、不改评分，且批量重算聚合会放大写放大，
-     * 与原实现一致（原实现同样不触发重算）。
+     * 不发布 ReviewSubmittedEvent：迁移是归属改写、不改评分，批量重算聚合会放大写放大。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)

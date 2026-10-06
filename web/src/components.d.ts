@@ -13,6 +13,9 @@ declare module 'vue' {
   export interface GlobalComponents {
     BaseDrawer: typeof import('./components/BaseDrawer.vue')['default']
     BaseModal: typeof import('./components/BaseModal.vue')['default']
+    ClampText: typeof import('./components/ClampText.vue')['default']
+    DragHandle: typeof import('./components/DragHandle.vue')['default']
+    ImagePreview: typeof import('./components/ImagePreview.vue')['default']
     ImageUpload: typeof import('./components/ImageUpload.vue')['default']
     ListState: typeof import('./components/ListState.vue')['default']
     Pager: typeof import('./components/Pager.vue')['default']

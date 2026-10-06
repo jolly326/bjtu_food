@@ -22,11 +22,11 @@ public class ReviewAdminController {
 
     @Operation(summary = "全部评价列表", description = "用途：后台查看所有评价，排序 `createdAt DESC`。"
             + "支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。"
-            + "测试示例：/admin/reviews?page=1&pageSize=10&hidden=false&dishId=3")
+            + "测试示例：/admin/reviews?page=1&pageSize=20&hidden=false&dishId=3")
     @GetMapping
     public Result<AdminPageResult<ReviewAdminVO>> listAll(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(defaultValue = "20") int pageSize,
             @Parameter(description = "是否隐藏：true=仅已隐藏 / false=仅显示中；不传 = 全部")
             @RequestParam(required = false) Boolean hidden,
             @Parameter(description = "按菜品筛选（可选）")

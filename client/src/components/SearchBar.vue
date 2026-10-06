@@ -37,6 +37,8 @@
         class="search-bar-clear"
         role="button"
         aria-label="清除关键词"
+        hover-class="pressed"
+        hover-stop-propagation
         @tap.stop="emit('clear')"
       >
         <IconSvg name="close" :size="30" :color="COLOR_MAP['text-placeholder']" />
@@ -178,7 +180,8 @@ function onInput(e: Event) {
   border-radius: var(--radius-circle);
   -webkit-tap-highlight-color: transparent;
 }
-.search-bar-clear:active { opacity: 0.55; }
+/* 按压反馈：清除钮属「小件」档（行内图标钮）⇒ 0.6 */
+.search-bar-clear.pressed { opacity: 0.6; }
 
 /* ④ 内嵌「搜索」按钮：贴胶囊右端、与胶囊等高（`align-self: stretch` + 上下 `--spacing-xs` 内距）
    填充档主色 + 白字（实测 5.01:1 ✅，见 UI 文档 / §10.2 取色边界）；

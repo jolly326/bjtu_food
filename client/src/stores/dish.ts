@@ -12,13 +12,13 @@ import { createSeqGuard, isLastPage, mergePagedRows } from '@/composables/usePag
  */
 export const HOME_MAX_PAGES = 10
 
-/** loading key：首页列表首屏 / 切视图（供 `HomeContent` 判定「静默加载中」） */
+/** loading key：首页列表首屏（供 `HomeContent` 判定在途 —— 在途只给文字行，未拿到数据前不渲染空态） */
 export const LOADING_KEY_HOME = 'home'
 /** loading key：首页列表触底加载更多（模块私有；对外由 `homeLoadingMore` 派生） */
 const LOADING_KEY_HOME_MORE = 'homeMore'
 /**
  * loading key：**切视图**（模块私有）。
- * 与 `LOADING_KEY_HOME` 分开登记，是为了让 `HomeContent` 的「静默加载中」判定（只订阅 `LOADING_KEY_HOME`）
+ * 与 `LOADING_KEY_HOME` 分开登记，是为了让 `HomeContent` 的在途判定（只订阅 `LOADING_KEY_HOME`）
  * **不被切视图触发** —— 切视图时保留旧列表在屏，否则列表清空 + 内容塌成 0 会让
  * `scroll-view` 把滚动位置钳回顶部（用户可见 bug：切标签弹回首页顶部）。
  */

@@ -7,7 +7,6 @@ import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 管理端鉴权过滤器（TD-20 · P0-4）—— <b>取代</b> {@link AdminTokenFilter} 的静态口令校验。
+ * 管理端鉴权过滤器（TD-20 · P0-4）—— {@code /admin/**} 的唯一鉴权入口。
  *
  * <p><b>校验对象</b>：请求头 {@code Authorization: Bearer <token>} 中的**管理端 JWT**，
  * 用<b>独立 secret</b>（{@code admin.jwt.secret}）验签 —— 与学生端 {@code spring.jwt.secret}
@@ -185,16 +184,18 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        Claims claims;
+        Long accountId;
         try {
-            claims = adminJwtUtil.parseAndValidate(token);
+            // 🔴 取账号 ID 必须与验签同处一个 try：parseAndValidate 只保证「签名有效、未过期」，
+            //    不保证 sub 可解析；畸形 sub（非数字 / 缺失）会在 getAccountId 抛
+            //    IllegalArgumentException（NumberFormatException 的子类），留在 try 之外会冒泡成 500，
+            //    而它本质上与「token 无效」是同一件事 ⇒ 同分支返回 401。
+            accountId = adminJwtUtil.getAccountId(adminJwtUtil.parseAndValidate(token));
         } catch (JwtException | IllegalArgumentException e) {
             // 🔴 不回显异常细节（可能泄露签名算法 / 密钥长度等信息），统一归为「凭证无效」
             onAuthFailure(response, clientIp, request, "凭证无效或已过期");
             return;
         }
-
-        Long accountId = adminJwtUtil.getAccountId(claims);
 
         // 🔴 凭证吊销（TD-25）：验签只证明「token 是我们签的」，不证明「账号仍启用」——
         //    停用（status=off）或已删除 ⇒ 401，兑现 C1「停用账号即刻生效」。

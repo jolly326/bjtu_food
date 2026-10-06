@@ -308,6 +308,9 @@ a:focus-visible,
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* 单行截断公共类（基线 §1.4）：只用于「短标识列（名称 / 编号 / 时间）」与
+   「纯入口型摘要」（如看板待办行摘要 —— 可点进对应处置页读全文）。
+   长文本（内容 / 回复列）SHALL NOT 用它，须走 `ClampText`（多行折叠 + 就地展开）。 */
 .ellipsis {
   max-width: 200px;
   overflow: hidden;
@@ -503,6 +506,10 @@ a:focus-visible,
 .link:hover {
   opacity: 0.8;
 }
+.link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .link.danger,
 .danger {
   color: var(--color-error) !important;
@@ -632,11 +639,13 @@ a:focus-visible,
   .table tbody tr {
     transition: none !important;
   }
-  /* 弹层/抽屉缩放过渡的 transform 一并禁用（§4.7 交叉淡入，去弹性缩放） */
+  /* 弹层/抽屉缩放过渡的 transform 一并禁用（§4.7 交叉淡入，去弹性缩放）。
+     选择器 = 真实类名：弹窗面板 `.modal-box` + 遮罩 `.overlay`（BaseModal）、
+     抽屉面板 `.drawer` + 遮罩 `.drawer-overlay`（BaseDrawer）。 */
   .modal-box,
-  .modal-overlay,
-  .toast,
-  .topbar {
+  .overlay,
+  .drawer,
+  .drawer-overlay {
     transform: none !important;
     transition: opacity 0.18s ease !important;
   }
@@ -646,9 +655,17 @@ a:focus-visible,
  * 减弱透明度降级（§4.7）：半透面更实、去模糊
  * ============================================================ */
 @media (prefers-reduced-transparency: reduce) {
-  .toast,
-  .modal-overlay,
-  .topbar {
+  /* 真实类名：抽屉面板 `.drawer` 承担毛玻璃（BaseDrawer）；遮罩 `.overlay` / `.drawer-overlay`
+     一并在内，保证「浮层整体去模糊」的选择器集合与真实 DOM 一致。
+     Element Plus 浮层（遮罩 / 弹窗 / 消息框 / 下拉）同样声明了 `backdrop-filter`（见文末 EP 毛玻璃块），
+     此处必须一并关闭 —— 否则「减弱透明度」在 EP 浮层上不生效。 */
+  .overlay,
+  .drawer-overlay,
+  .drawer,
+  .el-overlay,
+  .el-dialog,
+  .el-message-box,
+  .el-popper.is-light {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }

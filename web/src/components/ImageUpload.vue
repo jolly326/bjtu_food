@@ -152,8 +152,10 @@ function onDropThumb(target: number): void {
   height: 20px;
   border: none;
   border-radius: 50%;
+  /* 半透黑遮罩为**图片上的浮层底**，设计变量未设该档（非结构尺寸，不硬造 token） */
   background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  /* 半透黑底上的图标 = 实底上的文字（设计变量.md §2.3 `--text-white`） */
+  color: var(--text-white);
   cursor: pointer;
   line-height: 18px;
 }
@@ -164,7 +166,7 @@ function onDropThumb(target: number): void {
   border-radius: var(--radius);
   background: var(--bg-card);
   color: var(--text-muted);
-  font-size: 28px;
+  font-size: var(--font-3xl);
   cursor: pointer;
   display: flex;
   align-items: center;

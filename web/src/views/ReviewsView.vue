@@ -5,6 +5,10 @@
  * <p>要点：分页（页码 + 共 N 条）；状态列**恒用 `StatusTag`（`kind="review"`）**，页面不自写 `.tag-*`；
  * 隐藏为**显式置位**（非 toggle）且支持**可选附注**（≤200 字，随回执下发给作者）；
  * 删除为物理删除（**触发评分重算 + 向作者投递回执**），确认文案写明影响面。
+ *
+ * <p>审核可用性：配图缩略图（56px）**点击即开 `ImagePreview` 看大图**；行操作「详情」开
+ * `BaseDrawer`，抽屉内给**评价全文**（不截断）+ **大尺寸配图**（点击同样看原图）+ 元信息，
+ * 底部复用行内的「隐藏 / 恢复显示 / 删除」（提交中沿用 `busyId` 置灰）。
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -17,6 +21,8 @@ import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BaseModal from '@/components/BaseModal.vue'
+import BaseDrawer from '@/components/BaseDrawer.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
 
 const fKeyword = ref('')
 const fDishId = ref('')
@@ -53,6 +59,9 @@ const {
 )
 
 /* ===== 隐藏 / 恢复显示（显式置位，非 toggle） ===== */
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 const hideOpen = ref(false)
 const hideTarget = ref<ReviewAdminVO | null>(null)
 const hideNote = ref('')
@@ -80,6 +89,7 @@ async function submitHide(): Promise<void> {
     ElMessage.success('已隐藏')
     hideOpen.value = false
     await reload()
+    syncCurrent(row.id)
   } catch (e) {
     fail(e)
   } finally {
@@ -88,19 +98,23 @@ async function submitHide(): Promise<void> {
 }
 
 async function unhide(row: ReviewAdminVO): Promise<void> {
+  busyId.value = row.id
   try {
     await setReviewHidden(row.id, { hidden: false })
     ElMessage.success('已恢复显示')
     await reload()
+    syncCurrent(row.id)
   } catch (e) {
     fail(e)
+  } finally {
+    busyId.value = null
   }
 }
 
 async function remove(row: ReviewAdminVO): Promise<void> {
   try {
     await confirmDelete(
-      `确认删除这条评价？删除后**不可恢复**，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`,
+      `确认删除这条评价？删除后不可恢复，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`,
       {
         title: '删除评价',
       },
@@ -108,13 +122,62 @@ async function remove(row: ReviewAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteReview(row.id)
     ElMessage.success('已删除')
+    // 行已不存在：抽屉若正开着这条，一并关闭（不留空壳）
+    if (current.value?.id === row.id) {
+      detailOpen.value = false
+      current.value = null
+    }
     await reload()
   } catch (e) {
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
+}
+
+/* ===== 详情抽屉（评价全文 + 配图大图入口 + 元信息 + 处置） ===== */
+const detailOpen = ref(false)
+const current = ref<ReviewAdminVO | null>(null)
+
+function openDetail(row: ReviewAdminVO): void {
+  current.value = row
+  detailOpen.value = true
+}
+
+/** 抽屉底部动作：复用行内的隐藏 / 恢复显示 / 删除（确认文案与成功提示同源、逐字一致） */
+function detailToggleHide(): void {
+  const row = current.value
+  if (!row) return
+  if (row.hidden) void unhide(row)
+  else openHide(row)
+}
+
+function detailRemove(): void {
+  const row = current.value
+  if (!row) return
+  void remove(row)
+}
+
+/** 处置成功后按 id 回填最新行（列表已 reload），避免抽屉停在旧快照上 */
+function syncCurrent(id: number): void {
+  if (current.value?.id !== id) return
+  current.value = items.value.find((r) => r.id === id) ?? current.value
+}
+
+/* ===== 配图大图预览（表格缩略图 / 详情抽屉共用入口） ===== */
+const previewOpen = ref(false)
+const previewImages = ref<string[]>([])
+const previewIndex = ref(0)
+
+function openPreview(images: string[], index: number): void {
+  if (!images || images.length === 0) return
+  previewImages.value = images
+  previewIndex.value = index
+  previewOpen.value = true
 }
 
 function reset(): void {
@@ -188,19 +251,49 @@ onMounted(() => reloadFirstPage())
             <td>{{ row.dishName ?? '菜品已删除' }}</td>
             <td>{{ row.userNickname || '游客' }}</td>
             <td class="num">{{ row.rating }}★</td>
-            <td class="ellipsis">{{ row.content || '—' }}</td>
+            <td><ClampText :text="row.content" /></td>
             <td>
               <div class="thumbs">
-                <img v-for="(img, i) in row.images" :key="i" :src="img" alt="" />
+                <!-- 缩略图即入口：点击直接看大图，审核不必进详情 -->
+                <button
+                  v-for="(img, i) in row.images"
+                  :key="i"
+                  class="thumb"
+                  type="button"
+                  :aria-label="`查看第 ${i + 1} 张配图`"
+                  @click="openPreview(row.images, i)"
+                >
+                  <img :src="img" alt="" />
+                </button>
               </div>
             </td>
             <td><StatusTag :status="row.hidden ? 'hidden' : 'visible'" kind="review" /></td>
             <td class="muted">{{ row.createdAt }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="row.hidden ? unhide(row) : openHide(row)">
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openDetail(row)"
+              >
+                详情
+              </button>
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="row.hidden ? unhide(row) : openHide(row)"
+              >
                 {{ row.hidden ? '恢复显示' : '隐藏' }}
               </button>
-              <button class="link danger" type="button" @click="remove(row)">删除</button>
+              <button
+                class="link danger"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="remove(row)"
+              >
+                删除
+              </button>
             </td>
           </tr>
         </tbody>
@@ -214,6 +307,87 @@ onMounted(() => reloadFirstPage())
         @next="nextPage"
       />
     </div>
+
+    <!-- 详情抽屉：评价全文（不截断）+ 配图大图入口 + 元信息 + 隐藏 / 恢复 / 删除 -->
+    <BaseDrawer title="评价详情" :open="detailOpen" @close="detailOpen = false">
+      <div class="ctx">
+        <div class="ctx-label">评价内容</div>
+        <div class="ctx-body">{{ current?.content || '（无文字）' }}</div>
+      </div>
+
+      <div class="field" v-if="current && current.images.length > 0">
+        <label id="rv-images-label">配图 · {{ current.images.length }} 张（点击看大图）</label>
+        <div class="detail-thumbs" role="group" aria-labelledby="rv-images-label">
+          <button
+            v-for="(img, i) in current.images"
+            :key="i"
+            class="thumb"
+            type="button"
+            :aria-label="`查看第 ${i + 1} 张配图`"
+            @click="openPreview(current.images, i)"
+          >
+            <img :src="img" alt="" />
+          </button>
+        </div>
+      </div>
+
+      <div class="meta">
+        <div class="meta-row">
+          <span class="meta-key">评价 ID</span>
+          <span class="meta-val num">#{{ current?.id }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">作者</span>
+          <span class="meta-val">
+            {{ current?.userNickname || '游客' }}<span class="muted"> #{{ current?.userId }}</span>
+          </span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">菜品</span>
+          <span class="meta-val">
+            {{ current?.dishName ?? '菜品已删除'
+            }}<span class="muted"> #{{ current?.dishId }}</span>
+          </span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">评分</span>
+          <span class="meta-val num">{{ current?.rating }}★</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">状态</span>
+          <span class="meta-val">
+            <StatusTag :status="current?.hidden ? 'hidden' : 'visible'" kind="review" />
+          </span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">发表时间</span>
+          <span class="meta-val">{{ current?.createdAt }}</span>
+        </div>
+        <div class="meta-row" v-if="current && current.hidden && current.hiddenNote">
+          <span class="meta-key">隐藏附注</span>
+          <span class="meta-val">{{ current.hiddenNote }}</span>
+        </div>
+      </div>
+
+      <template #actions>
+        <button
+          class="link"
+          type="button"
+          :disabled="busyId === current?.id"
+          @click="detailToggleHide"
+        >
+          {{ current?.hidden ? '恢复显示' : '隐藏' }}
+        </button>
+        <button
+          class="link danger"
+          type="button"
+          :disabled="busyId === current?.id"
+          @click="detailRemove"
+        >
+          删除
+        </button>
+      </template>
+    </BaseDrawer>
 
     <!-- 隐藏：显式置位 + 可选附注（随回执下发） -->
     <BaseModal title="隐藏评价" :open="hideOpen" @close="hideOpen = false">
@@ -246,6 +420,14 @@ onMounted(() => reloadFirstPage())
         </button>
       </template>
     </BaseModal>
+
+    <!-- 配图大图预览：表格缩略图 / 详情抽屉共用，挂载即打开 -->
+    <ImagePreview
+      v-if="previewOpen"
+      :images="previewImages"
+      :index="previewIndex"
+      @close="previewOpen = false"
+    />
   </div>
 </template>
 
@@ -265,10 +447,51 @@ onMounted(() => reloadFirstPage())
   gap: var(--space-1);
 }
 .thumbs img {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   border-radius: var(--radius-sm);
   object-fit: cover;
+}
+/* 缩略图按钮：只保留图本身（点击即看大图），焦点环沿用全站 `button:focus-visible` */
+.thumb {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.detail-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.detail-thumbs img {
+  width: 140px;
+  height: 140px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.meta-row {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--font-sm);
+}
+.meta-key {
+  flex: none;
+  width: 72px;
+  color: var(--text-muted);
+}
+.meta-val {
+  min-width: 0;
+  color: var(--text-secondary);
+  /* 超长串（URL / 无空格长词）可断行，不撑破抽屉 */
+  overflow-wrap: anywhere;
 }
 .num {
   font-variant-numeric: tabular-nums;
@@ -296,6 +519,7 @@ onMounted(() => reloadFirstPage())
 }
 .ctx-body {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--text-primary);
 }
 </style>

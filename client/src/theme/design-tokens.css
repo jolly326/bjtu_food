@@ -18,7 +18,6 @@ page {
      值域遵循「块越大越圆」：极小件 12 → 小件 / 标签 20 → 卡片 / 按钮 / 图标底 24 → 弹层 48。
      24rpx = 12pt（Apple 卡片 / 按钮常规圆角），48rpx = 24pt（弹层顶部）；观感偏圆润、柔和。 */
   --radius-none: 0;
-  --radius-2xs: 12rpx;
   --radius-xs: 20rpx;
   --radius-tag: 20rpx;
   --radius-card: 24rpx;

@@ -5,8 +5,8 @@ import java.util.Set;
 /**
  * 用户反馈相关常量（类型/状态值域单一真源）。
  * <p>
- * 架构收口 P0-2：自 {@code common.constant} 迁至 {@code feedback.constant}——
- * 业务字面值不属于 common（common 只放跨模块通用件），避免 common 成为「业务常量垃圾场」。
+ * 业务字面值不属于 {@code common}（common 只放跨模块通用件），故本类归 feedback 域，
+ * 避免 common 成为「业务常量垃圾场」。
  */
 public interface FeedbackConst {
 
@@ -26,10 +26,10 @@ public interface FeedbackConst {
     /**
      * 反馈类型写入白名单（单一真源）：{@code POST /feedback} 仅接受三类纯反馈。
      * <p>
-     * 方案 B（写入口拆分）后：<b>意见反馈</b>仅 {@code bug}（小程序功能 Bug）/
+     * 写入口拆分后：<b>意见反馈</b>仅 {@code bug}（小程序功能 Bug）/
      * {@code suggestion}（产品功能建议）/ {@code other}（其他平台相关问题）可写；
-     * <b>举报</b>改走独立端点 {@code POST /reviews/{id}/report}（不再经本端点写 {@code report}）；
-     * {@code error}（菜品信息纠错）早前已迁出为 {@code POST /dishes/{id}/correction}；
+     * <b>举报</b>走独立端点 {@code POST /reviews/{id}/report}；
+     * <b>菜品信息纠错</b>走 {@code POST /dishes/{id}/correction}；
      * {@code issue} / {@code add} 为历史遗留写值，<b>均禁新增</b>（历史数据仍可读、可筛选，见 {@link #QUERY_TYPES}）。
      */
     Set<String> WRITABLE_TYPES = Set.of(
@@ -51,12 +51,12 @@ public interface FeedbackConst {
     // （严格模式，用户拍板，不静默忽略），避免跨类型污染。
 
     // ==================== 举报原因 ====================
-    // 举报原因字典**已改为表驱动**（`report_reason` 表，A7 落地 2026-10-03）：
+    // 举报原因字典**表驱动**（`report_reason` 表，A7）：
     // 口径真源见 docs/schema/report_reason.md 与 docs/api/web/report-reasons.md；
     // 本类**不持有**举报原因常量（值域由 `report_reason` 表下发）。
     // 读取与校验入口：{@code ReportReasonService#listEnabled()}（公开下发）与 {@code isSubmittable()}（提交白名单）。
     //
-    // ⚠️ 测试中若需具体机器值，直接用字面量（如 "spam"）或读表，**不要再引入本类常量**。
+    // ⚠️ 测试中若需具体机器值，直接用字面量（如 "spam"）或读表，**不要引入本类常量**。
 
 
     /** 举报关联类型（举报对象：菜品评价） */

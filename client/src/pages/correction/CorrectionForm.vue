@@ -357,8 +357,8 @@ function onSubmitTap() {
   margin: var(--spacing-md) var(--page-gutter) 0;
   padding: var(--spacing-lg);
   background: var(--bg-card);
-  border: 2rpx solid var(--border-color);
-  border-radius: var(--radius-btn);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }

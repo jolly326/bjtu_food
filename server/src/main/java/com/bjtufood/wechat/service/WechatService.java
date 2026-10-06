@@ -132,7 +132,7 @@ public class WechatService {
             if (openid == null || openid.isBlank()) {
                 throw new BusinessException(400, "微信登录校验失败：未返回 openid");
             }
-            // unionid 不再解析（多应用预留撤销）
+            // unionid 不解析（WechatSession 只消费 openid / session_key）
             String sessionKey = (String) resp.get("session_key");
             return new WechatSession(openid, sessionKey);
         } catch (BusinessException e) {
@@ -240,7 +240,7 @@ public class WechatService {
         }
     }
 
-    /** 微信会话结果（unionid 不再解析） */
+    /** 微信会话结果（只含 openid / session_key，不含 unionid） */
     public record WechatSession(String openid, String sessionKey) {
     }
 }

@@ -21,14 +21,17 @@
     @tap="onTap"
   >
     <view class="thumb">
+      <!-- 破图兜底（与首页 `DishCard` 同源同写法）：`@error` 置 `imgOk = false` → 落 `v-else`
+           的统一餐具占位，不留灰底裂图 -->
       <image
-        v-if="item.image"
+        v-if="item.image && imgOk"
         :src="thumbSrc(item.image)"
         mode="aspectFill"
         class="thumb-img"
         :class="{ loaded }"
         lazy-load
         @load="loaded = true"
+        @error="imgOk = false"
       />
       <view v-else class="thumb-ph">
         <ImagePlaceholder :size="48" />
@@ -98,6 +101,9 @@ const emit = defineEmits<{
 
 /** 图片加载完成 → 淡入（每行自持；行以 item 为 key 稳定复用，无需跨行去重集合） */
 const loaded = ref(false)
+
+/** 图片可用性：加载失败（`@error`）即置 false → 回退统一占位，禁止裂图 */
+const imgOk = ref(true)
 
 /** 关键词拆段：命中片段仅**加粗**不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条） */
 function splitHighlight(text: string): { text: string; hit: boolean }[] {
@@ -186,6 +192,9 @@ function onTap() {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  /* 断行口径（全站唯一写法）：两行折叠下超长无空格串（长英文 / 长数字串）也换行，
+     不让尾部在折叠处无省略号静默消失 */
+  overflow-wrap: anywhere;
 }
 /* 命中片段：仅字重加深，不上主色（主色是价格专用强调色 —— UI 文档 §1 第 5 条） */
 .name .hit, .sub-text .hit { font-weight: var(--weight-heavy); }

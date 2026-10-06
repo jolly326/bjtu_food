@@ -20,17 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 用户反馈接口（task-09 升级：路径不变，DTO 规范化）
- * 学生端保留提交反馈 POST /feedback 与举报原因字典 GET /report-reasons；
- * admin 端 /admin/feedbacks 由 Web 后台 FeedbackView 消费。
+ * 用户反馈接口。
  * <p>
- * 架构收口 P1-1：自 {@code auth.controller} 迁至 {@code feedback.controller}（同模块同包，
- * 与 {@code feedback.controller.admin.FeedbackAdminController} 对位）；**路由零变化**。
+ * 学生端两个端点：提交反馈 {@code POST /feedback} 与举报原因字典 {@code GET /report-reasons}；
+ * 管理端 {@code /admin/feedbacks} 由 {@code feedback.controller.admin.FeedbackAdminController} 承载。
  * <p>
- * P2 <b>路由变更一例</b>：举报原因字典由 {@code GET /feedback/report-reasons} 迁至
- * {@code GET /report-reasons}——字典是「举报原因」的枚举，<b>不是</b>「反馈提交」的子资源，
- * 挂在 {@code /feedback}（写入口）下语义错位。该端点唯一消费者是同仓小程序（web 已解耦），
- * 故不留过渡别名；调用点、SecurityConfig 白名单与契约产物同批更新。
+ * 举报原因字典独立于 {@code /feedback}：字典是「举报原因」的枚举，<b>不是</b>「反馈提交」的子资源，
+ * 其唯一消费者是同仓小程序。
  */
 @Tag(name = "用户反馈", description = "用户通过联系开发者页面提交反馈")
 @RestController
@@ -60,13 +56,14 @@ public class FeedbackController {
 
     /**
      * 举报原因字典（PUB：举报免认证，弹层打开时端上实时拉取）——{@code GET /report-reasons}。
-     * 值域与文案唯一真源 = {@code FeedbackConst.REPORT_REASONS}，端上与管理端零硬编码（PR-12）。
+     * 值域与文案唯一真源 = `report_reason` 表（管理端 A7 维护），本端点只下发**启用项**，
+     * 端上与管理端零硬编码（PR-12）。
      * <p>
-     * <b>公开只读，两端共用</b>（方案 B：非敏感枚举无需为 web 复制出口）。管理端如需写操作走
-     * {@code /admin/**}（口令保护）。
-     * 两端数据同源，构造逻辑共用 {@code FeedbackService#reportReasons()}。
+     * <b>公开只读，两端共用</b>（非敏感枚举无需为管理端复制出口）。管理端写操作走
+     * {@code /admin/report-reasons}（管理端 JWT 保护）。
+     * 构造逻辑共用 {@code FeedbackService#reportReasons()}。
      */
-    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂「反馈提交」下语义错位）→ /report-reasons，无过渡别名。测试示例：/report-reasons")
+    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（value 机器值 + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。测试示例：/report-reasons")
     @GetMapping("/report-reasons")
     public Result<List<ReportReasonVO>> reportReasons() {
         return Result.success(feedbackService.reportReasons());

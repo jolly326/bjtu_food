@@ -32,7 +32,8 @@
   line-height: 1.6;
   padding: 0;
   background: transparent;
-  border-radius: 0;
+  /* 直角：显式声明以覆盖全局输入框形态基线（走 token，禁裸值） */
+  border-radius: var(--radius-none);
   box-sizing: border-box;
   border: none;
   border-bottom: 1rpx solid var(--border-color);

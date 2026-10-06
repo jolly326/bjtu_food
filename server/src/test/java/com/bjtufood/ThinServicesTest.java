@@ -116,11 +116,9 @@ class ThinServicesTest {
     @DisplayName("canteen.update：id 为 null → 抛业务异常，且不触碰数据库（防无主更新）")
     void updateWithoutIdIsRejected() {
         CanteenMapper canteenMapper = mock(CanteenMapper.class);
-        Canteen c = new Canteen();
-        c.setName("第一食堂");
 
         assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
-                mock(ImageUrlUtil.class)).update(c))
+                mock(ImageUrlUtil.class)).update(null, "第一食堂"))
                 .isInstanceOf(BusinessException.class);
         verify(canteenMapper, never()).updateById(any());
     }
@@ -129,12 +127,12 @@ class ThinServicesTest {
     @DisplayName("canteen.update：影响行数为 0（实体不存在）→ 抛异常，不得静默成功")
     void updateMissingEntityIsRejected() {
         CanteenMapper canteenMapper = mock(CanteenMapper.class);
+        // 改名走应用层查重（selectCount 未命中同名食堂）
+        when(canteenMapper.selectCount(any())).thenReturn(0L);
         when(canteenMapper.updateById(any())).thenReturn(0);
-        Canteen c = new Canteen();
-        c.setId(9L);
 
         assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
-                mock(ImageUrlUtil.class)).update(c))
+                mock(ImageUrlUtil.class)).update(9L, "第一食堂"))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -142,12 +140,11 @@ class ThinServicesTest {
     @DisplayName("canteen.update：影响行数 > 0 → 放行")
     void updateExistingEntitySucceeds() {
         CanteenMapper canteenMapper = mock(CanteenMapper.class);
+        when(canteenMapper.selectCount(any())).thenReturn(0L);
         when(canteenMapper.updateById(any())).thenReturn(1);
-        Canteen c = new Canteen();
-        c.setId(1L);
 
         assertThatCode(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
-                mock(ImageUrlUtil.class)).update(c))
+                mock(ImageUrlUtil.class)).update(1L, "第一食堂"))
                 .doesNotThrowAnyException();
     }
 
