@@ -16,7 +16,6 @@ export function getImageUrl(path?: string | null): string {
   if (/^(https?:|data:|blob:)/i.test(path)) return path
   try {
     // 能解析成功即视为绝对地址（纯相对路径会抛错，走下方归一化分支）
-    // eslint-disable-next-line no-new
     new URL(path)
     return path
   } catch {

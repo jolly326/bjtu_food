@@ -107,8 +107,8 @@ function onSelect(key: string) {
 /* 轨道：block + nowrap，子项走 inline-flex —— 小程序 scroll-x 下最稳的横排写法
    （避免 flex 轨道被 scroll-view 收缩导致标签塌成一列 / 不可滑动）。
    ⚠️ 轨道**不留左右内边距**（padding: 0）：若在轨道上再加 --spacing-md，会与 .mt-tab 自身
-   的 24rpx 叠加成 48rpx，首项文字缘就与页面级 gutter（24rpx）不同轴。
-   左右 inset 统一由 .mt-tab 的 padding 独立承担 → 首/末项文字缘 = 24rpx = 页面 gutter。 */
+   的 32rpx 叠加成 64rpx，首项文字缘就与页面级 gutter（32rpx）不同轴。
+   左右 inset 统一由 .mt-tab 的 padding 独立承担 → 首/末项文字缘 = 32rpx = 页面 gutter。 */
 .mt-track {
   display: block;
   white-space: nowrap;
@@ -130,7 +130,7 @@ function onSelect(key: string) {
      宽 = 标签文字 + 左右各 24rpx。最短标签「全部」（2 字 × --font-body 28rpx = 56rpx）+ 48rpx = 104rpx ≈ 52px ≥ 44px ✅。 */
   height: var(--tap-target-size);
   /* 上内距 = `--spacing-md`（24rpx，同值）：UI 统一 Loop Round 6，由裸 24rpx 改为 token */
-  padding: var(--spacing-md) var(--spacing-md) 0;
+  padding: var(--spacing-md) var(--page-gutter) 0;
   box-sizing: border-box;
   vertical-align: bottom;
   -webkit-tap-highlight-color: transparent;

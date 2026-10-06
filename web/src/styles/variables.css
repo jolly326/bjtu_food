@@ -67,8 +67,6 @@
 
   /* ===== 价格色（归中性，浅色） ===== */
   --color-price: #f0f0f0;
-  --color-price-soft: #2a2a2a;
-  --color-warning-soft: rgba(251, 191, 36, 0.1);
 
   /* ===== 阴影（深色下加深） ===== */
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -78,9 +76,7 @@
   /* ===== 材质 ===== */
   --blur-material: blur(20px) saturate(180%);
 
-  /* ===== 动效（damping 1.0 / response 0.3） ===== */
-  --spring-damping: 1;
-  --spring-response: 0.3s;
+  /* ===== 动效 ===== */
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 300ms;
@@ -144,26 +140,20 @@
   /* ===== 导航（深色毛玻璃顶栏） ===== */
   --nav-bg: color-mix(in srgb, var(--bg-card) 82%, transparent);
   --nav-blur: blur(20px) saturate(180%);
-  --nav-height: 56px;
-  --nav-item-active-bg: rgba(232, 232, 232, 0.12);
   --nav-item-active-color: #e8e8e8;
 
   /* ===== Component 层 token ===== */
   /* 数据表格：表头略亮区分 + 行分隔线可见 */
   --table-header-bg: #2a2a2a;
   --table-row-hover: #2a2a2a; /* 深色下需明显亮于卡片 #1F1F1F */
-  --table-row-active: rgba(232, 232, 232, 0.08);
   --table-border: #2e2e2e;
   --table-th-padding: var(--space-3) var(--space-4);
   --table-td-padding: var(--space-3) var(--space-4);
   /* 聚合 tab */
-  --agg-tabs-bg: rgba(255, 255, 255, 0.06);
   --agg-tab-active-bg: #2e2e2e;
   --agg-tab-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  /* 卡片 hover 抬升 */
-  --card-hover-shadow: var(--shadow-hover);
-  /* --stat-icon-lg / --stat-icon-md 随 StatCard 的 inline 变体一并删除
-     （量级图标改由调用方就近决定）。 */
+  /* 拖拽手柄字形尺寸（DragHandle 消费；热区由 --space-1 内距扩展） */
+  --drag-handle-size: 12px;
 }
 
 /* ============================================================
@@ -205,7 +195,6 @@
     --border-soft: #ededed;
 
     --color-price: #1f1f1f;
-    --color-price-soft: #f0f0f0;
 
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.14);
@@ -213,13 +202,10 @@
 
     --table-header-bg: #f0f0f0;
     --table-row-hover: #f5f5f5;
-    --table-row-active: rgba(43, 43, 43, 0.08);
     --table-border: #e6e6e6;
 
-    --agg-tabs-bg: rgba(0, 0, 0, 0.05);
     --agg-tab-active-bg: #ffffff;
     --nav-bg: color-mix(in srgb, #ffffff 82%, transparent);
-    --nav-item-active-bg: rgba(43, 43, 43, 0.1);
     --nav-item-active-color: #2b2b2b;
   }
 }

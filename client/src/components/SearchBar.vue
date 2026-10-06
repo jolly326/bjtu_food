@@ -120,9 +120,9 @@ function onInput(e: Event) {
 </script>
 
 <style scoped>
-/* 宿主：只负责页面级左右 gutter（与全站 `--spacing-md` 一致），高度由内层胶囊自持 */
+/* 宿主：只负责页面级左右 gutter（与全站 `--page-gutter` 一致），高度由内层胶囊自持 */
 .search-bar-host {
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--page-gutter);
   box-sizing: border-box;
 }
 

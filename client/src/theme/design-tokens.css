@@ -14,14 +14,16 @@
  * 页面 / 组件 SHALL NOT 裸写本文件已定义的尺寸、圆角、字重、时长、层级（见文档 §3 红线）。
  * ======================================================================== */
 page {
-  /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级） */
+  /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级）
+     值域遵循「块越大越圆」：极小件 12 → 小件 / 标签 20 → 卡片 / 按钮 / 图标底 24 → 弹层 48。
+     24rpx = 12pt（Apple 卡片 / 按钮常规圆角），48rpx = 24pt（弹层顶部）；观感偏圆润、柔和。 */
   --radius-none: 0;
-  --radius-2xs: 8rpx;
-  --radius-xs: 16rpx;
-  --radius-tag: 16rpx;
-  --radius-card: 16rpx;
+  --radius-2xs: 12rpx;
+  --radius-xs: 20rpx;
+  --radius-tag: 20rpx;
+  --radius-card: 24rpx;
   --radius-modal: 48rpx;
-  --radius-btn: 16rpx;
+  --radius-btn: 24rpx;
   --radius-icon: 24rpx;
   /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签），统一全圆角 */
   --radius-pill: 999rpx;
@@ -36,8 +38,10 @@ page {
   --spacing-md: 24rpx;
   --spacing-lg: 32rpx;
   --spacing-xl: 48rpx;
-  /* QA-01 修复：补齐悬空 token（空态上留白 padding 引用，缺失致声明被丢弃、空态贴顶） */
+  /* 空态容器上留白 */
   --spacing-2xl: 64rpx;
+  /* 页面级左右 gutter：卡片 / 内容到屏幕边缘的边距。32rpx = 16pt，符合 iOS 列表 inset 常规 */
+  --page-gutter: 32rpx;
 
   /* 字体（尺寸梯度） */
   --font-tiny: 20rpx;

@@ -161,6 +161,8 @@ function pick(count: number, source: PickSource): Promise<{ path: string; size: 
   })
   // #endif
   // #ifndef MP-WEIXIN
+  /* eslint-disable-next-line no-unreachable -- uni-app 条件编译（#ifdef/#ifndef）对 ESLint 不可见，
+     两个平台分支会被连成线性代码而误判「不可达」 */
   return new Promise((resolve, reject) => {
     uni.chooseImage({
       count: effectiveCount,

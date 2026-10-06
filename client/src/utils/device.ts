@@ -24,6 +24,9 @@ export interface MenuButtonRect {
  * 本文件是**全仓唯一**触碰平台全局 `wx` 的取值入口。⚠️ `@ts-ignore` 全仓只允许出现在这里
  * （全局 `wx` 未纳入项目 TS 类型）；若日后在 `env.d.ts` 正式声明 `wx`，只改本文件，调用方零改动。
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/ban-ts-comment -- 平台例外：
+   全局 `wx` 未纳入项目 TS 类型，本文件是**全仓唯一**触碰点（见上方注释）；
+   日后在 env.d.ts 正式声明 `wx` 后，应一并清掉本禁用与本处的 `@ts-ignore`。 */
 export function getWxApi(): any {
   // @ts-ignore - 全局 wx 未在项目 TS 类型中声明（平台例外）
   return typeof wx !== 'undefined' ? wx : null

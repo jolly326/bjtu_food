@@ -270,7 +270,7 @@ onShow(() => {
    ⚠️ 选型理由（实测教训）：小程序 WXSS 支持的选择器仅 `.class / #id / element / element,element / ::after / ::before`
    —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
    且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
-.discover-card { display: block; margin: 0 var(--spacing-md) var(--spacing-lg); }
+.discover-card { display: block; margin: 0 var(--page-gutter) var(--spacing-lg); }
 /* 结果态滚动容器：
    flex 链占满剩余高度；底部留白随容器自带 */
 .results-host {
@@ -283,7 +283,7 @@ onShow(() => {
    Round 21e（用户拍板）：结果**顶部对齐**、自上而下自然阅读；空白读感由「搜索行常驻 +
    结果态与发现态/空态/失败态互斥」保证，不靠居中补偿。 */
 .mixed-list {
-  margin: 0 var(--spacing-md) var(--spacing-md);
+  margin: 0 var(--page-gutter) var(--spacing-md);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);

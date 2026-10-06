@@ -39,7 +39,8 @@ public class ReportReason {
     @Schema(description = "中文标签", example = "垃圾广告 / 营销刷屏")
     private String label;
 
-    /** 展示顺序（升序） */
+    /** MySQL 保留字列，列名显式加反引号（MyBatis-Plus 不自动转义保留字） */
+    @TableField("`order`")
     @Schema(description = "展示顺序（升序）")
     private Integer order;
 

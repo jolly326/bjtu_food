@@ -164,9 +164,9 @@ async function save() {
    滚动由组件内部实现，外挂 CSS 只会在 H5 叠出第二根滚动条。 */
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
 /* 信息卡：inset 分组卡（Apple 列表分组风格）
-   UI 统一 Loop Round 14（裁决 5A）：圆角归档到**全站卡片档** `--radius-card`(16rpx)。 */
+   圆角归档到**全站卡片档** `--radius-card`(24rpx)。 */
 .info-card {
-  margin: 0 var(--spacing-md);
+  margin: 0 var(--page-gutter);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);

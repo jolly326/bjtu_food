@@ -218,11 +218,11 @@ const moreRows = [
 
 /* ===== 双卡片外壳（UI 稿「双卡片定稿版」）=====
    卡片 A（个人信息 + 快捷功能）与卡片 B（账号设置）**共用同一套全局 Token**，视觉完全一致：
-   `--bg-card` + `--shadow-card` + `--radius-card`（与菜品详情页卡片完全一致）；横向外边距 `--spacing-md`。
+   `--bg-card` + `--shadow-card` + `--radius-card`（与菜品详情页卡片完全一致）；横向外边距 `--page-gutter`。
    两卡之间留 `--spacing-lg` **留白分隔**（非分隔线 —— 卡片本身已是完整边界，再加线会形成双重边界噪声）。 */
 .mine-card,
 .more-group {
-  margin: var(--spacing-md) var(--spacing-md) 0;
+  margin: var(--spacing-md) var(--page-gutter) 0;
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -279,7 +279,7 @@ const moreRows = [
   align-items: center;
   justify-content: space-between;
   min-height: var(--tap-target-size);
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--page-gutter);
   border-bottom: 1rpx solid var(--border-color);
   -webkit-tap-highlight-color: transparent;
   transition: background-color var(--duration-fast) var(--ease-out);

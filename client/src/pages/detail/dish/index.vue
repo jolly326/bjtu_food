@@ -44,7 +44,7 @@
       @scroll="dp.onScroll"
       @scrolltolower="dp.onReviewsReachBottom"
     >
-      <!-- hero 卡（滚动区首块）：四周留白 12px + 圆角 + 16:10 —— 与首页 Banner **同语言**；
+      <!-- hero 卡（滚动区首块）：四周留白一个页面 gutter + 圆角 + 16:10 —— 与首页 Banner **同语言**；
            随滚动 1:1 上移、在标题带下沿被**裁掉**（"移出屏幕"，与首页 Banner 逐字一致）。
            大图关闭自动轮播（autoplay=false），仅手动滑动、保留指示点。 -->
       <view class="hero-card" :style="{ height: `${dp.heroHeightPx}px` }">
@@ -189,10 +189,10 @@ const dp = useDishPage()
 }
 
 /* ===== hero 卡（滚动区首块）=====
-   与首页 Banner **同语言**：四周留白 `--spacing-md`(12px) + `--radius-card` 圆角 + 16:10 定高（高由内联下发）；
+   与首页 Banner **同语言**：四周留白 `--page-gutter` + `--radius-card` 圆角 + 16:10 定高（高由内联下发）；
    随滚动 1:1 上移、在标题带下沿被**裁掉**（"移出屏幕"）。 */
 .hero-card {
-  margin: var(--spacing-md);
+  margin: var(--page-gutter);
   border-radius: var(--radius-card);
   overflow: hidden;
   line-height: 0;

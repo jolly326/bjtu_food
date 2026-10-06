@@ -10,7 +10,8 @@
  * CardSection —— 卡片外壳（**全站唯一实现**）
  *
  * 视觉：`bg-card` + `radius-card` + `shadow-card` + 内距 `--spacing-md`、
- * 外距 `--spacing-sm --spacing-md`（首个卡片上边距收紧为 `--spacing-md`）。
+ * 外距 `--spacing-md --page-gutter`（纵向 12pt 卡间距、横向 16pt 页 gutter；
+ * 首个卡片上边距收紧为 `--spacing-md`）。
  * ⚠️ **新卡片一律用它**，不再手写三件套。
  */
 withDefaults(defineProps<{
@@ -24,7 +25,7 @@ withDefaults(defineProps<{
 <style scoped>
 .card-section {
   background: var(--bg-card);
-  margin: var(--spacing-sm) var(--spacing-md);
+  margin: var(--spacing-md) var(--page-gutter);
   padding: var(--spacing-md);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);

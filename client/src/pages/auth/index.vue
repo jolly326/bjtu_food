@@ -61,7 +61,7 @@
           <text class="form-error-text">{{ formError }}</text>
         </view>
 
-        <!-- 认证主按钮：全站统一 `AppButton`（16rpx 圆角 / 主色实底 / 禁用置灰）。
+        <!-- 认证主按钮：全站统一 `AppButton`（24rpx 圆角 / 主色实底 / 禁用置灰）。
              外层包裹只承担上间距 —— `AppButton` 自带内联 `margin: 0`，会盖掉 class 上的 margin。 -->
         <view class="action-wrap">
           <AppButton
@@ -214,9 +214,9 @@ onUnload(() => {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
-/* ===== 表单卡：纯白 + 16rpx 圆角 + 轻阴影，承载全部表单内容 ===== */
+/* ===== 表单卡：纯白 + 24rpx 圆角 + 轻阴影，承载全部表单内容 ===== */
 .form-card {
   padding: var(--spacing-lg) var(--spacing-md);
   background: var(--bg-card);

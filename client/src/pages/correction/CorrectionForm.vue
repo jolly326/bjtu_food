@@ -352,9 +352,9 @@ function onSubmitTap() {
 <style scoped lang="scss">
 /* 下划线字段行样式来自共享 partial（本包内同源） */
 @use './field-shared' as field;
-/* ===== 主卡片（圆角 16rpx + 浅暖米色细描边 + 柔和卡阴影；一枚大卡承载全部表单） ===== */
+/* ===== 主卡片（圆角 24rpx + 浅暖米色细描边 + 柔和卡阴影；一枚大卡承载全部表单） ===== */
 .q-card {
-  margin: var(--spacing-md) var(--spacing-md) 0;
+  margin: var(--spacing-md) var(--page-gutter) 0;
   padding: var(--spacing-lg);
   background: var(--bg-card);
   border: 2rpx solid var(--border-color);

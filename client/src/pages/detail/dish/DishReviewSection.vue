@@ -168,7 +168,7 @@ const emit = defineEmits<{
 <style scoped>
 /* 纵向间距：块间距统管在外层（卡壳本身 `flush`，见模板）；同页两卡内距由此统一到 `--spacing-md`
     */
-.review-section { margin: var(--spacing-sm) var(--spacing-md) 0; }
+.review-section { margin: var(--spacing-md) var(--page-gutter) 0; }
 /* 条目之间 1rpx 浅分隔线（与系统通知页 / 我的评价页同语言）；
    行内距由条目自身承担，最上 / 最下无线；负 margin 抵消 CardSection 内距使分隔线撑满卡宽 */
 .review-list { display: flex; flex-direction: column; }

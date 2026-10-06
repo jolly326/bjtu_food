@@ -5,7 +5,7 @@ declare const __APP_VERSION__: string;
 
 declare module '*.vue' {
   import { DefineComponent } from 'vue'
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type -- Vue SFC 的通用 shim，泛型位无更精确写法
   const component: DefineComponent<{}, {}, any>
   export default component
 }

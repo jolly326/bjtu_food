@@ -1,0 +1,7 @@
+# 自动生成文件（unplugin-auto-import / unplugin-vue-components 产物）—— 由插件重写，不参与格式校验
+src/auto-imports.d.ts
+src/components.d.ts
+
+# 构建产物 / 依赖
+dist
+node_modules

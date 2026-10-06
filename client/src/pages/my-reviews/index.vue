@@ -214,7 +214,7 @@ useOnShowRefresh(load)
    结构化收口：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
    内容被裁在滚动区内，**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则，零表面）。 */
 .my-reviews-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
 /* 评价列表：单张白卡收纳全部评价行（与系统通知页同语言）；行间 1rpx 浅分隔线，最上 / 最下无线 */
 .review-card {

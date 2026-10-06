@@ -140,7 +140,7 @@ function onSubmit() {
 .rp-submit {
   margin-top: var(--spacing-sm);
   padding: var(--spacing-sm) 0;
-  /* 圆角统一到全站主按钮档位 `--radius-btn`（16rpx）—— 原裸值 12rpx 与全站主钮不同档 */
+  /* 圆角统一到全站主按钮档位 `--radius-btn`（24rpx） */
   border-radius: var(--radius-btn);
   background: var(--color-primary);
   text-align: center;

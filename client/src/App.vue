@@ -142,7 +142,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--spacing-md) var(--spacing-lg);
+  padding: 0 var(--page-gutter) var(--spacing-lg);
 }
 .list-foot-text {
   font-size: var(--font-small);

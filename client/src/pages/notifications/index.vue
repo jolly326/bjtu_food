@@ -171,7 +171,7 @@ async function onTap(n: Notification) {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
 
 /* 列表容器：单张白卡装全部行；`.list` 仅作占位 wrapper（行少时不渲染空卡） */
 .list { display: block; }

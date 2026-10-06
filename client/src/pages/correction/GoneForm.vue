@@ -153,7 +153,7 @@ defineExpose({ startPick })
 </script>
 
 <style scoped>
-.gone-form { padding: 0 var(--spacing-md); }
+.gone-form { padding: 0 var(--page-gutter); }
 
 .card {
   background: var(--bg-card);

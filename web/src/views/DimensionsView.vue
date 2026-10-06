@@ -227,15 +227,8 @@ onMounted(() => load())
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="(row, index) in items"
-            :key="row.id"
-            draggable="true"
-            @dragstart="onDragStart(index)"
-            @dragover.prevent
-            @drop="onDrop(index)"
-          >
-            <td class="drag-col" title="拖拽排序">⋮⋮</td>
+          <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
+            <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
             <td>{{ row.name }}</td>
             <td>
               <code>{{ row.fieldKey }}</code>
@@ -314,15 +307,8 @@ onMounted(() => load())
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="(v, index) in values"
-            :key="v.id"
-            draggable="true"
-            @dragstart="onValueDragStart(index)"
-            @dragover.prevent
-            @drop="onValueDrop(index)"
-          >
-            <td class="drag-col" title="拖拽排序">⋮⋮</td>
+          <tr v-for="(v, index) in values" :key="v.id" @dragover.prevent @drop="onValueDrop(index)">
+            <td class="drag-col"><DragHandle @dragstart="onValueDragStart(index)" /></td>
             <td>
               <input
                 v-if="editingValueId === v.id"
@@ -352,13 +338,6 @@ onMounted(() => load())
 </template>
 
 <style scoped>
-.drag-col {
-  width: 28px;
-  color: var(--text-muted);
-  cursor: grab;
-  user-select: none;
-  text-align: center;
-}
 .num {
   font-variant-numeric: tabular-nums;
 }

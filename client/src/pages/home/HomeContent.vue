@@ -82,7 +82,7 @@ function goToDetail(dish: { id: number }) {
 
 <style scoped lang="scss">
 .feed-wrap {
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--page-gutter);
   box-sizing: border-box;
 }
 
@@ -114,7 +114,7 @@ function goToDetail(dish: { id: number }) {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--spacing-md) var(--spacing-lg);
+  padding: 0 var(--page-gutter) var(--spacing-lg);
 }
 .feed-foot-text {
   /* 12px 是正文可读下限（--font-aux 22rpx 在窄屏折合 ≈10px，低于下限） */

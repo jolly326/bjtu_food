@@ -106,15 +106,8 @@ onMounted(() => load())
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="(row, index) in items"
-            :key="row.id"
-            draggable="true"
-            @dragstart="onDragStart(index)"
-            @dragover.prevent
-            @drop="onDrop(index)"
-          >
-            <td class="drag-col" title="拖拽排序">⠿</td>
+          <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
+            <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
             <td>{{ row.label }}</td>
             <td>
               <code class="view-key">{{ row.key }}</code>
@@ -164,12 +157,6 @@ onMounted(() => load())
 </template>
 
 <style scoped>
-.drag-col {
-  width: 28px;
-  color: var(--text-muted);
-  cursor: grab;
-  text-align: center;
-}
 .view-key {
   color: var(--text-muted);
   font-family: var(--font-numeric);

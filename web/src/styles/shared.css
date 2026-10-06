@@ -314,6 +314,11 @@ a:focus-visible,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 拖拽排序手柄列（各排序列视图共用：列宽 + 居中；手柄本体见 components/DragHandle.vue） */
+.drag-col {
+  width: 28px;
+  text-align: center;
+}
 .actions {
   white-space: nowrap;
   display: flex;

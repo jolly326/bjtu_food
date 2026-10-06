@@ -124,14 +124,13 @@ onMounted(() => load())
         v-for="(row, index) in items"
         :key="row.id"
         class="card banner-card"
-        draggable="true"
-        @dragstart="onDragStart(index)"
         @dragover.prevent
         @drop="onDrop(index)"
       >
         <img :src="row.imageUrl" alt="" class="banner-img" />
         <div class="banner-meta">
           <div class="banner-row">
+            <DragHandle @dragstart="onDragStart(index)" />
             <StatusTag :status="row.status" kind="onoff" />
             <span class="muted">排序 {{ row.order }}</span>
           </div>
