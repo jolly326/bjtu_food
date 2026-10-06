@@ -10,12 +10,7 @@ import java.time.LocalDateTime;
  * 食堂实体类
  * <p>
  * 对应数据库表：canteen。用户拍板：食堂已<b>去实体化</b>，降级为「菜品筛选属性字典」，
- * 生命周期仅「新增 / 改名（编辑）」，不再具备删除、停业/营业状态、营业时间、实体审核等实体语义能力。
- * 原 {@code status}（停业语义）/ {@code audit_status}（实体审核语义）/ {@code reject_reason} 字段
- * 已从实体与接口层移除（不再读写）。
- * <p>
- * {@code created_by}（提交人）亦已退役：食堂降级为「菜品筛选属性字典」后无归属语义，
- * 写入侧恒为系统占位值、三端零消费，实体字段与写入/列定义同批移除（存量库已直连远程库清理）。
+ * 生命周期仅「新增 / 改名（编辑）」，不具备删除、停业/营业状态、营业时间、实体审核等实体语义能力。
  */
 @Data
 @TableName("canteen")
@@ -37,10 +32,6 @@ public class Canteen {
     /** 食堂位置 */
     @Schema(description = "食堂位置")
     private String location;
-
-    // 坐标列 latitude / longitude 已于拍板全链下线（位置表达收敛为 食堂 · 楼层 · 档口名，
-    // 学生端不申请定位权限、不计算距离）；实体字段与列定义同批移除，
-    // 存量库已直连远程库清理。
 
     /** 食堂描述 */
     @Schema(description = "食堂描述")

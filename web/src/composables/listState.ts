@@ -2,7 +2,7 @@ import { computed, ref, type Ref } from 'vue'
 import { isSessionInvalid } from '@/api/http'
 
 /**
- * 列表状态内核：加载 / 错误（带重试）/ 空 / 会话失效（403，**不渲染重试**）四态。
+ * 列表状态内核：加载 / 错误（带重试）/ 空 / 会话失效（**401**，不渲染列表态）四态。
  *
  * `usePagedList`（分页列表页）与 `useSimpleList`（量级极小、接口不分页的字典页）共用本内核，
  * 保证两类列表的状态判定与失败处置**逐字一致** —— 否则同一页面里两种表格的失败表现会分叉。
@@ -10,7 +10,7 @@ import { isSessionInvalid } from '@/api/http'
 export function createListState(items: Ref<unknown[]>) {
   const loading = ref(false)
   const error = ref<string | null>(null)
-  /** 会话失效（403）：口令不匹配 —— 重试必然再失败，页面不给重试入口 */
+  /** 会话失效（401）：请求层已清 token 并跳登录页 —— 这里只负责**不渲染**「加载失败 / 重试」 */
   const sessionInvalid = ref(false)
 
   /** 首屏加载（无数据且在途）—— 决定整表骨架 */
@@ -29,7 +29,7 @@ export function createListState(items: Ref<unknown[]>) {
     sessionInvalid.value = false
   }
 
-  /** 失败归类：403 → 会话失效（不渲染重试）；其余 → 错误文案 */
+  /** 失败归类：401 → 会话失效（请求层已接管跳转）；其余 → 错误文案 */
   function fail(e: unknown) {
     if (isSessionInvalid(e)) {
       sessionInvalid.value = true

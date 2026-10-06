@@ -8,9 +8,7 @@ import java.util.List;
 /**
  * UGC 配图校验与序列化的公共工具（评价 / 反馈同一口径）。
  * <p>
- * 背景（PR-05 冗余清理）：{@code ReviewServiceImpl#encodeImages} 与
- * {@code FeedbackServiceImpl#encodeImages} 原为逐行近乎重复的实现（≤3 张 + COS 域名白名单 + JSON 序列化），
- * 抽为本工具类消除双份维护。
+ * 评价与反馈的配图校验共用本工具类（≤3 张 + COS 域名白名单 + JSON 序列化），避免双份维护。
  * <p>
  * 规则：
  * <ol>

@@ -10,7 +10,7 @@ import { useDishStore } from '@/stores/dish'
 
 export function useDiscover() {
   const dishStore = useDishStore()
-  // 直接用 storeToRefs 取 getter（原先对 store getter 再包一层 computed 属冗余包装）
+  // 直接用 storeToRefs 取 getter —— 对 store getter 再包一层 computed 属冗余包装
   const { guessLikeList } = storeToRefs(dishStore)
 
   /** 拉取发现态数据（发现态目前仅猜你喜欢；无食堂字典端点） */

@@ -42,7 +42,7 @@ public class Review {
     private String images;
 
     /*
-     * 内容安全状态 sec_state 已随「取消人工复核」全链退役：
+     * 内容安全状态 sec_state 已取消人工复核：
      * 机检 pass/review 一律放行、risky 直接拒绝（不落库），故无安全态可存。
      */
 
@@ -58,15 +58,9 @@ public class Review {
     @Schema(description = "隐藏附注（≤200 字，随隐藏回执下发；未隐藏为 null）")
     private String hiddenNote;
 
-    // review.useful_count 冗余计数列与 review_useful 表已于整链下线
-    // （「评价有用」能力删除），实体字段同批移除，避免 MP 读写不存在的列。
-
     @TableField(fill = FieldFill.INSERT)
-    @Schema(description = "创建时间（重评时刷新为当前 —— 「重评即新发布」）")
+    @Schema(description = "发表时间（**重复提交保留原值**，覆盖不刷新 ⇒ 评价位置固定）")
     private LocalDateTime createdAt;
-
-    // review.updated_at 已于用户拍板退役：
-    // 重评时与 created_at 同批刷新 → 两者恒等，该列对评价无独立语义，且端上与管理端双双零消费
-    // （web/src/views 对 updated_at 零命中）。实体字段 / 建表脚本 / 种子脚本同批移除。
+    // ⚠️ 不要据此删除 dish.updated_at —— 它有真实消费（DishFormDialog 的 Q-112「他人已修改」轻提示基线）。
     // ⚠️ 不要据此删除 dish.updated_at —— 它有真实消费（DishFormDialog 的 Q-112「他人已修改」轻提示基线）。
 }

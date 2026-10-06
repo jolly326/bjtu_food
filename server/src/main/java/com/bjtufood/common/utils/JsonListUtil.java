@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  * <p>
  * <b>失败口径</b>：不回滚不抛异常，但<b>必须留 WARN</b>——
  * ① 「看起来是 JSON 数组却解析失败」时本类会退化成逗号切分，切出的是 {@code ["a.jpg"} 这类残缺项，
- * 属静默数据劣化；② 序列化失败回落 {@code "[]"} 意味着配图全部丢失。两者此前都完全无痕迹。
+ * 属静默数据劣化；② 序列化失败回落 {@code "[]"} 意味着配图全部丢失。两者都必须留痕。
  */
 @Slf4j
 public class JsonListUtil {

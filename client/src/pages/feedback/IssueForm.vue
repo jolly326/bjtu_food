@@ -226,7 +226,7 @@ function onImagesChange(urls: string[]) {
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
-/* 描述框辅助说明：仅 other 类型展示的菜品纠错引导（从 placeholder 移出的业务提示） */
+/* 描述框辅助说明：仅 other 类型展示的菜品问题反馈引导 */
 .field-help {
   display: block;
   margin-top: var(--spacing-xs);

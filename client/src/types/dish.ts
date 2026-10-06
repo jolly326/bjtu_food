@@ -21,8 +21,11 @@ export interface DishListItem {
   originalPrice?: number | null
   /** 封面首图（列表唯一图片字段；无图空串） */
   coverImage: string
-  /** 平均评分（口径 = 仅未隐藏评价）；**零评价为 `null`（不渲染评分区）** */
-  rating: number | null
+  /**
+   * 平均评分（口径 = 仅未隐藏评价）。
+   * 🔴 **零评价时服务端已兜底为 `5.0`**（不返回 null）⇒ 恒渲染评分位，无「有无评分」分支。
+   */
+  rating: number
   canteen: string
   stallName: string
 }
@@ -46,11 +49,14 @@ export interface DishDetail {
   description: string
   /** 多图 URL 数组（详情专属；恒为数组，无图为空数组） */
   images: string[]
-  /** 平均评分；**零评价时为 `null`** —— 端上按判空呈现「暂无评分」 */
-  rating: number | null
+  /**
+   * 平均评分。🔴 **零评价时服务端已兜底为 `5.0`**（不返回 null）⇒ 恒渲染评分位；
+   * 只显示均分、**不显示评价条数**（保持简洁）。
+   */
+  rating: number
   canteen: string
   stallName: string
-  /** 档口所属楼层（如 1F/2F；详情专属） */
+  /** 档口所属楼层（值即汉字，如「二层」；详情专属） */
   floor?: string
   /** 描述属性（值即中文，端上直渲 `value`） */
   attributes: DishAttribute[]
@@ -71,8 +77,8 @@ export interface MixedResultItem {
   sub?: string
   /** 价格（元，api 层已转） */
   price?: number
-  /** 平均评分；零评价为 `null`（不渲染评分区） */
-  rating?: number | null
+  /** 平均评分；🔴 零评价服务端已兜底 `5.0` ⇒ 恒渲染评分位 */
+  rating?: number
   /** 原价（元，> price 时划线展示，判据 `utils/dish.hasDiscount`） */
   originalPrice?: number | null
 }

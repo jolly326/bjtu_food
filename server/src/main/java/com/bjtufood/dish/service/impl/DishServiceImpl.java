@@ -28,8 +28,10 @@ import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
+import com.bjtufood.dish.entity.DishViewLog;
 import com.bjtufood.dish.event.DishDeletedEvent;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.mapper.DishViewLogMapper;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishAttributeCatalog;
 import com.bjtufood.dish.entity.DishFilterView;
@@ -46,6 +48,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -80,6 +83,8 @@ public class DishServiceImpl implements DishService {
     private static final int DISH_IMAGES_JSON_MAX = 1024;
 
     private final DishMapper dishMapper;
+    /** 浏览明细日志写入 + 管理端「近 30 天浏览」查询（🔴 不参与排序，见 {@code DishViewLogMapper}） */
+    private final DishViewLogMapper dishViewLogMapper;
     private final StallService stallService;
     /**
      * 事件发布器：菜品删除后的评价级联清理改由 review 域监听器承接
@@ -156,8 +161,8 @@ public class DishServiceImpl implements DishService {
      */
     @Override
     public List<DishAttributeEditVO> listDishAttributes(Long dishId) {
-        // 单次取行同时完成「存在且在售」判定与属性读取（原先是存在性校验 + 单独取 attributes
-        // 两次查询，在远程库上叠加两次 RTT）；判定口径不变。
+        // 单次取行同时完成「存在且在售」判定与属性读取 —— 拆成「存在性校验 + 单独取 attributes」
+        // 会在远程库上叠加两次 RTT。
         Dish dish = dishId == null ? null : dishMapper.selectById(dishId);
         // 不存在与已下架同款处理（与详情口径一致）
         if (dish == null || !DishConst.STATUS_ON.equals(dish.getStatus())) {
@@ -209,8 +214,12 @@ public class DishServiceImpl implements DishService {
     /**
      * 菜品详情（含**浏览计数副作用**）。
      * <p>
-     * 计数口径（PV）：本方法**成功取到详情后**执行 {@code view_count + 1}（SQL 原子自增，
-     * 避免读-改-写丢计数）。菜品不存在 / 已下架（vo == null）抛 {@code BusinessException(4001)}，不计数。
+     * 计数口径（PV）：本方法**成功取到详情后**向 {@code dish_view_log} 插一行明细
+     * （<b>不去重</b>：同一用户反复看同一道菜每次都计），不累加 {@code dish.view_count}（该列已停写）。
+     * 菜品不存在 / 已下架（vo == null）抛 {@code BusinessException(4001)}，不计数。
+     * <p>
+     * 🔴 **浏览量不参与排序**（2026-10-05，热度算法全量下线）—— 本方法只负责记录数据，
+     * 展示方仅管理端「近 30 天浏览」列（见 {@code docs/schema/dish_view_log.md}）。
      * <p>
      * 事务：查询与计数写操作同处一个事务 —— 计数失败则详情一并失败，
      * 保证「返回 200 的响应必然已计数」的口径自洽。
@@ -229,9 +238,12 @@ public class DishServiceImpl implements DishService {
         }
 
         // ===== 浏览计数副作用（先于返回值组装，成功路径恒执行）=====
-        // 并发安全：原子自增（UPDATE ... SET view_count = view_count + 1）；
-        // vo 已确认存在，affected 恒为 1（若为 0 属并发删除，视同不存在）
-        int affected = dishMapper.increaseViewCount(id);
+        // 🔴 不累加 dish.view_count（该列停写，历史累计值仅作参考），改为向 dish_view_log 插一行明细，
+        //    支撑管理端「近 30 天浏览量」滚动窗口（见 docs/schema/dish_view_log.md §2.4）。
+        // 不去重（PV 口径）：同一用户反复看同一道菜每次都计 —— MVP 期浏览量不参与排序，被刷无用户可见危害，
+        //    去重需引入 user_id 列与唯一约束，写入成本与锁竞争显著上升，收益当前无消费方。
+        DishViewLog viewLog = new DishViewLog(id, LocalDateTime.now());
+        int affected = dishViewLogMapper.insert(viewLog);
         if (affected == 0) {
             throw new BusinessException(4001, "菜品不存在");
         }
@@ -241,10 +253,13 @@ public class DishServiceImpl implements DishService {
         // 描述属性：JSON 原文即中文值 → 展示项（R4，端上零翻译）；维度字典走独立 bean（带缓存）
         vo.setAttributes(buildAttributeItems(vo.getAttributesJson(), attributeCatalog.dimensions()));
 
-        // avgRating 恒读缓存列 dish.avg_rating（零评价为 NULL → 出参 null），不做实时聚合。
+        // avgRating 恒读缓存列 dish.avg_rating（由 selectDishDetail 一并查出），零评价（NULL）时出参兜底为 5.0
+        // （冷启动展示口径，见 docs/api/client/dishes.md）；兜底只在出参层：不落库、不参与排序
+        // （🔴 2026-10-05 热度算法全量下线，当前 7 个视图均走会话伪随机序，本兜底值无排序消费方；
+        //   后期重启热度时仍必须保持此分离，否则零评价菜会凭满分权重虚高置顶）。
+        vo.setAvgRating(vo.getAvgRating() != null ? vo.getAvgRating() : DishConst.ZERO_RATING_FALLBACK);
 
-        // hasReviewed（当前用户是否已评价）已于下线（三端零消费，连带删除字段与取值查询）。
-        // 注：详情出参仍无任何登录态字段；原 userId 入参与 view_log 浏览日志写入已随该链整表退役移除。
+        // 详情出参不含任何登录态字段（无 hasReviewed 等用户态分支）。
         return vo;
     }
 
@@ -307,14 +322,50 @@ public class DishServiceImpl implements DishService {
         Map<String, String> mealTypeLabels = categoryAdminService.listAll().stream()
                 .collect(Collectors.toMap(DishCategoryAdminVO::getKey, DishCategoryAdminVO::getLabel,
                         (a, b) -> a));
+        // 近 30 天浏览量：一次性按当前页 dish_id 批量聚合（BE 惯用法，避免 N+1）；
+        // 🔴 走 dish_view_log 滚动窗口而非 dish.view_count（后者已停写且是历史累计，语义不同）
+        Map<Long, Long> recentViews = loadRecentViewCounts(result.getRecords());
         return PageUtil.toVoPage(result, recs -> recs.stream()
                 .map(vo -> {
                     vo.setMealTypeLabel(mealTypeLabels.getOrDefault(
                             vo.getMealType() == null ? "" : vo.getMealType(), ""));
                     vo.setCoverImage(toAbsoluteCover(vo.getCoverImage()));
+                    // 无浏览记录的菜品不在聚合结果里 ⇒ 显式补 0（端上不渲染「—」）
+                    vo.setRecentViewCount(recentViews.getOrDefault(vo.getId(), 0L));
                     return vo;
                 })
                 .toList());
+    }
+
+    /** 「近 30 天浏览量」滚动窗口天数（与 {@code DishViewLogCleanupTask.RETENTION_DAYS} 一致） */
+    private static final int RECENT_VIEW_WINDOW_DAYS = 30;
+
+    /**
+     * 批量取当前页菜品的近 30 天浏览量。
+     *
+     * <p>一次性 {@code COUNT(*) GROUP BY dish_id} 取回本页全部，避免逐行查询（N+1）。
+     * 空页 / 空结果直接返回空 Map，跳过 SQL。
+     *
+     * <p>Mapper 返回 {@code List<Row>}（规避 MyBatis 的 {@code Map} 返回类型歧义，见 Mapper 注释），
+     * 此处转成 {@code dishId -> viewCount} 便于 O(1) 查表。
+     */
+    private Map<Long, Long> loadRecentViewCounts(List<DishAdminListItemVO> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = rows.stream().map(DishAdminListItemVO::getId).toList();
+        List<DishViewLogMapper.Row> counts =
+                dishViewLogMapper.countRecentViewsByDishIds(ids, RECENT_VIEW_WINDOW_DAYS);
+        if (counts == null || counts.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> byDishId = new HashMap<>(counts.size());
+        for (DishViewLogMapper.Row row : counts) {
+            if (row.getDishId() != null && row.getViewCount() != null) {
+                byDishId.put(row.getDishId(), row.getViewCount());
+            }
+        }
+        return byDishId;
     }
 
     /** 封面：相对路径 → 绝对 URL（空串原样返回，端上按统一占位图呈现） */
@@ -347,13 +398,13 @@ public class DishServiceImpl implements DishService {
         applyReq(dish, req);
         // 按名 upsert 解析出的档口可能不同于 req.stallId（stallName 有效时优先），在 applyReq 之后回填
         dish.setStallId(stallId);
-        // avg_rating 保持 NULL（零评价 → 公开出参 avgRating = null，端上按「暂无评分」呈现）
+        // avg_rating 保持 NULL（零评价）；公开出参由 ZERO_RATING_FALLBACK 兜底为 5.0（仅出参层，不落库）
         dish.setRatingCount(0);
         dish.setViewCount(0);
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus(DishConst.STATUS_ON);
         }
-        // 注：菜品审核语义已整体退役（dish.audit_status 列与写入同批移除，阶段4）——
+        // 注：菜品审核语义已取消（dish.audit_status 列与写入同批移除）——
         // 管理员即权威，录入/编辑后菜品直接生效，「落库默认值导致新菜不可见」的顾虑不再存在。
         dishMapper.insert(dish);
         // 新菜带来的属性取值会进入「编辑候选值」的全库去重结果 → 显式失效，避免新值最长 2 分钟不可见
@@ -578,10 +629,10 @@ public class DishServiceImpl implements DishService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，故写库与重算之间无竞态窗口
-    // （原注释关于 @CacheEvict 失效时序的说明已随 缓存设施整包退役删除）
+    // （缓存设施已移除，相关失效时序说明随之删除）
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。
-        // 计入口径（Q-110 / 归一）：仅 is_hidden=0 的评价计入（sec_state 已全链退役，
+        // 计入口径（Q-110 / 归一）：仅 is_hidden=0 的评价计入（
         // 内容安全检测 pass/review 一律放行、risky 拒绝不入库）；口径真源在 DishMapper.xml
         // recalcRatingBySubquery。全量重算与增量路径（新增/删除/隐藏）统一走本方法。
         dishMapper.recalcRatingBySubquery(dishId);
@@ -703,6 +754,9 @@ public class DishServiceImpl implements DishService {
     /**
      * 列表行封面图：取 {@code imageUrls} 的**首图**填入 {@code coverImage}；
      * 无图时为空串（列表不再下发图片数组，故只取首图、不做多图回填）。
+     * <p>
+     * 同时施加**零评价均分兜底**（{@link DishConst#ZERO_RATING_FALLBACK}）：零评价时
+     * {@code avg_rating} 为 NULL，出参下发 {@code 5.0}，避免卡片评分位空缺（仅出参层，不落库）。
      */
     private DishListItemVO enrichCoverImage(DishListItemVO vo) {
         if (vo == null) {
@@ -710,6 +764,9 @@ public class DishServiceImpl implements DishService {
         }
         List<String> urls = toAbsoluteImages(vo.getImageUrls());
         vo.setCoverImage(urls.isEmpty() ? "" : urls.get(0));
+        if (vo.getAvgRating() == null) {
+            vo.setAvgRating(DishConst.ZERO_RATING_FALLBACK);
+        }
         return vo;
     }
 
@@ -809,7 +866,7 @@ public class DishServiceImpl implements DishService {
         // （命中即用 / 未命中自动登记新取值）—— 见 A4「灵活取值」与 B4「属性采纳的存储口径」。
         Map<String, Object> resolvedPatch = attributeAdminService.resolveForWrite(patch);
         patch.forEach((dimension, value) -> {
-            // 空值 / 空数组 = 用户清空该维度 ⇒ 删除该键（resolveForWrite 会丢弃该键，故按原 patch 判定）
+            // 空值 / 空数组 = 用户清空该维度 ⇒ 删除该键（resolveForWrite 会丢弃该键，故按 patch 判定）
             Object resolved = resolvedPatch.get(dimension);
             if (value == null || (value instanceof Collection<?> items && items.isEmpty())
                     || resolved == null) {

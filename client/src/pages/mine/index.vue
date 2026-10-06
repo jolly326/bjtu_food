@@ -46,10 +46,16 @@
           >
             <view class="grid-cell-icon">
               <IconSvg :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
-              <!-- 系统通知：存在未读时右上红点（无未读不显示） -->
-              <view v-if="cell.key === 'notify' && notifyStore.unreadCount > 0" class="badge badge-dot" aria-hidden="true" />
-              <!-- 身份认证：已认证时右上主色圆点（状态徽章） -->
-              <view v-else-if="cell.key === 'cert' && isVerified" class="badge badge-dot badge-cert" aria-hidden="true" />
+              <!-- 系统通知：存在未读时右上角标（无未读不显示）。
+                   角标唯一语义 = 「有未读/待处理」；未读统一用橙（红仅留错误与危险）。
+                   无障碍：角标承载信息，故给 aria-label 而非 aria-hidden。
+                   「身份认证」格**不设角标** —— 认证完成是状态而非待办，用角标会被误读为待处理且点击不可消除；
+                   认证状态由用户卡副行与条纹着色表达。 -->
+              <view
+                v-if="cell.key === 'notify' && notifyStore.unreadCount > 0"
+                class="badge badge-dot"
+                aria-label="有未读通知"
+              />
             </view>
             <text class="grid-cell-label">{{ cell.label }}</text>
           </view>
@@ -262,9 +268,8 @@ const moreRows = [
 .grid-cell-label { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); white-space: nowrap; text-align: center; }
 /* 角标：贴卡片（图标 chip）右上角，不遮蔽图标主体 */
 .badge { position: absolute; top: -6rpx; right: -6rpx; z-index: 1; }
-.badge-dot { width: 14rpx; height: 14rpx; border-radius: var(--radius-circle); background: var(--color-error); }
-/* 身份认证已认证徽章：主色圆点（区别于通知红点） */
-.badge-cert { background: var(--color-primary); }
+/* 未读角标：14rpx 圆点。未读态**统一用橙**（与系统通知未读竖条同色），红仅留错误与危险 */
+.badge-dot { width: 14rpx; height: 14rpx; border-radius: var(--radius-circle); background: var(--color-primary-amber); }
 
 /* 「其他」列表 = **卡片 B 的内部列表容器**（`.more-group` 自身即卡片 B 外壳，白卡 Token 已在上面统一定义）：
    三行独立列表项，行间细分隔线（`.more-row` 的 `border-bottom`）；**底部不加分隔线**（卡片 B 内最后一块）。 */

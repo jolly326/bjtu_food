@@ -38,20 +38,24 @@ public class ReviewController {
     private final ReviewService reviewService;
 
     @Operation(
-            summary = "菜品评价列表（时间倒序）",
+            summary = "菜品评价列表（时间倒序，可按星级筛选）",
             description = """
                     用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
                     排序唯一为发表时间倒序，不提供排序参数。
+                    可选 rating 按星级筛选（1~5 白名单，非法值 400 不静默降级；不传 = 全部）。
+                    🔴 筛选为服务端过滤且参与分页 ⇒ 端上切换筛选须重置 page=1。
                     只返回未隐藏（is_hidden=0）的评价。
-                    测试示例：/dishes/1/reviews?page=1&pageSize=20
+                    测试示例：/dishes/1/reviews?page=1&pageSize=20 / ?rating=5
                     """)
     @GetMapping("/dishes/{id}/reviews")
     public Result<PageResult<ReviewVO>> listReviews(
             @Parameter(description = "菜品ID", example = "1")
             @PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        return Result.success(PageResult.of(reviewService.listByDishId(id, page, pageSize)));
+            @RequestParam(defaultValue = "20") int pageSize,
+            @Parameter(description = "按星级筛选（1~5；不传 = 全部）", example = "5")
+            @RequestParam(required = false) Integer rating) {
+        return Result.success(PageResult.of(reviewService.listByDishId(id, page, pageSize, rating)));
     }
 
     @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userNickname/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))

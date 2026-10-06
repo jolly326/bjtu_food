@@ -15,10 +15,10 @@ import java.util.List;
  * {@code List<String>} ↔ 「JSON 数组串」列的 MyBatis 类型处理器。
  * <p>
  * 用途：图片类列
- * （{@code dish.images} / {@code review.images}）以 JSON 数组串存储，此前由各出参 VO 上寄生一个
- * {@code @JsonIgnore String imagesJson} 的**存储形态中转字段**承接、再由 Service 手工解析 ——
- * 该写法让「DB 行 → VO」的转换职责落在出参 VO 上，且**靠注解兜住不出参**（漏注 / 换序列化器即泄漏）。
- * 改由本处理器在持久层完成「列 ↔ List」转换，出参 VO 只留出参字段，从类型上消除该中转字段。
+ * （{@code dish.images} / {@code review.images}）以 JSON 数组串存储 —— 由本处理器在持久层完成
+ * 「列 ↔ List」转换，出参 VO 只留出参字段，**不引入** {@code imagesJson} 这类存储形态中转字段
+ * （那会让「DB 行 → VO」的转换职责落在出参 VO 上，且要靠 {@code @JsonIgnore} 兜住不出参，
+ * 漏注 / 换序列化器即泄漏）。
  * <p>
  * <b>职责边界</b>：本处理器只做「JSON 串 ↔ List」的形态转换，**不掺业务逻辑** ——
  * 图片相对路径 → 绝对 URL 的转换（{@code ImageUrlUtil}）仍留在 Service 层。

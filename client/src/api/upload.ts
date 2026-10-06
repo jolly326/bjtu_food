@@ -65,21 +65,6 @@ function uploadFile(tempFilePath: string): Promise<{ url: string }> {
 }
 
 /**
- * 头像上传（**仅限本人非公开用途**）。
- *
- * ⚠️ 合规红线：本函数**不做内容安检**，**禁止**用于评价 / 反馈等一切他人可见的 UGC 配图 ——
- * UGC 必须走 {@link uploadUgcImage}（安检 + 转存 COS）。
- * 当前唯一合法调用点：`pages/profile`（本人头像）。
- *
- * @param tempFilePath 本地临时文件路径（`uni.chooseImage` 产物）
- * @returns 可直接存储 / 展示的图片地址（`cloud://` 或 http(s)）
- */
-export async function uploadAvatarImage(tempFilePath: string): Promise<string> {
-  const result = await uploadFile(tempFilePath)
-  return result.url
-}
-
-/**
  * UGC 配图上传（评价 / 反馈共用）。
  *
  * 流程：① `wx.cloud.uploadFile` 传至微信云存储取 fileID；② `POST /upload/cloud-image`
@@ -105,5 +90,3 @@ export function uploadUgcImage(tempFilePath: string): Promise<UploadedImage> {
 
   return result
 }
-
-

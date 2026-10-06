@@ -20,7 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 管理端图片上传（multipart 直传）。
  * <p>
- * 归入 {@code /admin/**} 命名空间 → 由 {@code AdminTokenFilter} 统一按口令
+ * 归入 {@code /admin/**} 命名空间 → 由 {@code AdminAuthFilter} 统一按口令
  * {@code X-Admin-Token} 守卫（不声明 bearerAuth：本端点不接受学生 JWT）。
  */
 @Tag(name = "07. 图片上传（管理端）", description = "管理端菜品图上传（multipart）。鉴权：管理端口令 X-Admin-Token。")

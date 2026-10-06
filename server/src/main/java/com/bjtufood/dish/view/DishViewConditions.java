@@ -30,9 +30,14 @@ public final class DishViewConditions {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    /** 排序口径白名单（`sortKind`）。 */
+    /**
+     * 排序口径白名单（`sortKind`）。
+     * <p>
+     * 🔴 **无 {@code "heat"}**：MVP 期 7 个视图全部走 {@code random}，无热度排序需求
+     * （见 P0-3 评审）。后期若重启须重新拍板并**必须含浏览量封顶**。
+     */
     public static final Set<String> SORT_KINDS = Set.of(
-            "heat", "priceAsc", "priceDesc", "discountDesc", "ratingDesc", "newest", "random");
+            "priceAsc", "priceDesc", "discountDesc", "ratingDesc", "newest", "random");
 
     /** 字段 → 允许的操作符（白名单表；**这是新增筛选语义的唯一改动点**）。 */
     private static final Map<String, Set<String>> ALLOWED_OPS = Map.of(

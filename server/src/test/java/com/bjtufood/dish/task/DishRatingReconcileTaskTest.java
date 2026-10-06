@@ -25,7 +25,8 @@ import static org.mockito.Mockito.when;
  * <p>
  * <b>为什么这些断言重要</b>：本任务是 {@code RatingUpdateListener} 丢事件后的<b>唯一兜底</b>——
  * {@code dish.avg_rating}/{@code rating_count} 是缓存列，一旦异步重算丢失就会永久漂移，
- * 并持续污染首页热度排序（{@code heatScoreExpr} 直接消费这两列）。原实现的处理只是
+ * 用户将直接看到错误评分（🔴 2026-10-05 热度下线后排序不再受评分影响，但出参评分仍会错，
+ * 且系统不报错、只被本任务「悄悄修正」）。原实现的处理只是
  * {@code log.error("需人工补偿")}，即把正确性寄托在人工上。
  * <p>
  * 锁定的行为：

@@ -10,12 +10,8 @@ import java.time.LocalDateTime;
  * 档口实体类
  * <p>
  * 对应数据库表：stall。用户拍板：档口已<b>去实体化</b>，降级为「菜品筛选属性字典」，
- * 生命周期仅「新增 / 改名（编辑）」，不再具备删除、停业/营业状态、营业时间、实体审核等实体语义能力。
- * 原 {@code status}（停业语义）/ {@code audit_status}（实体审核语义）/ {@code reject_reason} 字段
- * 已从实体与接口层移除（不再读写）。
+ * 生命周期仅「新增 / 改名（编辑）」，不具备删除、停业/营业状态、营业时间、实体审核等实体语义能力。
  * <p>
- * {@code created_by}（提交人）亦已退役：档口降级为「菜品筛选属性字典」后无归属语义，
- * 写入侧恒为系统占位值、三端零消费，实体字段与写入/列定义同批移除（存量库已直连远程库清理）。
  * {@code floor}/{@code window_no} 属字典描述字段（端上有消费），保留。
  */
 @Data
@@ -43,8 +39,8 @@ public class Stall {
     @Schema(description = "档口位置")
     private String location;
 
-    /** 楼层（如 1F/2F） */
-    @Schema(description = "楼层（如 1F/2F）", example = "1F")
+    /** 楼层（受控字典值·值即汉字，如「二层」） */
+    @Schema(description = "楼层（受控字典值·值即汉字，如「二层」）", example = "二层")
     private String floor;
 
     /** 窗口号 */

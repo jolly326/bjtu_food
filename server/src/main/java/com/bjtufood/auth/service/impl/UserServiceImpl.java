@@ -124,7 +124,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("User not found");
         }
         // 说明：管理端已无登录与角色体系，用户状态变更不再做「禁止操作自身/越权」判定；
-        // 管理端接口整体由 AdminTokenFilter 的口令校验保护。
+        // 管理端接口整体由 AdminAuthFilter 的口令校验保护。
         user.setStatus(status);
         userMapper.updateById(user);
         // 禁用后该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
@@ -137,8 +137,8 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    // 垂直越权防护（checkAdminOperation / resolveOperatorRole）已随管理端角色体系一并移除：
-    // 后台无登录、无角色、单一使用者，管理端接口由 AdminTokenFilter 口令校验统一保护。
+    // 垂直越权防护（checkAdminOperation / resolveOperatorRole）随管理端角色体系一并移除：
+    // 后台无登录、无角色、单一使用者，管理端接口由 AdminAuthFilter 口令校验统一保护。
 
     private UserVO toVO(User user) {
         UserVO vo = new UserVO();

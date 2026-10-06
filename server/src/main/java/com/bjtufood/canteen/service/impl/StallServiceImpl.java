@@ -38,11 +38,10 @@ public class StallServiceImpl implements StallService {
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
     private final ImageUrlUtil imageUrlUtil;
-    // 环偿还：此前注入 ReviewQueryService 以填充后台列表的档口均分，导致
-    //   canteen -> review -> dish -> canteen 形成包级循环依赖（dish 需 canteen 的档口名）。
+    // 依赖方向：canteen **不注入** ReviewQueryService ——
     //   档口均分是 review 域按 dish 聚合出的**派生展示值**，不属于 canteen 的自有知识；
-    //   由 canteen 主动拉取等于让「属性字典」反向依赖「评价」，方向本就颠倒。
-    //   现改为：canteen 只产出档口自身字段，均分由编排方（CanteenAdminController）
+    //   若由 canteen 主动拉取，会形成 canteen -> review -> dish -> canteen 包级循环依赖。
+    //   故 canteen 只产出档口自身字段，均分由编排方（CanteenAdminController）
     //   调用 ReviewQueryService 补齐——controller 位于依赖图顶端，不产生新包级边。
     //   口径与出参（含无评价时按 0.00 兜底）保持不变。
 
@@ -62,9 +61,8 @@ public class StallServiceImpl implements StallService {
         if (stalls.isEmpty()) {
             return List.of();
         }
-        // BE-08 原为「一次 IN 查询取回全部档口平均分」以消除逐档口 N+1；该查询属 review 域，
-        // 已上移至 CanteenAdminController#fillAvgRatings 统一编排（断开 canteen -> review 包级边）。
-        // 本方法只负责档口自身字段，均分由调用方补齐；未补齐前保持 0.00 语义。
+        // 均分由调用方批量补齐（编排在 CanteenAdminController#fillAvgRatings，以断开 canteen -> review 包级边）；
+        // 本方法只负责档口自身字段，未补齐前保持 0.00 语义。
         return stalls.stream()
                 .map(s -> toAdminVO(s, BigDecimal.ZERO))
                 .collect(java.util.stream.Collectors.toList());
@@ -221,7 +219,7 @@ public class StallServiceImpl implements StallService {
         if (!StringUtils.hasText(stallName)) {
             return null;
         }
-        // 与 upsertStallByName 同一「精确匹配、LIMIT 1、无唯一键」口径（原为 correction 侧自查语句，逐字保留）
+        // 与 upsertStallByName 同一「精确匹配、LIMIT 1、无唯一键」口径
         Stall matched = stallMapper.selectOne(new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getName, stallName)
                 .last("LIMIT 1"));
@@ -336,8 +334,7 @@ public class StallServiceImpl implements StallService {
         vo.setCanteenName(getCanteenNameByStallId(stall.getId()));
         vo.setName(stall.getName());
         vo.setLocation(stall.getLocation());
-        // 楼层/窗口号（端上有消费：档口卡展示位置）。营业时间字段已整体下线，
-        // 此前该值本就未填充（恒为 null），故删除实体/VO 字段不影响后台接口对外语义。
+        // 楼层/窗口号（端上有消费：档口卡展示位置）。
         vo.setFloor(stall.getFloor());
         vo.setWindowNo(stall.getWindowNo());
         vo.setDescription(stall.getDescription());
@@ -346,8 +343,6 @@ public class StallServiceImpl implements StallService {
         // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.00 兜底
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
         vo.setSortOrder(stall.getSortOrder());
-        // createdBy 三端零消费（单口令模型无真实身份，写入侧为系统占位值），
-        // VO 字段已删除；实体字段与写入侧、stall.created_by 列定义同批退役（阶段4，存量库已直连远程库清理）。
         vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;

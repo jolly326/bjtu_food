@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 /**
  * 账号注销 / 合并 → 站内消息归属维护（P0-1 写侧解耦）。
  * <p>
- * 注销：<b>硬删</b>该用户全部消息（与既有口径一致——注销事件此前只被通知消费，删除动作不变）；
+ * 注销：<b>硬删</b>该用户全部消息；
  * 合并：消息改挂正式账号。
  * <p>
  * <b>事务语义变化（有意为之）</b>：原实现经 {@code NotificationService} 的

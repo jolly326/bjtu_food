@@ -27,11 +27,11 @@ public interface DishService {
     // ==================== 公开接口 ====================
 
     /**
-     * 菜品列表查询（分页+筛选；排序由服务端决定：推荐流按 seed 伪随机序，其余热度倒序）
+     * 菜品列表查询（分页+筛选；排序由服务端决定：全部视图按 seed 会话伪随机序）
      * <p>
      * 支持参数：keyword / view / seed（K3：{@code canteenId} / {@code minPrice} /
      * {@code maxPrice} 随「食堂 / 价格筛选全量下线」删除：
-     * {@code stallId} / {@code sortBy} / {@code sortOrder} 已删除，端上无排序入口）。
+     * 端上无排序入口）。
      * ：原 {@code mealType} 参数改为通用筛选视图 {@code view}。
      * 筛选条件与排序口径由所选<b>视图</b>决定（A6：`DishViewCatalog` 查表取展示态 +
      * `DishViewDefs` 按 `key` 取逻辑 → `DishViewResolver` 解析为 {@code DishListQuery}）：
@@ -73,11 +73,15 @@ public interface DishService {
     /**
      * 获取菜品详情
      * <p>
-     * <b>浏览计数副作用（PV 口径）</b>：本方法在**成功取到详情后**执行
-     * {@code view_count + 1}（原子 UPDATE）。菜品不存在（含已下架）抛
+     * <b>浏览计数副作用（PV 口径）</b>：本方法在**成功取到详情后**向 {@code dish_view_log}
+     * 插一行浏览明细（**不去重**：同一用户反复看同一道菜每次都计；🔴 <b>不累加 {@code dish.view_count}</b>，
+     * 该列已停写）。菜品不存在（含已下架）抛
      * {@code BusinessException(4001)}，**不计数**。
      * <p>
-     * {@code avgRating} 读缓存列 {@code dish.avg_rating}（零评价为 null），不做实时聚合；
+     * 🔴 <b>浏览量不参与任何排序</b>（热度算法已全量下线）：唯一消费方是管理端「近 30 天浏览」列，
+     * 详见 {@code docs/schema/dish_view_log.md}。
+     * <p>
+     * {@code avgRating} 读缓存列 {@code dish.avg_rating}（库内零评价为 NULL），🔴 **出参兜底为 5.0**（仅出参层，不落库、不参与排序）；
      * {@code attributes} 直接取 {@code dish.attributes} JSON（**值即中文**）。
      *
      * @param id 菜品ID
@@ -89,12 +93,9 @@ public interface DishService {
     // ==================== 一期新增：搜索 / 发现页公开接口 ====================
 
     /**
-     * 猜你喜欢（原「热搜词条 TOP10」，change search-page-refresh 改名 + 语义变更）
+     * 猜你喜欢：抽取在售菜品名下发——不看热度、不排序、不做个性化推荐算法。出参仅 {@code name}。
      * <p>
-     * 当前实现：抽取在售菜品名下发——不看热度、不排序、不做个性化推荐算法。出参仅 {@code name}。
-     * <p>
-     * <b>刷新边界 = 重进小程序</b>：
-     * 原先每次请求都换一批（{@code ORDER BY RAND()}），但端上<b>没有任何「主动换一批」入口</b>
+     * <b>刷新边界 = 重进小程序</b>：端上<b>没有任何「主动换一批」入口</b>
      * （全仓无下拉刷新）——用户无法解释内容为何变化，体验上更像「界面不稳定」而非「新鲜」。
      * 故随机性归于<b>会话</b>：端上冷启动生成 seed、会话内恒定，服务端按
      * {@code CRC32(seed:ID)} 稳定伪随机序取数 ⇒ 同一次会话内多次进入拿到同一批词条，

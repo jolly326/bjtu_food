@@ -33,7 +33,7 @@ function form(over: Partial<CorrectionFormModel> = {}): CorrectionFormModel {
     name: '红烧肉',
     price: '12.50',
     canteenName: '一食堂',
-    floor: '2F',
+    floor: '二层',
     stallName: '窗口1',
     images: ['a.jpg'],
     attributes: [],
@@ -47,7 +47,7 @@ function base(over: Partial<CorrectionBaseline> = {}): CorrectionBaseline {
     name: '红烧肉',
     price: '12.50',
     canteenName: '一食堂',
-    floor: '2F',
+    floor: '二层',
     stallName: '窗口1',
     images: ['a.jpg'],
     attributes: {},
@@ -151,14 +151,13 @@ describe('buildCorrectionDiff · 局部提交', () => {
   })
 
   it('楼层仅此一项改动也算有效改动（归属档口）', () => {
-    const p = buildCorrectionDiff('红烧肉', form({ floor: '3F' }), base())
-    expect(p).toEqual({ floor: '3F' })
+    const p = buildCorrectionDiff('红烧肉', form({ floor: '三层' }), base())
+    expect(p).toEqual({ floor: '三层' })
   })
 
-  it('楼层存**后端存储值**而非汉字（汉字不得进入提交路径）', () => {
-    const p = buildCorrectionDiff('红烧肉', form({ floor: 'B1' }), base())
-    expect(p).toEqual({ floor: 'B1' })
-    expect(p.floor).not.toBe('负一层')
+  it('楼层以**汉字**提交（值即存储值，端上零映射）', () => {
+    const p = buildCorrectionDiff('红烧肉', form({ floor: '负一层' }), base())
+    expect(p).toEqual({ floor: '负一层' })
   })
 })
 

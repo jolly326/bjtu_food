@@ -74,18 +74,21 @@ export function useDishDetail() {
   /**
    * 评价区分页（RESTful 子资源 `GET /dishes/{id}/reviews`，排序唯一为时间倒序）。
    *
+   * 支持**按星级筛选**（`rating`，1~5；不传 = 全部）—— 服务端过滤且**参与分页**，
+   * 故切换筛选须由调用方重置 `page`（见 `useDishReviewCore#onFilterRating`）。
+   *
    * **契约（唯一）**：过期 / 失败一律返回 `null` —— 调用方据此跳过分页推进（避免永久跳过该页）。
    * 分页壳只有 `records`，**到底判据 = 本页返回条数 < `pageSize`**（由调用方判定）。
    */
   async function fetchReviews(
     dishId: number,
-    options?: { page?: number; pageSize?: number; append?: boolean },
+    options?: { page?: number; pageSize?: number; append?: boolean; rating?: number | null },
   ): Promise<{ list: Review[] } | null> {
     const seq = reviewGuard.begin()
     const page = options?.page ?? 1
     const pageSize = options?.pageSize ?? REVIEW_PAGE_SIZE
     try {
-      const res = await reviewApi.listDishReviews(dishId, { page, pageSize })
+      const res = await reviewApi.listDishReviews(dishId, { page, pageSize, rating: options?.rating })
       // 过期响应（期间又有新请求发起 / resetDishDetail 已切菜品）：丢弃，不覆盖最新列表
       if (!reviewGuard.isCurrent(seq)) return null
       if (options?.append) {

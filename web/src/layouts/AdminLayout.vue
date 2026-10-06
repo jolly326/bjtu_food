@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { getUsername } from '@/api/session'
+
 /**
  * 管理后台外壳（左侧栏 + 内容区）。
  *
- * <p>口径真源：[C1 管理员登录与访问控制](../../../docs/api/web/auth.md)
- * —— **无登录页、无个人页**：口令由构建期注入，底部身份区为**静态说明**（不读登录态）；
- * 导航 **13 项**见 [UI 基线 §四](../../../docs/ui/web/公共组件与形态基线.md)。
+ * <p>口径真源：[C1 管理员登录与访问控制](../../../docs/func/web/C-账号与访问/C1-管理员登录与访问控制.md)
+ * —— **账密登录，无个人页**：🔴 前端不持有口令，底部身份区回显**登录响应下发的 username**
+ * （不是静态文案）；导航 **13 项**见 [UI 基线 §四](../../../docs/ui/web/公共组件与形态基线.md)。
  */
 interface NavItem {
   to: string
@@ -14,6 +17,9 @@ interface NavGroup {
   title: string
   items: NavItem[]
 }
+
+/** 身份区显示名：取登录时回签的 username；取不到则兜底「管理员」 */
+const displayName = computed(() => getUsername() || '管理员')
 
 const groups: NavGroup[] = [
   {
@@ -76,8 +82,8 @@ const groups: NavGroup[] = [
       </nav>
 
       <div class="sidebar-foot">
-        <div class="admin-name">管理员</div>
-        <div class="admin-role">口令由构建期注入</div>
+        <div class="admin-name">{{ displayName }}</div>
+        <div class="admin-role">已登录</div>
       </div>
     </aside>
 

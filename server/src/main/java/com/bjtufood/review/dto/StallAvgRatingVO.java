@@ -12,9 +12,8 @@ import java.math.BigDecimal;
  * 故留在 {@code review.dto}，消费方经 {@code ReviewQueryService} 取数
  * （而非直连 review 的 Mapper，符合 P0-1 跨域只走契约）。
  * <p>
- * ：原先由 {@code StallServiceImpl} 消费，构成
- * {@code canteen -> review -> dish -> canteen} 包级环；现改由
- * {@code CanteenAdminController#fillAvgRatings} 在编排层消费（canteen 业务层零 review 依赖）。
+ * 消费方：{@code CanteenAdminController#fillAvgRatings}（编排层）——
+ * canteen 业务层零 review 依赖，避免 {@code canteen -> review -> dish -> canteen} 包级环。
  * <p>
  * 跨域消费 VO 是 P0-1 有意允许的口子（跨域只传 DTO/投影，禁传实体），
  * 此处显式声明归属理由，避免后人误以为「档口概念就该放 canteen」而搬走。

@@ -3,12 +3,9 @@ package com.bjtufood.wechat.constant;
 /**
  * 微信开放平台 API 常量（端点与平台硬限制，单一真源）。
  * <p>
- * 架构收口 P0-B：原先这些常量散落在
- * {@code content.security.impl.ContentSecurityServiceImpl} 内，其中
- * {@code MAX_IMAGE_BYTES} 被 {@code UploadServiceImpl} 跨域引用
- * （为读常量而 import 实现类，违反依赖倒置）。
- * 现归位到微信平台集成域，语义回到其本来的归属——它们是<b>微信 API 的限制</b>，
- * 不是「内容安全服务」的实现细节。
+ * 归位于微信平台集成域：这些常量是<b>微信 API 的限制</b>，不是「内容安全服务」的实现细节 ——
+ * 若留在内容安全实现类内，{@code MAX_IMAGE_BYTES} 被 {@code UploadServiceImpl} 跨域引用时
+ * 就得为读常量而 import 实现类（违反依赖倒置）。
  * <p>
  * 采用 {@code interface} 承载常量，与各域 {@code XxxConst} 的既有风格一致
  * （如 {@code feedback.constant.FeedbackConst}）。

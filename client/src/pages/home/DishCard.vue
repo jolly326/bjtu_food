@@ -23,11 +23,11 @@
       <view class="card-stall">
         <text class="stall-text">{{ dish.canteen }} | {{ dish.stallName }}</text>
       </view>
-      <!-- 第四段：左 = 黄色实心五角星 + 数字评分（**零评价 `rating = null` ⇒ 整组不渲染**，
-           价格仍靠右）；右 = 价格（橙色突出）。同一行。
+      <!-- 第四段：左 = 黄色实心五角星 + 数字评分（🔴 **恒渲染** —— 零评价时服务端已兜底 `5.0`，
+           故不再有「有无评分」分支；只显示均分、**不显示评价条数**），价格靠右；右 = 价格（橙色突出）。同一行。
            星尺寸 34rpx：星形自带视觉留白，口径 = 评分文字（28rpx）+ 6rpx 光学补偿 -->
       <view class="card-meta">
-        <view v-if="dish.rating != null" class="card-rating">
+        <view class="card-rating" role="img" :aria-label="`评分 ${formatRating(dish.rating)} 分`">
           <IconSvg name="star-filled" :size="34" :color="COLOR_MAP.star" class="star-icon" />
           <text class="rating-text">{{ formatRating(dish.rating) }}</text>
         </view>

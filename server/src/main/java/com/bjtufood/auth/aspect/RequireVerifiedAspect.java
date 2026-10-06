@@ -22,11 +22,9 @@ import org.springframework.stereotype.Component;
  * 与 {@code UserServiceImpl.resolveVerifiedUser}（提交评价时同样拒绝未认证用户）
  * 同 code 同语义，保证前端对「未认证」的拦截行为一致。
  * <p>
- * 架构收口 P0-2：自 {@code common.aspect} 迁至 {@code auth.aspect}——
- * common 不得依赖业务包（本类此前 import {@code auth.entity.User}/{@code auth.mapper.UserMapper}，
- * 既破坏 common 零业务依赖不变式，又与 auth→common 构成包级双向耦合）。认证态判定属 auth 领域知识，
- * 切面现仅经 {@link UserService#requireUgcAuthorized(Long)} 判定（判据与错误码逐字不变，
- * 注解 {@code common.annotation.RequireVerified} 留在 common，供各模块标注）。
+ * 归属 {@code auth.aspect}：认证态判定属 auth 领域知识 —— common **不得依赖业务包**，
+ * 故切面只经 {@link UserService#requireUgcAuthorized(Long)} 判定；
+ * 注解 {@code common.annotation.RequireVerified} 留在 common，供各模块标注。
  */
 @Aspect
 @Component

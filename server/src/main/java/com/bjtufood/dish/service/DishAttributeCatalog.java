@@ -40,7 +40,7 @@ public class DishAttributeCatalog {
 
     // 字段下线（2026-10-03，A4 落地）：dishMapper 与 MAX_SCAN_ROWS 随「扫全库 attributes 聚合候选」
     // 一并删除 —— 候选值改由取值字典直供后，本类不再有任何「随菜品行数线性增长」的读路径
-    // （原扫描上限与其 WARN 降级策略随之退役，读路径的内存边界问题自然消失）。
+    // （扫描上限与其 WARN 降级策略随之移除，读路径的内存边界问题自然消失）。
 
     private final DishAttributeDimensionMapper dimensionMapper;
     /** 取值字典（A4）：候选值真源 */

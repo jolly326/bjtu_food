@@ -312,7 +312,7 @@ onShareAppMessage(() => {
      改纱的浓淡 = 改 `App.vue` 里那一处（全站生效，不要在本页另立色值）。 */
   display: flex;
   flex-direction: column;
-  /* 显式定高：原先只靠全局 `.page { min-height: 100vh }` 兜底，现改为页面自持声明，
+  /* 显式定高：页面自持声明（不依赖全局 `.page { min-height: 100vh }` 兜底），
      与其它页根同口径（vh + dvh 双声明）。`box-sizing: border-box`（全局重置）⇒ padding 含在高度内
      ⇒ 页根恰好一屏；滚动区 = 一屏 − 标题带 − 菜单栏，短内容不越界 ⇒ 无滚动条、无空白可滚区。 */
   height: 100vh;
@@ -401,5 +401,5 @@ onShareAppMessage(() => {
   padding: var(--spacing-md) 0 0;
 }
 
-/* Banner 及其空态样式已随组件抽入 `pages/home/HomeBanner.vue`（§12）。 */
+/* Banner 及其空态样式抽入 `pages/home/HomeBanner.vue`（§12）。 */
 </style>

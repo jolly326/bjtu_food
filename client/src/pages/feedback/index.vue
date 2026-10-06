@@ -2,7 +2,7 @@
   <view class="page feedback-page">
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下）。
          本页底色随全局 `.page { background: var(--bg-page) }`（
-         原先私有的 `--bg-warm` 是全项目唯一消费点，且已被壁纸层完全覆盖 ⇒ 移除，与其它 10 页一致） -->
+         不另立页内色值 —— 与其它 10 页同口径） -->
     <PageWallpaper fixed />
     <Header title="意见反馈" @back="goBack" />
 

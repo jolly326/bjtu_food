@@ -68,21 +68,23 @@ public class DishCorrection {
     private String stallName;
 
     /**
-     * 提交的楼层（**改动项快照**，自由文本，未改动留 NULL）。
+     * 提交的楼层（**改动项快照**，受控字典值·值即汉字，未改动留 NULL）。
      * <p>
      * 楼层归属档口：采纳时写回<b>目标档口</b>的 {@code stall.floor}，而不是 dish
      * （档口归属与 {@link #stallName} 一致，均经 canteen 域服务写契约下发）。
-     * 长度上限与 {@code stall.floor VARCHAR(16)} 一致，由 correction 侧提交时校验。
+     * 长度上限与 {@code stall.floor VARCHAR(16)} 一致，值域见 {@code canteen.constant.FloorDict}，
+     * 由 correction 侧提交时校验（字典外值 → 400）。
      */
-    @Schema(description = "提交的楼层（自由文本，采纳时写回目标档口 stall.floor）", example = "1F")
+    @Schema(description = "提交的楼层（受控字典值·值即汉字，采纳时写回目标档口 stall.floor）", example = "二层")
     private String floor;
 
     /**
      * 提交的描述属性（**改动项快照**：仅含用户改动的维度，未改动维度留 NULL）。
-     * JSON 对象：键 = 维度 {@code fieldKey}，值 = 机器值 / 数组。
+     * JSON 对象：键 = 维度 {@code fieldKey}，值 = <b>中文文本 / 数组</b>
+     * （采纳时由服务端按「维度 + 中文」解析为取值 ID 后写回 {@code dish.attributes}）。
      */
-    @Schema(description = "提交的描述属性（JSON：键=维度 fieldKey，值=机器值/数组；仅改动维度，可空）",
-            example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\",\"sour\"]}")
+    @Schema(description = "提交的描述属性（JSON：键=维度 fieldKey，值=中文/数组；仅改动维度，可空）",
+            example = "{\"dietType\":\"素\",\"flavorTags\":[\"辣\",\"酸\"]}")
     private String attributes;
 
     /**

@@ -29,7 +29,3 @@ export const PROBLEM_TYPES: readonly ProblemTypeOption[] = [
   },
 ]
 
-/** 按值取选项（`DishProblemType` → 选项；未知值兜底取第一项，保证 UI 不空白） */
-export function problemTypeOption(value: DishProblemType): ProblemTypeOption {
-  return PROBLEM_TYPES.find((o) => o.value === value) ?? PROBLEM_TYPES[0]
-}

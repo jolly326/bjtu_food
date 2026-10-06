@@ -3,6 +3,7 @@ package com.bjtufood.dish.service.impl;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.mapper.DishViewLogMapper;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishCategoryAdminService;
 import com.bjtufood.dish.service.DishViewCatalog;
@@ -27,8 +28,8 @@ import static org.mockito.Mockito.when;
  * <p>
  * <b>契约</b>：端上传会话级 seed ⇒ 会话内稳定、冷启动重掷；<b>未传 seed</b> ⇒ 每次不同的随机序。
  * <p>
- * <b>为什么必须有这个测试</b>：后一条行为原先由 SQL 的 {@code ORDER BY RAND()} 兜底（全表排序，
- * 代价随行数增长且无法用索引）。现改为 Service 侧补一次性随机 seed、SQL 恒走 CRC32 稳定伪随机序——
+ * <b>为什么必须有这个测试</b>：未传 seed 的随机性由 Service 侧补一次性随机 seed 承载、
+ * SQL 恒走 CRC32 稳定伪随机序（不用 {@code ORDER BY RAND()}：全表排序，代价随行数增长且无法用索引）——
  * 这是一次「实现变了、行为必须不变」的等价替换，只有断言「下传的 seed 非空且两次不同」才能锁住它；
  * 否则一旦有人把补 seed 的代码删掉，SQL 会收到空 seed ⇒ {@code CRC32(CONCAT('', '-', id))}
  * 退化成**固定顺序**（每次都同一批菜），功能测试全绿，用户侧却表现为「猜你喜欢永远不变」。
@@ -38,7 +39,8 @@ class DishServiceImplGuessLikeTest {
     private final DishMapper dishMapper = mock(DishMapper.class);
 
     private DishServiceImpl service() {
-        return new DishServiceImpl(dishMapper, mock(StallService.class), mock(ApplicationEventPublisher.class),
+        return new DishServiceImpl(dishMapper, mock(DishViewLogMapper.class), mock(StallService.class),
+                mock(ApplicationEventPublisher.class),
                 mock(ImageUrlUtil.class), mock(DishAttributeCatalog.class),
                 mock(DishAttributeAdminService.class), mock(DishCategoryAdminService.class),
                 mock(DishViewCatalog.class));

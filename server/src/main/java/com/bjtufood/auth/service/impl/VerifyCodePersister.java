@@ -22,14 +22,12 @@ import java.util.List;
 /**
  * 验证码校验与认证写入（**最小化事务边界**）。
  * <p>
- * 背景：此前 {@code AuthServiceImpl#verifyEmail} 直接标注 {@code @Transactional} —— 事务从<b>方法入口</b>就开始，
- * 而它内部的验证码定位会对<b>最近 20 条未过期验证码逐条 BCrypt 比对</b>
- * （{@code passwordEncoder.matches} 单次约 100ms），最坏情形 <b>20 × 100ms ≈ 2 秒</b>的连接占用。
- * 这与 {@code ReviewPersister} / {@code AuthProfilePersister} / {@code FeedbackPersister} 修掉的是<b>同一类问题</b>
- * （事务横跨慢操作 → 占用连接 → 并发一高即占满池、拖垮只读请求），只是本次的「慢操作」不是 HTTP 外呼，
- * 而是 <b>CPU 密集的密码学比对</b>——此前未被识别，是同一类问题在第四条链路上的遗漏。
+ * 边界：事务若从方法入口开始，会横跨「最近 20 条未过期验证码逐条 BCrypt 比对」
+ * （{@code passwordEncoder.matches} 单次约 100ms，最坏情形 <b>20 × 100ms ≈ 2 秒</b>）的 CPU 密集操作
+ * ⇒ 期间持续占用数据库连接，并发一高即占满池、拖垮只读请求。
  * <p>
- * 修法（与既有三处同构）：<b>先校验（无事务、不占连接）→ 再写入（才开事务）</b>。
+ * 口径（与 {@code ReviewPersister} / {@code AuthProfilePersister} / {@code FeedbackPersister} 同构）：
+ * <b>先校验（无事务、不占连接）→ 再写入（才开事务）</b>。
  * <p>
  * 校验与认证写入<b>必须</b>分成两个事务方法，理由不止性能：
  * <ul>

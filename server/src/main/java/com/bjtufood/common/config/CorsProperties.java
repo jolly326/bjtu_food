@@ -9,12 +9,11 @@ import java.util.List;
 /**
  * CORS 受信任前端源配置（类型化绑定，<b>单一真源</b>）。
  * <p>
- * <b>为什么要有这个类</b>：{@code cors.allowed-origins} 此前被<b>两处各自 {@code @Value} 绑定</b>——
+ * <b>为什么要有这个类</b>：{@code cors.allowed-origins} 由<b>两处</b>消费 ——
  * {@code CorsConfig}（配置 CorsFilter 的允许源）与 {@code JwtAuthFilter}（Origin 二次校验）。
- * 两处对「未配置白名单」的处理<b>并不一致</b>：前者 {@code addAllowedOriginPattern("null")}
- * （放行 {@code Origin: null}，即 file:// 与 sandboxed iframe 的源），后者拒绝一切带 Origin 的请求。
- * 当前是「安全链路的过滤器先执行」才让拒绝赢下来，属**依赖执行顺序的巧合**；一旦顺序或配置变动，
- * 那个被放行的 null 源就会生效。现收敛为一份配置 + 一个判据，两处不可能再分叉。
+ * 若两处各自绑定并对「未配置白名单」给出不同处理（放行 {@code Origin: null} vs 拒绝一切带 Origin 的请求），
+ * 就只剩「安全链路的过滤器先执行」这层**依赖执行顺序的巧合**兜底 —— 顺序或配置一变即失效。
+ * 故收敛为一份配置 + 一个判据，两处不可能分叉。
  * <p>
  * <b>安全口径</b>：白名单为空 ⇒ {@link #trustedOrigins()} 返回空清单 ⇒ 两处一律**拒绝**带 Origin 的
  * 浏览器请求（fail-closed）；不带 Origin 的请求（微信小程序 {@code wx.request}、服务端间调用）

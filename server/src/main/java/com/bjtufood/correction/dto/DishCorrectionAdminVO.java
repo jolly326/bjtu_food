@@ -54,14 +54,14 @@ public class DishCorrectionAdminVO {
     private String stallName;
 
     /**
-     * 提交的楼层（改动项快照；未改动为 null）。
+     * 提交的楼层（改动项快照，受控字典值·值即汉字；未改动为 null）。
      * 管理端据此判断本次纠错是否含楼层改动——有值时采纳会写回<b>目标档口</b>的 {@code stall.floor}。
      */
-    @Schema(description = "提交的楼层（归属档口 stall.floor；未改动为 null）", example = "1F")
+    @Schema(description = "提交的楼层（受控字典值·值即汉字，归属档口 stall.floor；未改动为 null）", example = "二层")
     private String floor;
 
-    @Schema(description = "提交的描述属性（键=维度 fieldKey，值=机器值/数组；仅改动维度）",
-            example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\",\"sour\"]}")
+    @Schema(description = "提交的描述属性（键=维度 fieldKey，值=中文/数组；仅改动维度）",
+            example = "{\"dietType\":\"素\",\"flavorTags\":[\"辣\",\"酸\"]}")
     private Map<String, Object> attributes;
 
     @Schema(description = "提交的菜品图片 URL 列表（field=改动后的完整数组≤5张 / gone=选填补充≤3张）")

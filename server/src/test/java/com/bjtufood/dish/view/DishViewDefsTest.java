@@ -41,7 +41,7 @@ class DishViewDefsTest {
         mealTypeViews.forEach((key, value) -> {
             DishViewDefs.Def def = DishViewDefs.byKey(key);
             assertThat(def).as("key=%s", key).isNotNull();
-            assertThat(def.sortKind()).as("key=%s", key).isEqualTo("heat");
+            assertThat(def.sortKind()).as("key=%s", key).isEqualTo("random");
             assertThat(def.conditions()).as("key=%s", key).hasSize(1);
             DishViewCondition c = def.conditions().get(0);
             assertThat(c.getField()).isEqualTo("mealType");
@@ -56,7 +56,7 @@ class DishViewDefsTest {
     }
 
     @Test
-    @DisplayName("解析：random 视图带 seed，heat 视图不带 seed")
+    @DisplayName("解析：大类视图同样走 random（🔴 2026-10-05 热度下线，全部视图统一随机）")
     void resolve_seedOnlyOnRandomView() {
         DishListQuery random = DishViewResolver.resolve(row("recommend"), null, "seed-1");
         assertThat(random).isNotNull();
@@ -64,11 +64,11 @@ class DishViewDefsTest {
         assertThat(random.seed()).isEqualTo("seed-1");
         assertThat(random.conditions()).isEmpty();
 
-        DishListQuery heat = DishViewResolver.resolve(row("noodle"), null, "seed-1");
-        assertThat(heat).isNotNull();
-        assertThat(heat.sortKind()).isEqualTo(DishListQuery.SortKind.HEAT);
-        assertThat(heat.seed()).isNull();
-        assertThat(heat.conditions()).extracting(DishViewCondition::getValue).containsExactly("noodle");
+        // 🔴 大类视图（如 noodle）现在也走 SEED_RANDOM —— 不再是 HEAT
+        DishListQuery category = DishViewResolver.resolve(row("noodle"), null, "seed-1");
+        assertThat(category).isNotNull();
+        assertThat(category.sortKind()).isEqualTo(DishListQuery.SortKind.SEED_RANDOM);
+        assertThat(category.conditions()).extracting(DishViewCondition::getValue).containsExactly("noodle");
     }
 
     @Test

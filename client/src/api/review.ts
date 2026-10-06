@@ -44,18 +44,22 @@ function toMyReview(raw: MyReviewVO): MyReview {
 /**
  * 公开评价列表（RESTful 子资源）：GET /dishes/{id}/reviews
  * 菜品归属由路径表达；排序唯一为时间倒序，端上**不传 sort**。
+ * 可选 `rating` 按星级筛选（1~5；不传 = 全部）—— **服务端过滤且参与分页**，
+ * 故切换筛选后端上必须重置 `page`（见 `useDishReviewCore`）。
  * 分页壳只有 `records`：结束判据 = 本页返回条数 < `pageSize`。
  *
  * 元素类型取自生成契约（`XxxVO`），后端改字段即编译期报错。
  */
 export async function listDishReviews(
   dishId: number,
-  options?: { page?: number; pageSize?: number },
+  options?: { page?: number; pageSize?: number; rating?: number | null },
 ): Promise<{ list: Review[] }> {
   const params: Record<string, unknown> = {
     page: options?.page ?? 1,
     pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
   }
+  // 空值不传（不传 = 全部，避免把「全部」表达成 rating=0）
+  if (options?.rating != null) params.rating = options.rating
   const res = await get<RawPage<ReviewVO>>(`/dishes/${dishId}/reviews`, params)
   return { list: recordsOf<ReviewVO>(res).map(toReview) }
 }

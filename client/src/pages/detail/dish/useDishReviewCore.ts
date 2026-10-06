@@ -48,12 +48,31 @@ export function useDishReviewCore(opts: {
     reviewLoadingMore.value = false
   }
 
+  /**
+   * **按星级筛选**（1~5；`null` = 全部）：服务端过滤，选项为静态枚举（免字典）。
+   * 🔴 筛选**参与分页** ⇒ 切换时必须先 `resetReviewPaging()` 再重拉，否则第 2 页之后会取到空页。
+   */
+  const reviewRatingFilter = ref<number | null>(null)
+
+  /** 切换星级筛选：重置分页 + 从第 1 页重拉（与首屏同路径） */
+  function onFilterRating(next: number | null) {
+    // 提交中 / 在途时忽略点击：避免与重置请求竞态（reviewGuard 会丢弃过期响应，但语义上不应受理）
+    if (reviewPending.value) return
+    if (reviewRatingFilter.value === next) return
+    reviewRatingFilter.value = next
+    resetReviewPaging()
+    void fetchReviewsReset()
+  }
+
   /** 重置式评价拉取（首屏 / 重试 / 提交后与删除后刷新共用），置 pending 门控 */
   async function fetchReviewsReset() {
     if (!dishId.value) return
     reviewPendingCount.value += 1
     try {
-      await detail.fetchReviews(dishId.value, { pageSize: REVIEW_PAGE_SIZE })
+      await detail.fetchReviews(dishId.value, {
+        pageSize: REVIEW_PAGE_SIZE,
+        rating: reviewRatingFilter.value,
+      })
     } finally {
       reviewPendingCount.value -= 1
     }
@@ -73,11 +92,12 @@ export function useDishReviewCore(opts: {
     }
     reviewLoadingMore.value = true
     try {
-      // 排序唯一时间倒序，端上不传 sort（PR-02）
+      // 排序唯一时间倒序，端上不传 sort（PR-02）；星级筛选随分页传递（服务端过滤参与分页）
       const res = await detail.fetchReviews(dishId.value, {
         page: reviewPage.value + 1,
         pageSize: REVIEW_PAGE_SIZE,
         append: true,
+        rating: reviewRatingFilter.value,
       })
       // null = 请求失败/被更新请求过期淘汰（store 竞态守卫）：分页不推进，保留重试机会
       if (!res) return
@@ -134,8 +154,11 @@ export function useDishReviewCore(opts: {
     reviewList,
     reviewFailed,
     reviewPending,
+    /** 当前星级筛选（`null` = 全部）；端上筛选条据此高亮 */
+    reviewRatingFilter,
     resetReviewPaging,
     fetchReviewsReset,
+    onFilterRating,
     onReviewsReachBottom,
     onRetryReviews,
     onDeleteReview,

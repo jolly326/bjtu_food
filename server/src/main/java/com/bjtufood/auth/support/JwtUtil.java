@@ -18,7 +18,7 @@ import java.util.Map;
  * JWT 工具类
  * <p>
  * 负责 JWT Token 的生成、校验和解析。
- * Token 载荷中存储 userId、username，不存储敏感信息（role claim 已随 user.role 列退役移除）。
+ * Token 载荷中存储 userId、username，不存储敏感信息（暂不承载 role）。
  * <p>
  * 流程说明：
  * 1. 登录成功 → createToken() 生成 JWT → 返回给前端
@@ -29,7 +29,7 @@ import java.util.Map;
 @Slf4j
 public class JwtUtil {
 
-    /** JWT 配置（类型化绑定，架构收口 P2；替代原先两个散落的 {@code @Value}） */
+    /** JWT 配置（类型化绑定，单一真源） */
     private final JwtProperties jwtProperties;
 
     /**
@@ -121,7 +121,7 @@ public class JwtUtil {
      * @return 签发的 JWT 字符串
      */
     public String createToken(Long userId, String username, long expirationMillis) {
-        // 设置载荷（Payload）。注：role claim 已随 user.role 列退役移除——
+        // 设置载荷（Payload）。注：role 不再下发——
         // 学生态 authorities 由 JwtAuthFilter 固定授予（学生接口鉴权依赖 @RequireVerified + userId，不依赖角色）
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -141,12 +141,9 @@ public class JwtUtil {
     /**
      * <b>本类唯一的解析入口</b>：一次性校验并解析 Token。
      * <p>
-     * 供 {@code JwtAuthFilter} 在一次请求中只解析一次。原先另有两个公开方法
-     * （{@code parseToken} / {@code validateToken} / {@code getUserIdFromToken}）实为同一件事的
-     * 三种叫法：{@code validateToken} 与 {@code getUserIdFromToken} 的<b>唯一调用者</b>就是
-     * 「同一请求里重复解析」的那段旧实现，且它们各自再调一次 {@code parseToken} ⇒ 每请求 3 次验签。
-     * 那次重构后两者即成死方法，现已删除；{@code parseToken} 的实体合并进本方法，避免
-     * 「两个名字一件事」让后续调用者选错。
+     * 供 {@code JwtAuthFilter} 在一次请求中只解析一次 —— 若同时暴露
+     * {@code parseToken} / {@code validateToken} / {@code getUserIdFromToken} 三种「同一件事」的入口，
+     * 调用者极易在同一请求里重复解析（每请求 3 次验签）。
      *
      * @param token JWT 字符串
      * @return 有效则返回 Claims（含 userId / username）；无效 / 过期 / 格式错误 / 签名不符一律返回 null

@@ -25,7 +25,7 @@
             v-model="nickname"
             class="nickname-input"
             placeholder="请输入昵称"
-            maxlength="16"
+            maxlength="20"
             placeholder-class="input-placeholder"
             @focus="nicknameFocused = true"
             @blur="nicknameFocused = false"
@@ -53,7 +53,7 @@ import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { getThumbImageUrl } from '@/utils/image'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
-import { uploadAvatarImage } from '@/api/upload'
+import { uploadUgcImage } from '@/api/upload'
 import { backToHome } from '@/utils/back'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
@@ -105,15 +105,11 @@ onUnload(() => {
 })
 
 /**
- * 头像选图（单张、压缩）+ 上传。
+ * 头像选图（单张、压缩）+ 上传：只写本地态，落库随「保存」。
  *
- * ⚠️ 为何不复用 `components/ImagePicker.vue`：
- * · ImagePicker = **多图**选择 + 逐张压缩 / 尺寸校验 + UGC 上传链路（云存储 → 后端安检转存 COS），
- *   其 `pick()` 为组件内私有；
- * · 头像是**单图**，且走专用接口 `uploadAvatarImage`（本人非公开用途、不做 UGC 安检），
- *   绑定本页「仅写本地态、需点『保存』才落库」的流程；
- * · 故此处保留 `uni.chooseImage`（`sizeType: 'compressed'` 已等价压缩口径），
- *   不强行为「API 一致」改写 —— `chooseMedia` 在 H5 端支持度不确定，改写净收益为负。
+ * 不复用 `ImagePicker`（多图 + 逐张压缩，`pick()` 为组件内私有）：头像是单图，且**与 UGC 配图同走
+ * 一条上传链路**（`uploadUgcImage`：云存储 → 后端安检转存 COS）；故保留 `uni.chooseImage`
+ * （`sizeType: 'compressed'` 已等价压缩口径）。
  */
 function changeAvatar() {
   if (avatarUploading.value) return
@@ -124,12 +120,14 @@ function changeAvatar() {
     success: async (res) => {
       avatarUploading.value = true
       try {
-        const url = await uploadAvatarImage(res.tempFilePaths[0])
+        const { url } = await uploadUgcImage(res.tempFilePaths[0])
+        if (!url) throw new Error('上传失败，请重试')
         avatar.value = url
         // MP-003：上传仅写本地态，落库需点「保存」，文案避免误导已保存
         toastInfo('上传成功，请点击保存')
-      } catch {
-        toastInfo('上传失败')
+      } catch (err) {
+        // 违规 / 超限等由后端 message 直透（如「图片包含违规内容，无法上传」）；保留原头像
+        toastError(err, '上传失败')
       } finally {
         avatarUploading.value = false
       }

@@ -6,8 +6,7 @@ import lombok.Data;
 /**
  * 举报原因字典项（{@code GET /report-reasons} 单行出参）。
  * <p>
- * 值域与文案的唯一真源 = **`report_reason` 表**（A7 落地后由常量改为表驱动，
- * {@code FeedbackConst.REPORT_REASONS} 已删除）；端上举报弹层的单选项
+ * 值域与文案的唯一真源 = **`report_reason` 表**；端上举报弹层的单选项
  * 与管理端原因翻译**共用本字典，零硬编码**（PR-12）。
  * 出参恰 {@code value} / {@code label} 两项：顺序由服务端下发次序表达，端上按序渲染、不再读序号字段。
  */

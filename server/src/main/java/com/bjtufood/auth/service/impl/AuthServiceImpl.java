@@ -38,15 +38,15 @@ public class AuthServiceImpl implements AuthService {
     private final UserService userService;
     private final UserMapper userMapper;
     /**
-     * 资料落库事务边界：
-     * {@code updateProfile} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的 HTTP 外呼
-     * ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
-     * 现改为「先机审（无事务）→ 再落库（开事务）」。必须是**独立 Bean**：同类自调用不会开启事务。
+     * 资料落库事务边界：{@code updateProfile} **只让落库一步进事务**（「先机审（无事务）→ 再落库（开事务）」）——
+     * 若事务从方法入口开始，会横跨微信机审的 HTTP 外呼，期间持续占用数据库连接；
+     * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+     * 必须是**独立 Bean**：同类自调用不会开启事务。
      */
     private final AuthProfilePersister profilePersister;
     /**
-     * 验证码校验与认证写入的事务边界（D1）：原实现里 {@code verifyEmail} 的 {@code @Transactional}
-     * 从方法入口就开始，横跨「逐条 BCrypt 定位验证码」（最近 20 条 × 约 100ms ≈ 最坏 2 秒），
+     * 验证码校验与认证写入的事务边界：{@code verifyEmail} **只让写入一步进事务** ——
+     * 若从方法入口开始，会横跨「逐条 BCrypt 定位验证码」（最近 20 条 × 约 100ms ≈ 最坏 2 秒），
      * 期间持续占用连接。现拆为「校验（无事务）→ 写入（开事务）」两个事务方法，落在本 Bean 内。
      * 详见 {@link VerifyCodePersister} 类注释。
      */
@@ -95,20 +95,19 @@ public class AuthServiceImpl implements AuthService {
         if (UserConst.STATUS_DELETED.equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
         }
-        // last_login_at 写入点已随列退役
-        // user.unionid 已随列退役，微信登录仅消费 openid，无需回写
+        // last_login_at 写入点已移除
+        // unionid 已不在表中，微信登录仅消费 openid，无需回写
         return toLoginVO(user);
     }
 
     /**
      * 邮箱验证码认证：<b>先校验（无事务）→ 再写入（开事务）</b>。
      * <p>
-     * <b>本方法刻意不加 {@code @Transactional}</b>（D1）：原实现的事务从方法入口就开始，
-     * 横跨「逐条 BCrypt 定位验证码」这一次 CPU 密集操作（最近 20 条 × 约 100ms ≈ 最坏 2 秒）
+     * <b>本方法刻意不加 {@code @Transactional}</b>：事务若从方法入口开始，会横跨
+     * 「逐条 BCrypt 定位验证码」这一次 CPU 密集操作（最近 20 条 × 约 100ms ≈ 最坏 2 秒）
      * ⇒ 期间持续占用数据库连接；HikariCP 池仅 20 条，并发一高即被占满并拖垮只读请求。
-     * 这与 {@code AuthProfilePersister}（横跨微信机审外呼）、{@code ReviewPersister} /
-     * {@code FeedbackPersister}（横跨微信机审外呼）是<b>同一类问题</b>，此前只在后三处修过，
-     * 此处是同型问题在第四条链路上的遗漏。
+     * 与 {@code AuthProfilePersister} / {@code ReviewPersister} / {@code FeedbackPersister} 同一口径：
+     * <b>事务只包住写入一步</b>。
      * <p>
      * 两个事务方法都落在 {@link VerifyCodePersister}（独立 Bean，Spring 代理事务才生效），
      * 拆分依据见该类注释：验证码的原子消费与跨域归属迁移语义相反，不应同生共死。
@@ -181,9 +180,10 @@ public class AuthServiceImpl implements AuthService {
             // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（与评价口径一致，报告备案）。
             contentSecurityService.checkText(user.getOpenid(), req.getNickname(), 1);
         }
-        // 头像：地址白名单校验（同样在无事务状态下完成）
+        // 头像：地址白名单校验（同样在无事务状态下完成）——
+        // 仅接受站内相对路径，或走 /upload/cloud-image 链路（已过 imgSecCheck + COS 转存）的正式地址
         if (StringUtils.hasText(req.getAvatar()) && !imageUrlUtil.isValidAvatar(req.getAvatar())) {
-            throw new BusinessException("头像地址不合法，仅支持站内资源或微信云存储");
+            throw new BusinessException("头像地址不合法，仅支持站内资源或已通过内容安检的上传地址");
         }
         // 落库收窄为单一事务：仅更新昵称/头像（局部更新，避免整行覆盖导致并发 lost update）
         profilePersister.updateNicknameAndAvatar(userId, req.getNickname(), req.getAvatar());
@@ -216,7 +216,6 @@ public class AuthServiceImpl implements AuthService {
         //   同一微信重新静默登录会按 username='wx_'+openid 尾 16 位建新游客号，若保留旧 username
         //   将撞唯一键导致「微信登录创建账号失败」；deleted_{id} 不含任何个人信息且唯一。
         // · openid → NULL：解绑微信身份，允许同一微信重新建号。
-        //   （user.password / user.unionid 列已于零消费退役，无需再置空。）
         // · email → NULL：释放 uk_user_email 唯一键占用（NULL 不参与唯一索引）。
         // · bind_email → NULL：解绑认证关系（认证态判据即该列非空，清空即回落游客态），
         //   避免 verifyEmail 的 getByBindEmail 命中已注销账号导致后续认证走「替换绑定」歧义分支。
@@ -242,7 +241,7 @@ public class AuthServiceImpl implements AuthService {
         // 系统通知：账号维度的过程性数据，注销后账号不可再进入、无任何读取方，
         // 保留即孤儿数据只增不减，故随注销物理删除（与 review / user_feedback「内容价值」保留口径区分）。
         // P0-1：改为发布账号注销事件，由 notify 域监听器硬删该用户全部站内消息
-        // （发布点即原 notificationMapper.delete(...) 的位置，同步监听 → 仍在本事务内，失败整体回滚）。
+        // （发布点即 notificationMapper.delete(...) 的位置，同步监听 → 仍在本事务内，失败整体回滚）。
         eventPublisher.publishEvent(new UserAccountClosedEvent(userId));
 
         // token 立即失效（复用 TokenBlacklist，与管理员禁用同一机制）：
@@ -280,7 +279,7 @@ public class AuthServiceImpl implements AuthService {
     // ============================ 私有方法 ============================
 
     private LoginVO toLoginVO(User user) {
-        // JWT 载荷不含 role（role 列已退役）：学生态 authorities 由 JwtAuthFilter 固定授予
+        // JWT 载荷不含 role（role 已移除）：学生态 authorities 由 JwtAuthFilter 固定授予
         String token = jwtUtil.createToken(user.getId(), user.getUsername());
         return new LoginVO(token, toUserInfo(user));
     }

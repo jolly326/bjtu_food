@@ -15,13 +15,13 @@ import java.time.LocalDateTime;
  * <p>
  * 对应数据库表：banner。
  * <ul>
- *   <li>{@code status} 取 {@code on} / {@code off}（与 {@code dish.status} 同风格；**不复活**已随下线删除的
+ *   <li>{@code status} 取 {@code on} / {@code off}（与 {@code dish.status} 同风格；**不复活**被删除的
  *       {@code enabled} / {@code disabled} 枚举）；服务端按 {@code status='on'} 过滤，该列不出参。</li>
  *   <li>{@code sort_order} 为展示顺序（升序），服务端排序用、不出参。</li>
  *   <li>{@code image_url} 与菜品图片同口径：库内可存相对路径，出参经 {@code ImageUrlUtil} 转绝对 URL。</li>
  * </ul>
  * <p>
- * 本期仅只读：管理端录入（/admin/banners）不落地，素材由种子数据维护；需要运营自助录入时另立 change。
+ * 管理端维护入口：{@code /admin/banners}（列表 / 新增 / 换图 / 启停 / 排序 / 删除；启用上限 6 张）。
  */
 @Data
 @TableName("banner")

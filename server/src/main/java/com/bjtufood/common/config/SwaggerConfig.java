@@ -59,10 +59,10 @@ public class SwaggerConfig {
                                 2. 学号邮箱认证：先 POST /auth/email-code 传 `{ "username": "20240001" }` 获取验证码（发至校园邮箱，
                                    邮箱由学号推导），再 POST /auth/verify-email 传 `{ "code": "123456" }` 完成认证
                                    （写入 bind_email，解锁 UGC 写操作）。
-                                3. 管理端接口（/admin/**）：无登录体系，Authorize 选 `adminToken` 填入环境变量 ADMIN_TOKEN（未配置时 fail-closed 403）。
+                                3. 管理端接口（/admin/**）：先 POST /admin/auth/login 以管理员账号换取管理端 JWT，Authorize 选 `bearerAuth` 填入该 token（缺失 / 失效返回 401）。
                                 4. 小程序用户态接口：Authorize 选 `bearerAuth`，填入 wechat-login 返回的 data.token。
                                 5. 未完成学号邮箱认证访问写接口返回 code=4031「请先完成学号邮箱认证」。
-                                （学生端菜品写接口已下线，菜品由管理员经 /admin/dishes 录入。）
+                                （菜品由管理员经 /admin/dishes 录入，学生端无菜品写接口。）
 
                                 ## 统一响应格式
                                 所有接口返回 `{ "code": 200, "message": "操作成功", "data": ... }`。

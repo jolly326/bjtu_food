@@ -25,7 +25,7 @@ public class Feedback {
 
     /**
      * 反馈类型：写入口径仅 issue / report（FeedbackConst.WRITABLE_TYPES）；
-     * 历史存量数据可含 suggestion / add / error / bug / other（已下线，读取与后台筛选保持兼容）。
+     * 历史存量数据可含 suggestion / add / error / bug / other（读取与后台筛选保持兼容）。
      */
     @Schema(description = "反馈类型：issue/report（历史可含 suggestion/add/error/bug/other）")
     private String type;
@@ -46,13 +46,9 @@ public class Feedback {
     private String images;
 
     /*
-     * 内容安全状态 sec_state 已随「取消人工复核」全链退役：
+     * 内容安全状态 sec_state 已取消人工复核：
      * 内容安全检测 pass/review 一律放行、risky 直接拒绝（不落库），反馈侧亦无安全态可存。
      */
-
-    // user_feedback.contact 已于用户拍板「产品定型不收集联系方式」退役：
-    // 请求字段（FeedbackReq.contact）、实体字段与落库逻辑同批删除；
-    // CREATE TABLE 已移除，存量库已直连远程库清理。
 
     /** 关联类型：report 举报为 review（被举报评价）；error 信息纠错为 dish；其他反馈为 null */
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
@@ -81,10 +77,6 @@ public class Feedback {
     /** 处理时间 */
     @Schema(description = "处理时间")
     private LocalDateTime handledAt;
-
-    // user_feedback.handler_id 已于用户拍板「零消费即删除」退役
-    //（管理端操作人身份降级为单口令后该列即不写，读侧恒 NULL）；
-    // CREATE TABLE 已移除，存量库已直连远程库清理。
 
     @TableField(fill = FieldFill.INSERT)
     @Schema(description = "创建时间")

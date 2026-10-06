@@ -12,12 +12,10 @@ import org.springframework.web.filter.CorsFilter;
  * 功能：允许受信任的前端（微信小程序、H5、管理后台）跨域访问后端 API。
  * <p>
  * 安全约束：
- * 1. 不再使用 {@code addAllowedOriginPattern("*")} + allowCredentials，避免任意源携带凭证。
+ * 1. **禁用** {@code addAllowedOriginPattern("*")} + allowCredentials（避免任意源携带凭证）。
  * 2. 允许源取自 {@link CorsProperties}，<b>与 {@code JwtAuthFilter} 的 Origin 二次校验共用同一份
- *    配置与同一段解析</b>——此前两处各自 {@code @Value} 绑定，且对「未配置白名单」的处理<b>恰好相反</b>：
- *    这里 {@code addAllowedOriginPattern("null")}（放行 {@code Origin: null}，即 file:// 与
- *    sandboxed iframe 的源），那里拒绝一切带 Origin 的请求。当前只是「安全链路先执行」才让拒绝赢下来，
- *    属依赖执行顺序的巧合；一旦顺序/配置变动，被放行的 null 源就会生效。
+ *    配置与同一段解析</b>——两处各自绑定并对「未配置白名单」给出相反处理时（放行 {@code Origin: null}
+ *    vs 拒绝一切带 Origin 的请求），就只剩「安全链路先执行」这层巧合兜底，顺序/配置一变即失效。
  * 3. 白名单为空 ⇒ <b>不注册任何允许源</b>：带 Origin 的浏览器请求一律被拒（预检 403、实际请求无 CORS 头），
  *    与 {@code JwtAuthFilter} 的 fail-closed 口径一致；不带 Origin 的请求（{@code wx.request}、
  *    服务端间调用）本就不属 CORS 范畴，不受影响。

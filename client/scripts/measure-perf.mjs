@@ -128,11 +128,15 @@ emit('client.vue.watch_usages', watchCount, '处', 'watch/watchEffect 用量（�
 let imageTags = 0
 let imageLazyTags = 0
 for (const text of sourceTexts.values()) {
-  imageTags += countMatches(text, /<image[\s>]/g)
-  imageLazyTags += countMatches(text, /<image[^>]*lazy-load/g)
+  // ⚠️ 标签属性常各占一行 ⇒ 必须按「整个标签块」统计；若走逐行的 countMatches，
+  //    跨行标签会被永远判为「未带 lazy-load」（覆盖率恒为 0%，误导优化决策）
+  const tags = text.match(/<image\b[^>]*>/g) || []
+  imageTags += tags.length
+  imageLazyTags += tags.filter((t) => /\blazy-load\b/.test(t)).length
 }
-emit('client.image.tags', imageTags, '处', '模板内 <image> 总数')
-emit('client.image.lazy_load_coverage', imageTags ? (imageLazyTags / imageTags) * 100 : 0, '%', `${imageLazyTags}/${imageTags} 带 lazy-load`)
+emit('client.image.tags', imageTags, '处', '模板内 <image> 标签总数')
+emit('client.image.lazy_load_coverage', imageTags ? (imageLazyTags / imageTags) * 100 : 0, '%',
+    `${imageLazyTags}/${imageTags} 带 lazy-load（首屏图 / SVG data-uri / 本地缩略图本就不适用）`)
 
 /* —— 日志残留（生产端 console 在小程序里是真实开销且会外泄内部结构） —— */
 let consoleCalls = 0

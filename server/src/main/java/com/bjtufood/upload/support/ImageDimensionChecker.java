@@ -33,7 +33,7 @@ public final class ImageDimensionChecker {
      * 单边像素上限 4000。
      * <p>
      * 超过视为「图像炸弹」。注意本值与 {@code UploadServiceImpl} 的
-     * {@code MAX_IMAGE_DIMENSION} 为同一约束，已随本类抽出而<b>唯一化</b>。
+     * {@code MAX_IMAGE_DIMENSION} 为同一约束，随本类抽出而<b>唯一化</b>。
      */
     public static final int MAX_IMAGE_DIMENSION = 4000;
 

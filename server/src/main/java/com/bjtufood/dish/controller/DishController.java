@@ -59,7 +59,7 @@ public class DishController {
             description = """
                     用途：首页网格、搜索页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：推荐视图按 CRC32(seed:ID) 会话伪随机序，大类视图热度倒序；无排序入口）。
+                    参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：全部 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
                     出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
                     """
     )
@@ -87,8 +87,8 @@ public class DishController {
             summary = "菜品详情",
             description = """
                     用途：菜品详情页。未登录可访问；登录态与游客态返回结构一致。
-                    **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）view_count +1；
-                    4001（菜品不存在）与请求失败不计数。
+                    **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）写入一行浏览明细（dish_view_log，精确到秒，不去重）；
+                    4001（菜品不存在）与请求失败不计数。浏览量不参与任何排序，仅供管理端「近 30 天浏览」统计。
                     滥用防护：同 IP 每分钟 ≤30 次、每小时 ≤300 次（正常浏览远低于此，用户无感）。
                     测试示例：/dishes/1
                     """
@@ -104,7 +104,7 @@ public class DishController {
     @Operation(
             summary = "菜品描述属性编辑态选项（按菜现有维度）",
             description = """
-                    用途：菜品纠错 / 编辑界面的属性表单（进编辑时才取，按需）。
+                    用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
                     只返回**该菜现有维度**的候选值：每项含 fieldKey（维度键，与 GET /dishes/{id} 的
                     attributes[].fieldKey 对齐）/ valueType（single|multi）/
                     options（该维度全部候选值，按 order 升序；每项 valueKey / label）。

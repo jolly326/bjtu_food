@@ -11,20 +11,17 @@ import lombok.Data;
  * 字段均 camelCase；已认证状态由 {@code bindEmail} 派生（见下）。
  * <p>
  * <b>字段集恰 4 个</b>：{@code id}、{@code nickname}、{@code avatar}、{@code bindEmail}。
- * 以下字段已删除且不得回流：
+ * <p><b>设计约束</b>：下列字段均不进此 VO（避免冗余 / 零消费），统一保持 4 字段最小集：
  * <ul>
- *   <li>{@code verified}——`bindEmail` 非空的派生布尔，属同源冗余；
- *       端上判据统一为 {@code bindEmail != null}，DB 列 user.verified/verified_at 同批退役；</li>
- *   <li>{@code email}——微信体系下无写入点、恒为 NULL；</li>
- *   <li>{@code status}——端上零消费（登录侧 400 与 UGC 写侧 403 已拦截）；</li>
- *   <li>{@code guestShortId}——`id` 的纯派生值，端上不再派生展示
+ *   <li>{@code verified} —— 由 {@code bindEmail} 非空派生，同源冗余；端上判据统一为 {@code bindEmail != null}；</li>
+ *   <li>{@code email} —— 微信体系下无写入点、恒为 NULL；</li>
+ *   <li>{@code status} —— 端上零消费（登录侧 400 与 UGC 写侧 403 已拦截）；</li>
+ *   <li>{@code guestShortId} —— {@code id} 的纯派生值，端上不再派生展示
  *       （游客身份由建号默认 {@code nickname}「食客 + ID 尾 4 位」承载）；</li>
- *   <li>{@code createdAt}——端上零消费（个人信息编辑页与「我的主页」信息卡均不展示注册时间）；</li>
- *   <li>{@code username}——**按「零消费即删」移出出参**：端上两处身份卡
- *       （「我的」页用户卡、「我的主页」信息卡）**认证态副行**均已统一渲染
- *       {@code bindEmail}（完整校园邮箱），不再渲染裸学号；`username` 出参端上零消费。
- *       账号标识本身仍保留在 {@code user} 表与 JWT 载荷（{@code username}，仅供日志），
- *       属服务端内部字段，不进公开出参。</li>
+ *   <li>{@code createdAt} —— 端上零消费（个人信息编辑页与「我的主页」信息卡均不展示注册时间）；</li>
+ *   <li>{@code username} —— 端上零消费：两处身份卡（「我的」页用户卡、「我的主页」信息卡）
+ *       认证态副行均已统一渲染 {@code bindEmail}（完整校园邮箱），不再渲染裸学号；
+ *       账号标识本身保留在 {@code user} 表与 JWT 载荷（{@code username}，仅供日志），属服务端内部字段，不进公开出参。</li>
  * </ul>
  * <p>
  * 与 {@link UserVO}（管理端用户列表）字段高度相似但<b>不可合并</b>，差异登记如下：

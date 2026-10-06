@@ -11,10 +11,8 @@ import java.util.List;
  * 食堂生命周期 = <b>新增 / 改名 / 删除</b> ＋ 后台列表查询（管理端维护的主数据实体，见
  * docs/func/web/A-主数据维护/A1-食堂管理.md）；**无停业 / 审核能力**。
  * <p>
- * （change「食堂 / 价格筛选全量下线」K4）：**公开侧食堂字典端点已整体删除**——
- * 原 {@code GET /canteens}（含 {@code ?include=stalls}）随筛选功能下线一并移除，故本接口不再提供
- * {@code listCanteens()} / {@code listWithStalls()} 公开查询能力；其公开出参
- * （{@code CanteenInfoVO} / {@code CanteenWithStallsVO} / {@code StallDetailVO}）同批删除。
+ * （K4）：**公开侧无食堂字典端点** —— 本接口不提供
+ * {@code listCanteens()} / {@code listWithStalls()} 公开查询能力（亦无对应出参 VO）。
  */
 public interface CanteenService {
 

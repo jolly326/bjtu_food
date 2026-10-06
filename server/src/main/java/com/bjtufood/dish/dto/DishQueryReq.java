@@ -10,7 +10,7 @@ import lombok.Data;
  * {@code mealType}：物理大类只是视图的一种（按 {@code meal_type} 取数），将来「折扣」等视图按别的
  * 口径取数，端上无须改动。
  * <p>
- * 已下线参数（SHALL NOT 回流）：
+ * 不接受参数（SHALL NOT 回流）：
  * <ul>
  *   <li>{@code tag} —— 标签整链删除；</li>
  *   <li>{@code spiceLevel} —— 由四维描述字段替换；</li>

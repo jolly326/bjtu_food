@@ -101,7 +101,7 @@ class BuildInputConfigTest {
         assertThat(content)
                 .as("""
                         application.yml 必须声明 server.servlet.context-path: /api/v1。\
-                        它是小程序请求前缀与 SecurityConfig/AdminTokenFilter「应用内路径」口径的唯一共同基准：\
+                        它是小程序请求前缀与 SecurityConfig/AdminAuthFilter「应用内路径」口径的唯一共同基准：\
                         一旦缺失或被改写，端上全部路径与后端白名单会整体错位。""")
                 .contains("context-path: /api/v1");
     }

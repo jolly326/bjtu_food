@@ -35,11 +35,9 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * 公开接口白名单（无需登录）：
  * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
- * - 管理端 /admin/** 不走白名单：由 AdminTokenFilter 校验请求头 X-Admin-Token（环境变量 ADMIN_TOKEN，方案 C 已作废）
+ * - 管理端：仅 POST /admin/auth/login 公开（否则登录请求自身被拦、必 401）；其余 /admin/** 由 AdminAuthFilter 校验管理端 JWT
  * - GET /banners（首页顶部轮播图，；/** 无写接口）
  * - GET /dishes、GET /dishes/{id}、GET /dishes/views、GET /dishes/{id}/attributes、GET /dishes/for-you、GET /dishes/{id}/reviews（菜品只读浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
- * - 注：GET /canteens 白名单已于删除（食堂字典端点随食堂 / 价格筛选全量下线整体下线）
- * - Swagger UI (SpringDoc) 相关路径
  */
 @Configuration
 @EnableWebSecurity
@@ -49,7 +47,8 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    private final AdminTokenFilter adminTokenFilter;
+    /** 管理端鉴权过滤器（校验管理端 JWT；TD-20 · 取代 AdminTokenFilter） */
+    private final AdminAuthFilter adminAuthFilter;
 
     /**
      * Spring MVC 映射内省器（Spring Boot 3 自动配置）。
@@ -72,10 +71,9 @@ public class SecurityConfig {
      * {@code server.servlet.context-path} 由 {@code /api} 改为 {@code /api/v1} 时，
      * <b>本表无需任何改动</b>。
      * <p>
-     * 历史说明：本表此前对每条路径<b>同时</b>列出了「无前缀」与「{@code /api} 前缀」两份，
-     * 理由是担心 matcher 是否含 context-path。实测二者必中其一——无前缀那份才是真正生效的，
-     * {@code /api} 那份是永不匹配的死条目。若保留该冗余，context-path 升版后会膨胀为三份。
-     * 现已收敛为单一真源。
+     * <b>单一真源</b>：本表只列「无前缀」一份 —— 若同时列出「{@code /api} 前缀」一份，
+     * 后者永不匹配（matcher 匹配的是已剥离 context-path 的应用内路径），
+     * 且 context-path 升版后条目会膨胀为三份。
      */
     private static final String[] PUBLIC_ANY_METHOD = {
             // 认证类公开接口（微信静默登录、学号邮箱认证、验证码）
@@ -91,6 +89,9 @@ public class SecurityConfig {
             "/reviews/*/report",
             // 菜品信息纠错提交（PUB：匿名允许，对齐 feedback 提交口径；IP 限频在 Controller 层）
             "/dishes/*/correction",
+            // 管理端账密登录（TD-19）：🔴 **必须在白名单内** —— 否则登录请求自身先被鉴权拦，
+            //    表现为「登录永远 401」，功能完全不可用。/admin/auth/me 与其余 /admin/** 需 token。
+            "/admin/auth/login",
             // SpringDoc Swagger UI 文档
             "/swagger-ui/**",
             "/v3/api-docs/**",
@@ -108,13 +109,12 @@ public class SecurityConfig {
      * 仅 GET 放行的公开浏览接口（覆盖全部 dish / banner 只读路径，
      * 使用 method-scoped 匹配，避免误放行 POST 等写操作）。
      * <p>
-     * 说明：学生端菜品写接口已于全部下线，菜品仅由管理员经 /admin/dishes 录入；
+     * 说明：菜品仅由管理员经 /admin/dishes 录入（学生端无菜品写接口）；
      * 本条仅约束 GET 只读浏览（浏览量计数为 GET /dishes/{id} 的响应副作用，无独立上报端点）。
-     * /stalls/** 白名单已于CT-05 删除：无公开 StallController 端点（幽灵路由）。
-     * /canteens/** 白名单已于删除：食堂字典端点（原 GET /canteens）随食堂 / 价格筛选
-     * 全量下线整体删除（K4），公开侧不再有食堂字典接口。
-     * 评价只读路径已 RESTful 化为 /dishes/{id}/reviews（由 /dishes/** 覆盖，拍板）；
-     * 原 GET /reviews 白名单条目随该路径删除一并移除；GET /my/reviews 需登录，不在白名单内。
+     * /stalls/** 与 /canteens/** **不在白名单内**：前者无公开 StallController 端点（幽灵路由）；
+     * 后者公开侧无食堂字典接口（K4）。
+     * 评价只读路径 RESTful 化为 /dishes/{id}/reviews（由 /dishes/** 覆盖，拍板）；
+     * GET /my/reviews 需登录，不在白名单内。
      */
     private static final String[] PUBLIC_GET_PREFIXES = {
             "/dishes/**",
@@ -138,10 +138,10 @@ public class SecurityConfig {
                         .requestMatchers(mvcMatchers(PUBLIC_ANY_METHOD)).permitAll()
                         // 仅 GET 放行的公开浏览接口（游客免登录浏览全部公开内容）
                         .requestMatchers(mvcMatchers(HttpMethod.GET, PUBLIC_GET_PREFIXES)).permitAll()
-                        // 管理端接口：由 AdminTokenFilter 用环境变量口令 ADMIN_TOKEN 校验（后台无登录体系），
-                        // 此处放行交由过滤器把关（未配置口令时过滤器 fail-closed 拒绝）
+                        // 管理端接口：由 AdminAuthFilter 校验管理端 JWT（Authorization: Bearer，TD-20）；
+                        // 此处放行交由过滤器把关（未带/无效凭证时过滤器返回 401）
                         .requestMatchers(mvcMatchers("/admin/**")).permitAll()
-                        // 管理端图片上传已归入 /admin/**（POST /admin/upload），随上行放行并由过滤器口令把关；
+                        // 管理端图片上传已归入 /admin/**（POST /admin/upload），随上行放行并由过滤器 token 把关；
                         // 学生端上传 /upload/cloud-image 走 JWT。
                         // 其他接口需要登录
                         .anyRequest().authenticated()
@@ -153,8 +153,8 @@ public class SecurityConfig {
                                 writeJson(response, HttpServletResponse.SC_FORBIDDEN, Result.forbidden("无权限访问该接口")))
                 )
 
-                // 4. 注册管理端口令过滤器（先注册即先执行：/admin 走口令，不再走 JWT 角色）
-                .addFilterBefore(adminTokenFilter, UsernamePasswordAuthenticationFilter.class)
+                // 4. 注册管理端鉴权过滤器（先注册即先执行：/admin 走管理端 JWT，不走学生 JWT 角色）
+                .addFilterBefore(adminAuthFilter, UsernamePasswordAuthenticationFilter.class)
 
                 // 5. 注册 JWT 过滤器（在 UsernamePasswordAuthenticationFilter 之前）
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -200,12 +200,13 @@ public class SecurityConfig {
      * BCrypt 每次加密结果不同（内置 salt），安全性高。
      * <p>
      * 保留说明（BE「删除 DataInitializer」联动评估结论）：
-     * 管理端已无登录/密码体系（/admin/** 走 {@code AdminTokenFilter} 的 X-Admin-Token 口令），
-     * 原 DataInitializer 写入的 admin/admin123 账号已随该类一并删除；
-     * 但本 Bean <b>不能摘除</b>——邮箱验证码仍以 BCrypt 存/验哈希：
-     * {@code EmailCodeServiceImpl#passwordEncoder.encode(验证码)} 与
+     * 本 Bean 有<b>两处</b>消费者，摘除任一都会出问题：
+     * ① <b>管理端账密登录</b>（TD-19）：{@code AdminAuthController} 用 {@code matches(输入口令, password_hash)} 比对 BCrypt；
+     * ② 邮箱验证码：{@code EmailCodeServiceImpl#passwordEncoder.encode(验证码)} 与
      * {@code AuthServiceImpl#passwordEncoder.matches(输入码, code_hash)} 依赖它。
-     * 摘除将直接导致启动期依赖注入失败。
+     *
+     * 注：DataInitializer 写入的 admin/admin123 账号随该类删除；管理端账号现由 {@code admin_account} 表承载
+     * （TD-16 已建表，见 docs/schema/admin_account.md），与本 Bean 无耦合关系。
      *
      * @return PasswordEncoder
      */

@@ -5,8 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * UGC 准入上下文（跨域只读投影，P0-1）：供 review / feedback 等域做「能否发 UGC」判定，
- * 替代此前他域直接注入 {@code UserMapper} + 读 {@code auth.entity.User}（bindEmail）的做法。
+ * UGC 准入上下文（跨域只读投影）：供 review / feedback 等域做「能否发 UGC」判定 ——
+ * 他域**不直连** {@code UserMapper} 与 {@code auth.entity.User}。
  * <p>
  * 只暴露判定所需的三要素，不外泄邮箱等身份字段：认证态判据（bind_email 非空）由 auth 侧
  * {@code AuthStateUtil} 折算成布尔值后透出，判据真源仍唯一留在 auth。

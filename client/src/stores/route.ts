@@ -5,8 +5,8 @@ import { ROUTE_KEY_BY_URL, TAB_HOME } from '@/utils/routes'
 /**
  * 路由 / TabBar 显隐状态。
  *
- * 原为模块级可变 `ref` 单例：HMR 下易产生游离实例、且无法被 devtools 观测，
- * 故收口为 Pinia store（与 `user` / `dish` / `notify` 等 store 同构）。
+ * 收口为 Pinia store（与 `user` / `dish` / `notify` 等 store 同构）——
+ * 避免模块级可变单例在 HMR 下产生游离实例，且状态可被 devtools 观测。
  * 对外只暴露 action（`showTab` / `ensureTabForUrl` / `syncRoute`），
  * 避免绕过它们直接写表导致显隐口径分裂。
  */

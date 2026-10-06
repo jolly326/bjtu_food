@@ -11,23 +11,19 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-
 /**
  * 评价落库（**最小化事务边界**）。
  * <p>
- * 背景：
- * 此前 {@code ReviewServiceImpl#submitReview} / {@code #updateReview} 直接标注 {@code @Transactional}
- * —— 事务从**方法入口**就开始，横跨「微信内容安全检测」这一次外部 HTTP 外呼（超时 5s），
- * 期间数据库连接被持续占用；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+ * 边界：事务若从方法入口开始，会横跨「微信内容安全检测」的外部 HTTP 外呼（超时 5s），
+ * 期间持续占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
  * <p>
- * 修法：<b>先机审（无事务、不占连接）→ 再落库（才开事务）</b>。
+ * 口径：<b>先机审（无事务、不占连接）→ 再落库（才开事务）</b>。
  * <p>
  * ⚠️ <b>为何本类必须同时承载「写库」与「发事件」</b>：
  * {@code RatingUpdateListener} 用 {@code @TransactionalEventListener(phase = AFTER_COMMIT)} 异步重算菜品均分。
  * 若把 {@code ReviewSubmittedEvent} 的发布挪到<b>事务之外</b>，Spring 会因无活动事务而
  * <b>不触发</b>该监听器（默认 {@code fallbackExecution=false}）⇒ 菜品评分<b>永不重算</b>，
- * 首页热度排序与「猜你喜欢」随即失真。故事件发布必须与写库同处一个事务，
+ * 用户将<b>直接看到错误评分</b>（🔴 2026-10-05 热度下线后，排序不再受评分影响，但出参评分仍错）。故事件发布必须与写库同处一个事务，
  * 由本类的 {@code @Transactional} 一并包住。
  * <p>
  * 必须是**独立 Bean**：Spring 声明式事务靠<b>代理</b>生效，同类自调用不会开启事务。
@@ -60,7 +56,8 @@ public class ReviewPersister {
 
     /**
      * 重新评价：覆盖同一行 + 发布重算事件（同一事务内）。
-     * 覆盖语义与原实现逐字一致：评分 / 文字 / 配图显式 set、is_hidden 重置 0、created_at 刷新为当前。
+     * 覆盖语义：评分 / 文字 / 配图显式 set、{@code is_hidden} 重置 0、
+     * 🔴 <b>{@code created_at} 保留原值不刷新</b>（首次评价时间即固定位置，改评价不置顶）。
      *
      * @param id        评价 ID
      * @param rating    新评分
@@ -68,6 +65,9 @@ public class ReviewPersister {
      * @param imagesJson 配图 JSON（可为 null）
      * @param dishId    所属菜品（事件载荷）
      */
+    // 🔴 覆盖更新**不刷新 `created_at`**：首次评价时间即该评价的固定位置，
+    // 反复修改无法把自己刷到列表顶部（时间倒序下位置不动）⇒ 无需额外的提交限频。
+    // is_hidden 重置 0：重新评价即恢复可见。
     @Transactional(rollbackFor = Exception.class)
     public void updateAndPublish(Long id, Integer rating, String content, String imagesJson, Long dishId) {
         reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
@@ -75,8 +75,7 @@ public class ReviewPersister {
                 .set(Review::getRating, rating)
                 .set(Review::getContent, content)
                 .set(Review::getImages, imagesJson)
-                .set(Review::getIsHidden, 0)
-                .set(Review::getCreatedAt, LocalDateTime.now()));
+                .set(Review::getIsHidden, 0));
         // 必须写在事务内：监听器为 AFTER_COMMIT 相位（见类注释）
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, dishId, rating));
     }

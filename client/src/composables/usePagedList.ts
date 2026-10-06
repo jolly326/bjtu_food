@@ -91,7 +91,7 @@ export function usePagedList<T extends { id: number }>(
   async function load(): Promise<void> {
     if (loading.value) return
     if (canLoad && !canLoad()) {
-      // 守卫短路：不发请求、落空列表并标记到底（与原先各页的「游客」分支行为一致）
+      // 守卫短路：不发请求、落空列表并标记到底（对齐各页「游客态」的既有行为）
       list.value = []
       loadFailed.value = false
       finished.value = true

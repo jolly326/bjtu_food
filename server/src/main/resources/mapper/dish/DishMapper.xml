@@ -49,17 +49,14 @@
     </resultMap>
 
     <!--
-    综合热度分表达式（**热度权重的唯一真源**）：
-        view_count*1 + rating_count*5*20 + COALESCE(avg_rating,0)*20
-        权重：浏览量 1、评价数 5*20=100、评分 20。
-    注意（Q-109，2026-09-14 用户拍板）：Java 侧 DishHeatWeights 常量已删除，热度口径**只存在于本处 SQL**。
-    如需调整权重，**直接改本片段**，不存在第二处需同步的常量，
-    避免「改了常量以为生效」的误判。
-    仅供「等价口径」复用（heat 排序、热搜词条）；其他独立业务口径请勿 include 本片段。
+    🔴 **无热度排序表达式**（2026-10-05 全量下线，原评审决议四项式作废）：
+    MVP 期 7 个视图**全部走 random / random**（见 DishViewDefs），不存在「热度排序」这个需求；
+    且原 `view_count*1 + rating_count*5*20 + COALESCE(avg_rating,0)*20` 中 **view_count 无上限**，
+    0 评价菜刷 5000 浏览即可霸榜（可低成本操纵排序）。
+    浏览量**已改为 30 天滚动窗口明细**（dish_view_log），本期仅供管理端展示，不参与排序。
+    ⇒ 后期若重新引入热度，须重新拍板公式（**必须含浏览量封顶**，并同时处理去重，见 schema/dish_view_log.md §2.2）。
+    如需稳定的翻页全序，各排序分支一律以 `d.id` 作决胜键。
     -->
-    <sql id="heatScoreExpr">
-        (d.view_count * 1 + d.rating_count * 5 * 20 + COALESCE(d.avg_rating, 0) * 20)
-    </sql>
 
     <!-- 联表 FROM 基础片段（dish + stall + canteen） -->
     <sql id="dishFromJoin">
@@ -190,27 +187,29 @@
             </choose>
         </foreach>
         <!-- 排序按视图的 sortKind 分派（端上无排序入口；食堂 / 价格筛选条件已随 2026-09-22 K3「筛选全量下线」删除）：
-             ① SEED_RANDOM 且无 keyword（推荐视图）→ CRC32(CONCAT(seed,'-',id)), id 稳定伪随机序
-                —— 同一 seed ⇒ 同一全序（翻页不重不漏），换 seed ⇒ 整体重洗（新鲜度）；
+             ① SEED_RANDOM 且无 keyword（推荐视图 / 6 个大类视图，2026-10-05 起全部走此口径）→ CRC32(CONCAT(seed,'-',id)), id 稳定伪随机序
+                —— 同一 seed ⇒ 同一全序（翻页不重不漏），换 seed ⇒ 整体重洗（每次进入看到不同组合）；
                 d.id 作决胜键，消除 CRC32 哈希碰撞导致的并列乱序；
-             ② DISCOUNT_DESC（折扣视图）→ 折扣力度倒序，热度作决胜键；
-             ③ 其余（大类视图 / 搜索 / HEAT）→ heatScoreExpr DESC。
+             ② DISCOUNT_DESC（折扣视图）→ 折扣力度倒序，d.id 作决胜键；
+             ③ 其余（RATING_DESC / NEWEST）→ 各自主序 + d.id 决胜键。
+             🔴 **无「热度排序」分支**（理由见上方注释块）。
+             🔴 各分支一律带 `d.id` 决胜键 —— 保证全序稳定，否则同值行序不定会导致翻页重复/漏项。
              seed 走 #{} 预编译参数（防注入）；端上仍无排序入口（sortBy/sortOrder 已删） -->
         <choose>
-            <when test="(q.keyword == null or q.keyword == '') and q.sortKind.name() == 'SEED_RANDOM' and q.seed != null and q.seed != ''">
+            <when test="q.sortKind.name() == 'SEED_RANDOM'">
                 ORDER BY CRC32(CONCAT(#{q.seed}, '-', d.id)), d.id
             </when>
+            <!-- A6 预留的四种显式排序（白名单见 DishViewConditions.SORT_KINDS）：
+                 MVP 期 7 个视图均未使用（见 DishViewDefs），保留供后期视图配置启用。
+                 🔴 均以 d.id 作决胜键（不再用热度）—— 保证同值行序稳定、翻页不重不漏 -->
             <when test="q.sortKind.name() == 'DISCOUNT_DESC'">
-                ORDER BY (d.original_price - d.price) / d.original_price DESC,
-                <include refid="heatScoreExpr"/> DESC
+                ORDER BY (d.original_price - d.price) / d.original_price DESC, d.id DESC
             </when>
-            <!-- A6 新增：视图可选的四种显式排序（白名单见 DishViewConditions.SORT_KINDS）；
-                 均以热度作决胜键，保证同值行序稳定、翻页不重不漏 -->
             <when test="q.sortKind.name() == 'PRICE_ASC'">
-                ORDER BY d.price ASC, <include refid="heatScoreExpr"/> DESC
+                ORDER BY d.price ASC, d.id DESC
             </when>
             <when test="q.sortKind.name() == 'PRICE_DESC'">
-                ORDER BY d.price DESC, <include refid="heatScoreExpr"/> DESC
+                ORDER BY d.price DESC, d.id DESC
             </when>
             <when test="q.sortKind.name() == 'RATING_DESC'">
                 ORDER BY COALESCE(d.avg_rating, 0) DESC, d.rating_count DESC, d.id DESC
@@ -218,8 +217,10 @@
             <when test="q.sortKind.name() == 'NEWEST'">
                 ORDER BY d.created_at DESC, d.id DESC
             </when>
+            <!-- 🔴 兜底：原为 heatScoreExpr DESC（热度排序），2026-10-05 全量下线。
+                 现按 id 升序 —— 语义中性且全序稳定。热度若后期重启，须重新拍板公式 -->
             <otherwise>
-                ORDER BY <include refid="heatScoreExpr"/> DESC
+                ORDER BY d.id
             </otherwise>
         </choose>
     </select>
@@ -325,7 +326,7 @@
         故这里不再保留 ORDER BY RAND() 兜底（那是全表排序：代价随行数增长且无法使用索引）。
         契约未变：未传 seed 的调用方仍得到「每次不同的随机序」，只是随机性改由 seed 承载。
         出参仅 name；条数由调用方传入（DishMapper#selectGuessLike(@Param limit, @Param seed)，Service 侧常量）。
-        注意：本查询**不得**再走 heatScoreExpr（热度排序已与语义无关）。
+        注意：本查询**不走**任何热度/排序表达式（热度算法已于 2026-10-05 全量下线；此处为纯随机抽取）。
     -->
     <select id="selectGuessLike" resultType="com.bjtufood.dish.dto.GuessLikeVO">
         SELECT d.name AS name
@@ -350,13 +351,6 @@
         ORDER BY d.id
         LIMIT #{limit}
     </select>
-
-    <!-- 浏览量原子自增（并发安全：读-改-写 → SET view_count = view_count + 1） -->
-    <update id="increaseViewCount">
-        UPDATE dish
-        SET view_count = view_count + 1
-        WHERE id = #{id}
-    </update>
 
     <!--
         评分聚合原子重算（并发安全：子查询 AVG/COUNT 整体写回）。

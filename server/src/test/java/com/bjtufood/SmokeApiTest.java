@@ -3,18 +3,22 @@ package com.bjtufood;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.config.AdminProperties;
-import com.bjtufood.auth.config.AdminTokenFilter;
+import com.bjtufood.auth.support.AdminJwtUtil;
+import com.bjtufood.auth.config.AdminAuthFilter;
 import com.bjtufood.auth.config.JwtAuthFilter;
 import com.bjtufood.auth.config.JwtProperties;
 import com.bjtufood.auth.config.SecurityConfig;
 import com.bjtufood.auth.config.TokenBlacklist;
+import com.bjtufood.auth.controller.AdminAuthController;
 import com.bjtufood.auth.controller.AuthController;
 import com.bjtufood.auth.dto.LoginVO;
 import com.bjtufood.auth.dto.UserInfoVO;
 import com.bjtufood.upload.controller.AdminUploadController;
 import com.bjtufood.upload.dto.UploadResultVO;
+import com.bjtufood.auth.entity.AdminAccount;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.mapper.UserMapper;
+import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.auth.aspect.RequireVerifiedAspect;
 import com.bjtufood.auth.service.impl.UserServiceImpl;
@@ -56,6 +60,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ContextConfiguration;
@@ -64,6 +69,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -96,8 +102,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       与路径防回归（旧 {@code /reviews} 不再注册）；</li>
  *   <li>反馈：{@code POST /feedback}（类型白名单 400、other 正常落库 200）、
  *       举报：{@code POST /reviews/{id}/report}（原因缺失/非法 400、评价不存在 4001）；</li>
- *   <li>上传：{@code POST /admin/upload}（无/错 X-Admin-Token → 403，正确口令 200）；</li>
- *   <li>管理端：{@code GET /admin/feedbacks}（无口令 403，带口令 200 + 分页契约）；</li>
+ *   <li>上传：{@code POST /admin/upload}（无/错 Bearer token → 401，正确 token 200）；</li>
+ *   <li>管理端：{@code GET /admin/feedbacks}（无凭证 401，带 token 200 + 分页契约）；</li>
  *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）、
  *       {@code PUT /admin/reviews/{id}/sec-state}（sec_state 全链退役，映射表中不得再注册该端点，
  *       保留的 {@code /admin/reviews/{id}/hidden} 仍在册作阳性对照）；</li>
@@ -110,7 +116,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       （需要 SqlSessionFactory → 需连库），故本测试用内嵌空配置 {@link SliceContext} 取代主配置，
  *       并<b>显式 @Import</b> 被测 Bean（控制器 / 统一异常处理 / 真实安全链路），使切片零数据库依赖；
  *       同理不启用组件扫描，避免无关 Bean 拉起数据源相关配置。</li>
- *   <li>鉴权走<b>真实</b> {@link SecurityConfig} + {@link JwtAuthFilter} + {@link AdminTokenFilter}；
+ *   <li>鉴权走<b>真实</b> {@link SecurityConfig} + {@link JwtAuthFilter} + {@link AdminAuthFilter}；
  *       token 由真实 {@link JwtUtil} 以测试密钥签发，故 401/403/4031 均为真实分流结果；</li>
  *   <li>{@code 4031}（未完成学号邮箱认证）由真实 {@link RequireVerifiedAspect} 触发，
  *       判定经真实 {@link com.bjtufood.auth.service.UserService#requireUgcAuthorized(Long)}
@@ -126,6 +132,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         // 被测控制器（显式引入，不依赖组件扫描）
         AuthController.class,
+        // 管理端账密登录 / 登录态（TD-19 · TD-23）：断言「登录端点在鉴权白名单内」这一回归
+        AdminAuthController.class,
         DishController.class,
         ReviewController.class,
         FeedbackController.class,
@@ -138,7 +146,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // 统一异常处理（HTTP 状态码 + body.code 口径的唯一真源）
         GlobalExceptionHandler.class,
         // 类型化配置：本切片以 @ContextConfiguration 取代主配置，
-        // 故 JwtUtil / AdminTokenFilter 所依赖的配置 Bean 需在此显式登记
+        // 故 JwtUtil / AdminAuthFilter 所依赖的配置 Bean 需在此显式登记
         // （主类侧由 @EnableConfigurationProperties 统一登记，两者需同步）。
         JwtProperties.class,
         AdminProperties.class,
@@ -147,7 +155,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // 真实安全链路
         SecurityConfig.class,
         JwtAuthFilter.class,
-        AdminTokenFilter.class,
+        AdminAuthFilter.class,
+        AdminJwtUtil.class,
         JwtUtil.class,
         TokenBlacklist.class,
         // @RequireVerified → 4031 未认证分流
@@ -165,18 +174,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         SmokeApiTest.AopTestConfig.class
 })
 @TestPropertySource(properties = {
-        "admin.token=" + SmokeApiTest.TEST_ADMIN_TOKEN,
+        // 管理端 JWT 密钥（>=32 字节；TD-20 AdminJwtUtil 启动期 fail-fast 需要）
+        "admin.jwt.secret=SmokeApiTestAdminJwtSecret_0123456789ABC",
+        "admin.jwt.expiration-seconds=3600",
         // 测试专用强密钥（>=32 字节且非仓库默认值，规避 JwtUtil 启动期 fail-fast）
         "jwt.secret=SmokeApiTestOnlySecretKey_0123456789ABCDEF",
         "jwt.expiration=3600000"
 })
 class SmokeApiTest {
 
-    /** 管理端口令（仅测试值，经 @TestPropertySource 注入 admin.token） */
-    static final String TEST_ADMIN_TOKEN = "smoke-test-admin-token";
-    private static final String ADMIN_TOKEN_HEADER = "X-Admin-Token";
-    /** AdminTokenFilter 口令无效时的对外文案（断言 403 来源为该过滤器，而非安全链路的权限拒绝） */
-    private static final String ADMIN_TOKEN_INVALID_MESSAGE = "管理端口令无效";
+    /** 管理端鉴权头（TD-20：Bearer JWT 取代 X-Admin-Token） */
+    private static final String ADMIN_AUTH_HEADER = "Authorization";
+    /** 签发一枚<b>真实</b>管理端 JWT（用 @TestPropertySource 注入的 admin.jwt.secret，与 AdminAuthFilter 同一套校验） */
+    private static String adminBearer() {
+        AdminProperties props = new AdminProperties();
+        AdminProperties.Jwt jwt = new AdminProperties.Jwt();
+        jwt.setSecret("SmokeApiTestAdminJwtSecret_0123456789ABC");
+        jwt.setExpirationSeconds(3600L);
+        props.setJwt(jwt);
+        return "Bearer " + new AdminJwtUtil(props).createToken(1L, "smoke-admin");
+    }
+
+    /** AdminAuthFilter 鉴权失败时的对外文案（断言 401 来自该过滤器） */
+    private static final String ADMIN_TOKEN_INVALID_MESSAGE = "管理端登录已失效，请重新登录";
     /** 测试登录用户 ID（与签发的 JWT 一致） */
     private static final Long USER_ID = 1L;
 
@@ -186,12 +206,23 @@ class SmokeApiTest {
     @Autowired
     private JwtUtil jwtUtil;
 
+    /** 管理端 JWT 签发器（/admin/auth/me 用例需以同一套密钥签发凭证） */
+    @Autowired
+    private AdminJwtUtil adminJwtUtil;
+
+    /** 登录口令比对（SecurityConfig 提供的 BCrypt 实现） */
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     /** 切片内真实注册的处理器映射表（用于「端点是否在册」的防回归断言，不发起请求） */
     @Autowired
     private RequestMappingHandlerMapping handlerMapping;
 
     @MockBean
     private AuthService authService;
+    /** 管理员账号（TD-16）：切片不连库，登录 / 登录态用例按需打桩 */
+    @MockBean
+    private AdminAccountService adminAccountService;
     @MockBean
     private DishService dishService;
     @MockBean
@@ -290,7 +321,7 @@ class SmokeApiTest {
 
     @Test
     void dishDetail_notFoundAndOffShelf_returnsCode4001() throws Exception {
-        // 契约：资源不存在用**专属业务码 4001**（原「统一 400」口径已作废）。
+        // 契约：资源不存在用**专属业务码 4001**。
         // 统一响应由 HTTP 200 承载 body.code。
         when(dishService.getDishDetail(eq(999L))).thenThrow(new BusinessException(4001, "菜品不存在"));
 
@@ -547,20 +578,20 @@ class SmokeApiTest {
     // ==================== 链路 5：上传（管理端口令守卫） ====================
 
     @Test
-    void uploadImage_withoutAdminToken_returns403() throws Exception {
-        // 403 由 AdminTokenFilter 直接写出（口令缺失/无效失败的 fail-closed 行为）
+    void uploadImage_withoutAdminToken_returns401() throws Exception {
+        // 401 由 AdminAuthFilter 直接写出（未携带凭证的 fail-closed 行为）
         mockMvc.perform(multipart("/admin/upload").file(jpegFile()))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401))
                 .andExpect(jsonPath("$.message").value(ADMIN_TOKEN_INVALID_MESSAGE));
     }
 
     @Test
-    void uploadImage_wrongAdminToken_returns403() throws Exception {
+    void uploadImage_invalidAdminToken_returns401() throws Exception {
         mockMvc.perform(multipart("/admin/upload").file(jpegFile())
-                        .header(ADMIN_TOKEN_HEADER, "wrong-token"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value(403))
+                        .header(ADMIN_AUTH_HEADER, "Bearer not-a-valid-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401))
                 .andExpect(jsonPath("$.message").value(ADMIN_TOKEN_INVALID_MESSAGE));
     }
 
@@ -571,7 +602,7 @@ class SmokeApiTest {
                         "/images/2026/05/a.jpg"));
 
         mockMvc.perform(multipart("/admin/upload").file(jpegFile())
-                        .header(ADMIN_TOKEN_HEADER, TEST_ADMIN_TOKEN))
+                        .header(ADMIN_AUTH_HEADER, adminBearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.url").value("http://localhost:8080/api/images/2026/05/a.jpg"));
@@ -603,11 +634,11 @@ class SmokeApiTest {
     // ==================== 链路 6：管理端 ====================
 
     @Test
-    void adminFeedbackList_withoutToken_returns403() throws Exception {
-        // /admin/** 由 AdminTokenFilter 把关（fail-closed），无口令一律 403
+    void adminFeedbackList_withoutToken_returns401() throws Exception {
+        // /admin/** 由 AdminAuthFilter 把关（fail-closed），未带凭证一律 401
         mockMvc.perform(get("/admin/feedbacks"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401))
                 .andExpect(jsonPath("$.message").value(ADMIN_TOKEN_INVALID_MESSAGE));
     }
 
@@ -617,7 +648,7 @@ class SmokeApiTest {
         IPage<Feedback> emptyPage = new Page<>(1, 10);
         when(feedbackMapper.selectPage(any(), any())).thenReturn(emptyPage);
 
-        mockMvc.perform(get("/admin/feedbacks").header(ADMIN_TOKEN_HEADER, TEST_ADMIN_TOKEN))
+        mockMvc.perform(get("/admin/feedbacks").header(ADMIN_AUTH_HEADER, adminBearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.records").isArray())
@@ -632,22 +663,20 @@ class SmokeApiTest {
     }
 
     /**
-     * 防回归：{@code GET /admin/categories} 已无任何处理器。
-     * <p>
-     * 此前带正确口令返回 200/code=200（CategoryAdminController 在线）；品类全链（Controller /
-     * Service / Mapper / Entity + dish.categoryId + category 表）整体退役后，该路径必须失效。
+     * 防回归：{@code GET /admin/categories} 无任何处理器 —— 品类全链
+     * （Controller / Service / Mapper / Entity + dish.categoryId + category 表）整体退役后，该路径必须失效。
      * <p>
      * <b>状态码口径（实测校准，非 404）</b>：Spring 6.1 起未匹配到任何 {@code @RequestMapping}
      * 的路径（含 /admin/categories）会落到静态资源处理器并抛 {@code NoResourceFoundException}，
      * 由 {@link GlobalExceptionHandler#handleNoResourceFoundException} 统一转为
      * <b>HTTP 400 + body.code=400</b>（message「资源不存在」，见 GlobalExceptionHandler 既有 BE-110 口径，
      * 有意不采用 404）。故本用例断言「400 + code=400 + 资源不存在」，
-     * 且非 403「管理端口令无效」——正好证明请求已通过 AdminTokenFilter 口令校验、
+     * 且非 401「管理端登录已失效」—— 正好证明请求已通过 AdminAuthFilter token 校验、
      * 失败原因是「路径无处理器」（端点确已删除），回归时会直接失败。
      */
     @Test
     void adminCategories_removed_endpointGone_returns400() throws Exception {
-        mockMvc.perform(get("/admin/categories").header(ADMIN_TOKEN_HEADER, TEST_ADMIN_TOKEN))
+        mockMvc.perform(get("/admin/categories").header(ADMIN_AUTH_HEADER, adminBearer()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("资源不存在"));
@@ -672,6 +701,76 @@ class SmokeApiTest {
                 "保留端点 /admin/reviews/{id}/hidden 应在册；实际映射：" + patterns);
         Assertions.assertFalse(patterns.stream().anyMatch(p -> p.contains("sec-state")),
                 "sec-state 端点应已随列退役删除；实际映射：" + patterns);
+    }
+
+    // ==================== 管理端鉴权（TD-19 / TD-23 · P0-4）====================
+
+    /**
+     * 🔴 <b>登录端点白名单回归</b>：`POST /admin/auth/login` 必须能穿过 `AdminAuthFilter`。
+     *
+     * <p><b>存在理由</b>：该端点自身尚未持有 token，若过滤器照常校验则必 401 ⇒ 表现为
+     * 「登录永远失败」，整个管理端不可用。`SecurityConfig` 里的 `permitAll` 属于 Spring Security
+     * 授权层，<b>管不到</b>在它之前执行的 `AdminAuthFilter` —— 两处白名单缺一不可。
+     *
+     * <p>断言手法：比对响应 `message`。若被过滤器拦下，文案是「管理端登录已失效，请重新登录」；
+     * 只有真正走到 Controller，才会是登录失败的统一文案「账号或密码错误」。
+     */
+    @Test
+    void adminLogin_isWhitelistedFromAdminAuthFilter() throws Exception {
+        when(adminAccountService.findByUsername("ghost")).thenReturn(null);
+
+        mockMvc.perform(post("/admin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"ghost\",\"password\":\"whatever\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401))
+                .andExpect(jsonPath("$.message").value("账号或密码错误"));
+    }
+
+    /** 登录成功：200 + `token`/`username`/`expiresIn`（契约见 docs/api/web/auth.md） */
+    @Test
+    void adminLogin_successIssuesAdminJwt() throws Exception {
+        AdminAccount account = new AdminAccount();
+        account.setId(7L);
+        account.setUsername("kingdo404");
+        account.setPasswordHash(passwordEncoder.encode("S3cret-passw0rd"));
+        account.setStatus("on");
+        when(adminAccountService.findByUsername("kingdo404")).thenReturn(account);
+
+        mockMvc.perform(post("/admin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"kingdo404\",\"password\":\"S3cret-passw0rd\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.token").isNotEmpty())
+                .andExpect(jsonPath("$.data.username").value("kingdo404"))
+                .andExpect(jsonPath("$.data.expiresIn").value(3600))
+                .andExpect(jsonPath("$.data.password").doesNotExist());
+    }
+
+    /**
+     * `GET /admin/auth/me` 契约：只回 `username` + `lastLoginAt`，**不回 token / expiresIn**。
+     *
+     * <p>与登录用的 `AdminLoginVO`（多一个 `expiresIn`、少 `lastLoginAt`）刻意区分，
+     * 口径以契约真源 `docs/api/web/auth.md` 为准，本用例锁死。
+     */
+    @Test
+    void adminMe_returnsUsernameAndLastLoginAtPerContract() throws Exception {
+        AdminAccount account = new AdminAccount();
+        account.setId(7L);
+        account.setUsername("kingdo404");
+        account.setStatus("on");
+        account.setLastLoginAt(LocalDateTime.of(2026, 10, 5, 9, 30, 15));
+        when(adminAccountService.findById(7L)).thenReturn(account);
+
+        mockMvc.perform(get("/admin/auth/me")
+                        .header("Authorization", "Bearer " + adminJwtUtil.createToken(7L, "kingdo404")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.username").value("kingdo404"))
+                .andExpect(jsonPath("$.data.lastLoginAt").value("2026-10-05 09:30:15"))
+                .andExpect(jsonPath("$.data.token").doesNotExist())
+                .andExpect(jsonPath("$.data.expiresIn").doesNotExist());
     }
 
     // ==================== 辅助方法 ====================

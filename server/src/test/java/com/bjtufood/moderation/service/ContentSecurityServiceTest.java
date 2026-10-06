@@ -35,18 +35,14 @@ import static org.springframework.http.HttpMethod.POST;
  * 5. openid 为空（历史学号账号边界）跳过检测放行；
  * 6. 图片超 1MB 大小兜底。
  * <p>
- * 架构收口 P0-B（随包迁移 {@code content.security} → {@code moderation.service}）：
- * 本测试的<b>接线方式随之调整</b>——原先 appid/secret 与 stable_token 由被测服务自己持有
- * （{@code ReflectionTestUtils.setField(contentSecurityService, "appid", ...)}），
- * 现凭据已剥离到 {@link WechatAccessTokenProvider}，故测试改为：
+ * <b>接线方式</b>：凭据归 {@link WechatAccessTokenProvider}（审核服务不自持 appid/secret），故测试改为：
  * <ol>
  *   <li>先构造<b>真实的</b> {@link WechatAccessTokenProviderImpl}（绑定同一个 MockRestServiceServer
  *       的 RestTemplate，使 stable_token 请求仍可被断言）；</li>
  *   <li>appid/secret 注入到 tokenProvider 上（凭据归位）；</li>
  *   <li>再以 {@code new ContentSecurityServiceImpl(restTemplate, tokenProvider)} 构造被测服务。</li>
  * </ol>
- * 相比原先「把凭据塞进被测服务内部」，新接线额外覆盖了「审核服务经凭据提供方取 token」这一
- * 真实协作路径——而这正是本次收口修正的耦合点。
+ * 该接线覆盖「审核服务经凭据提供方取 token」这一真实协作路径。
  * <p>
  * 「未配置凭据」用例相应改为断言 {@code tokenProvider.isConfigured()}（凭据判据已归位到 wechat 域）。
  */

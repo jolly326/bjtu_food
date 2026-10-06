@@ -60,9 +60,13 @@ public final class DishViewDefs {
         return frozen;
     }
 
-    /** 物理大类视图：`mealType = <key>` 且热度倒序。 */
+    /**
+     * 物理大类视图：{@code mealType = <key>}。
+     * <p>
+     * 🔴 排序走 {@code random}：冷启动期让每道菜都有机会被看到，优于固定榜单。
+     */
     private static Def mealTypeView(String mealType) {
-        return new Def(mealType, List.of(mealTypeEq(mealType)), "heat");
+        return new Def(mealType, List.of(mealTypeEq(mealType)), "random");
     }
 
     private static DishViewCondition mealTypeEq(String value) {

@@ -23,7 +23,7 @@ export function listCorrections(
 /**
  * B4 单条详情 —— **按 `type` 分派**：
  * - `field`：含 `differences[]` 差异对照，供采纳抽屉逐项勾选
- * - `gone`：`differences`/`submitted` 恒空，只有 `note` + `images` + `goneUserCount`，处置**仅「下架」**
+ * - `gone`：`differences` 恒空，只有 `note` + `images` + `goneUserCount`，处置**仅「下架」**
  */
 export function getCorrection(id: number): Promise<CorrectionDetailVO> {
   return get<CorrectionDetailVO>(`/admin/corrections/${id}`)

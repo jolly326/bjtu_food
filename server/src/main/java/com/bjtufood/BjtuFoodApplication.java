@@ -36,7 +36,7 @@ import java.util.Arrays;
  * <p>
  * <b>为何显式列举而非 {@code @ConfigurationPropertiesScan}</b>：实测在本项目的切片测试下
  * （{@code SmokeApiTest} 用 {@code @ContextConfiguration} <b>取代</b>主配置来屏蔽全量扫描），
- * 扫描式注册不会生效，而被 {@code @Import} 进切片的 {@code JwtUtil} / {@code AdminTokenFilter}
+ * 扫描式注册不会生效，而被 {@code @Import} 进切片的 {@code JwtUtil} / {@code AdminAuthFilter}
  * 仍需这两个 Bean → 上下文加载失败（25 个用例全红）。显式列举则可由各测试上下文
  * 自行声明所需配置类，行为确定、不依赖扫描。
  * 未来新增配置类时，请在<b>此处与相关测试上下文</b>同步登记（这是显式注册的唯一代价）。

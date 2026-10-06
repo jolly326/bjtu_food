@@ -23,10 +23,15 @@ public interface ReviewMapper extends BaseMapper<Review> {
      * 按菜品查询评价列表（公开列表；时间倒序、可见性过滤）。
      * <p>
      * 可见性规则：唯一判据 is_hidden=0。
-     * 排序唯一为 created_at DESC。
+     * 排序唯一为 created_at DESC（🔴 覆盖提交不刷新 created_at ⇒ 评价位置固定）。
      * 公开出参不含 dishId / dishName / isHidden（三者仅在「我的评价」返回），故本查询不选这三列。
+     *
+     * @param rating 按星级筛选（1~5）；{@code null} = 不过滤。🔴 **筛选参与分页**
+     *               （{@code WHERE} 在 {@code LIMIT/OFFSET} 之前生效）⇒ 端上切筛选必须重置 page=1。
      */
-    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page, @Param("dishId") Long dishId);
+    IPage<ReviewVO> selectReviewPageByDishId(Page<?> page,
+                                           @Param("dishId") Long dishId,
+                                           @Param("rating") Integer rating);
 
     /**
      * 按用户查询「我的评价」列表（本人视角）。

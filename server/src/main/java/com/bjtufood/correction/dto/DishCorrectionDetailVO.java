@@ -14,7 +14,7 @@ import java.util.Map;
  * 列表**不展开各项内容**（那是详情的事）：列表给「改了几项 + 是否涉及楼层」，点进详情看对照。
  */
 @Data
-@Schema(description = "菜品纠错详情（含差异对照）")
+@Schema(description = "菜品问题反馈详情（含差异对照）")
 public class DishCorrectionDetailVO {
 
     @Schema(description = "反馈ID")
@@ -35,6 +35,14 @@ public class DishCorrectionDetailVO {
 
     @Schema(description = "目标菜品名（实时回查 dish；菜品已物理删除为 null）")
     private String dishName;
+
+    /**
+     * 目标菜品**当前**上下架状态（{@code on} / {@code off}），实时回查。
+     * <p>
+     * 供管理端在处置前判断菜品是否已在售 / 已下架；菜品已物理删除时为 null。
+     */
+    @Schema(description = "目标菜品当前上下架状态（on/off；菜品已物理删除为 null）", example = "on")
+    private String dishStatus;
 
     @Schema(description = "提交人用户ID（匿名提交为 0）")
     private Long userId;
@@ -69,10 +77,6 @@ public class DishCorrectionDetailVO {
      */
     @Schema(description = "差异对照清单（仅仍有差异的项）")
     private List<DishCorrectionDifferenceVO> differences;
-
-    /** 用户提交的原始快照（仅改动项）—— 供「已同步 / 已被改回」等场景回看。 */
-    @Schema(description = "用户提交的原始快照（仅改动项：name/price/canteenName/stallName/floor/attributes/images）")
-    private Map<String, Object> submitted;
 
     @Schema(description = "提交的菜品图片 URL 列表（COS 绝对地址）")
     private List<String> images;

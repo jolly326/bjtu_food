@@ -34,8 +34,8 @@ import static org.mockito.Mockito.when;
 /**
  * {@link VerifyCodePersister} 单元测试（D1）。
  * <p>
- * 本类是 {@code verifyEmail} 事务边界收窄的落点：原先「逐条 BCrypt 定位验证码」（最坏约 2 秒）
- * 与「跨域归属迁移」同处一个事务，现拆成两个事务方法。拆分后必须锁住的行为：
+ * 本类是 {@code verifyEmail} 事务边界收窄的落点：「逐条 BCrypt 定位验证码」（最坏约 2 秒）
+ * 与「跨域归属迁移」分属两个事务方法。拆分后必须锁住的行为：
  * <ul>
  *   <li><b>验证码原子消费</b>：{@code UPDATE ... WHERE used_at IS NULL} 影响行数必须为 1 才算消费成功，
  *       否则视为被并发抢先、继续试下一条。这是防止同一验证码被用两次的唯一防线；</li>

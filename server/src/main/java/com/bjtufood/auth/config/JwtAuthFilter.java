@@ -56,7 +56,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
      */
     private final CorsProperties corsProperties;
 
-    /** 统一错误响应出口用的 ObjectMapper（与 AdminTokenFilter / SecurityConfig 同口径） */
+    /** 统一错误响应出口用的 ObjectMapper（与 AdminAuthFilter / SecurityConfig 同口径） */
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /** 请求头中 Token 的前缀 */
@@ -97,10 +97,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // 2. 校验并解析 Token（单次解析，避免重复验签）
             Claims claims = jwtUtil.parseAndValidate(token);
             if (claims != null) {
-                // 3. 解析用户信息（复用本次解析结果；role claim 已随 user.role 列退役移除）
+                // 3. 解析用户信息（复用本次解析结果；role 不再下发，user.role 列已移除）
                 Long userId = claims.get("userId", Long.class);
 
-                // 用户维度失效校验：管理员禁用/删除账号后，该用户此前签发的所有 token 立即失效
+                // 用户维度失效校验：账号被禁用 / 注销后，其所有已签发 token 立即失效
                 // （管理端拿不到对方 token，只能按 userId 拉黑，故此处补一次判定）
                 // 消息涵盖禁用与注销两种来源：本人注销时也会按 userId 兜底拉黑其余设备的旧 token（AuthService.deleteAccount）
                 if (userId != null && tokenBlacklist.isUserRevoked(userId)) {
@@ -162,7 +162,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 统一的错误响应写出（与 {@code AdminTokenFilter} / {@code SecurityConfig} 同口径）。
+     * 统一的错误响应写出（与 {@code AdminAuthFilter} / {@code SecurityConfig} 同口径）。
      * <p>
      * 不再手写 JSON 字符串：本类曾重复三份同样结构的响应块，契约字段（code / message / data）
      * 一改就要改三处，漏一处即与全局响应壳不一致。

@@ -20,7 +20,12 @@ export interface AdminPage<T> {
 
 // ===== 业务状态码 =====
 export const CODE_OK = 200
-/** 会话失效（口令不匹配 / 账号受限）—— 页面渲染第 ⑥ 态且不渲染重试 */
+/**
+ * **401 = 会话失效**（未带 token / 签名无效 / 已过期 / 账号已停用，或登录失败）——
+ * 由**请求层统一**处理：清 token → 跳登录页，页面不渲染列表态（[UI 基线 §1.5 ⑥](../../../docs/ui/web/公共组件与形态基线.md)）。
+ */
+export const CODE_UNAUTHORIZED = 401
+/** **403 = 已认证但无权限**（预留：当前无角色区分，实际不会出现）—— 按普通业务错误抛出 */
 export const CODE_FORBIDDEN = 403
 
 // ===== 通用状态枚举（文案以 设计变量.md 的「状态文案总表」为准） =====
@@ -130,6 +135,13 @@ export interface DishAdminListItemVO {
   avgRating: number | null
   /** 评价数（删除确认的影响面来源） */
   ratingCount: number
+  /**
+   * 近 30 天浏览量（`dish_view_log` 滚动窗口统计）。
+   *
+   * 🔴 **不是**历史累计的 `dish.view_count`（该列已停写）：一个是 30 天窗口值（会随时间回落），
+   * 一个是单调累计值。运营用途 = 看出「哪道菜多人看但没评价」⇒ 判断是否引导其产出评价。
+   */
+  recentViewCount?: number
   updatedAt: string
 }
 
@@ -389,7 +401,7 @@ export interface CorrectionAdminVO {
 export interface CorrectionDetailVO {
   id: number
   /**
-   * 问题类型：`field` → 展示 `differences` 逐项采纳；`gone` → `differences`/`submitted` 恒空，
+   * 问题类型：`field` → 展示 `differences` 逐项采纳；`gone` → `differences` 恒空，
    * 处置动作**仅「下架」**（🔴 本流程不提供删除）。
    */
   type: CorrectionType
