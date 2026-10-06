@@ -18,11 +18,11 @@ public interface CorrectionService {
      * <p>
      * **局部提交（patch）**：只落库用户改动的字段（name / price / canteenName / stallName /
      * floor / attributes / images），未改动列留 NULL（采纳时不覆盖既有值）；**空请求体 → 400「未提交任何改动」**
-     * ——仅改楼层（如 1F → 2F）同样算「有改动」，不得被该判据拦下。
+     * ——仅改楼层（如「一层」→「二层」）同样算「有改动」，不得被该判据拦下。
      * 校验：菜品须存在且上架（否则 4001）；name 传入时非空 ≤64 字且敏感词命中即 400
      * （写回字段不放行替换版）；price 传入时为 &gt;0 的整数（分）；canteenName/stallName 传入时非空 ≤64 字；
-     * floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」，
-     * 上限与 {@code stall.floor VARCHAR(16)} 对齐）；
+     * floor 传入时非空、须命中楼层受控字典（值即汉字）、≤16 字（空白 → 400「楼层不能为空」，
+     * 字典外 → 400，超长 → 400「楼层超长」，上限与 {@code stall.floor VARCHAR(16)} 对齐）；
      * images ≤3 张且逐项 COS 白名单校验（安检转存发生在上传时）。
      *
      * @param userId 提交人用户ID（游客为 null）
@@ -52,15 +52,6 @@ public interface CorrectionService {
      * @param dishId 按目标菜品筛选（可空；从菜品视角看反馈）
      */
     IPage<DishCorrectionAdminVO> listForAdmin(String status, String type, Long dishId, int page, int pageSize);
-
-    /**
-     * 待处理的「已经下架」反馈数（管理端「疑似下架」参考值）。
-     * <p>
-     * ⚠️ <b>仅作参考展示，不是下架阈值</b> —— ≥1 条即进待办，是否下架由管理员人工决定。
-     *
-     * @return {@code type=gone} 且 {@code status=pending} 的条数
-     */
-    long countPendingGone();
 
     /**
      * 待办计数（运营看板）：status=pending 的总数。

@@ -10,7 +10,7 @@ import com.bjtufood.auth.entity.User;
  * 认证服务接口（微信登录体系）
  * <p>
  * 小程序端无账号密码：微信静默登录（wechat-login）→ 游客态（bind_email 为 NULL）；
- * 邮箱验证码认证（verify-email）解锁 UGC 写操作。管理端无登录体系（/admin/** 由 AdminTokenFilter 口令校验，方案 C 已作废）。
+ * 邮箱验证码认证（verify-email）解锁 UGC 写操作。管理端为**独立管理员账号 + 账密登录（JWT）**，见 [C1]。
  */
 public interface AuthService {
 
@@ -28,7 +28,7 @@ public interface AuthService {
      * <p>
      * 后端 code2Session 换 openid → 按 user.openid 取号：
      * 存在则返回原账号；不存在则自动建号（游客态 = bind_email 为 NULL）。
-     * （user.unionid 已随列退役，零消费删除，不再回写/补全。）
+     * （unionid 已不在表中，不再回写/补全。）
      *
      * @param code 微信 wx.login 临时凭证
      * @return LoginVO{token, userInfo}

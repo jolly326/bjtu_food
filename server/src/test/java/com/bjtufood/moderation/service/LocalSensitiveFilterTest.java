@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
  * 这比没有这个类更危险，因为它让「已做本地兜底」这一安全假设悄悄失效。
  * <p>
  * 故本测试不只测算法，更测<b>启动契约</b>：词库必须存在、且有足够覆盖度，
- * 否则应用<b>拒绝启动</b>（init() 已于改为 fail-fast）。
+ * 否则应用<b>拒绝启动</b>（init() 为 fail-fast）。
  */
 class LocalSensitiveFilterTest {
 
@@ -43,7 +43,7 @@ class LocalSensitiveFilterTest {
         try (InputStream in = LocalSensitiveFilter.class.getResourceAsStream("/sensitive_words.txt")) {
             assertThat(in)
                     .as("server/src/main/resources/sensitive_words.txt 缺失——"
-                            + "本地敏感词过滤将整体失效（游客 UGC 与菜品纠错的唯一兜底），"
+                            + "本地敏感词过滤将整体失效（游客 UGC 与菜品问题反馈的唯一兜底），"
                             + "init() 会在启动期直接抛 IllegalStateException")
                     .isNotNull();
         } catch (Exception e) {
@@ -85,7 +85,7 @@ class LocalSensitiveFilterTest {
                     .filter(line -> !line.isEmpty() && !line.startsWith("#"))
                     .count();
             assertThat(effective)
-                    .as("有效词条过少——本地过滤是游客 UGC 与菜品纠错的唯一兜底，"
+                    .as("有效词条过少——本地过滤是游客 UGC 与菜品问题反馈的唯一兜底，"
                             + "词表过小等同形同虚设（历史上曾仅 6 条）")
                     .isGreaterThanOrEqualTo(100L);
         } catch (Exception e) {

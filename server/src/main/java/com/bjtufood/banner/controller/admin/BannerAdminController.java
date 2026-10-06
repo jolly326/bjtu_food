@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * A5 首页 Banner 管理（管理端）。
  *
- * <p>契约真源：docs/api/web/banners.md。归属 `/admin/**` ⇒ 由 `AdminTokenFilter`
+ * <p>契约真源：docs/api/web/banners.md。归属 `/admin/**` ⇒ 由 `AdminAuthFilter`
  * 统一以口令 `X-Admin-Token` 守卫。
  *
  * <p>公开只读端点（`GET /banners`）仍在 {@code banner/controller/BannerController}，

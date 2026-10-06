@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 /**
  * 举报原因字典实体（A7 落地，2026-10-03）。
  * <p>
- * 对应表 `report_reason` —— 举报弹层「原因」单选的**可维护字典**（原为代码常量 `FeedbackConst.REPORT_REASONS`）。
+ * 对应表 `report_reason` —— 举报弹层「原因」单选的**可维护字典**。
  * <ul>
  *   <li>{@code value}：机器值，**数据锚点**（历史举报按它落库到 `user_feedback.sub`）⇒ **在用后不可改**；</li>
  *   <li>{@code label}：中文标签，**改名免费**（历史举报的中文翻译随表实时生效）；</li>

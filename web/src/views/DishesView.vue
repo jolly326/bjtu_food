@@ -4,7 +4,7 @@
  *
  * <p>要点：分页（页码 + 共 N 条）+ 六态；编辑载体 = **抽屉**（含图片与动态属性子表单 ⇒ 基线 §1.10 判据）；
  * 状态列 **`kind="dish"`**（在售 / 已下架）；上下架走独立端点且**显式传目标状态**；
- * 归属只认 `stallId`（实体下拉，按名 upsert 已退役）；属性值**可直接填写中文**（未命中由服务端登记并替换为 ID）。
+ * 归属只认 `stallId`（实体下拉，按名 upsert 已移除）；属性值**可直接填写中文**（未命中由服务端登记并替换为 ID）。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -378,6 +378,7 @@ onMounted(async () => {
             <th>分类</th>
             <th>状态</th>
             <th>评分</th>
+            <th title="近 30 天浏览量（滚动窗口统计，非历史累计）">近 30 天浏览</th>
             <th class="actions">操作</th>
           </tr>
         </thead>
@@ -396,6 +397,10 @@ onMounted(async () => {
             <td class="num">
               {{ row.avgRating ?? '—' }}
               <span v-if="row.ratingCount" class="muted">（{{ row.ratingCount }}）</span>
+            </td>
+            <td class="num">
+              <!-- 无浏览记录时后端补 0（非「—」）⇒ 显式区分「0 次」与「无数据」 -->
+              {{ row.recentViewCount ?? 0 }}
             </td>
             <td class="actions">
               <button class="link" type="button" @click="openEdit(row)">编辑</button>

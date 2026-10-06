@@ -10,7 +10,7 @@ import java.util.List;
  * 评价视图对象（管理端专用 VO）
  * <p>
  * 管理端独有语义字段为 {@code hidden}（是否被隐藏，仅管理端可见/可改）。
- * 内容安全态 {@code secState} 已随「取消人工复核」全链退役，不再返回。
+ * 内容安全态 {@code secState} 已取消人工复核，不再返回。
  */
 @Data
 @Schema(description = "评价展示信息（管理端专用，含审核标记）")

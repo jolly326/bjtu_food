@@ -125,10 +125,11 @@ class DishViewConditionsTest {
     }
 
     @Test
-    @DisplayName("排序口径白名单：7 项齐全（含 priceAsc / ratingDesc / newest）")
+    @DisplayName("排序口径白名单：6 项齐全（🔴 无 heat —— 2026-10-05 热度算法全量下线）")
     void sortKindWhitelist_isComplete() {
         assertThat(DishViewConditions.SORT_KINDS)
-                .containsExactlyInAnyOrder("heat", "priceAsc", "priceDesc", "discountDesc",
-                        "ratingDesc", "newest", "random");
+                .containsExactlyInAnyOrder("priceAsc", "priceDesc", "discountDesc",
+                        "ratingDesc", "newest", "random")
+                .doesNotContain("heat");
     }
 }

@@ -198,7 +198,7 @@ async function onSubmit() {
 .rc-field { display: flex; align-items: center; justify-content: space-between; padding: var(--spacing-sm) 0; }
 .rc-stars { display: flex; align-items: center; }
 /* 单星命中区 ≥88rpx：56rpx 图标 + 上下/side --spacing-sm(16rpx) 内边距 = 88×88rpx（视觉尺寸不变） */
-.rc-star { padding: var(--spacing-sm); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.rc-star { padding: var(--spacing-sm); transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .rc-star:active { opacity: 0.6; }
 .rc-star-tip { font-size: var(--font-small); color: var(--text-tertiary); }
 

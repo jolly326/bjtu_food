@@ -26,8 +26,8 @@ function toDishListItem(raw: DishListItemVO): DishListItem {
     // 原价（分→元）：空值不产出字段；是否折扣由展示层按 originalPrice > price 判定
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : null,
     coverImage: raw.coverImage || '',
-    // 零评价 → null（消费方据此不渲染评分区）
-    rating: raw.avgRating != null && raw.avgRating !== ('' as unknown) ? Number(raw.avgRating) : null,
+    // 🔴 零评价：服务端已兜底为 5.0（不返回 null）⇒ 端上只做数值兜底，不判「有无评分」
+    rating: Number(raw.avgRating ?? 0),
     canteen: raw.canteenName || '',
     stallName: raw.stallName || '',
   }
@@ -56,8 +56,8 @@ function toDishDetail(raw: DishDetailVO): DishDetail {
     originalPrice: raw.originalPrice != null ? fenToYuan(raw.originalPrice) : null,
     description: raw.description || '',
     images: normalizeImages(raw.images),
-    // 零评价 → null（消费方据此呈现「暂无评分」）
-    rating: raw.avgRating != null && raw.avgRating !== ('' as unknown) ? Number(raw.avgRating) : null,
+    // 🔴 零评价：服务端已兜底为 5.0（不返回 null）⇒ 端上只做数值兜底，不判「有无评分」
+    rating: Number(raw.avgRating ?? 0),
     canteen: raw.canteenName || '',
     stallName: raw.stallName || '',
     floor: raw.floor || '',

@@ -181,7 +181,7 @@ function onMore() {
   transition: opacity var(--duration-fast) var(--ease-out);
 }
 /* 扁平模式：嵌套在评价卡片内（菜品详情），去独立卡样式，只保留条目结构。
-   **去掉条目分割线**（原 border-bottom）与上下内边距 —— 条目之间由上层列表容器的
+   **去掉条目分割线**与上下内边距 —— 条目之间由上层列表容器的
    `--spacing-lg` **纯留白**分隔（用户口径「不加分割线」）。 */
 .review-item--flat {
   background: transparent;
@@ -284,7 +284,7 @@ function onMore() {
   width: 64rpx;
   height: 64rpx;
   flex-shrink: 0;
-  transition: opacity var(--duration-fast) ease;
+  transition: opacity var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .review-more::after {

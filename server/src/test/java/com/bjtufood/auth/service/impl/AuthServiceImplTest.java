@@ -191,9 +191,8 @@ class AuthServiceImplTest {
         // 被当成「已被并发消费」而继续循环 → 最终误报「验证码错误」，错误信息完全指错方向。
         // 用无参 any()（而非 any(Wrapper.class)）以免引入原始类型与 unchecked 警告。
         when(codeMapper.update(any())).thenReturn(1);
-        // D1：不再需要显式桩 getByBindEmail / getByEmail —— 认证写入已移入 VerifyCodePersister
-        // 且直接用 userMapper.selectOne 查重账号，Mockito 未打桩时默认返回 null（即「无历史账号冲突」），
-        // 与原先显式 return null 的语义一致。
+        // 认证写入归 VerifyCodePersister，本测试不桩 getByBindEmail / getByEmail ——
+        // Mockito 未打桩时 userMapper.selectOne 默认返回 null（即「无历史账号冲突」）。
         svc.verifyEmail("123456", 1L);
 
         assertThat(guard.isLocked(1L)).isFalse();

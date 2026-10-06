@@ -5,11 +5,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * 本地图片存储配置（类型化绑定，<b>单一真源</b>）。
  * <p>
- * <b>为什么要有这个类</b>：{@code upload.path} / {@code upload.url-prefix} 此前被
+ * <b>为什么要有这个类</b>：{@code upload.path} / {@code upload.url-prefix} 由
  * {@code WebMvcConfig}（映射 {@code /images/**} → 本地目录）与 {@code UploadServiceImpl}
- * （落盘目录 + 返回 URL 前缀）<b>各自 {@code @Value} 绑定一次，连默认值字面也各写一份</b>。
- * 也就是说「同一个目录」有两处真源：改一处忘另一处，图片就会「存得进去、访问不到」
- * （或者反过来），且现象只在真机上传后才暴露。现收敛为一份配置。
+ * （落盘目录 + 返回 URL 前缀）**共用** —— 若两处各自 {@code @Value} 绑定、连默认值字面也各写一份，
+ * 「同一个目录」就有两处真源：改一处忘另一处，图片就会「存得进去、访问不到」（或反之），
+ * 且现象只在真机上传后才暴露。
  * <p>
  * 与仓内「架构收口 P2：{@code @Value} → 类型化 Properties」的既定方向一致。
  */
@@ -25,8 +25,7 @@ public class UploadProperties {
     /**
      * 静态资源处理器 pattern：{@code /images} → {@code /images/**}；已显式带 {@code /**} 则原样返回。
      * <p>
-     * 收敛进来的理由同上：此前该拼装逻辑内联在 {@code WebMvcConfig} 里，
-     * 属于「前缀的第二种写法」，容易与上传侧返回的 URL 前缀不一致。
+     * 收敛进来的理由同上：拼装逻辑只此一处，避免与上传侧返回的 URL 前缀出现「第二种写法」。
      */
     public String resourcePattern() {
         return urlPrefix.endsWith("/**") ? urlPrefix : urlPrefix + "/**";

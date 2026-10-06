@@ -149,6 +149,8 @@ export function useDishPage() {
     reviewList: reviewCore.reviewList,
     reviewFailed: reviewCore.reviewFailed,
     reviewPending: reviewCore.reviewPending,
+    reviewRatingFilter: reviewCore.reviewRatingFilter,
+    onFilterRating: reviewCore.onFilterRating,
     detailFailed,
     detailNotFound,
     missingDishId,

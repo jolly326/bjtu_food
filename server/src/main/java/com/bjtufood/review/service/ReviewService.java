@@ -32,13 +32,15 @@ public interface ReviewService {
      * 获取菜品评价列表
      * <p>
      * 只返回 is_hidden=0 的评价；排序唯一为发表时间倒序（created_at DESC），不提供排序参数。
+     * 支持**按星级筛选**（1~5；不传 = 全部），为**服务端过滤**且参与分页。
      *
      * @param dishId   菜品ID
      * @param page     页码
      * @param pageSize 每页条数
+     * @param rating   按星级筛选（1~5）；{@code null} = 不过滤
      * @return 分页评价列表
      */
-    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize);
+    IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, Integer rating);
 
     /**
      * 获取当前用户的评价列表（我的评价）
@@ -92,7 +94,7 @@ public interface ReviewService {
      *
      * @param page     页码
      * @param pageSize 每页条数
-     * @param hidden   是否隐藏（**boolean**；不传 = 全部。B1 口径：原 `isHidden`(0/1) 已改为布尔）
+     * @param hidden   是否隐藏（**boolean**；不传 = 全部）
      * @param dishId   按菜品筛选（可选；从菜品视角看评价）
      * @param userId   提交用户ID（可选）
      * @param keyword  评价正文关键词（可选，模糊匹配）
@@ -157,8 +159,7 @@ public interface ReviewService {
      * 级联清理某菜品的全部评价（BE-108）。
      * <p>
      * 调用方 = {@code review.event.ReviewDishCascadeListener}（订阅 dish 域发布的
-     * {@code DishDeletedEvent}）。原先由 {@code DishServiceImpl} 直接注入 ReviewMapper 硬删，
-     * 属跨域写他域表；改为事件后 dish 域不再持有 review 的表知识。
+     * {@code DishDeletedEvent}）—— 事件化后 dish 域**不持有** review 的表知识。
      *
      * @param dishId 菜品ID
      * @return 删除条数（供日志）
@@ -170,8 +171,8 @@ public interface ReviewService {
      * <p>
      * 调用方 = {@code review.event.ReviewOwnershipListener}（订阅 auth 域发布的
      * {@code UserOwnershipMigratedEvent}）。唯一键 {@code uk_review_user_dish} 要求
-     * <b>先删冲突行（to 已评价过的同菜品，保留 to 的记录）再改归属</b>，该顺序知识属 review 域，
-     * 故原先散落在 auth 侧的两条 UPDATE 一并收敛到此。
+     * <b>先删冲突行（to 已评价过的同菜品，保留 to 的记录）再改归属</b> —— 该顺序知识属 review 域，
+     * 故两条 UPDATE 均在本域内执行。
      *
      * @param fromUserId 迁出账号ID
      * @param toUserId   迁入账号ID

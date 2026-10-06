@@ -1,5 +1,5 @@
 /**
- * 菜品纠错表单「下划线字段行」共享样式（correction 包内私有，不对外）。
+ * 菜品问题反馈表单「下划线字段行」共享样式（correction 包内私有，不对外）。
  *
  * 背景：`CorrectionForm` 的 `.row-field` 与 `AttributePickerSheet` 的 `.aps-search-box` /
  * `.aps-custom-box` **三处逐字重复**同一套「透明底 + 仅底部细线」的输入行语言，故归口至此。

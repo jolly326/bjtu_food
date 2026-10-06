@@ -45,7 +45,7 @@ public class DishListItemVO {
     private List<String> imageUrls;
 
     /** 封面图（绝对 URL；无图为空串）——列表只渲染首图 */
-    @Schema(description = "封面图URL（原 images[0]，无图为空串）")
+    @Schema(description = "封面图URL（取 images[0]，无图为空串）")
     private String coverImage;
 
     /** 现价（分），唯一价格数据源；前端自行转换显示为元 */
@@ -56,7 +56,13 @@ public class DishListItemVO {
     @Schema(description = "原价（分，可空）", example = "1500")
     private Integer originalPrice;
 
-    @Schema(description = "平均评分", example = "4.5")
+    /**
+     * 平均评分（卡片评分）。🔴 **零评价时下发 {@code 5.0} 兜底**（不返回 null）——
+     * 冷启动阶段大量菜品零评价，缺失值会让卡片评分位空缺；口径见 docs/api/client/dishes.md「零评价展示口径」。
+     * <p>
+     * 兜底只在出参层：库内 {@code dish.avg_rating} 仍为 NULL，排序按 {@code COALESCE(avg_rating,0)} 计 0 分。
+     */
+    @Schema(description = "平均评分（零评价下发 5.0 兜底）", example = "4.5")
     private BigDecimal avgRating;
 
     @Schema(description = "食堂名称", example = "第一食堂")

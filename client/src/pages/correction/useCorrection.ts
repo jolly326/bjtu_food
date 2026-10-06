@@ -1,33 +1,11 @@
 ﻿/**
- * 楼层固定字典（R40 · UI 稿「楼层控件」）：**存储值 ↔ 展示汉字**双向映射，端上常量。
+ * 楼层受控字典（UI 稿「楼层控件」）：**值即汉字**，端上常量。
  *
- * ⚠️ **只存在于端上**：后端 `floor` 契约（string、非空、≤16）与落库值（`B1` / `1F` …）**全部不变**，
- *   汉字**仅是展示层**产物，**永不进入提交路径**（采纳后 `stall.floor` 仍存 `B1`/`1F` 而非汉字）。
- * ⚠️ 管理端 `stall.floor` 仍是自由文本（≤16 字），故详情值**可能不在字典内** —— 见 `floorDisplay` 的兜底。
+ * 真源见 `docs/schema/stall.md`（`负一层` / `一层` / `二层` / `三层` / `四层`）：
+ * **存储值 = 显示值** ⇒ 端上**零映射、零兜底**（字典外值不存在 —— 新增楼层免迁移，
+ * 删除 / 改名须先把该楼层的档口迁到其它楼层再改字典）。
  */
-export const FLOOR_OPTIONS: readonly { value: string; label: string }[] = [
-  { value: 'B1', label: '负一层' },
-  { value: '1F', label: '一层' },
-  { value: '2F', label: '二层' },
-  { value: '3F', label: '三层' },
-  { value: '4F', label: '四层' },
-]
-
-/**
- * 存储值 → 展示文案（R40）。
- * - 命中字典 ⇒ 汉字（如 `B1` → 「负一层」），由 `FloorPickerSheet` 高亮对应行；
- * - **非空但未命中**（如 `B2` / `5F`）⇒ **原值原样展示**，第二返回值 `false` 供表单挂「不在预设范围」提示
- *   （**不因无法映射而清空或报错**：原值随 `form.floor` 保留，未动即无 diff）；
- * - 空串 ⇒ 占位「请选择楼层」（必填校验不放行，错误小字由表单层呈现）。
- *
- * @returns `[展示文案, 是否命中字典]`
- */
-export function floorDisplay(raw: string): [string, boolean] {
-  const v = (raw ?? '').trim()
-  if (!v) return ['请选择楼层', false]
-  const hit = FLOOR_OPTIONS.find((o) => o.value === v)
-  return hit ? [hit.label, true] : [v, false]
-}
+export const FLOOR_OPTIONS: readonly string[] = ['负一层', '一层', '二层', '三层', '四层']
 
 /**
  * useCorrection —— 菜品问题反馈页（pages/correction/index.vue）编排逻辑
@@ -135,20 +113,19 @@ export function useCorrection() {
   const loadFailed = ref(false)
   /** 锚定卡展示：菜品名（只读） */
   const dishName = ref('')
-  /** 锚定卡展示：「食堂 · 楼层 · 档口」（三段，楼层段走 `floorDisplay` 映射） */
+  /** 锚定卡展示：「食堂 · 楼层 · 档口」（三段；楼层段原样展示 `floor` 汉字） */
   const dishLocation = ref('')
 
   /**
    * 金额口径：`price` 为**元字符串**（input 展示/编辑），提交时经 `yuanToFen` 转分（金额红线）。
    * 食堂名 / 档口名：自由文本（预填详情值，可改）。
-   * 楼层（R40）：**恒存后端存储值**（`B1` / `1F` …），汉字只在展示层由 `floorDisplay` 映射 ——
-   * 故 diff 比对 / 必填校验 / 提交组装三处**均无需感知映射**，未命中字典的原值也原样保留（不产生 diff）。
+   * 楼层：**值即汉字**（受控字典项原样存放）—— diff 比对 / 必填校验 / 提交组装三处**均无需感知映射**。
    */
   const form = reactive<CorrectionFormModel>({
     name: '',
     price: '',
     canteenName: '',
-    /** 楼层（契约已增补 `floor`；归属档口，仅楼层改动也属有效改动） */
+    /** 楼层（契约 `DishCorrectionReq.floor`；值即汉字、归属档口，仅楼层改动也属有效改动） */
     floor: '',
     stallName: '',
     /** 图片（预填菜品图，可增删，≤3 张） */
@@ -188,11 +165,10 @@ export function useCorrection() {
         listDishEditAttributes(id).catch(() => []),
       ])
       dishName.value = detail.name
-      // 锚定卡楼层段**同步走字典映射**（R40）：与下方楼层单元格同为汉字，避免同页一处汉字一处 `B1`；
-      // 未命中字典时 `floorDisplay` 原样返回存储值，锚定卡照实显示（不做二次加工）。
+      // 锚定卡楼层段**原样展示 `floor`**（值即汉字）—— 与下方楼层单元格同为「值即显示值」，全链零映射。
       dishLocation.value = joinLocation(
         detail.canteen,
-        floorDisplay(detail.floor || '')[0],
+        detail.floor || '',
         detail.stallName,
       )
 

@@ -57,15 +57,18 @@ public class DishDetailVO {
     @Schema(description = "食堂名称", example = "第一食堂")
     private String canteenName;
 
-    /** 档口楼层（如 1F/2F），来自 stall 联表 */
-    @Schema(description = "档口楼层（如 1F/2F）", example = "1F")
+    /** 档口楼层（值即汉字，如「二层」），来自 stall 联表 */
+    @Schema(description = "档口楼层（值即汉字，如「二层」）", example = "二层")
     private String floor;
 
     /**
-     * 平均评分：<b>读缓存列 {@code dish.avg_rating}</b>（口径 = 仅未隐藏评价，由评价写操作异步重算）；
-     * 该菜品零评价时为 {@code null}——端上以本字段是否 null 判「有无评分」。
+     * 均分。🔴 **零评价时下发 {@code 5.0}（不返回 null）** —— 冷启动阶段大量菜品零评价，
+     * 缺失值会让卡片/详情评分位空缺；口径见 docs/api/client/dishes.md「零评价展示口径」。
+     * <p>
+     * 值来自缓存列 {@code dish.avg_rating}（口径 = 仅未隐藏评价，由评价写操作异步重算）；
+     * 兜底只在出参层：库内零评价仍为 NULL，排序按 {@code COALESCE(avg_rating,0)} 计 0 分。
      */
-    @Schema(description = "平均评分（读缓存列 dish.avg_rating；零评价为 null）", example = "4.5")
+    @Schema(description = "平均评分（读缓存列 dish.avg_rating；零评价下发 5.0 兜底）", example = "4.5")
     private BigDecimal avgRating;
 
     /** 该菜品实际拥有的描述属性（值即中文），按维度展示顺序排列 */

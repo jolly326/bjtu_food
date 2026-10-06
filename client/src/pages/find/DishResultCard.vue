@@ -57,9 +57,9 @@
       </view>
 
       <!-- ③ 底行：左 = 评分（★ + 数字，与价格同字号）；右 = 价格（主色带 ¥，仅 originalPrice > price 追加划线原价）。
-           无评分时评分组不渲染，价格仍靠右（price-group margin-left:auto）。 -->
+           🔴 零评价时服务端已兜底 `5.0` ⇒ 评分组**恒渲染**，不再有「无评分不渲染」分支。 -->
       <view class="meta-row">
-        <view v-if="item.rating != null" class="rating-group">
+        <view class="rating-group">
           <!-- 星色 = 独立语义色（黄），不随主色换肤；必须传实色（data-uri 不解析 var()） -->
           <IconSvg name="star-filled" :size="36" :color="COLOR_MAP['star']" class="rating-star" />
           <text class="rating-num">{{ formatRating(item.rating) }}</text>
@@ -118,8 +118,8 @@ function splitHighlight(text: string): { text: string; hit: boolean }[] {
   return segs
 }
 
-/** 菜名 / 位置行的命中拆段结果：原为**模板内调用** —— 每次渲染都重跑拆段与
-    `toLowerCase`；改 `computed` 缓存，仅在 `item` / `keyword` 变化时重算（行以 item 为 key 稳定复用）。 */
+/** 菜名 / 位置行的命中拆段结果：用 `computed` 缓存，仅在 `item` / `keyword` 变化时重算
+    （行以 item 为 key 稳定复用）—— 避免每次渲染重跑拆段与 `toLowerCase`。 */
 const nameSegs = computed(() => splitHighlight(props.item.name))
 const subSegs = computed(() => splitHighlight(props.item.sub || ''))
 

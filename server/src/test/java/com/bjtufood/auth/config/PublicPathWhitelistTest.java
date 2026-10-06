@@ -1,5 +1,6 @@
 package com.bjtufood.auth.config;
 
+import com.bjtufood.auth.support.AdminJwtUtil;
 import com.bjtufood.auth.support.JwtUtil;
 import com.bjtufood.common.config.CorsProperties;
 import com.bjtufood.common.exception.GlobalExceptionHandler;
@@ -31,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 在这种约定下两种口径<b>恰好重合</b>，因此<b>测不出</b>线上带
  * {@code server.servlet.context-path=/api/v1} 时的真实行为。
  * <p>
- * 这与 {@link AdminTokenFilterTest} 记载的盲区同源（该测试注释明确指出
+ * 这与 {@link AdminAuthFilterTest} 记载的盲区同源（该测试注释明确指出
  * 「MockMvc 默认 contextPath 为空，无论前缀怎么变都命中」）。
  * 生产事故表现：小程序 {@code GET /api/v1/dishes} 返回
  * 401「请先登录或重新登录」——即请求落到了 {@code anyRequest().authenticated()}，
@@ -50,19 +51,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         CorsProperties.class,
         SecurityConfig.class,
         JwtAuthFilter.class,
-        AdminTokenFilter.class,
+        AdminAuthFilter.class,
+        AdminJwtUtil.class,
         JwtUtil.class,
         TokenBlacklist.class
 })
 @TestPropertySource(properties = {
-        "admin.token=" + PublicPathWhitelistTest.TEST_ADMIN_TOKEN,
+        "admin.jwt.secret=PublicPathWhitelistAdminJwtSecret_0123456789ABC",
+        "admin.jwt.expiration-seconds=3600",
         "jwt.secret=PublicPathWhitelistOnlySecretKey_0123456789ABCDEF",
         "jwt.expiration=3600000"
 })
 class PublicPathWhitelistTest {
 
-    /** 管理端口令（仅测试值，经 @TestPropertySource 注入 admin.token） */
-    static final String TEST_ADMIN_TOKEN = "whitelist-test-admin-token";
 
     /** 线上真实的 context-path（与 application.yml 的 server.servlet.context-path 一致） */
     private static final String CONTEXT_PATH = "/api/v1";

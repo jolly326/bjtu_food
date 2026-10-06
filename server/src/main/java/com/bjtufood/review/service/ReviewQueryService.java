@@ -8,9 +8,7 @@ import java.util.List;
 /**
  * 评价只读查询端口（跨域读契约）。
  * <p>
- * 架构收口 P0-1：canteen（档口列表平均分）此前直接 import
- * {@code review.mapper.ReviewMapper} + {@code review.dto.StallAvgRatingVO} 跨模块查库。
- * 现经本端口读取。
+ * canteen（档口列表平均分）经本端口读取 —— 跨域只读，**不直连** {@code review.mapper.ReviewMapper}。
  * <p>
  * <b>为何不复用 {@link ReviewService}</b>：ReviewServiceImpl 依赖 DishService（管理端列表补全菜品名）
  * 与 UserService（昵称头像），而 dish/auth 侧又要反向触达 review 的清理能力（已改由领域事件解耦）。

@@ -20,12 +20,10 @@ export const API_BASE_URL: string =
   import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
 /**
- * 管理端口令（**构建期注入**，请求头 `X-Admin-Token`）。
+ * 🔴 本模块**只放构建期配置**，不放任何凭证。
  *
- * <p>口径真源：[C1 管理员登录与访问控制](../../../docs/api/web/auth.md) ——
- * 管理后台**无登录体系**：口令来自构建期环境变量 `VITE_ADMIN_TOKEN`，与后端 `ADMIN_TOKEN` 一致即可通；
- * 不做运行时输入、不做本地持久化（避免把口令写进浏览器存储）。
- *
- * <p>未配置时为空串 ⇒ 后端 `AdminTokenFilter` fail-closed 返回 **403**，前端展示「会话失效态」。
+ * <p>「管理端口令 `ADMIN_TOKEN`（`VITE_ADMIN_TOKEN`）」由 TD-23 删除 —— 口令一旦被
+ * 构建期注入，就会被 Vite 硬编码进 bundle，产物离开本机即永久失守且无法吊销。
+ * 现口径（真源 [C1](../../../docs/func/web/C-账号与访问/C1-管理员登录与访问控制.md)）：
+ * **前端不持有口令**，只持有登录后签发的 JWT（见 `api/session.ts`）。
  */
-export const ADMIN_TOKEN: string = import.meta.env.VITE_ADMIN_TOKEN || ''

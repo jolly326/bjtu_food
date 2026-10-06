@@ -18,6 +18,7 @@ import com.bjtufood.dish.mapper.DishAttributeValueMapper;
 import com.bjtufood.dish.mapper.DishFilterViewMapper;
 import com.bjtufood.dish.service.DishViewCatalog;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.mapper.DishViewLogMapper;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishCategoryAdminService;
 import com.bjtufood.dish.service.DishAttributeCatalog;
@@ -79,6 +80,7 @@ class DishCacheBenchmarkTest {
             dimension(4L, "serveTemp", "出餐温度", "single", 4));
 
     private DishMapper dishMapper;
+    private DishViewLogMapper dishViewLogMapper;
     private DishAttributeDimensionMapper dimensionMapper;
     /** 取值字典（A4 落地后的**候选值真源**）：声明为字段以便打桩 */
     private DishAttributeValueMapper valueMapper;
@@ -178,7 +180,8 @@ class DishCacheBenchmarkTest {
         viewCatalog = (DishViewCatalog) viewFactory.getProxy();
 
         // service 也要过代理（listDishViews 已无 @Cacheable，缓存上移到目录；此处保留代理以贴合生产装配）
-        ProxyFactory serviceFactory = new ProxyFactory(new DishServiceImpl(dishMapper, mock(StallService.class),
+        ProxyFactory serviceFactory = new ProxyFactory(new DishServiceImpl(dishMapper,
+                mock(DishViewLogMapper.class), mock(StallService.class),
                 mock(ApplicationEventPublisher.class), mock(ImageUrlUtil.class), catalog, attributeAdminService,
                 mock(DishCategoryAdminService.class), viewCatalog));
         serviceFactory.setInterfaces(DishService.class);

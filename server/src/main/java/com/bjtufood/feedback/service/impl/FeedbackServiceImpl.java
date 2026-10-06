@@ -47,9 +47,10 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     private final FeedbackMapper feedbackMapper;
     /**
-     * 落库事务边界：写路径的 {@code @Transactional} 只包住**落库**本身。
-     * 原先事务从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）⇒ 期间一直占用数据库连接；
-     * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。现改为「先机审（无事务）→ 再落库（开事务）」。
+     * 落库事务边界：写路径的 {@code @Transactional} 只包住**落库**本身
+     * （「先机审（无事务）→ 再落库（开事务）」）—— 若事务从方法入口开始，会横跨微信机审的
+     * HTTP 外呼（超时 5s），期间持续占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+     * <p>
      * 必须是**独立 Bean**：Spring 事务靠代理生效，同类的自调用不会开启事务。
      */
     private final FeedbackPersister feedbackPersister;
@@ -151,7 +152,7 @@ public class FeedbackServiceImpl implements FeedbackService {
      * 文本内容安全检测：登录用户取 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
      * 结果语义：risky 由 {@code checkText} 抛 400 拦截；
-     * pass 与内容安全检测 review 均视为放行（sec_state 已全链退役，无待复核落库值）。
+     * pass 与内容安全检测 review 均视为放行（无待复核落库值）。
      * 边界：游客（userId=null）与无 openid 账号无 openid 可用，内容安全检测内部按既有口径跳过放行。
      */
     private void checkUgcText(Long userId, String content) {
@@ -253,7 +254,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     /**
      * 管理端 VO 转换：补齐昵称、配图（JSON→数组）、关联菜品名（DEV-04）；
-     * **举报行**另补原因中文名与被举报评价 ID（B3）；内容安全态已随 sec_state 退役。
+     * **举报行**另补原因中文名与被举报评价 ID（B3）；内容安全态已取消人工复核。
      */
     private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap, Map<Long, String> dishNameMap,
                                       Map<String, String> reasonLabelMap,
@@ -268,7 +269,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setContent(f.getContent());
         List<String> images = JsonListUtil.parseStringList(f.getImages());
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        // contact 已随列退役，管理端 VO 不再返回联系方式
+        // 联系方式已不在表中，管理端 VO 不再返回
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
         // 关联菜品名（DEV-04）：仅 relatedType=dish 且 relatedId 非空时按映射填充（含已下架菜品）；
@@ -353,7 +354,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 throw new BusinessException("不采纳原因不能超过" + FeedbackConst.REJECT_REASON_MAX_LENGTH + "字");
             }
         }
-        // B3：处置举报时**联动隐藏被举报评价**（此前与管理端「隐藏评价」完全独立，管理员极易漏处置）。
+        // B3：处置举报时可**联动隐藏被举报评价**（与管理端「隐藏评价」同一动作，避免漏处置）。
         // 仅在「是举报 + 有被举报评价 + 该评价当前未隐藏」时执行；隐藏本身会向作者投递回执（B1 口径）。
         boolean hiddenThisTime = false;
         if (Boolean.TRUE.equals(req.getHideReview()) && !rejected
@@ -365,8 +366,6 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setReply(trimmedReply);
         feedback.setRejectReason(rejectReason);
         feedback.setHandledAt(LocalDateTime.now());
-        // 管理端操作人身份降级（单口令即单人），handler_id 一直未写；
-        // 该列已于零消费退役删除，无需再处理。
         feedbackMapper.updateById(feedback);
         // 处理结果回执（携带处理结论与不采纳原因）：向「可归属」提交人（提交时带 userId 的登录态，含游客）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason, hiddenThisTime);
@@ -392,7 +391,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
         try {
             // 投递口径（2026-10-01 拍板）：**登录级** —— 不再按邮箱认证过滤，
-            // 游客提交的反馈同样收到处理回执（此前「仅已认证用户投递」会让游客的消息中心永久空转）。
+            // 游客提交的反馈同样收到处理回执（有 userId 即投递）。
             // is_read 由 notify 实现侧统一置 0（P0-1：feedback 不再 import / 构造 notify 实体）
             // B3：**回执文案按 type 分流** —— 举报（type=report）与反馈是两件事，
             // 一律写「反馈已处理 / 反馈未采纳」会让举报人读成语义错位。

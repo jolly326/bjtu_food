@@ -15,9 +15,8 @@ import org.springframework.util.StringUtils;
  *   <li>本类只服务微信平台集成（{@code wechat} 域的 3 个消费者），按 package-by-feature 归位最贴切。</li>
  * </ol>
  * <p>
- * <b>解决的问题（真实缺陷）</b>：此前 {@code wechat.appid} / {@code wechat.secret} 被
- * {@code WechatService} 与 {@code WechatAccessTokenProviderImpl} <b>各自 @Value 绑定一次</b>，
- * 「是否已配置」的判据也分裂成两处独立实现。现统一由本类持有，{@link #isConfigured()} 为唯一判据。
+ * <b>单一真源</b>：{@code wechat.appid} / {@code wechat.secret} 统一由本类持有，
+ * {@link #isConfigured()} 为「是否已配置」的唯一判据 —— 各消费者各自绑定会把判据分裂成多份实现。
  * <p>
  * 注册方式：启动类 {@code @EnableConfigurationProperties} 显式列举（见 {@code BjtuFoodApplication}；
  * 刻意**不用** {@code @ConfigurationPropertiesScan}，原因见该处注释——切片测试下扫描式注册不生效）。
@@ -36,7 +35,7 @@ public class WechatProperties {
      * <p>
      * 默认值取自 {@link WechatApiConst#CODE2SESSION_URL}——与 {@code stable_token} /
      * {@code msg_sec_check} / {@code img_sec_check} / {@code batchdownloadfile} 同源，
-     * 消除此前「默认 URL 硬编码在 {@code @Value} 注解里、其余端点在常量类」的双重放法。
+     * 端点默认值只此一处（不出现「注解里硬编码 + 常量类」两种写法）。
      * 换环境（如内网代理）用环境变量 {@code WECHAT_CODE2SESSION_URL} 覆盖。
      */
     private String code2sessionUrl = WechatApiConst.CODE2SESSION_URL;

@@ -30,7 +30,7 @@ import java.util.List;
  * </ul>
  */
 @Data
-@Schema(description = "采纳菜品纠错请求（逐项 + 两段式档口确认）")
+@Schema(description = "采纳菜品问题反馈请求（逐项 + 两段式档口确认）")
 public class DishCorrectionAdoptReq {
 
     @Schema(description = "采纳哪些差异项（取值 = GET /admin/corrections/{id} 的 differences[].field）；**必填且非空**",

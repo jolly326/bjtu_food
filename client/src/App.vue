@@ -97,7 +97,17 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* 注：MVP 阶段内容一律静态直接呈现，可见性不依赖动画（装饰性入场动效不启用）。 */
 
-/* 全站动效统一呈现，不提供「减少动态效果」降级分支。 */
+/* 可访问性：尊重「减少动态效果」系统偏好（Apple 设计原则 #14）。
+   全局基线仅降级动效时长（去除 vestibular 触发），保留 opacity 类状态变化作为必要反馈；
+   子组件（如 RetryBlock 的加载环）各自的 reduced-motion 分支在其作用域内仍生效。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ========== 交互状态工具类 ==========
    统一禁用态与键盘焦点、hover，避免各组件散落重复实现。 */
@@ -119,6 +129,21 @@ textarea:focus-visible {
   outline: none;
 }
 /* MVP 仅保留 :active opacity 反馈（无 .hoverable 缩放）。 */
+
+/* 列表触底反馈（与 home feed-foot 同源：居中次级灰小字，不抢内容焦点）。
+   供列表页在 scroll-view 底部统一呈现「加载中 / 已到底」态。 */
+.list-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--spacing-md) var(--spacing-lg);
+}
+.list-foot-text {
+  font-size: var(--font-small);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
 /* 宽屏适配：主滚动区在宽屏居中限宽，避免内容被无限拉伸（仅 H5/桌面生效）。 */
 @media (min-width: 768px) {
   .scroll-wrap { max-width: 720px; margin: 0 auto; }

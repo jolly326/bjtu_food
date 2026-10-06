@@ -2,6 +2,7 @@ package com.bjtufood.review.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
@@ -25,6 +26,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -90,6 +93,33 @@ class ReviewServiceImplTest {
     private void stubVerifiedUserWithOpenid(Long userId) {
         when(userService.getAuthContext(userId))
                 .thenReturn(new UserAuthContextVO(userId, true, "oX-openid"));
+    }
+
+    // ==================== 星级筛选（TD-27）====================
+
+    @Test
+    @DisplayName("星级筛选：rating 非空时透传给 Mapper；null = 不过滤")
+    void listByDishIdPassesRatingFilterThrough() {
+        when(reviewMapper.selectReviewPageByDishId(any(), anyLong(), any())).thenReturn(new Page<>());
+
+        service().listByDishId(7L, 1, 10, 5);
+        verify(reviewMapper).selectReviewPageByDishId(any(), anyLong(), eq(5));
+
+        // 不筛选：rating 传 null（端上「全部」不传该参数 ⇒ 服务端按 null 处理）
+        service().listByDishId(7L, 1, 10, null);
+        verify(reviewMapper).selectReviewPageByDishId(any(), anyLong(), isNull());
+    }
+
+    @Test
+    @DisplayName("星级筛选：非法值（0 / 6）→ 400，绝不静默降级为不过滤")
+    void listByDishIdRejectsIllegalRating() {
+        // 静默降级会让端上传错值却被当「全部」返回，属契约违背
+        assertThatThrownBy(() -> service().listByDishId(7L, 1, 10, 0))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service().listByDishId(7L, 1, 10, 6))
+                .isInstanceOf(BusinessException.class);
+
+        verify(reviewMapper, never()).selectReviewPageByDishId(any(), anyLong(), any());
     }
 
     // ==================== deleteReview：作者归属 ====================

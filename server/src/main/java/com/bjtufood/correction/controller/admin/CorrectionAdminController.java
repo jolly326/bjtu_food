@@ -50,9 +50,8 @@ public class CorrectionAdminController {
     }
 
     @Operation(summary = "问题反馈详情", description = "ADM。按 type 分派返回："
-            + "**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**）"
-            + "+ submitted 提交快照，供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。"
-            + "**type=gone** → **不返回差异对照**（differences/submitted 恒空），只返回 note + images + goneUserCount，"
+            + "**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**），供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。"
+            + "**type=gone** → **不返回差异对照**（differences 恒空），只返回 note + images + goneUserCount，"
             + "处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。"
             + "目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。")
     @GetMapping("/{id}")

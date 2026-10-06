@@ -38,14 +38,13 @@ import static org.mockito.Mockito.when;
 /**
  * {@link CorrectionServiceImpl#submit} 的<b>微信内容安全检测</b>单测。
  * <p>
- * <b>为何这条链路原先零测试</b>：纠错是唯一<b>不经微信机审</b>的 UGC 入口（仅靠本地静态词库），
- * 且其内容会被管理员采纳后<b>写回 dish 进入公开展示</b>——风险等级不低，却无任何测试覆盖
+ * 纠错内容会被管理员采纳后<b>写回 dish 进入公开展示</b>——风险等级不低，故必须有测试覆盖
  * 「文本是否送检、送检内容是否完整、risky 是否拦截、纯结构化改动是否跳过」。
  * <p>
  * 本测试锁定四条契约：
  * <ol>
  *   <li><b>合并送检且只调一次</b>——msgSecCheck 按调用计费，逐字段送检会成倍放大额度；</li>
- *   <li><b>送检内容覆盖全部自由文本字段</b>（name / canteenName / stallName / floor / attributes）
+ *   <li><b>送检内容覆盖全部文本字段</b>（name / canteenName / stallName / floor / attributes）
  *       ——只送 name 会让「把违规词写进食堂名」绕过（floor 采纳后写进公开可见的 stall.floor，同理不得漏检）；</li>
  *   <li><b>risky 必须拦截且不落库</b>；</li>
  *   <li><b>纯 price / images 改动不产生多余微信调用</b>（省额度）。</li>
@@ -108,8 +107,8 @@ class CorrectionModerationTest {
         DishCorrectionReq r = req("宫保鸡丁");
         r.setCanteenName("学一食堂");
         r.setStallName("基本伙食");
-        r.setFloor("2F");
-        r.setAttributes(Map.of("dietType", "veg", "note", "微辣"));
+        r.setFloor("二层");
+        r.setAttributes(Map.of("dietType", "素", "note", "微辣"));
 
         svc.submit(7L, 1L, r);
 
@@ -117,26 +116,26 @@ class CorrectionModerationTest {
         verify(contentSecurityService).checkText(eq("oX-openid"), captor.capture(), eq(2));
 
         assertThat(captor.getValue())
-                .as("五个自由文本字段必须全部进入送检内容——漏检任一字段即可被绕过"
+                .as("五个文本字段必须全部进入送检内容——漏检任一字段即可被绕过"
                         + "（floor 采纳后会写进公开可见的 stall.floor）")
                 .contains("宫保鸡丁")
                 .contains("学一食堂")
                 .contains("基本伙食")
-                .contains("2F")
+                .contains("二层")
                 .contains("微辣");
     }
 
     @Test
-    @DisplayName("仅改楼层（自由文本，其余未改动）：仍要送检（该值采纳后进入公开展示），但恰好一次")
+    @DisplayName("仅改楼层（受控字典值，其余未改动）：仍要送检（该值采纳后进入公开展示），但恰好一次")
     void floorOnlyChangeIsSentToModerationOnce() {
         DishCorrectionReq r = new DishCorrectionReq();
-        r.setFloor("B1");
+        r.setFloor("二层");
 
         svc.submit(7L, 1L, r);
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(contentSecurityService, times(1)).checkText(eq("oX-openid"), captor.capture(), eq(2));
-        assertThat(captor.getValue()).isEqualTo("B1");
+        assertThat(captor.getValue()).isEqualTo("二层");
         verify(correctionMapper).insert(any(DishCorrection.class));
     }
 
@@ -221,16 +220,16 @@ class CorrectionModerationTest {
     }
 
     @Test
-    @DisplayName("attributes 送检用 JSON 还原（覆盖自由文本维度值，且与落库序列化同源）")
+    @DisplayName("attributes 送检用 JSON 还原（覆盖维度中文值，且与落库序列化同源）")
     void attributesAreJsonEncodedIntoModerationText() {
         DishCorrectionReq r = new DishCorrectionReq();
-        r.setAttributes(Map.of("flavorTags", List.of("spicy", "sour")));
+        r.setAttributes(Map.of("flavorTags", List.of("辣", "酸")));
 
         svc.submit(7L, 1L, r);
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(contentSecurityService).checkText(eq("oX-openid"), captor.capture(), eq(2));
-        assertThat(captor.getValue()).contains("spicy").contains("sour");
+        assertThat(captor.getValue()).contains("辣").contains("酸");
         // 与落库序列化共用同一工具，避免「送检文本」与「落库文本」形态分叉
         assertThat(captor.getValue()).isEqualTo(JsonMapUtil.toJson(r.getAttributes()));
     }

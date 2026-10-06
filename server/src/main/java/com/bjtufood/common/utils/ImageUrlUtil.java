@@ -5,9 +5,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Component
 public class ImageUrlUtil {
+
+    /**
+     * COS 绝对地址匹配：{@code https://{bucket}.cos.{region}.myqcloud.com/{key}}，key 非空。
+     * bucket 段含 AppID 后缀（如 {@code bjtu-food-1250000000}），region 形如 {@code ap-beijing}。
+     */
+    private static final Pattern COS_URL_PATTERN = Pattern.compile(
+            "^https://[a-z0-9][a-z0-9-]*\\.cos\\.[a-z0-9-]+\\.myqcloud\\.com/\\S+$",
+            Pattern.CASE_INSENSITIVE);
 
     private final String publicBaseUrl;
 
@@ -85,19 +94,21 @@ public class ImageUrlUtil {
      * 允许的仅两类：
      * 1) 本站上传接口返回的站内相对路径（形如 {@code /images/...} 或 {@code /uploads/...}），
      *    防止将头像设为任意外部 URL（图片信标追踪 IP/UA、外链失联破图、诱导内容）；
-     * 2) 微信云存储文件 ID（{@code cloud://...}），小程序端直接使用。
-     * 其余 http/https 外部链接一律拒绝。
+     * 2) 走 {@code POST /upload/cloud-image} 链路产出的 COS 绝对地址（校验见 {@link #isValidCosUgcUrl}）——
+     *    图片已过 {@code imgSecCheck} 内容安检并转存 COS。
+     * <p>
+     * 其余一律拒绝（含微信云存储 {@code cloud://} fileID：该形态绕过内容安检，不作为可入库的头像地址）。
      */
     public boolean isValidAvatar(String url) {
         if (!StringUtils.hasText(url)) {
             return false;
         }
         String trimmed = url.trim();
-        if (trimmed.startsWith("cloud://")) {
+        // 站内相对路径：上传接口实际返回 /images/...（urlPrefix），同时兼容历史 /uploads/ 路径
+        if (trimmed.startsWith("/images/") || trimmed.startsWith("/uploads/")) {
             return true;
         }
-        // 站内相对路径：上传接口实际返回 /images/...（urlPrefix），同时兼容历史 /uploads/ 路径
-        return trimmed.startsWith("/images/") || trimmed.startsWith("/uploads/");
+        return isValidCosUgcUrl(trimmed);
     }
 
     /**
@@ -116,16 +127,8 @@ public class ImageUrlUtil {
         if (!StringUtils.hasText(url)) {
             return false;
         }
-        String trimmed = url.trim();
-        // 域名正则：{bucket}.cos.{region}.myqcloud.com，bucket 可含 AppID 前缀（如 1250000000/bjtu-food 不出现在域名段，
-        // 实际域名为 bjtu-food-1250000000.cos.ap-beijing.myqcloud.com），region 形如 ap-beijing
-        return COS_URL_PATTERN.matcher(trimmed).matches();
+        return COS_URL_PATTERN.matcher(url.trim()).matches();
     }
-
-    /** COS 绝对地址匹配：https://{bucket}.cos.{region}.myqcloud.com/{key}，key 非空 */
-    private static final java.util.regex.Pattern COS_URL_PATTERN = java.util.regex.Pattern.compile(
-            "^https://[a-z0-9][a-z0-9-]*\\.cos\\.[a-z0-9-]+\\.myqcloud\\.com/\\S+$",
-            java.util.regex.Pattern.CASE_INSENSITIVE);
 
     private static String trimEnd(String value, String suffix) {
         String result = value == null ? "" : value;

@@ -5,24 +5,17 @@
 
 
 export interface paths {
-  "/reviews/{id}": {
-    /**
-     * 删除自己的评价
-     * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
-     */
-    delete: operations["deleteReview"];
-  };
   "/my/notifications/{id}/read": {
     /**
      * 单条已读
-     * @description STU（需邮箱认证）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
+     * @description STU（需登录；游客态亦可）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
      */
     put: operations["readOne"];
   };
   "/my/notifications/read-all": {
     /**
      * 全部已读
-     * @description STU（需邮箱认证）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。
+     * @description STU（需登录；游客态亦可）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。
      */
     put: operations["readAll"];
   };
@@ -48,16 +41,47 @@ export interface paths {
   "/admin/stalls/{id}": {
     /**
      * 编辑档口
-     * @description 用途：修改档口基础信息。新增档口不再开放独立端点——由菜品录入按名 upsert 自动建档。
+     * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。
      */
     put: operations["updateStall"];
+    /**
+     * 删除档口
+     * @description 用途：删除档口。其下仍有菜品 → 400（由本层编排跨域计数）；不存在 → 4001。
+     */
+    delete: operations["deleteStall"];
   };
-  "/admin/reviews/{id}/hide": {
+  "/admin/reviews/{id}/hidden": {
     /**
      * 设置评价隐藏/显示
-     * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏后公开评价列表不再展示。
+     * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。
      */
     put: operations["setHidden"];
+  };
+  "/admin/report-reasons/{id}": {
+    /**
+     * 举报原因改名
+     * @description 用途：**只改 label**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
+     */
+    put: operations["rename"];
+    /**
+     * 删除举报原因
+     * @description 用途：删除。**被举报记录引用 → 400**（下线一律用停用，避免历史举报翻不出中文）；不存在 → 4001。
+     */
+    delete: operations["delete"];
+  };
+  "/admin/report-reasons/{id}/status": {
+    /**
+     * 举报原因启停
+     * @description 用途：只改 status。**停用最后一条启用 → 400**（举报入口不能配空）；启用数超 8 → 400；不存在 → 4001。
+     */
+    put: operations["updateStatus_1"];
+  };
+  "/admin/report-reasons/sort": {
+    /**
+     * 举报原因排序
+     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+     */
+    put: operations["sort"];
   };
   "/admin/feedbacks/{id}": {
     /**
@@ -67,6 +91,11 @@ export interface paths {
     put: operations["handle"];
   };
   "/admin/dishes/{id}": {
+    /**
+     * 菜品详情
+     * @description 用途：编辑回填（全字段）。菜品不存在返回 4001。
+     */
+    get: operations["getDish"];
     /**
      * 编辑菜品
      * @description 用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端口令鉴权（AdminTokenFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。
@@ -78,19 +107,121 @@ export interface paths {
      */
     delete: operations["deleteDish"];
   };
+  "/admin/dishes/{id}/status": {
+    /**
+     * 上下架
+     * @description 用途：只改 status（on 上架 / off 下架）。非法值 400，菜品不存在 4001。
+     */
+    put: operations["updateStatus_2"];
+  };
+  "/admin/dish-views/{id}": {
+    /**
+     * 修改视图
+     * @description 用途：改**文案 / 启停**。停用「最后一个启用的视图」→ 400；不存在 → 4001。
+     */
+    put: operations["update"];
+  };
+  "/admin/dish-views/sort": {
+    /**
+     * 视图排序
+     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+     */
+    put: operations["sort_1"];
+  };
+  "/admin/dish-dimensions/{dimensionId}": {
+    /**
+     * 修改维度
+     * @description 用途：改维度名 / 取值类型（**维度键不可改**）。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
+     */
+    put: operations["updateDimension"];
+    /**
+     * 删除维度
+     * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
+     */
+    delete: operations["deleteDimension"];
+  };
+  "/admin/dish-dimensions/{dimensionId}/values/{valueId}": {
+    /**
+     * 修改取值
+     * @description 用途：**只改取值名**（改名免费，菜品数据零迁移）；同维度下重名 → 400；不存在 → 4001。
+     */
+    put: operations["updateValue"];
+    /**
+     * 删除取值
+     * @description 用途：删除取值。**仍被菜品引用 → 400**；不存在 → 4001。
+     */
+    delete: operations["deleteValue"];
+  };
+  "/admin/dish-dimensions/{dimensionId}/values/sort": {
+    /**
+     * 取值排序
+     * @description 用途：拖拽后**整体提交该维度下全量取值**；缺行 / 重复 → 400。
+     */
+    put: operations["sortValues"];
+  };
+  "/admin/dish-dimensions/sort": {
+    /**
+     * 维度排序
+     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+     */
+    put: operations["sortDimensions"];
+  };
+  "/admin/dish-categories/{id}": {
+    /**
+     * 重命名分类值
+     * @description 用途：**只改 label**（改名免费，零菜品迁移）；重名 400；不存在 4001。
+     */
+    put: operations["rename_1"];
+  };
   "/admin/corrections/{id}": {
     /**
-     * 拒绝纠错
-     * @description ADM。仅 status=pending 可处理（否则 400「该纠错已处理」）。仅接受 JSON body（{reply, outcome:'rejected', rejectReason}）：reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400；outcome 固定 rejected（其他值 400）；rejectReason 必填（1~200 字，纯空白 → 400「请填写不采纳原因」）。处理：status=rejected + reply/reject_reason/handled_at 落库，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执（含不采纳原因）。
+     * 问题反馈详情
+     * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**）+ submitted 提交快照，供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences/submitted 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
+     */
+    get: operations["detail"];
+    /**
+     * 拒绝反馈
+     * @description ADM。仅 status=pending 可处理（否则 400「该反馈已处理」）。仅接受 JSON body（{reply?, outcome:'rejected', rejectReason}）：**reply 可选**（≤600 字；留空时回执以不采纳原因为正文），outcome 固定 rejected（其他值 400）；rejectReason **必填**（1~200 字，纯空白 → 400「请填写不采纳原因」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：status=rejected + reply/reject_reason/handled_at 落库，并投递站内回执（含不采纳原因）。
      */
     put: operations["reject"];
   };
   "/admin/canteens/{id}": {
     /**
      * 编辑食堂
-     * @description 用途：修改食堂名称、图片、位置、描述、排序。新增食堂不再开放独立端点——由菜品录入按名 upsert 自动建档。
+     * @description 用途：修改食堂名称（新名重名 → 400）。
      */
     put: operations["updateCanteen"];
+    /**
+     * 删除食堂
+     * @description 用途：删除食堂。其下仍有档口 → 400（避免孤儿档口）；不存在 → 4001。
+     */
+    delete: operations["deleteCanteen"];
+  };
+  "/admin/banners/{id}": {
+    /**
+     * 编辑 Banner
+     * @description 用途：换图（可编辑字段整体替换）；不存在 → 4001。
+     */
+    put: operations["update_1"];
+    /**
+     * 删除 Banner
+     * @description 用途：删除轮播图；不存在 → 4001。
+     */
+    delete: operations["delete_1"];
+  };
+  "/admin/banners/{id}/status": {
+    /**
+     * 启停 Banner
+     * @description 用途：只改 status（on 启用 / off 停用）；非法值 400，不存在 4001。
+     */
+    put: operations["updateStatus_3"];
+  };
+  "/admin/banners/sort": {
+    /**
+     * Banner 排序
+     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
+     */
+    put: operations["sort_2"];
   };
   "/upload/cloud-image": {
     /**
@@ -119,23 +250,25 @@ export interface paths {
   };
   "/dishes/{id}/reviews": {
     /**
-     * 菜品评价列表（时间倒序）
+     * 菜品评价列表（时间倒序，可按星级筛选）
      * @description 用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
      * 排序唯一为发表时间倒序，不提供排序参数。
+     * 可选 rating 按星级筛选（1~5 白名单，非法值 400 不静默降级；不传 = 全部）。
+     * 🔴 筛选为服务端过滤且参与分页 ⇒ 端上切换筛选须重置 page=1。
      * 只返回未隐藏（is_hidden=0）的评价。
-     * 测试示例：/dishes/1/reviews?page=1&pageSize=20
+     * 测试示例：/dishes/1/reviews?page=1&pageSize=20 / ?rating=5
      */
     get: operations["listReviews"];
     /**
      * 提交评价
-     * @description 用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。每个用户对同一菜品只能评价一次，提交后重算菜品评分。需已完成学号邮箱认证。成功返回新评价 ID（data.id），端上据此本地写回「我的评价」态，无须回读。
+     * @description 用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。**同一用户对同一菜品重复提交 = 覆盖旧评价**（2026-09-30 简化：不再返回「您已评价过该菜品」），提交后重算菜品评分。需已完成学号邮箱认证。成功返回评价 ID（data.id）。
      */
     post: operations["submitReview"];
   };
   "/dishes/{id}/correction": {
     /**
      * 提交菜品问题反馈
-     * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**先选 type 再填字段**，两类字段集合不同：type=field（信息有误）局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images）；type=gone（已经下架）一键提交即可成立——note（≤200 字）与 images（≤3 张）均为选填、可全不传，但传任何差异项字段 → 400。floor 传入时非空 ≤16 字，采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同一用户对同一菜品的 gone 型只计一次（重复提交成功但不重复计数）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+     * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤5 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
      */
     post: operations["submitCorrection"];
   };
@@ -144,6 +277,7 @@ export interface paths {
      * 微信静默登录
      * @description 用途：小程序启动时调用 wx.login 获取 code，后端 code2Session 换 openid 自动登录。
      * 新 openid 自动建号（游客态 verified=false）；已有 openid 直接返回原账号。返回 { token, userInfo }。
+     * 风控：同 IP 每分钟 ≤30 次、每小时 ≤300 次（防脚本刷微信外呼配额与批量建号）。
      */
     post: operations["wechatLogin"];
   };
@@ -153,6 +287,8 @@ export interface paths {
      * @description 用途：游客完成学号邮箱认证（verified=true）。入参仅验证码，绑定邮箱由验证码记录推导，当前微信账号从登录态取。
      * 认证通过后：无历史邮箱则直接绑定；存在历史邮箱账号则数据归属转移（旧账号业务数据改挂到当前微信）；
      * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、bind_email=NULL）。返回更新后 UserInfoVO（bind_email 已写入；JWT 不含 bind_email、实时查库，无需重发 token）。
+     * 风控：同 IP 每分钟 ≤5 次、每小时 ≤20 次；同一账号 15 分钟内失败满 10 次将被暂时拒绝校验
+     * （发码接口匿名 ⇒ 服务端无「谁申请了这条码」的归属信息，故以「让枚举不成立」防 6 位码被暴力猜中）。
      */
     post: operations["verifyEmail"];
   };
@@ -167,16 +303,42 @@ export interface paths {
      */
     post: operations["createEmailCode"];
   };
-  "/admin/upload/image": {
+  "/admin/upload": {
     /**
      * 上传图片（multipart）
-     * @description 用途：管理端上传菜品图。
+     * @description 用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
      * 鉴权：请求头 X-Admin-Token 必须等于环境变量 ADMIN_TOKEN（未配置即 fail-closed 403）。
      * 测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
-     * 返回：data.url（完整可访问 URL），本地存储降级链路额外返回 data.relativeUrl。
+     * 限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
+     * 返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
+     *       与 data.relativeUrl（本地降级链路才有；两者都可直接入库）。
      * 小程序 UGC 配图请使用 POST /upload/cloud-image（云存储转存链路，学生 JWT）。
      */
     post: operations["uploadImage"];
+  };
+  "/admin/stalls": {
+    /**
+     * 后台档口列表
+     * @description 用途：浏览器管理端查看档口，可按 canteenId 筛选（不传=全部）。images 返回可访问的完整 URL 数组。
+     */
+    get: operations["listStalls"];
+    /**
+     * 新增档口
+     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。
+     */
+    post: operations["createStall"];
+  };
+  "/admin/report-reasons": {
+    /**
+     * 举报原因列表
+     * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
+     */
+    get: operations["list_1"];
+    /**
+     * 新增举报原因
+     * @description 用途：新增（默认**启用**、排最后）。机器值 1~32、小写字母/数字/-、全站唯一；启用数上限 8。
+     */
+    post: operations["create"];
   };
   "/admin/dishes": {
     /**
@@ -190,12 +352,79 @@ export interface paths {
      */
     post: operations["addDish"];
   };
+  "/admin/dishes/{id}/copy": {
+    /**
+     * 复制菜品
+     * @description 用途：以源菜品为模板新建一条（只改菜名，其余字段全部复制）。副本默认**下架**（半成品，确认内容后再上架）。源菜品不存在返回 4001。
+     */
+    post: operations["copyDish"];
+  };
+  "/admin/dish-dimensions": {
+    /**
+     * 维度列表
+     * @description 用途：维度管理页（按 order 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
+     */
+    get: operations["listDimensions"];
+    /**
+     * 新增维度
+     * @description 用途：新建维度（默认排最后）。维度键须为 camelCase 且唯一。
+     */
+    post: operations["createDimension"];
+  };
+  "/admin/dish-dimensions/{dimensionId}/values": {
+    /**
+     * 取值列表
+     * @description 用途：某维度下的取值（按 order 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
+     */
+    get: operations["listValues"];
+    /**
+     * 新增取值
+     * @description 用途：新增取值（默认排最后）。同维度下**名称唯一**；维度不存在 → 4001。
+     */
+    post: operations["createValue"];
+  };
+  "/admin/dish-categories": {
+    /**
+     * 分类值列表
+     * @description 用途：分类值维护入口（按 order 升序，不分页）；带 dishCount（引用该分类的菜品数）。
+     */
+    get: operations["list_4"];
+    /**
+     * 登记分类值
+     * @description 用途：登记新分类值（A3 菜品保存的「自动登记」最终落到本端点）。键 1~20 小写字母/数字/-、全站唯一；名 1~32 字、应用层唯一。
+     */
+    post: operations["create_1"];
+  };
   "/admin/corrections/{id}/adopt": {
     /**
-     * 采纳纠错（两段式档口确认）
-     * @description ADM。仅 status=pending 可采纳（否则 400「该纠错已处理」）；目标菜品已物理删除返回 4001。两段式档口确认：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：七字段写回目标菜品（若本次纠错含 floor 改动，则另外写回**目标档口** stall.floor，同档口其他菜品一并生效；菜品无楼层字段）→ status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执。采纳已执行时返回 data=null（code=200）。
+     * 采纳反馈（按 type 分派）
+     * @description ADM。仅 status=pending 可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ status=adopted、reply=「已下架，感谢反馈」、handled_at=now，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ status=adopted、reply=附注（缺省「已采纳，菜品信息已更新」）、handled_at=now，并投递站内回执。采纳已执行时返回 data=null（code=200）。
      */
     post: operations["adopt"];
+  };
+  "/admin/canteens": {
+    /**
+     * 后台食堂列表
+     * @description 用途：浏览器管理端查看全部食堂（筛选属性字典）。images 返回可访问的完整 URL 数组。
+     */
+    get: operations["listCanteens"];
+    /**
+     * 新增食堂
+     * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。
+     */
+    post: operations["createCanteen"];
+  };
+  "/admin/banners": {
+    /**
+     * Banner 列表
+     * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）。
+     */
+    get: operations["list_6"];
+    /**
+     * 新增 Banner
+     * @description 用途：新增轮播图（默认**启用**、排最后）。
+     */
+    post: operations["create_2"];
   };
   "/report-reasons": {
     /**
@@ -214,14 +443,14 @@ export interface paths {
   "/my/notifications": {
     /**
      * 我的消息列表
-     * @description STU（需邮箱认证）。倒序，支持 isRead 过滤。
+     * @description STU（需登录；游客态亦可）。倒序，支持 isRead 过滤。
      */
     get: operations["list"];
   };
   "/my/notifications/unread-count": {
     /**
      * 未读总数
-     * @description STU（需邮箱认证）。驱动首页红点。
+     * @description STU（需登录；游客态亦可）。驱动宫格红点。
      */
     get: operations["unreadCount"];
   };
@@ -230,7 +459,7 @@ export interface paths {
      * 菜品分页查询
      * @description 用途：首页网格、搜索页。
      * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-     * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：推荐视图按 CRC32(seed:ID) 会话伪随机序，大类视图热度倒序；无排序入口）。
+     * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：全部 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
      * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
      */
     get: operations["listDishes"];
@@ -239,8 +468,8 @@ export interface paths {
     /**
      * 菜品详情
      * @description 用途：菜品详情页。未登录可访问；登录态与游客态返回结构一致。
-     * **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）view_count +1；
-     * 4001（菜品不存在）与请求失败不计数。
+     * **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）写入一行浏览明细（dish_view_log，精确到秒，不去重）；
+     * 4001（菜品不存在）与请求失败不计数。浏览量不参与任何排序，仅供管理端「近 30 天浏览」统计。
      * 滥用防护：同 IP 每分钟 ≤30 次、每小时 ≤300 次（正常浏览远低于此，用户无感）。
      * 测试示例：/dishes/1
      */
@@ -263,7 +492,7 @@ export interface paths {
     /**
      * 首页筛选视图字典
      * @description 用途：首页横向筛选栏数据源。
-     * 下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端 DishViewConst 唯一定义，
+     * 下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图字典表唯一定义，
      * 端上不得维护任何标签中文映射（端上只认 key + label，回传 view=<key>）。
      * 「按大类取数」的视图做空类自动隐藏（当前无在售菜品即不下发）。
      * 公开接口。测试示例：/dishes/views
@@ -290,44 +519,51 @@ export interface paths {
   "/admin/users": {
     /**
      * 用户列表
-     * @description 用途：后台分页查看用户，支持按 status 筛选。测试示例：/admin/users?page=1&pageSize=10&status=active
+     * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=10&status=active&keyword=干饭
      */
     get: operations["listUsers"];
-  };
-  "/admin/stalls": {
-    /**
-     * 后台档口列表
-     * @description 用途：浏览器管理端查看全部档口（筛选属性字典）。images 返回可访问的完整 URL 数组。
-     */
-    get: operations["listStalls"];
   };
   "/admin/reviews": {
     /**
      * 全部评价列表
-     * @description 用途：后台查看所有评价，支持按 isHidden/userId/keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=10&isHidden=0
+     * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=10&hidden=false&dishId=3
      */
     get: operations["listAll"];
   };
   "/admin/feedbacks": {
     /**
      * 反馈列表
-     * @description ADM。按 status/type/userId/keyword 过滤；不传 status 则返回全部状态（含已处理，供回看）。
-     */
-    get: operations["list_1"];
-  };
-  "/admin/corrections": {
-    /**
-     * 菜品问题反馈列表
-     * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交 userId=0、昵称为 null）。type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。
+     * @description ADM。B2 意见反馈与 B3 举报管理**共用本端点**，用 category 分流（feedback = 排除 report；report = 仅 report；不传 = 全部）；再按 status/type/userId/keyword 过滤。
      */
     get: operations["list_2"];
   };
-  "/admin/canteens": {
+  "/admin/dish-views": {
     /**
-     * 后台食堂列表
-     * @description 用途：浏览器管理端查看全部食堂（筛选属性字典）。images 返回可访问的完整 URL 数组。
+     * 视图列表
+     * @description 用途：视图管理页（按 order 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
      */
-    get: operations["listCanteens"];
+    get: operations["list_3"];
+  };
+  "/admin/dashboard": {
+    /**
+     * 运营看板
+     * @description 用途：登录后首屏（**只读、无参数、不分页**，一次返回全量）。待办区含跨三类合并的最近 5 条待办（可点击直达处置页）；健康度只收管理员当场能修的项；概况只给规模。
+     */
+    get: operations["dashboard"];
+  };
+  "/admin/corrections": {
+    /**
+     * 问题反馈列表
+     * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
+     */
+    get: operations["list_5"];
+  };
+  "/reviews/{id}": {
+    /**
+     * 删除自己的评价
+     * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
+     */
+    delete: operations["deleteReview"];
   };
   "/auth/account": {
     /**
@@ -371,22 +607,6 @@ export interface components {
       message?: string;
       /** @description 数据 */
       data?: Record<string, never>;
-    };
-    /** @description 评价提交/重新评价请求参数 */
-    ReviewReq: {
-      /**
-       * Format: int32
-       * @description 评分，1-5星
-       * @example 5
-       */
-      rating: number;
-      /**
-       * @description 文字评价
-       * @example 味道不错，分量也足。
-       */
-      content?: string;
-      /** @description 评价配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张） */
-      images?: string[];
     };
     /** @description 修改个人资料请求参数 */
     ProfileUpdateReq: {
@@ -459,8 +679,8 @@ export interface components {
       /** @description 档口位置 */
       location?: string;
       /**
-       * @description 楼层（如 1F/2F）
-       * @example 1F
+       * @description 楼层（受控字典值·值即汉字，如「二层」）
+       * @example 二层
        */
       floor?: string;
       /**
@@ -486,13 +706,49 @@ export interface components {
        */
       updatedAt?: string;
     };
+    /** @description 举报原因改名请求 */
+    ReportReasonRenameReq: {
+      /**
+       * @description 中文标签（1~32 字）
+       * @example 垃圾广告 / 营销刷屏
+       */
+      label: string;
+    };
+    /** @description 举报原因启停请求 */
+    ReportReasonStatusReq: {
+      /**
+       * @description 状态：on=启用 / off=停用
+       * @example off
+       */
+      status: string;
+    };
+    /** @description 排序提交的单行 */
+    SortItem: {
+      /**
+       * Format: int64
+       * @description 目标行 ID
+       * @example 3
+       */
+      id?: number;
+      /**
+       * Format: int32
+       * @description 目标顺序（1 起、连续、互不相同）
+       * @example 1
+       */
+      order?: number;
+    };
+    /** @description 排序提交体（全量行、整体替换） */
+    SortItemsReq: {
+      /** @description 全量行（不得缺行、不得重复 id / order） */
+      items: components["schemas"]["SortItem"][];
+    };
     /** @description 处理请求体 {reply, outcome, rejectReason}；校验失败返回 400 */
     FeedbackHandleReq: {
       /**
-       * @description 管理员回复内容（必填，学生将收到该内容）
+       * @description 管理员回复内容（可选，≤1000 字）
        * @example 已收到，我们会在下个版本优化
        */
-      reply: string;
+      reply?: string;
       /**
        * @description 处理结论：handled=通过/已处理（缺省）；rejected=不采纳/退回
        * @example handled
@@ -503,6 +759,11 @@ export interface components {
        * @example 该问题已在近期版本修复
        */
       rejectReason?: string;
+      /**
+       * @description B3 专用：是否同时隐藏被举报评价（默认勾选；评价已隐藏时置灰）
+       * @example true
+       */
+      hideReview?: boolean;
     };
     /** @description 后台菜品新增/编辑请求参数 */
     DishAdminReq: {
@@ -569,7 +830,7 @@ export interface components {
         [key: string]: Record<string, never>;
       };
       /**
-       * @description 菜品大类枚举键（值域见 GET /dishes/views 的大类视图；可空；服务端白名单校验非法值 400）
+       * @description 菜品分类键（值域 = 分类值字典 /admin/dish-categories；**可填新值，保存时自动登记**；空 / 超 20 字 / 非法字符 → 400；不传 = 不修改）
        * @example noodle
        */
       mealType?: string;
@@ -579,13 +840,65 @@ export interface components {
        */
       status?: string;
     };
+    /** @description 菜品上下架请求 */
+    DishStatusReq: {
+      /**
+       * @description 状态：on 上架 / off 下架
+       * @example off
+       */
+      status: string;
+    };
+    /** @description 筛选视图修改请求 */
+    DishViewUpdateReq: {
+      /**
+       * @description tab 文案（1~32 字）
+       * @example 面食粉类
+       */
+      label: string;
+      /** @description 是否在 client 首页出现（停用 = tab 隐藏） */
+      enabled: boolean;
+    };
+    /** @description 属性维度保存请求 */
+    DishDimensionSaveReq: {
+      /**
+       * @description 维度键（camelCase，字母开头；在用后不可改）
+       * @example dietType
+       */
+      fieldKey: string;
+      /**
+       * @description 维度中文名（1~32 字）
+       * @example 饮食属性
+       */
+      name: string;
+      /**
+       * @description 取值类型：single=单值 / multi=多值（切换会自动迁移该维度下菜品的数据形状）
+       * @example single
+       */
+      valueType: string;
+    };
+    /** @description 属性取值保存请求 */
+    DishValueSaveReq: {
+      /**
+       * @description 取值中文名（1~32 字；同维度下唯一）
+       * @example 半荤
+       */
+      label: string;
+    };
+    /** @description 分类值重命名请求 */
+    DishCategoryRenameReq: {
+      /**
+       * @description 分类中文名（1~32 字；分类名唯一）
+       * @example 面食粉类
+       */
+      label: string;
+    };
     /** @description 拒绝请求体 {reply, outcome:'rejected', rejectReason}；校验失败返回 400 */
     DishCorrectionHandleReq: {
       /**
        * @description 管理员回复内容（可选，≤600 字）
        * @example 经核实价格无误
        */
-      reply: string;
+      reply?: string;
       /**
        * @description 处理结论：固定 rejected
        * @example rejected
@@ -630,6 +943,22 @@ export interface components {
        * @description 更新时间
        */
       updatedAt?: string;
+    };
+    /** @description Banner 保存请求 */
+    BannerSaveReq: {
+      /**
+       * @description 轮播图地址（经 /admin/upload 取得，原样入库）
+       * @example /images/seed/banners/1.jpg
+       */
+      imageUrl: string;
+    };
+    /** @description Banner 启停请求 */
+    BannerStatusReq: {
+      /**
+       * @description 状态：on=启用 / off=停用
+       * @example off
+       */
+      status: string;
     };
     /** @description 云存储图片转存请求 */
     CloudImageUploadReq: {
@@ -691,6 +1020,22 @@ export interface components {
       /** @description 反馈配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张） */
       images?: string[];
     };
+    /** @description 评价提交/重新评价请求参数 */
+    ReviewReq: {
+      /**
+       * Format: int32
+       * @description 评分，1-5星
+       * @example 5
+       */
+      rating: number;
+      /**
+       * @description 文字评价
+       * @example 味道不错，分量也足。
+       */
+      content?: string;
+      /** @description 评价配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张） */
+      images?: string[];
+    };
     /** @description 统一响应结果 */
     ResultReviewCreatedVO: {
       /**
@@ -710,12 +1055,12 @@ export interface components {
     ReviewCreatedVO: {
       /**
        * Format: int64
-       * @description 新评价 ID（供重新评价 PUT /reviews/{id} 与本地写回）
+       * @description 新评价 ID（供本地写回）
        * @example 9
        */
       id?: number;
     };
-    /** @description 改动项 {name,price(分),canteenName,stallName,floor,attributes,images}；均为选填，传入即校验 */
+    /** @description 反馈体 {**type**(必填: field|gone), name?, price?, canteenName?, stallName?, floor?, attributes?, images?, note?}；field 型只传改动项，gone 型仅用 note/images（选填） */
     DishCorrectionReq: {
       /**
        * @description 反馈类型：field=信息有误 / gone=已经下架（**必填**）
@@ -723,7 +1068,7 @@ export interface components {
        */
       type: string;
       /**
-       * @description 菜品名称（传入时：非空、≤64 字）
+       * @description 菜品名称（field 型传入时：非空、≤64 字）
        * @example 宫保鸡丁
        */
       name?: string;
@@ -744,8 +1089,8 @@ export interface components {
        */
       stallName?: string;
       /**
-       * @description 楼层（自由文本，归属档口 stall.floor；传入时：非空、≤16 字）
-       * @example 1F
+       * @description 楼层（受控字典值·值即汉字，归属档口 stall.floor；传入时：非空、∈ 楼层字典、≤16 字）
+       * @example 二层
        */
       floor?: string;
       /**
@@ -817,10 +1162,436 @@ export interface components {
        */
       username: string;
     };
-    /** @description 采纳请求体 {stallId?, createIfMissing?}（两段式档口确认） */
+    /** @description 统一响应结果 */
+    ResultStallAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["StallAdminVO"];
+    };
+    /** @description 后台档口列表展示信息 */
+    StallAdminVO: {
+      /**
+       * Format: int64
+       * @description 档口ID
+       */
+      id?: number;
+      /**
+       * Format: int64
+       * @description 所属食堂ID
+       */
+      canteenId?: number;
+      /**
+       * @description 所属食堂名
+       * @example 第一食堂
+       */
+      canteenName?: string;
+      /**
+       * Format: int64
+       * @description 其下菜品数
+       * @example 12
+       */
+      dishCount?: number;
+      /**
+       * @description 档口名称
+       * @example 面食窗口
+       */
+      name?: string;
+      /** @description 档口位置 */
+      location?: string;
+      /**
+       * @description 楼层（受控字典、值即汉字：负一层/一层/二层/三层/四层）
+       * @example 二层
+       */
+      floor?: string;
+      /**
+       * @description 窗口号
+       * @example 3号窗口
+       */
+      windowNo?: string;
+      /** @description 档口描述 */
+      description?: string;
+      /** @description 档口展示图片列表 */
+      images?: string[];
+      /**
+       * @description 平均评分
+       * @example 4.5
+       */
+      avgRating?: number;
+      /**
+       * Format: int32
+       * @description 排序权重
+       */
+      sortOrder?: number;
+      /**
+       * Format: date-time
+       * @description 创建时间
+       */
+      createdAt?: string;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 举报原因新增请求 */
+    ReportReasonSaveReq: {
+      /**
+       * @description 机器值（小写字母 / 数字 / -，1~32；全站唯一；在用后不可改）
+       * @example spam
+       */
+      value: string;
+      /**
+       * @description 中文标签（1~32 字）
+       * @example 垃圾广告 / 营销刷屏
+       */
+      label: string;
+    };
+    /** @description 管理端举报原因出参 */
+    ReportReasonAdminVO: {
+      /**
+       * Format: int64
+       * @description 原因ID
+       */
+      id?: number;
+      /**
+       * @description 机器值（端上提交字段名 = reason；落库列 = user_feedback.sub）
+       * @example spam
+       */
+      value?: string;
+      /**
+       * @description 中文标签
+       * @example 垃圾广告 / 营销刷屏
+       */
+      label?: string;
+      /**
+       * Format: int32
+       * @description 展示顺序（升序）
+       */
+      order?: number;
+      /** @description 状态：on=启用 / off=停用 */
+      status?: string;
+      /**
+       * Format: int64
+       * @description 被举报记录引用次数（type='report' 且 sub=value）—— 删除前判断
+       */
+      feedbackCount?: number;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultReportReasonAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["ReportReasonAdminVO"];
+    };
+    /** @description 后台菜品列表展示信息 */
+    DishAdminVO: {
+      /**
+       * Format: int64
+       * @description 菜品ID
+       */
+      id?: number;
+      /**
+       * Format: int64
+       * @description 所属档口ID
+       */
+      stallId?: number;
+      /**
+       * @description 菜品名称
+       * @example 牛肉拉面
+       */
+      name?: string;
+      /**
+       * Format: int32
+       * @description 现价（分，已含折扣）
+       * @example 1200
+       */
+      price?: number;
+      /**
+       * Format: int32
+       * @description 原价（分，可空）
+       * @example 1500
+       */
+      originalPrice?: number;
+      /** @description 菜品描述 */
+      description?: string;
+      /** @description 菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成；2026-09-23 R5） */
+      images?: string[];
+      /**
+       * @description 状态（on/off）
+       * @example on
+       */
+      status?: string;
+      /**
+       * @description 平均评分
+       * @example 4.5
+       */
+      avgRating?: number;
+      /**
+       * Format: int32
+       * @description 评价数
+       */
+      ratingCount?: number;
+      /**
+       * Format: date-time
+       * @description 创建时间
+       */
+      createdAt?: string;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+      /**
+       * @description 档口名称
+       * @example 面食窗口
+       */
+      stallName?: string;
+      /**
+       * @description 所属食堂名称
+       * @example 第一食堂
+       */
+      canteenName?: string;
+      /**
+       * @description 描述属性（键=维度 fieldKey，值=中文文本/数组）
+       * @example {
+       *   "dietType": "半荤",
+       *   "ingredients": [
+       *     "蛋"
+       *   ],
+       *   "flavorTags": [
+       *     "酸",
+       *     "甜"
+       *   ],
+       *   "serveTemp": "热食"
+       * }
+       */
+      attributes?: {
+        [key: string]: Record<string, never>;
+      };
+      /**
+       * @description 菜品分类键（值域 = 分类值字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）
+       * @example noodle
+       */
+      mealType?: string;
+      /**
+       * @description 分类中文名
+       * @example 面食粉类
+       */
+      mealTypeLabel?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultDishAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishAdminVO"];
+    };
+    /** @description 复制菜品请求 */
+    DishCopyReq: {
+      /**
+       * @description 新菜品名称（1~64 字）
+       * @example 牛肉拉面（大份）
+       */
+      name: string;
+    };
+    /** @description 管理端属性维度出参 */
+    DishDimensionAdminVO: {
+      /**
+       * Format: int64
+       * @description 维度ID
+       */
+      id?: number;
+      /**
+       * @description 维度键（= 菜品 attributes 的键，camelCase；**在用后不可改**）
+       * @example dietType
+       */
+      fieldKey?: string;
+      /**
+       * @description 维度中文名（可改，改名免费）
+       * @example 饮食属性
+       */
+      name?: string;
+      /** @description 取值类型：single / multi */
+      valueType?: string;
+      /**
+       * Format: int32
+       * @description 展示顺序（升序）
+       */
+      order?: number;
+      /**
+       * Format: int64
+       * @description 使用该维度的菜品数（删除前判断）
+       */
+      dishCount?: number;
+      /**
+       * Format: int64
+       * @description 该维度下的取值数（删除确认文案用）
+       */
+      valueCount?: number;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultDishDimensionAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishDimensionAdminVO"];
+    };
+    /** @description 管理端属性取值出参 */
+    DishValueAdminVO: {
+      /**
+       * Format: int64
+       * @description 取值ID（菜品 attributes 引用的就是它）
+       */
+      id?: number;
+      /**
+       * Format: int64
+       * @description 所属维度ID
+       */
+      dimensionId?: number;
+      /**
+       * @description 取值中文名（可改，改名免费）
+       * @example 半荤
+       */
+      label?: string;
+      /**
+       * Format: int32
+       * @description 组内展示顺序（升序）
+       */
+      order?: number;
+      /**
+       * Format: int64
+       * @description 引用该取值的菜品数（删除前判断）
+       */
+      dishCount?: number;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultDishValueAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishValueAdminVO"];
+    };
+    /** @description 分类值登记请求 */
+    DishCategorySaveReq: {
+      /**
+       * @description 分类键（小写字母 / 数字 / -，1~20；全站唯一；在用后不可改）
+       * @example noodle
+       */
+      key: string;
+      /**
+       * @description 分类中文名（1~32 字；分类名唯一）
+       * @example 面食粉类
+       */
+      label: string;
+    };
+    /** @description 管理端分类值出参 */
+    DishCategoryAdminVO: {
+      /**
+       * Format: int64
+       * @description 分类ID
+       */
+      id?: number;
+      /**
+       * @description 分类键（dish.meal_type 的存储值；视图条件引用它；在用后不可改）
+       * @example noodle
+       */
+      key?: string;
+      /**
+       * @description 分类中文名（可改，改名免费）
+       * @example 面食粉类
+       */
+      label?: string;
+      /**
+       * Format: int32
+       * @description 顺序（后台下拉 / 列表展示序）
+       */
+      order?: number;
+      /**
+       * Format: int64
+       * @description 引用该分类的菜品数（删除前判断）
+       */
+      dishCount?: number;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultDishCategoryAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishCategoryAdminVO"];
+    };
+    /** @description **field 型**采纳请求体 {acceptedFields[], stallId?, createIfMissing?}；**gone 型**忽略本请求体（下架无需参数） */
     DishCorrectionAdoptReq: {
       /**
-       * @description 采纳哪些差异项（取值 = GET /admin/corrections/{id} 的 differences[].field）；必填且非空
+       * @description 采纳哪些差异项（取值 = GET /admin/corrections/{id} 的 differences[].field）；**必填且非空**
        * @example [
        *   "name",
        *   "price"
@@ -856,6 +1627,103 @@ export interface components {
       message?: string;
       /** @description 数据 */
       data?: Record<string, never>;
+    };
+    /** @description 后台食堂列表展示信息 */
+    CanteenAdminVO: {
+      /**
+       * Format: int64
+       * @description 食堂ID
+       */
+      id?: number;
+      /**
+       * @description 食堂名称
+       * @example 第一食堂
+       */
+      name?: string;
+      /**
+       * Format: int64
+       * @description 其下档口数
+       * @example 3
+       */
+      stallCount?: number;
+      /** @description 食堂位置 */
+      location?: string;
+      /** @description 食堂描述 */
+      description?: string;
+      /** @description 食堂图片URL列表 */
+      images?: string[];
+      /**
+       * Format: int32
+       * @description 排序权重
+       */
+      sortOrder?: number;
+      /**
+       * Format: date-time
+       * @description 创建时间
+       */
+      createdAt?: string;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultCanteenAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["CanteenAdminVO"];
+    };
+    /** @description 管理端 Banner 出参 */
+    BannerAdminVO: {
+      /**
+       * Format: int64
+       * @description Banner ID
+       */
+      id?: number;
+      /** @description 轮播图地址（出参已转绝对 URL） */
+      imageUrl?: string;
+      /**
+       * Format: int32
+       * @description 展示顺序（升序；列名 sort_order，出参为 order）
+       */
+      order?: number;
+      /** @description 状态：on=启用 / off=停用 */
+      status?: string;
+      /**
+       * Format: date-time
+       * @description 创建时间
+       */
+      createdAt?: string;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultBannerAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["BannerAdminVO"];
     };
     /** @description 举报原因字典项 */
     ReportReasonVO: {
@@ -1055,7 +1923,7 @@ export interface components {
        */
       originalPrice?: number;
       /**
-       * @description 平均评分
+       * @description 平均评分（零评价下发 5.0 兜底）
        * @example 4.5
        */
       avgRating?: number;
@@ -1150,12 +2018,12 @@ export interface components {
        */
       canteenName?: string;
       /**
-       * @description 档口楼层（如 1F/2F）
-       * @example 1F
+       * @description 档口楼层（值即汉字，如「二层」）
+       * @example 二层
        */
       floor?: string;
       /**
-       * @description 平均评分（读缓存列 dish.avg_rating；零评价为 null）
+       * @description 平均评分（读缓存列 dish.avg_rating；零评价下发 5.0 兜底）
        * @example 4.5
        */
       avgRating?: number;
@@ -1341,13 +2209,18 @@ export interface components {
       /** @description 数据 */
       data?: components["schemas"]["BannerVO"][];
     };
-    /** @description 分页响应结果 */
-    PageResultUserVO: {
+    /** @description 管理端分页响应结果（含总数） */
+    AdminPageResultUserVO: {
       /** @description 当前页数据列表 */
       records?: components["schemas"]["UserVO"][];
+      /**
+       * Format: int64
+       * @description 总条数
+       */
+      total?: number;
     };
     /** @description 统一响应结果 */
-    ResultPageResultUserVO: {
+    ResultAdminPageResultUserVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -1359,7 +2232,7 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["PageResultUserVO"];
+      data?: components["schemas"]["AdminPageResultUserVO"];
     };
     /** @description 用户视图对象（管理端用） */
     UserVO: {
@@ -1400,14 +2273,11 @@ export interface components {
        * @description 创建时间
        */
       createdAt?: string;
-    };
-    /** @description 分页响应结果 */
-    PageResultReviewAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["ReviewAdminVO"][];
+      /** Format: date-time */
+      updatedAt?: string;
     };
     /** @description 统一响应结果 */
-    ResultPageResultReviewAdminVO: {
+    ResultListStallAdminVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -1419,7 +2289,33 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["PageResultReviewAdminVO"];
+      /** @description 数据 */
+      data?: components["schemas"]["StallAdminVO"][];
+    };
+    /** @description 管理端分页响应结果（含总数） */
+    AdminPageResultReviewAdminVO: {
+      /** @description 当前页数据列表 */
+      records?: components["schemas"]["ReviewAdminVO"][];
+      /**
+       * Format: int64
+       * @description 总条数
+       */
+      total?: number;
+    };
+    /** @description 统一响应结果 */
+    ResultAdminPageResultReviewAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResultReviewAdminVO"];
     };
     /** @description 评价展示信息（管理端专用，含审核标记） */
     ReviewAdminVO: {
@@ -1461,11 +2357,34 @@ export interface components {
        * @description 评价时间
        */
       createdAt?: string;
+      /** @description 是否被隐藏（管理端用） */
+      hidden?: boolean;
+    };
+    /** @description 统一响应结果 */
+    ResultListReportReasonAdminVO: {
       /**
        * Format: int32
-       * @description 是否被隐藏（管理端用，0/1）
+       * @description 状态码
+       * @example 200
        */
-      isHidden?: number;
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: components["schemas"]["ReportReasonAdminVO"][];
+    };
+    /** @description 管理端分页响应结果（含总数） */
+    AdminPageResultFeedbackAdminVO: {
+      /** @description 当前页数据列表 */
+      records?: components["schemas"]["FeedbackAdminVO"][];
+      /**
+       * Format: int64
+       * @description 总条数
+       */
+      total?: number;
     };
     /** @description 反馈管理端展示信息 */
     FeedbackAdminVO: {
@@ -1516,14 +2435,18 @@ export interface components {
        * @description 处理时间
        */
       handledAt?: string;
-    };
-    /** @description 分页响应结果 */
-    PageResultFeedbackAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["FeedbackAdminVO"][];
+      /** Format: date-time */
+      updatedAt?: string;
+      reason?: string;
+      reasonLabel?: string;
+      /** Format: int64 */
+      reviewId?: number;
+      reviewContent?: string;
+      reviewDishName?: string;
+      reviewHidden?: boolean;
     };
     /** @description 统一响应结果 */
-    ResultPageResultFeedbackAdminVO: {
+    ResultAdminPageResultFeedbackAdminVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -1535,10 +2458,20 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["PageResultFeedbackAdminVO"];
+      data?: components["schemas"]["AdminPageResultFeedbackAdminVO"];
     };
-    /** @description 后台菜品列表展示信息 */
-    DishAdminVO: {
+    /** @description 管理端分页响应结果（含总数） */
+    AdminPageResultDishAdminListItemVO: {
+      /** @description 当前页数据列表 */
+      records?: components["schemas"]["DishAdminListItemVO"][];
+      /**
+       * Format: int64
+       * @description 总条数
+       */
+      total?: number;
+    };
+    /** @description 管理端菜品列表行（瘦身） */
+    DishAdminListItemVO: {
       /**
        * Format: int64
        * @description 菜品ID
@@ -1546,9 +2479,20 @@ export interface components {
       id?: number;
       /**
        * Format: int64
-       * @description 所属档口ID
+       * @description 所属档口ID（行内跳转用）
+       * @example 3
        */
       stallId?: number;
+      /**
+       * @description 档口名（联表带出）
+       * @example 清真面档
+       */
+      stallName?: string;
+      /**
+       * @description 食堂名（联表带出）
+       * @example 清真食堂
+       */
+      canteenName?: string;
       /**
        * @description 菜品名称
        * @example 牛肉拉面
@@ -1556,85 +2500,52 @@ export interface components {
       name?: string;
       /**
        * Format: int32
-       * @description 现价（分，已含折扣）
-       * @example 1200
+       * @description 现价（分）
+       * @example 1600
        */
       price?: number;
       /**
        * Format: int32
        * @description 原价（分，可空）
-       * @example 1500
+       * @example 2000
        */
       originalPrice?: number;
-      /** @description 菜品描述 */
-      description?: string;
-      /** @description 菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成；2026-09-23 R5） */
-      images?: string[];
+      /** @description 封面图绝对 URL（首图派生；无图为空串） */
+      coverImage?: string;
       /**
-       * @description 状态（on/off）
-       * @example on
-       */
-      status?: string;
-      /**
-       * @description 平均评分
-       * @example 4.5
-       */
-      avgRating?: number;
-      /**
-       * Format: int32
-       * @description 评价数
-       */
-      ratingCount?: number;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-      /**
-       * @description 档口名称
-       * @example 面食窗口
-       */
-      stallName?: string;
-      /**
-       * @description 所属食堂名称
-       * @example 第一食堂
-       */
-      canteenName?: string;
-      /**
-       * @description 描述属性（键=维度 fieldKey，值=中文文本/数组）
-       * @example {
-       *   "dietType": "半荤",
-       *   "ingredients": [
-       *     "蛋"
-       *   ],
-       *   "flavorTags": [
-       *     "酸",
-       *     "甜"
-       *   ],
-       *   "serveTemp": "热食"
-       * }
-       */
-      attributes?: {
-        [key: string]: Record<string, never>;
-      };
-      /**
-       * @description 菜品大类枚举键（值域见 GET /dishes/views 的大类视图；管理端录入下拉 + 编辑回填 + 列表筛选）
+       * @description 分类键
        * @example noodle
        */
       mealType?: string;
-    };
-    /** @description 分页响应结果 */
-    PageResultDishAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["DishAdminVO"][];
+      /**
+       * @description 分类中文名（A6 分类值字典派生，端上零硬编码）
+       * @example 面食粉类
+       */
+      mealTypeLabel?: string;
+      /** @description 上架状态：on / off */
+      status?: string;
+      /** @description 均分（零评价为 null） */
+      avgRating?: number;
+      /**
+       * Format: int32
+       * @description 评价数（删除确认的影响面来源）
+       * @example 12
+       */
+      ratingCount?: number;
+      /**
+       * Format: int64
+       * @description 近 30 天浏览量（dish_view_log 滚动窗口统计；非历史累计。窗口内无浏览为 0）
+       * @example 86
+       */
+      recentViewCount?: number;
+      /**
+       * Format: date-time
+       * @description 更新时间（列表排序依据）
+       */
+      updatedAt?: string;
     };
     /** @description 统一响应结果 */
-    ResultPageResultDishAdminVO: {
+    ResultAdminPageResultDishAdminListItemVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -1646,15 +2557,234 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["PageResultDishAdminVO"];
+      data?: components["schemas"]["AdminPageResultDishAdminListItemVO"];
     };
-    /** @description 菜品纠错管理端展示信息 */
+    /** @description 管理端筛选视图出参 */
+    DishViewAdminVO: {
+      /**
+       * Format: int64
+       * @description 视图ID
+       */
+      id?: number;
+      /**
+       * @description 视图键（端上回传 view=<key>；在用后不可改）
+       * @example noodle
+       */
+      key?: string;
+      /**
+       * @description tab 文案
+       * @example 面食粉类
+       */
+      label?: string;
+      /**
+       * Format: int32
+       * @description 展示顺序（升序）
+       */
+      order?: number;
+      /** @description 是否在 client 首页出现 */
+      enabled?: boolean;
+      /**
+       * Format: int64
+       * @description 当前匹配的在售菜品数
+       */
+      matchedCount?: number;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultListDishViewAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: components["schemas"]["DishViewAdminVO"][];
+    };
+    /** @description 统一响应结果 */
+    ResultListDishDimensionAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: components["schemas"]["DishDimensionAdminVO"][];
+    };
+    /** @description 统一响应结果 */
+    ResultListDishValueAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: components["schemas"]["DishValueAdminVO"][];
+    };
+    /** @description 统一响应结果 */
+    ResultListDishCategoryAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: components["schemas"]["DishCategoryAdminVO"][];
+    };
+    /** @description 运营看板（只读聚合） */
+    DashboardVO: {
+      todo?: components["schemas"]["Todo"];
+      health?: components["schemas"]["Health"];
+      overview?: components["schemas"]["Overview"];
+    };
+    /** @description 主数据健康度区 */
+    Health: {
+      /**
+       * Format: int64
+       * @description 无图片的菜品数（client 卡片只能走占位图）
+       */
+      dishesWithoutImage?: number;
+      /**
+       * Format: int64
+       * @description 未归入档口的菜品数（stall_id = 0）
+       */
+      dishesWithoutStall?: number;
+      /**
+       * Format: int64
+       * @description 分类为空的菜品数（meal_type 为空）
+       */
+      dishesWithoutCategory?: number;
+      /**
+       * Format: int64
+       * @description 无菜品的档口数（空档口）
+       */
+      stallsWithoutDish?: number;
+    };
+    /** @description 概况区 */
+    Overview: {
+      /**
+       * Format: int64
+       * @description 用户总数（不含已注销）
+       */
+      userCount?: number;
+      /**
+       * Format: int64
+       * @description 已认证用户数（bind_email 非空）
+       */
+      verifiedUserCount?: number;
+      /**
+       * Format: int64
+       * @description 在售菜品数（status='on'）
+       */
+      onSaleDishCount?: number;
+      /**
+       * Format: int64
+       * @description 评价总数（含已隐藏）
+       */
+      reviewCount?: number;
+    };
+    /** @description 最近待办项 */
+    RecentTodo: {
+      /**
+       * @description 类别：feedback / report / correction（决定跳转哪个处置页）
+       * @example feedback
+       */
+      kind?: string;
+      /**
+       * Format: int64
+       * @description 对应记录 ID（跳转定位）
+       * @example 12
+       */
+      id?: number;
+      /** @description 摘要：反馈=正文摘要；举报=被举报评价摘要；纠错=菜品名 */
+      title?: string;
+      /** @description 提交时间（yyyy-MM-dd HH:mm:ss） */
+      submittedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultDashboardVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DashboardVO"];
+    };
+    /** @description 待办区 */
+    Todo: {
+      /**
+       * Format: int64
+       * @description 待处理意见反馈数（非举报且 status='pending'）
+       */
+      pendingFeedbackCount?: number;
+      /**
+       * Format: int64
+       * @description 待处理举报数（type='report' 且 status='pending'）
+       */
+      pendingReportCount?: number;
+      /**
+       * Format: int64
+       * @description 待处理纠错数（dish_correction：status='pending'）
+       */
+      pendingCorrectionCount?: number;
+      /** @description 最近 5 条待办（跨三类合并，按提交时间倒序） */
+      recent?: components["schemas"]["RecentTodo"][];
+    };
+    /** @description 管理端分页响应结果（含总数） */
+    AdminPageResultDishCorrectionAdminVO: {
+      /** @description 当前页数据列表 */
+      records?: components["schemas"]["DishCorrectionAdminVO"][];
+      /**
+       * Format: int64
+       * @description 总条数
+       */
+      total?: number;
+    };
+    /** @description 菜品问题反馈管理端展示信息 */
     DishCorrectionAdminVO: {
       /**
        * Format: int64
-       * @description 纠错ID
+       * @description 反馈ID
        */
       id?: number;
+      /**
+       * @description 问题类型：field=信息有误 / gone=已经下架
+       * @example field
+       */
+      type?: string;
       /**
        * Format: int64
        * @description 目标菜品ID
@@ -1682,17 +2812,17 @@ export interface components {
       /** @description 提交的档口名称 */
       stallName?: string;
       /**
-       * @description 提交的楼层（归属档口 stall.floor；未改动为 null）
-       * @example 1F
+       * @description 提交的楼层（受控字典值·值即汉字，归属档口 stall.floor；未改动为 null）
+       * @example 二层
        */
       floor?: string;
       /**
-       * @description 提交的描述属性（键=维度 fieldKey，值=机器值/数组；仅改动维度）
+       * @description 提交的描述属性（键=维度 fieldKey，值=中文/数组；仅改动维度）
        * @example {
-       *   "dietType": "veg",
+       *   "dietType": "素",
        *   "flavorTags": [
-       *     "spicy",
-       *     "sour"
+       *     "辣",
+       *     "酸"
        *   ]
        * }
        */
@@ -1701,12 +2831,24 @@ export interface components {
       };
       /** @description 提交的菜品图片 URL 列表（field=改动后的完整数组≤5张 / gone=选填补充≤3张） */
       images?: string[];
+      /**
+       * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
+       * @example 这个窗口现在换成麻辣香锅了
+       */
+      note?: string;
       /** @description 处理状态：pending/adopted/rejected */
       status?: string;
       /** @description 处理回复（采纳时固定「已采纳，菜品信息已更新」） */
       reply?: string;
       /** @description 不采纳原因（status=rejected 时非空） */
       rejectReason?: string;
+      /**
+       * Format: int32
+       * @description 差异项数量（一眼看出「改了几项」；列表不必展开全部内容）
+       */
+      changeCount?: number;
+      /** @description 含 floor 改动时的连带影响提示（同档口菜品数） */
+      floorImpact?: string;
       /**
        * Format: date-time
        * @description 处理时间
@@ -1718,35 +2860,13 @@ export interface components {
        */
       createdAt?: string;
       /**
-       * @description 问题类型：field=信息有误 / gone=已经下架
-       * @example field
-       */
-      type?: string;
-      /**
-       * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
-       * @example 这个窗口现在换成麻辣香锅了
-       */
-      note?: string;
-      /**
-       * Format: int32
-       * @description 差异项数量（一眼看出「改了几项」；列表不必展开全部内容）
-       */
-      changeCount?: number;
-      /** @description 含 floor 改动时的连带影响提示（同档口菜品数） */
-      floorImpact?: string;
-      /**
        * Format: date-time
        * @description 最近更新时间（管理端列表统一带它）
        */
       updatedAt?: string;
     };
-    /** @description 分页响应结果 */
-    PageResultDishCorrectionAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["DishCorrectionAdminVO"][];
-    };
     /** @description 统一响应结果 */
-    ResultPageResultDishCorrectionAdminVO: {
+    ResultAdminPageResultDishCorrectionAdminVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -1758,26 +2878,7 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["PageResultDishCorrectionAdminVO"];
-    };
-    /** @description 纠错差异对照项 */
-    DishCorrectionDifferenceVO: {
-      /**
-       * @description 差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<fieldKey>
-       * @example name
-       */
-      field?: string;
-      /**
-       * @description 字段中文名（服务端下发，端上零硬编码）
-       * @example 菜品名称
-       */
-      label?: string;
-      /** @description 当前实时值（回查 dish / stall） */
-      oldValue?: string;
-      /** @description 用户提交的值 */
-      newValue?: string;
-      /** @description 是否连带影响同档口其它菜品（仅 floor 为 true） */
-      affectsOthers?: boolean;
+      data?: components["schemas"]["AdminPageResultDishCorrectionAdminVO"];
     };
     /** @description 菜品纠错详情（含差异对照） */
     DishCorrectionDetailVO: {
@@ -1799,6 +2900,11 @@ export interface components {
       /** @description 目标菜品名（实时回查 dish；菜品已物理删除为 null） */
       dishName?: string;
       /**
+       * @description 目标菜品当前上下架状态（on/off；菜品已物理删除为 null）
+       * @example on
+       */
+      dishStatus?: string;
+      /**
        * Format: int64
        * @description 提交人用户ID（匿名提交为 0）
        */
@@ -1814,15 +2920,15 @@ export interface components {
       note?: string;
       /**
        * Format: int64
-       * @description 同菜品待处理的 gone 反馈数（已按用户去重；仅参考、非下架阈值）
+       * @description 同菜品待处理的 gone 反馈数（已按用户去重；**仅参考，非下架阈值**）
        * @example 3
        */
       goneUserCount?: number;
       /** @description 差异对照清单（仅仍有差异的项） */
       differences?: components["schemas"]["DishCorrectionDifferenceVO"][];
-      /** @description 用户提交的原始快照（仅改动项） */
+      /** @description 用户提交的原始快照（仅改动项：name/price/canteenName/stallName/floor/attributes/images） */
       submitted?: {
-        [key: string]: unknown;
+        [key: string]: Record<string, never>;
       };
       /** @description 提交的菜品图片 URL 列表（COS 绝对地址） */
       images?: string[];
@@ -1841,6 +2947,56 @@ export interface components {
        */
       createdAt?: string;
     };
+    /** @description 纠错差异对照项 */
+    DishCorrectionDifferenceVO: {
+      /**
+       * @description 差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<fieldKey>
+       * @example name
+       */
+      field?: string;
+      /**
+       * @description 字段中文名（服务端下发，端上零硬编码）
+       * @example 菜品名称
+       */
+      label?: string;
+      /** @description 当前实时值（回查 dish / stall） */
+      oldValue?: string;
+      /** @description 用户提交的值 */
+      newValue?: string;
+      /** @description 是否连带影响同档口其它菜品（仅 floor 为 true） */
+      affectsOthers?: boolean;
+    };
+    /** @description 统一响应结果 */
+    ResultDishCorrectionDetailVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishCorrectionDetailVO"];
+    };
+    /** @description 统一响应结果 */
+    ResultListBannerAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: components["schemas"]["BannerAdminVO"][];
+    };
   };
   responses: never;
   parameters: never;
@@ -1856,55 +3012,8 @@ export type external = Record<string, never>;
 export interface operations {
 
   /**
-   * 删除自己的评价
-   * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
-   */
-  deleteReview: {
-    parameters: {
-      path: {
-        /**
-         * @description 评价ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
    * 单条已读
-   * @description STU（需邮箱认证）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
+   * @description STU（需登录；游客态亦可）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
    */
   readOne: {
     parameters: {
@@ -1951,7 +3060,7 @@ export interface operations {
   };
   /**
    * 全部已读
-   * @description STU（需邮箱认证）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。
+   * @description STU（需登录；游客态亦可）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。
    */
   readAll: {
     responses: {
@@ -2135,7 +3244,7 @@ export interface operations {
   };
   /**
    * 编辑档口
-   * @description 用途：修改档口基础信息。新增档口不再开放独立端点——由菜品录入按名 upsert 自动建档。
+   * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。
    */
   updateStall: {
     parameters: {
@@ -2186,8 +3295,55 @@ export interface operations {
     };
   };
   /**
+   * 删除档口
+   * @description 用途：删除档口。其下仍有菜品 → 400（由本层编排跨域计数）；不存在 → 4001。
+   */
+  deleteStall: {
+    parameters: {
+      path: {
+        /**
+         * @description 档口ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
    * 设置评价隐藏/显示
-   * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏后公开评价列表不再展示。
+   * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。
    */
   setHidden: {
     parameters: {
@@ -2197,6 +3353,200 @@ export interface operations {
          * @example 1
          */
         id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 举报原因改名
+   * @description 用途：**只改 label**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
+   */
+  rename: {
+    parameters: {
+      path: {
+        /**
+         * @description 原因ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReportReasonRenameReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除举报原因
+   * @description 用途：删除。**被举报记录引用 → 400**（下线一律用停用，避免历史举报翻不出中文）；不存在 → 4001。
+   */
+  delete: {
+    parameters: {
+      path: {
+        /**
+         * @description 原因ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 举报原因启停
+   * @description 用途：只改 status。**停用最后一条启用 → 400**（举报入口不能配空）；启用数超 8 → 400；不存在 → 4001。
+   */
+  updateStatus_1: {
+    parameters: {
+      path: {
+        /**
+         * @description 原因ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReportReasonStatusReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 举报原因排序
+   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+   */
+  sort: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SortItemsReq"];
       };
     };
     responses: {
@@ -2256,6 +3606,53 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 菜品详情
+   * @description 用途：编辑回填（全字段）。菜品不存在返回 4001。
+   */
+  getDish: {
+    parameters: {
+      path: {
+        /**
+         * @description 菜品ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDishAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -2384,14 +3781,563 @@ export interface operations {
     };
   };
   /**
-   * 拒绝纠错
-   * @description ADM。仅 status=pending 可处理（否则 400「该纠错已处理」）。仅接受 JSON body（{reply, outcome:'rejected', rejectReason}）：reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400；outcome 固定 rejected（其他值 400）；rejectReason 必填（1~200 字，纯空白 → 400「请填写不采纳原因」）。处理：status=rejected + reply/reject_reason/handled_at 落库，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执（含不采纳原因）。
+   * 上下架
+   * @description 用途：只改 status（on 上架 / off 下架）。非法值 400，菜品不存在 4001。
+   */
+  updateStatus_2: {
+    parameters: {
+      path: {
+        /**
+         * @description 菜品ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishStatusReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 修改视图
+   * @description 用途：改**文案 / 启停**。停用「最后一个启用的视图」→ 400；不存在 → 4001。
+   */
+  update: {
+    parameters: {
+      path: {
+        /**
+         * @description 视图ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishViewUpdateReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 视图排序
+   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+   */
+  sort_1: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SortItemsReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 修改维度
+   * @description 用途：改维度名 / 取值类型（**维度键不可改**）。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
+   */
+  updateDimension: {
+    parameters: {
+      path: {
+        /**
+         * @description 维度ID
+         * @example 1
+         */
+        dimensionId: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishDimensionSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除维度
+   * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
+   */
+  deleteDimension: {
+    parameters: {
+      path: {
+        /**
+         * @description 维度ID
+         * @example 1
+         */
+        dimensionId: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 修改取值
+   * @description 用途：**只改取值名**（改名免费，菜品数据零迁移）；同维度下重名 → 400；不存在 → 4001。
+   */
+  updateValue: {
+    parameters: {
+      path: {
+        /**
+         * @description 维度ID
+         * @example 1
+         */
+        dimensionId: number;
+        /**
+         * @description 取值ID
+         * @example 3
+         */
+        valueId: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishValueSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除取值
+   * @description 用途：删除取值。**仍被菜品引用 → 400**；不存在 → 4001。
+   */
+  deleteValue: {
+    parameters: {
+      path: {
+        /**
+         * @description 维度ID
+         * @example 1
+         */
+        dimensionId: number;
+        /**
+         * @description 取值ID
+         * @example 3
+         */
+        valueId: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 取值排序
+   * @description 用途：拖拽后**整体提交该维度下全量取值**；缺行 / 重复 → 400。
+   */
+  sortValues: {
+    parameters: {
+      path: {
+        /**
+         * @description 维度ID
+         * @example 1
+         */
+        dimensionId: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SortItemsReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 维度排序
+   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+   */
+  sortDimensions: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SortItemsReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 重命名分类值
+   * @description 用途：**只改 label**（改名免费，零菜品迁移）；重名 400；不存在 4001。
+   */
+  rename_1: {
+    parameters: {
+      path: {
+        /**
+         * @description 分类值ID
+         * @example 3
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishCategoryRenameReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 问题反馈详情
+   * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**）+ submitted 提交快照，供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences/submitted 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
+   */
+  detail: {
+    parameters: {
+      path: {
+        /**
+         * @description 反馈ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDishCorrectionDetailVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 拒绝反馈
+   * @description ADM。仅 status=pending 可处理（否则 400「该反馈已处理」）。仅接受 JSON body（{reply?, outcome:'rejected', rejectReason}）：**reply 可选**（≤600 字；留空时回执以不采纳原因为正文），outcome 固定 rejected（其他值 400）；rejectReason **必填**（1~200 字，纯空白 → 400「请填写不采纳原因」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：status=rejected + reply/reject_reason/handled_at 落库，并投递站内回执（含不采纳原因）。
    */
   reject: {
     parameters: {
       path: {
         /**
-         * @description 纠错ID
+         * @description 反馈ID
          * @example 1
          */
         id: number;
@@ -2437,7 +4383,7 @@ export interface operations {
   };
   /**
    * 编辑食堂
-   * @description 用途：修改食堂名称、图片、位置、描述、排序。新增食堂不再开放独立端点——由菜品录入按名 upsert 自动建档。
+   * @description 用途：修改食堂名称（新名重名 → 400）。
    */
   updateCanteen: {
     parameters: {
@@ -2452,6 +4398,247 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["Canteen"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除食堂
+   * @description 用途：删除食堂。其下仍有档口 → 400（避免孤儿档口）；不存在 → 4001。
+   */
+  deleteCanteen: {
+    parameters: {
+      path: {
+        /**
+         * @description 食堂ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 编辑 Banner
+   * @description 用途：换图（可编辑字段整体替换）；不存在 → 4001。
+   */
+  update_1: {
+    parameters: {
+      path: {
+        /**
+         * @description Banner ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BannerSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除 Banner
+   * @description 用途：删除轮播图；不存在 → 4001。
+   */
+  delete_1: {
+    parameters: {
+      path: {
+        /**
+         * @description Banner ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 启停 Banner
+   * @description 用途：只改 status（on 启用 / off 停用）；非法值 400，不存在 4001。
+   */
+  updateStatus_3: {
+    parameters: {
+      path: {
+        /**
+         * @description Banner ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BannerStatusReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * Banner 排序
+   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
+   */
+  sort_2: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SortItemsReq"];
       };
     };
     responses: {
@@ -2635,17 +4822,24 @@ export interface operations {
     };
   };
   /**
-   * 菜品评价列表（时间倒序）
+   * 菜品评价列表（时间倒序，可按星级筛选）
    * @description 用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
    * 排序唯一为发表时间倒序，不提供排序参数。
+   * 可选 rating 按星级筛选（1~5 白名单，非法值 400 不静默降级；不传 = 全部）。
+   * 🔴 筛选为服务端过滤且参与分页 ⇒ 端上切换筛选须重置 page=1。
    * 只返回未隐藏（is_hidden=0）的评价。
-   * 测试示例：/dishes/1/reviews?page=1&pageSize=20
+   * 测试示例：/dishes/1/reviews?page=1&pageSize=20 / ?rating=5
    */
   listReviews: {
     parameters: {
       query?: {
         page?: number;
         pageSize?: number;
+        /**
+         * @description 按星级筛选（1~5；不传 = 全部）
+         * @example 5
+         */
+        rating?: number;
       };
       path: {
         /**
@@ -2690,7 +4884,7 @@ export interface operations {
   };
   /**
    * 提交评价
-   * @description 用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。每个用户对同一菜品只能评价一次，提交后重算菜品评分。需已完成学号邮箱认证。成功返回新评价 ID（data.id），端上据此本地写回「我的评价」态，无须回读。
+   * @description 用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。**同一用户对同一菜品重复提交 = 覆盖旧评价**（2026-09-30 简化：不再返回「您已评价过该菜品」），提交后重算菜品评分。需已完成学号邮箱认证。成功返回评价 ID（data.id）。
    */
   submitReview: {
     parameters: {
@@ -2748,7 +4942,7 @@ export interface operations {
   };
   /**
    * 提交菜品问题反馈
-   * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**先选 type 再填字段**，两类字段集合不同：type=field（信息有误）局部提交——只传改动项（name / price(分) / canteenName / stallName / floor / attributes / images）；type=gone（已经下架）一键提交即可成立——note（≤200 字）与 images（≤3 张）均为选填、可全不传，但传任何差异项字段 → 400。floor 传入时非空 ≤16 字，采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction，status=pending。同一用户对同一菜品的 gone 型只计一次（重复提交成功但不重复计数）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+   * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤5 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
    */
   submitCorrection: {
     parameters: {
@@ -2802,6 +4996,7 @@ export interface operations {
    * 微信静默登录
    * @description 用途：小程序启动时调用 wx.login 获取 code，后端 code2Session 换 openid 自动登录。
    * 新 openid 自动建号（游客态 verified=false）；已有 openid 直接返回原账号。返回 { token, userInfo }。
+   * 风控：同 IP 每分钟 ≤30 次、每小时 ≤300 次（防脚本刷微信外呼配额与批量建号）。
    */
   wechatLogin: {
     requestBody: {
@@ -2852,6 +5047,8 @@ export interface operations {
    * @description 用途：游客完成学号邮箱认证（verified=true）。入参仅验证码，绑定邮箱由验证码记录推导，当前微信账号从登录态取。
    * 认证通过后：无历史邮箱则直接绑定；存在历史邮箱账号则数据归属转移（旧账号业务数据改挂到当前微信）；
    * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、bind_email=NULL）。返回更新后 UserInfoVO（bind_email 已写入；JWT 不含 bind_email、实时查库，无需重发 token）。
+   * 风控：同 IP 每分钟 ≤5 次、每小时 ≤20 次；同一账号 15 分钟内失败满 10 次将被暂时拒绝校验
+   * （发码接口匿名 ⇒ 服务端无「谁申请了这条码」的归属信息，故以「让枚举不成立」防 6 位码被暴力猜中）。
    */
   verifyEmail: {
     requestBody: {
@@ -2951,10 +5148,12 @@ export interface operations {
   };
   /**
    * 上传图片（multipart）
-   * @description 用途：管理端上传菜品图。
+   * @description 用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
    * 鉴权：请求头 X-Admin-Token 必须等于环境变量 ADMIN_TOKEN（未配置即 fail-closed 403）。
    * 测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
-   * 返回：data.url（完整可访问 URL），本地存储降级链路额外返回 data.relativeUrl。
+   * 限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
+   * 返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
+   *       与 data.relativeUrl（本地降级链路才有；两者都可直接入库）。
    * 小程序 UGC 配图请使用 POST /upload/cloud-image（云存储转存链路，学生 JWT）。
    */
   uploadImage: {
@@ -2964,7 +5163,7 @@ export interface operations {
         "multipart/form-data": {
           /**
            * Format: binary
-           * @description 图片文件，支持 jpg/jpeg/png/webp
+           * @description 图片文件，支持 jpg/jpeg/png/webp，单文件 ≤5MB
            */
           file: string;
         };
@@ -3004,12 +5203,193 @@ export interface operations {
     };
   };
   /**
+   * 后台档口列表
+   * @description 用途：浏览器管理端查看档口，可按 canteenId 筛选（不传=全部）。images 返回可访问的完整 URL 数组。
+   */
+  listStalls: {
+    parameters: {
+      query?: {
+        /**
+         * @description 食堂ID（可选，不传=全部）
+         * @example 1
+         */
+        canteenId?: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListStallAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新增档口
+   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。
+   */
+  createStall: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Stall"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultStallAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 举报原因列表
+   * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
+   */
+  list_1: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListReportReasonAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新增举报原因
+   * @description 用途：新增（默认**启用**、排最后）。机器值 1~32、小写字母/数字/-、全站唯一；启用数上限 8。
+   */
+  create: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReportReasonSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultReportReasonAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
    * 后台菜品列表
    * @description 用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。
    */
   listMyDishes: {
     parameters: {
       query?: {
+        /** @description 按档口筛选 */
+        stallId?: number;
+        /** @description 按食堂筛选（经档口间接） */
+        canteenId?: number;
+        /** @description 按分类键筛选（A6 分类值字典） */
+        mealType?: string;
+        /** @description 按上架状态筛选：on / off；不传 = 全部（含已下架） */
+        status?: string;
+        /** @description 关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径） */
+        keyword?: string;
         page?: number;
         pageSize?: number;
       };
@@ -3018,7 +5398,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultPageResultDishAdminVO"];
+          "*/*": components["schemas"]["ResultAdminPageResultDishAdminListItemVO"];
         };
       };
       /** @description Bad Request */
@@ -3085,7 +5465,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultVoid"];
+          "*/*": components["schemas"]["ResultDishAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -3115,14 +5495,327 @@ export interface operations {
     };
   };
   /**
-   * 采纳纠错（两段式档口确认）
-   * @description ADM。仅 status=pending 可采纳（否则 400「该纠错已处理」）；目标菜品已物理删除返回 4001。两段式档口确认：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：七字段写回目标菜品（若本次纠错含 floor 改动，则另外写回**目标档口** stall.floor，同档口其他菜品一并生效；菜品无楼层字段）→ status=adopted、reply=「已采纳，菜品信息已更新」、handled_at=now，并向已认证提交人投递「菜品信息更新」（type=correction_handle）站内回执。采纳已执行时返回 data=null（code=200）。
+   * 复制菜品
+   * @description 用途：以源菜品为模板新建一条（只改菜名，其余字段全部复制）。副本默认**下架**（半成品，确认内容后再上架）。源菜品不存在返回 4001。
+   */
+  copyDish: {
+    parameters: {
+      path: {
+        /**
+         * @description 源菜品ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishCopyReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDishAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 维度列表
+   * @description 用途：维度管理页（按 order 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
+   */
+  listDimensions: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListDishDimensionAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新增维度
+   * @description 用途：新建维度（默认排最后）。维度键须为 camelCase 且唯一。
+   */
+  createDimension: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishDimensionSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDishDimensionAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 取值列表
+   * @description 用途：某维度下的取值（按 order 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
+   */
+  listValues: {
+    parameters: {
+      path: {
+        /**
+         * @description 维度ID
+         * @example 1
+         */
+        dimensionId: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListDishValueAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新增取值
+   * @description 用途：新增取值（默认排最后）。同维度下**名称唯一**；维度不存在 → 4001。
+   */
+  createValue: {
+    parameters: {
+      path: {
+        /**
+         * @description 维度ID
+         * @example 1
+         */
+        dimensionId: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishValueSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDishValueAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 分类值列表
+   * @description 用途：分类值维护入口（按 order 升序，不分页）；带 dishCount（引用该分类的菜品数）。
+   */
+  list_4: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListDishCategoryAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 登记分类值
+   * @description 用途：登记新分类值（A3 菜品保存的「自动登记」最终落到本端点）。键 1~20 小写字母/数字/-、全站唯一；名 1~32 字、应用层唯一。
+   */
+  create_1: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishCategorySaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDishCategoryAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 采纳反馈（按 type 分派）
+   * @description ADM。仅 status=pending 可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ status=adopted、reply=「已下架，感谢反馈」、handled_at=now，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ status=adopted、reply=附注（缺省「已采纳，菜品信息已更新」）、handled_at=now，并投递站内回执。采纳已执行时返回 data=null（code=200）。
    */
   adopt: {
     parameters: {
       path: {
         /**
-         * @description 纠错ID
+         * @description 反馈ID
          * @example 1
          */
         id: number;
@@ -3138,6 +5831,168 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultObject"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 后台食堂列表
+   * @description 用途：浏览器管理端查看全部食堂（筛选属性字典）。images 返回可访问的完整 URL 数组。
+   */
+  listCanteens: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultObject"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新增食堂
+   * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。
+   */
+  createCanteen: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Canteen"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultCanteenAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * Banner 列表
+   * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）。
+   */
+  list_6: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListBannerAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新增 Banner
+   * @description 用途：新增轮播图（默认**启用**、排最后）。
+   */
+  create_2: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BannerSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultBannerAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -3255,7 +6110,7 @@ export interface operations {
   };
   /**
    * 我的消息列表
-   * @description STU（需邮箱认证）。倒序，支持 isRead 过滤。
+   * @description STU（需登录；游客态亦可）。倒序，支持 isRead 过滤。
    */
   list: {
     parameters: {
@@ -3301,7 +6156,7 @@ export interface operations {
   };
   /**
    * 未读总数
-   * @description STU（需邮箱认证）。驱动首页红点。
+   * @description STU（需登录；游客态亦可）。驱动宫格红点。
    */
   unreadCount: {
     responses: {
@@ -3341,7 +6196,7 @@ export interface operations {
    * 菜品分页查询
    * @description 用途：首页网格、搜索页。
    * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-   * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：推荐视图按 CRC32(seed:ID) 会话伪随机序，大类视图热度倒序；无排序入口）。
+   * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：全部 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
    * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
    */
   listDishes: {
@@ -3386,8 +6241,8 @@ export interface operations {
   /**
    * 菜品详情
    * @description 用途：菜品详情页。未登录可访问；登录态与游客态返回结构一致。
-   * **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）view_count +1；
-   * 4001（菜品不存在）与请求失败不计数。
+   * **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）写入一行浏览明细（dish_view_log，精确到秒，不去重）；
+   * 4001（菜品不存在）与请求失败不计数。浏览量不参与任何排序，仅供管理端「近 30 天浏览」统计。
    * 滥用防护：同 IP 每分钟 ≤30 次、每小时 ≤300 次（正常浏览远低于此，用户无感）。
    * 测试示例：/dishes/1
    */
@@ -3490,7 +6345,7 @@ export interface operations {
   /**
    * 首页筛选视图字典
    * @description 用途：首页横向筛选栏数据源。
-   * 下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端 DishViewConst 唯一定义，
+   * 下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图字典表唯一定义，
    * 端上不得维护任何标签中文映射（端上只认 key + label，回传 view=<key>）。
    * 「按大类取数」的视图做空类自动隐藏（当前无在售菜品即不下发）。
    * 公开接口。测试示例：/dishes/views
@@ -3619,59 +6474,24 @@ export interface operations {
   };
   /**
    * 用户列表
-   * @description 用途：后台分页查看用户，支持按 status 筛选。测试示例：/admin/users?page=1&pageSize=10&status=active
+   * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=10&status=active&keyword=干饭
    */
   listUsers: {
     parameters: {
       query?: {
         page?: number;
         pageSize?: number;
+        /** @description 状态：active/disabled/deleted；不传 = 全部 */
         status?: string;
+        /** @description 关键词：昵称 / 账号 / 绑定邮箱模糊匹配 */
+        keyword?: string;
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultPageResultUserVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 后台档口列表
-   * @description 用途：浏览器管理端查看全部档口（筛选属性字典）。images 返回可访问的完整 URL 数组。
-   */
-  listStalls: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultObject"];
+          "*/*": components["schemas"]["ResultAdminPageResultUserVO"];
         };
       };
       /** @description Bad Request */
@@ -3702,14 +6522,17 @@ export interface operations {
   };
   /**
    * 全部评价列表
-   * @description 用途：后台查看所有评价，支持按 isHidden/userId/keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=10&isHidden=0
+   * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=10&hidden=false&dishId=3
    */
   listAll: {
     parameters: {
       query?: {
         page?: number;
         pageSize?: number;
-        isHidden?: number;
+        /** @description 是否隐藏：true=仅已隐藏 / false=仅显示中；不传 = 全部 */
+        hidden?: boolean;
+        /** @description 按菜品筛选（可选） */
+        dishId?: number;
         /** @description 提交用户ID（可选，用户行为聚合用） */
         userId?: number;
         /** @description 评价正文关键词（可选，模糊匹配） */
@@ -3720,7 +6543,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultPageResultReviewAdminVO"];
+          "*/*": components["schemas"]["ResultAdminPageResultReviewAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -3751,11 +6574,13 @@ export interface operations {
   };
   /**
    * 反馈列表
-   * @description ADM。按 status/type/userId/keyword 过滤；不传 status 则返回全部状态（含已处理，供回看）。
+   * @description ADM。B2 意见反馈与 B3 举报管理**共用本端点**，用 category 分流（feedback = 排除 report；report = 仅 report；不传 = 全部）；再按 status/type/userId/keyword 过滤。
    */
-  list_1: {
+  list_2: {
     parameters: {
       query?: {
+        /** @description 板块：feedback=意见反馈（B2）/ report=举报（B3）；不传=全部；非法值 400 */
+        category?: string;
         /** @description 处理状态：pending/handled */
         status?: string;
         /** @description 反馈类型：suggestion/add/error/report（历史类型 bug/other 亦可筛选存量数据）；非法值 400 */
@@ -3772,7 +6597,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultPageResultFeedbackAdminVO"];
+          "*/*": components["schemas"]["ResultAdminPageResultFeedbackAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -3802,16 +6627,97 @@ export interface operations {
     };
   };
   /**
-   * 菜品问题反馈列表
-   * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交 userId=0、昵称为 null）。type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。
+   * 视图列表
+   * @description 用途：视图管理页（按 order 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
    */
-  list_2: {
+  list_3: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListDishViewAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 运营看板
+   * @description 用途：登录后首屏（**只读、无参数、不分页**，一次返回全量）。待办区含跨三类合并的最近 5 条待办（可点击直达处置页）；健康度只收管理员当场能修的项；概况只给规模。
+   */
+  dashboard: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDashboardVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 问题反馈列表
+   * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
+   */
+  list_5: {
     parameters: {
       query?: {
         /** @description 处理状态：pending/adopted/rejected；不传 = 全部 */
         status?: string;
         /** @description 问题类型：field=信息有误 / gone=已经下架；不传 = 全部 */
         type?: string;
+        /**
+         * @description 按目标菜品筛选（从菜品视角看反馈）
+         * @example 12
+         */
+        dishId?: number;
         page?: number;
         pageSize?: number;
       };
@@ -3820,7 +6726,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultPageResultDishCorrectionAdminVO"];
+          "*/*": components["schemas"]["ResultAdminPageResultDishCorrectionAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -3850,15 +6756,24 @@ export interface operations {
     };
   };
   /**
-   * 后台食堂列表
-   * @description 用途：浏览器管理端查看全部食堂（筛选属性字典）。images 返回可访问的完整 URL 数组。
+   * 删除自己的评价
+   * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
    */
-  listCanteens: {
+  deleteReview: {
+    parameters: {
+      path: {
+        /**
+         * @description 评价ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultObject"];
+          "*/*": components["schemas"]["ResultVoid"];
         };
       };
       /** @description Bad Request */

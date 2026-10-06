@@ -52,8 +52,8 @@ public interface FeedbackConst {
 
     // ==================== 举报原因 ====================
     // 举报原因字典**已改为表驱动**（`report_reason` 表，A7 落地 2026-10-03）：
-    // 原先的常量真源（`REPORT_REASONS` / `REPORT_REASON_VALUES` / 6 个机器值常量 / `ReportReason` record）
-    // 已整体删除 —— 口径真源见 docs/schema/report_reason.md 与 docs/api/web/report-reasons.md。
+    // 口径真源见 docs/schema/report_reason.md 与 docs/api/web/report-reasons.md；
+    // 本类**不持有**举报原因常量（值域由 `report_reason` 表下发）。
     // 读取与校验入口：{@code ReportReasonService#listEnabled()}（公开下发）与 {@code isSubmittable()}（提交白名单）。
     //
     // ⚠️ 测试中若需具体机器值，直接用字面量（如 "spam"）或读表，**不要再引入本类常量**。

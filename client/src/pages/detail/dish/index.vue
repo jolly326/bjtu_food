@@ -6,7 +6,7 @@
          左区「返回」（文字）+ 居中区菜名（**随滚动淡入**，`titleOpacity` 只作用于文字）。
          本页改为与首页 §11 **同构** ——
          标题带恒透明、其下滚动区 ⇒ **没有内容从带背后经过** ⇒ 零切片 / 零实底切换 / 零承接条
-         （原自绘 `.dish-nav` 的"透明→实底/渐显"与 `.no-dish-bar` 承接条已退役）。 -->
+         （承接条已移除）。 -->
     <AppTitleBand back :title="dp.dishName" :title-opacity="dp.navOpacity" @back="dp.backToHome" />
 
     <!-- 详情拉取失败 / 菜品不存在 / 缺少 ID：明确文案 + 恢复路径，不得只留纯空白页。
@@ -36,7 +36,7 @@
     <!-- ===== 滚动区（与首页 §11 同构）=====
          `scroll-view` + `flex: 1`：顶边 = 标题带下沿（页面 padding-top 让出）、底边 = 底部操作栏上沿；
          内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。
-         `@scroll` 只驱动菜名淡入；`@scrolltolower` 承接评价分页（原页面级 onReachBottom 退役）。 -->
+         `@scroll` 只驱动菜名淡入；`@scrolltolower` 承接评价分页（页面级 onReachBottom 已移除）。 -->
     <scroll-view
       v-if="dp.dish"
       class="dish-scroll"
@@ -73,9 +73,11 @@
           :load-failed="dp.reviewFailed"
           :pending="dp.reviewPending"
           :scroll-top="dp.scrollTop"
+          :rating-filter="dp.reviewRatingFilter"
           @more="dp.onReviewMore"
           @retry="dp.onRetryReviews"
           @write="dp.onOpenReviewComposer"
+          @filter="dp.onFilterRating"
         />
       </view>
     </template>

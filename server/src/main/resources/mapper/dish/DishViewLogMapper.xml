@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bjtufood.dish.mapper.DishViewLogMapper">
+
+    <!-- 批量查近 N 天浏览量（管理端菜品列表）。
+         🔴 映射到 POJO（Row）而非 java.util.Map：项目开了 map-underscore-to-camel-case，
+         resultType=Map 的键名映射行为不确定（实测取不到值）；@MapKey + resultMap 的值又是整行 HashMap，
+         泛型声明 Map<Long,Long> 会 ClassCastException。POJO 承载是行为最确定的写法。
+         🔴 IN 列表由调用方传入且非空；返回仅含「窗口内有浏览」的菜品，无记录的须由调用方补 0。
+         时间窗用 viewed_at 走 idx_dish_viewed (dish_id, viewed_at) 复合索引。 -->
+    <select id="countRecentViewsByDishIds" resultType="com.bjtufood.dish.mapper.DishViewLogMapper$Row">
+        SELECT dish_id AS dishId, COUNT(*) AS viewCount
+        FROM dish_view_log
+        WHERE dish_id IN
+        <foreach collection="dishIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+          AND viewed_at &gt;= DATE_SUB(NOW(), INTERVAL #{daysBefore} DAY)
+        GROUP BY dish_id
+    </select>
+
+    <!-- 滚动窗口清理：删除早于 N 天的行。
+         走 idx_viewed_at (viewed_at) 索引；🔴 不用物理时间区间（如按月分区），
+         必须是「NOW() - N 天」的滑动窗口，否则每月 1 日会突然只剩几天数据。 -->
+    <delete id="deleteOlderThan">
+        DELETE FROM dish_view_log
+        WHERE viewed_at &lt; DATE_SUB(NOW(), INTERVAL #{daysBefore} DAY)
+    </delete>
+
+</mapper>

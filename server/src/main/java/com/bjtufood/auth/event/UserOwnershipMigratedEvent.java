@@ -16,7 +16,7 @@ package com.bjtufood.auth.event;
  * 同步监听（无 {@code @TransactionalEventListener}）：与 {@code verifyEmail} 外层事务同进同退，
  * 任一环节失败整体回滚，与原实现一致。
  * <p>
- * 注：{@code dish.created_by} 列已随 零消费退役，故 dish 域不参与归属迁移。
+ * 注：{@code dish.created_by} 列已移除，故 dish 域不参与归属迁移。
  *
  * @param fromUserId 迁出账号ID（旧微信 / 历史邮箱注册账号）
  * @param toUserId   迁入账号ID（当前微信）

@@ -6,7 +6,8 @@
  * `error` / `isEmpty` / `hasData`；本组件只负责前四态的渲染，有数据时的内容由外部
  * `<div v-if="hasData">` 承载（保持各视图原有 class 与结构）。
  *
- * <p>`session` 不渲染「重试」：口令不匹配（403）重试必失败，需重新注入 `ADMIN_TOKEN`。
+ * <p>`session` 不渲染任何列表态：`401` 由请求层统一「清 token → 跳登录页」，
+ * 页面只是在跳走前**不显示**「加载失败 / 重试」（[UI 基线 §1.5 ⑥](../../../docs/ui/web/公共组件与形态基线.md)）。
  */
 withDefaults(
   defineProps<{

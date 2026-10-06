@@ -21,6 +21,7 @@ import com.bjtufood.dish.entity.DishAttributeValue;
 import com.bjtufood.dish.entity.DishFilterView;
 import com.bjtufood.dish.mapper.DishAttributeValueMapper;
 import com.bjtufood.dish.mapper.DishMapper;
+import com.bjtufood.dish.mapper.DishViewLogMapper;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishCategoryAdminService;
 import com.bjtufood.dish.service.DishViewCatalog;
@@ -95,6 +96,7 @@ class DishReadPathBenchmarkTest {
             dimension(4L, "serveTemp", "出餐温度", "single", 4));
 
     private DishMapper dishMapper;
+    private DishViewLogMapper dishViewLogMapper;
     private DishAttributeDimensionMapper dimensionMapper;
     /** 取值字典（A4 落地后的**候选值真源**）：声明为字段以便打桩 */
     private DishAttributeValueMapper valueMapper;
@@ -143,6 +145,7 @@ class DishReadPathBenchmarkTest {
     @BeforeEach
     void setUp() {
         dishMapper = mock(DishMapper.class);
+        dishViewLogMapper = mock(DishViewLogMapper.class);
         dimensionMapper = mock(DishAttributeDimensionMapper.class);
         StallService stallService = mock(StallService.class);
         ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
@@ -163,8 +166,8 @@ class DishReadPathBenchmarkTest {
         // 故此处桩定一个视图（random + 无条件，即「为你推荐」）
         DishViewCatalog viewCatalog = mock(DishViewCatalog.class);
         when(viewCatalog.byKey(any())).thenReturn(sampleView());
-        dishService = new DishServiceImpl(dishMapper, stallService, publisher, imageUrlUtil, catalog,
-                attributeAdminService, mock(DishCategoryAdminService.class), viewCatalog);
+        dishService = new DishServiceImpl(dishMapper, dishViewLogMapper, stallService, publisher, imageUrlUtil,
+                catalog, attributeAdminService, mock(DishCategoryAdminService.class), viewCatalog);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);
     }
 
@@ -173,9 +176,11 @@ class DishReadPathBenchmarkTest {
     void queryCountPerEndpoint() {
         // ---------- GET /dishes/{id} ----------
         when(dishMapper.selectDishDetail(anyLong())).thenReturn(sampleDetail());
-        when(dishMapper.increaseViewCount(anyLong())).thenReturn(1);
+        // 浏览计数已改为向 dish_view_log 插一行明细（2026-10-05）；
+        // 🔴 Mockito 对 int 返回类型默认给 0，而 0 会被 Service 判为「菜品不存在」抛 4001 ⇒ 必须显式 stub 返回 1
+        when(dishViewLogMapper.insert(any())).thenReturn(1);
         PerfMetrics.emit("server.mapper_calls.dish_detail", measureCalls(() -> dishService.getDishDetail(1L)), "次/请求",
-                "现状=详情联表 + 浏览计数自增 + 维度字典");
+                "现状=详情联表 + 浏览日志插入 + 维度字典");
 
         // ---------- GET /dishes/{id}/attributes ----------
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));

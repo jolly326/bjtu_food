@@ -68,7 +68,7 @@ export interface DishCorrectionPayload {
   canteenName?: string
   /** 档口名（`field` 型；自由文本） */
   stallName?: string
-  /** 楼层（`field` 型；**归属档口 `stall.floor`**，非菜品字段）：采纳时写回目标档口，同档口其他菜品一并生效 */
+  /** 楼层（`field` 型；**受控字典值·值即汉字**，归属档口 `stall.floor`）：采纳时写回目标档口，同档口其他菜品一并生效 */
   floor?: string
   /** 动态描述属性（`field` 型）：键 = 维度 `fieldKey`，值 = 中文文本（single）或中文数组（multi）；仅含改动维度 */
   attributes?: Record<string, string | string[]>

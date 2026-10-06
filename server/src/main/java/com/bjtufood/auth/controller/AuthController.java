@@ -52,8 +52,8 @@ public class AuthController {
     /**
      * IP 限频（A2）：{@code /auth/wechat-login} 同 IP 每分钟 ≤30 次。
      * <p>
-     * 该接口原先**无任何频控**，而每次调用都会外呼一次微信 {@code code2Session}，且新 openid 会建号
-     * ⇒ 可被脚本刷（打爆微信侧配额 / 灌 user 表）。阈值对齐既有先例
+     * 无频控时该接口可被脚本刷（打爆微信侧配额 / 灌 user 表）——
+     * 每次调用都会外呼一次微信 {@code code2Session}，且新 openid 会建号。阈值对齐既有先例
      * {@code DishController#checkViewIpRateLimit}（30/分 + 300/时）：正常「冷启动才调一次」的用量
      * 远低于此，同时容忍校园网 NAT 共享出口 IP 的同 IP 多用户突发。
      */
@@ -83,7 +83,7 @@ public class AuthController {
     public Result<Void> createEmailCode(@Valid @RequestBody EmailCodeReq req) {
         checkEmailCodeIpRateLimit();
         authService.createEmailCode(req.getUsername());
-        // 无载荷：成功文案由统一响应壳 message 承担（原 data={message} 是第二条消息通道，端上零消费）
+        // 无载荷：成功文案由统一响应壳 message 承担（data 不再承载 message，避免第二条消息通道）
         return Result.success();
     }
 

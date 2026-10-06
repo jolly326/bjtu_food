@@ -21,12 +21,11 @@ import java.util.Set;
 /**
  * 微信登录会话服务（jscode2Session）：用 wx.login 的 code 换 openid / session_key。
  * <p>
- * （user.unionid 已于零消费退役，微信响应中的 unionid 字段不再解析。）
+ * （微信响应中的 `unionid` 字段不解析。）
  * <p>
- * <b>归属</b>：自 {@code auth.service} 迁至 {@code wechat.service}。
+ * <b>归属</b>：{@code wechat.service}。
  * 本类与 {@link WechatAccessTokenProvider} 同为<b>微信开放平台 API 客户端</b>（前者 jscode2Session、
- * 后者 stable_token），此前分处两域导致 {@code wechat} 域名不副实（只含 token 能力）、
- * 平台凭据读取散落两处。现在 {@code wechat} 域 = 微信平台集成，
+ * 后者 stable_token），同域收口 —— {@code wechat} 域 = 微信平台集成，
  * 由 {@code auth}（登录）、{@code moderation}（内容审核）、{@code upload}（云存储）共同依赖，
  * 且自身<b>不反向依赖任何业务域</b>（由 ArchTests 规则锁定）。
  */
@@ -58,10 +57,8 @@ public class WechatService {
     /**
      * 微信开放平台配置（类型化绑定）。
      * <p>
-     * 架构收口 P2：原先本类以 {@code @Value} 自行绑定 {@code wechat.appid} /
-     * {@code wechat.secret} / {@code wechat.code2session-url}，与
-     * {@code WechatAccessTokenProviderImpl} 重复绑定同一份凭据、「是否已配置」判据也分裂两处。
-     * 现统一由 {@link WechatProperties} 承载，本类只消费。
+     * 配置统一由 {@link WechatProperties} 承载，本类只消费 ——
+     * 若由各消费者自行绑定 {@code @Value}，同一份凭据与「是否已配置」判据会分裂成多处。
      */
     private final WechatProperties wechatProperties;
 
@@ -135,7 +132,7 @@ public class WechatService {
             if (openid == null || openid.isBlank()) {
                 throw new BusinessException(400, "微信登录校验失败：未返回 openid");
             }
-            // unionid 不再解析：user.unionid 列已随 零消费退役（多应用预留撤销）
+            // unionid 不再解析（多应用预留撤销）
             String sessionKey = (String) resp.get("session_key");
             return new WechatSession(openid, sessionKey);
         } catch (BusinessException e) {
@@ -157,11 +154,10 @@ public class WechatService {
     /**
      * 按 errcode 把 {@code code2Session} 失败分为「用户 code 问题」与「服务端/平台问题」两类。
      * <p>
-     * <b>为何必须分类（2026-10-02 线上事故）</b>：此前本方法把所有非 0 errcode 一律压成
-     * 400「微信登录凭证无效或已过期，请重试」。但线上真实故障是
-     * {@code 40125 invalid appsecret}（{@code WECHAT_APPID/WECHAT_SECRET} 配错）——
-     * 这是<b>服务端配置问题</b>，用户无论重试多少次都不可能成功，却被告知
-     * 「凭证已过期，请重试」，既误导用户，也让端侧与排障都朝错误方向走。
+     * <b>为何必须分类</b>：若把所有非 0 errcode 一律压成
+     * 400「微信登录凭证无效或已过期，请重试」，则 {@code 40125 invalid appsecret}
+     * （{@code WECHAT_APPID/WECHAT_SECRET} 配错）这类<b>服务端配置问题</b>会被误报为「凭证过期」——
+     * 用户无论重试多少次都不可能成功，端侧与排障也会朝错误方向走。
      * <p>
      * <b>分类口径</b>：
      * <ul>
@@ -244,7 +240,7 @@ public class WechatService {
         }
     }
 
-    /** 微信会话结果（unionid 已随 user.unionid 列退役不再解析） */
+    /** 微信会话结果（unionid 不再解析） */
     public record WechatSession(String openid, String sessionKey) {
     }
 }

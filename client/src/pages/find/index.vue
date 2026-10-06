@@ -122,6 +122,13 @@
             @select="goToMixed"
           />
         </view>
+        <!-- 触底反馈（对齐 home feed-foot）：分页在途给在途提示；已到底给「没有更多结果」 -->
+        <view v-if="loadingMore" class="list-foot">
+          <text class="list-foot-text">正在加载更多…</text>
+        </view>
+        <view v-else-if="resultsFinished" class="list-foot">
+          <text class="list-foot-text">没有更多结果了</text>
+        </view>
       </scroll-view>
       <!-- 搜索失败重试块（MP-012，P3-03 上提为公共组件）：请求已完成且失败 → 失败态块，
            先于空态渲染，避免网络失败被误导向「没搜到」的无结果引导（三态：失败 ≠ 无数据）。
@@ -202,6 +209,8 @@ const {
   clearKeyword,
   onRetrySearch,
   onLoadMoreResults,
+  loadingMore,
+  resultsFinished,
 } = useFindState()
 // 猜你喜欢属发现态数据源，独立于两态编排（见 useDiscover 的模块说明）
 const { guessLikeList, load: loadDiscover } = useDiscover()
@@ -263,7 +272,7 @@ onShow(() => {
    且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
 .discover-card { display: block; margin: 0 var(--spacing-md) var(--spacing-lg); }
 /* 结果态滚动容器：
-   flex 链占满剩余高度；底部留白（原 FindResults .results-scroll）随容器自带 */
+   flex 链占满剩余高度；底部留白随容器自带 */
 .results-host {
   flex: 1;
   min-height: 0;
@@ -300,7 +309,7 @@ onShow(() => {
 /* QA-03 修复：视觉保持轻量小文字链，命中区经 ::after 透明覆盖扩至 ≥88rpx（Apple 44pt 触达下限） */
 /* 「清空」是**破坏性操作**，需可被发现：字号 aux(22rpx) → small(24rpx)、色 tertiary → secondary；
    视觉仍远弱于分组标题（不抢层级），命中区继续由下方 ::after 扩至 ≥88rpx。 */
-.history-clear { position: relative; font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) ease; -webkit-tap-highlight-color: transparent; }
+.history-clear { position: relative; font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
 .history-clear::after {
   content: '';
   position: absolute;
@@ -321,7 +330,7 @@ onShow(() => {
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--bg-soft);
   border-radius: var(--radius-pill);
-  transition: background var(--duration-fast) ease;
+  transition: background var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
   /* skill §2 `tap-delay`：消除移动端点击延迟 */
   touch-action: manipulation;
@@ -340,7 +349,7 @@ onShow(() => {
   padding: var(--spacing-xs);
   margin: calc(-1 * var(--spacing-xs));
   border-radius: var(--radius-circle);
-  transition: opacity var(--duration-fast) ease;
+  transition: opacity var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .history-chip-del:active { opacity: 0.5; }

@@ -77,16 +77,17 @@ public interface StallService {
      * 楼层是<b>档口级</b>描述：写回后该档口下<b>全部菜品</b>的详情楼层一并生效。
      *
      * @param stallId 目标档口ID（调用方已解析/校验）
-     * @param floor   楼层自由文本（调用方保证非空白，且长度 ≤ {@code CorrectionConst.FLOOR_MAX_LENGTH}）
-     * @throws com.bjtufood.common.exception.BusinessException 楼层为空白（400「楼层不能为空」）
-     *         或目标档口不存在（400「档口不存在」，含并发删除兜底）
+     * @param floor   楼层（受控字典值·值即汉字；调用方保证非空白、命中 {@code FloorDict}，
+     *                且长度 ≤ {@code CorrectionConst.FLOOR_MAX_LENGTH}）
+     * @throws com.bjtufood.common.exception.BusinessException 楼层为空白（400「楼层不能为空」）、
+     *         楼层不在字典内（400「楼层不在预设范围内」）或目标档口不存在（400「档口不存在」，含并发删除兜底）
      */
     void updateFloor(Long stallId, String floor);
 
     /**
      * 按名 upsert 档口：同名不重复建档（精确匹配，名称列无唯一键，
      * 并发双写极端情况由调用方幂等容忍）。菜品录入/编辑（DishServiceImpl#resolveStallId）
-     * 与菜品纠错采纳（createIfMissing=true）共用本入口。
+     * 与菜品问题反馈采纳（createIfMissing=true）共用本入口。
      * <p>
      * 新建档口必须有可解析的有效所属食堂（canteenName 有效并按名 upsert 所属食堂，
      * 空白/「其他」等空值语义名称 → 400「请选择所属食堂」），不允许落 canteen_id=0。

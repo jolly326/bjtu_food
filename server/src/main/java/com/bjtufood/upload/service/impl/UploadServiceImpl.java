@@ -66,9 +66,8 @@ public class UploadServiceImpl implements UploadService {
     /**
      * 微信 access_token 凭据提供方。
      * <p>
-     * 此前本类的 token 获取/清理是经 {@code contentSecurityService.getStableAccessToken()} /
-     * {@code invalidateCachedToken()} 完成的——即「上传域」依赖「内容安全服务」来拿平台凭据，
-     * 依赖方向错误。拆分后凭据由 {@code wechat} 域独立提供，本类<b>只依赖接口</b>。
+     * 平台凭据由 {@code wechat} 域独立提供，本类<b>只依赖接口</b> ——
+     * 「上传域」不依赖「内容安全服务」拿凭据（依赖方向正确）。
      */
     private final WechatAccessTokenProvider tokenProvider;
 
@@ -77,15 +76,14 @@ public class UploadServiceImpl implements UploadService {
 
     /**
      * 本地存储配置（根目录 + URL 前缀），与 {@code WebMvcConfig} 的静态资源映射**共用同一份**——
-     * 此前两处各自 {@code @Value} 绑定同一对键，改一处忘另一处就会「存得进去、访问不到」。
+     * 两处各自绑定同一对键会在改一处忘另一处时「存得进去、访问不到」。
      */
     private final UploadProperties uploadProperties;
 
     /**
      * 微信云开发环境 ID；缺省时从 fileID 自动解析（cloud://{env}.{bucket}/path）。
      * <p>
-     * 归 {@code wechat} 域的 {@code WechatProperties}：此前本类以 {@code @Value} 自行绑定
-     * {@code wechat.cloud-env}，与该配置类的绑定重复（同一键两处真源）。
+     * 归 {@code wechat} 域的 {@code WechatProperties}：同一键只此一处绑定（不留第二处真源）。
      */
     private final WechatProperties wechatProperties;
 

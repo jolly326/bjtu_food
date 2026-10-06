@@ -74,12 +74,12 @@ public interface DishMapper extends BaseMapper<Dish> {
     List<GuessLikeVO> selectGuessLike(@Param("limit") int limit, @Param("seed") String seed);
 
     /**
-     * 浏览量原子自增（并发安全：UPDATE ... SET view_count = view_count + 1）
+     * 🔴 **浏览量只写明细、不做原子自增**：向 {@code dish_view_log} 插一行带时间戳的明细，
+     * 支撑「近 30 天浏览量」滚动窗口（{@code dish.view_count} 列停写）。
      *
-     * @param id 菜品ID
-     * @return 影响行数（0=菜品不存在）
+     * @see com.bjtufood.dish.mapper.DishViewLogMapper 浏览日志读写
+     * @see com.bjtufood.dish.task.DishViewLogCleanupTask 30 天滚动窗口清理
      */
-    int increaseViewCount(@Param("id") Long id);
 
     /**
      * 评分聚合原子重算（并发安全：子查询 AVG/COUNT 后整体写回）

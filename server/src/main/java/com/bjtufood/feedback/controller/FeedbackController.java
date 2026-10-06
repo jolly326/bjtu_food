@@ -73,9 +73,8 @@ public class FeedbackController {
     }
 
     /**
-     * IP 维度滥用防护（P3/BE-105）：POST /feedback 为 permitAll 公开写入口，
-     * 原先无频控可被脚本无限灌库。接入层防护放 Controller（非业务逻辑），
-     * 参数校验与业务仍归 FeedbackService。
+     * IP 维度滥用防护：POST /feedback 为 permitAll 公开写入口，无频控可被脚本无限灌库；
+     * 接入层防护放 Controller（非业务逻辑），参数校验与业务仍归 FeedbackService。
      */
     private void checkIpRateLimit() {
         long waitSeconds = ipRateLimiter.tryAcquire(

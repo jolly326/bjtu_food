@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
+import com.bjtufood.canteen.constant.FloorDict;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
@@ -53,7 +54,7 @@ import java.util.stream.Collectors;
  * 菜品问题反馈服务实现（独立资源：POST /dishes/{id}/correction + /admin/corrections）。
  * <p>
  * **提交按 {@code type} 分派**：`field`（信息有误）走局部提交（patch）——只落库改动项
- * （食堂名 / 档口名 / 楼层为自由文本，无字典端点），status=pending；`gone`（已经下架）走一键提交。
+ * （食堂名 / 档口名为自由文本；楼层为受控字典值，值即汉字），status=pending；`gone`（已经下架）走一键提交。
  * **管理端处置同样按 `type` 分派**：
  * <ul>
  *   <li>`field`：两段式档口确认后按选中差异项写回 dish（{@code floor} 例外，写回<b>目标档口</b>
@@ -71,10 +72,10 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     private final DishCorrectionMapper correctionMapper;
     /**
-     * 落库事务边界：
-     * {@code submit} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的 HTTP 外呼（超时 5s）
-     * ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
-     * 现改为「先机审（无事务）→ 再落库（开事务）」。
+     * 落库事务边界：{@code submit} **只让落库一步进事务**（「先机审（无事务）→ 再落库（开事务）」）——
+     * 若事务从方法入口开始，会横跨微信机审的 HTTP 外呼（超时 5s），期间持续占用数据库连接；
+     * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
+     * <p>
      * 必须是**独立 Bean**：Spring 事务靠代理生效，同类自调用不会开启事务。
      */
     private final CorrectionPersister correctionPersister;
@@ -151,8 +152,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         // 机审：仅 note 含自由文本；为空则跳过（不产生多余的微信调用）
         checkUgcText(userId, note == null ? "" : note);
 
-        // 去重：同一用户 + 同一菜品已有一条未处理的 gone 反馈 ⇒ 直接返回成功，不重复计数
-        if (existsPendingGone(userId, dishId)) {
+        // 去重：同一用户 + 同一菜品已有一条 gone 反馈（不限定处理状态）⇒ 直接返回成功，不重复计数
+        if (existsGoneByUser(userId, dishId)) {
             log.info("[菜品问题反馈] gone 型重复提交已忽略：userId={}, dishId={}", userId, dishId);
             return;
         }
@@ -169,29 +170,27 @@ public class CorrectionServiceImpl implements CorrectionService {
     }
 
     /**
-     * 是否已存在同一用户对同一菜品的「待处理 gone 反馈」。
+     * 是否已存在同一用户对同一菜品的 gone 型反馈（**不限定处理状态**）。
      * <p>
-     * 匿名提交（{@code userId == 0}）<b>不去重</b>：无法归属到人，若也去重则所有匿名提交
-     * 会互相挤掉（第一条之后全部被忽略），等于变相禁用匿名反馈。
+     * 匿名提交（{@code userId == 0}）同样参与去重 —— 与命名用户同口径，{@code 0} 即「匿名」这一归属。
+     * <p>
+     * 不限定 {@code status}：已拒绝 / 已采纳后再次提交<b>不再新增行</b>。去重是<b>防单人刷队列</b>，
+     * 不是决策门槛（≥1 条即进待办，是否下架由管理员人工决定）。
      *
      * @param userId 提交人（{@code 0} = 匿名）
      * @param dishId 菜品
-     * @return true = 已有待处理记录，本次不再重复落库
+     * @return true = 已有记录，本次不再重复落库
      */
-    private boolean existsPendingGone(Long userId, Long dishId) {
-        if (userId == null || userId == ANONYMOUS_USER_ID) {
-            return false;
-        }
+    private boolean existsGoneByUser(Long userId, Long dishId) {
         LambdaQueryWrapper<DishCorrection> wrapper = new LambdaQueryWrapper<DishCorrection>()
                 .eq(DishCorrection::getType, CorrectionConst.TYPE_GONE)
                 .eq(DishCorrection::getDishId, dishId)
-                .eq(DishCorrection::getUserId, userId)
-                .eq(DishCorrection::getStatus, CorrectionConst.STATUS_PENDING);
+                .eq(DishCorrection::getUserId, userId);
         return correctionMapper.exists(wrapper);
     }
 
     /**
-     * <b>type=field（信息有误）· 局部提交</b>（原 submit 主体，行为保持不变）。
+     * <b>type=field（信息有误）· 局部提交</b>。
      */
     private void submitField(Long userId, Long dishId, DishCorrectionReq req) {
         // 局部提交（patch）：**仅传改动项**。未传 = 保持原值；传入即校验（不静默降级）。
@@ -231,16 +230,21 @@ public class CorrectionServiceImpl implements CorrectionService {
                 throw new BusinessException(400, "档口名称不能超过" + CorrectionConst.STALL_NAME_MAX_LENGTH + "字");
             }
         }
-        // floor：楼层（自由文本，归属档口），传入即校验非空与长度。
-        // 长度上限与 stall.floor VARCHAR(16) 严格一致——采纳会把提交值原样写回该列，上限不一致会静默截断/报错。
+        // floor：楼层（受控字典·值即汉字，归属档口），传入即校验 ∈ 字典。
+        // 长度上限与 stall.floor VARCHAR(16) 严格一致——采纳会把提交值原样写回该列；
+        // 值域见 FloorDict（负一层 / 一层 / 二层 / 三层 / 四层），字典外值 → 400，
+        // 与采纳侧写回 stall.floor 的校验口径一致（避免「提交成功、采纳 400」的闭环断裂）。
         String floor = null;
         if (req.getFloor() != null) {
-            floor = req.getFloor().trim();
+            floor = FloorDict.normalize(req.getFloor());
             if (!StringUtils.hasText(floor)) {
                 throw new BusinessException(400, "楼层不能为空");
             }
             if (floor.length() > CorrectionConst.FLOOR_MAX_LENGTH) {
                 throw new BusinessException(400, "楼层超长");
+            }
+            if (!FloorDict.isValid(floor)) {
+                throw new BusinessException(400, "楼层不在可选范围：负一层 / 一层 / 二层 / 三层 / 四层");
             }
         }
         // price：传入即校验 >0 的整数（分）
@@ -258,15 +262,15 @@ public class CorrectionServiceImpl implements CorrectionService {
             throw new BusinessException(400, "「信息有误」无需补充说明，请选择对应类型");
         }
 
-        // floor 计入改动项：**仅改楼层**的一次提交（如 1F → 2F）也是有效纠错，不得判「未提交任何改动」
+        // floor 计入改动项：**仅改楼层**的一次提交（如「一层」→「二层」）也是有效纠错，不得判「未提交任何改动」
         if (name == null && price == null && canteenName == null && stallName == null && floor == null
                 && attributes == null && images == null) {
             throw new BusinessException(400, "未提交任何改动");
         }
 
         // ---- 微信内容安全检测----
-        // 纠错的 name / canteenName / stallName / floor / attributes 均为**用户自由文本**，
-        // 且纠错内容会被管理员**采纳并写回**（进入公开展示：菜品经 dish、楼层经 stall.floor），
+        // 纠错的 name / canteenName / stallName（自由文本）与 floor（受控字典值）及 attributes（中文值）
+        // 都会被管理员**采纳并写回**（进入公开展示：菜品经 dish、楼层经 stall.floor），
         // 仅靠本地静态词库不足以覆盖谐音/变体/语义违规。
         // 口径与 feedback / review / 昵称一致：risky 由 checkText 统一拦截为 400。
         // 合并为**单次**调用送检（见 mergeModerationText）：msgSecCheck 按调用计费且有 2500 字上限，
@@ -338,8 +342,8 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 全部字段皆空（局部提交只改了 price / images）时返回空串，由
      * {@link #checkUgcText} 的空值判断直接跳过，不产生多余的微信调用。
      *
-     * @param floor 楼层（自由文本，归属档口；采纳时写回 {@code stall.floor} 进入公开展示，
-     *              故与其余自由文本字段同等待遇，一并送检）
+     * @param floor 楼层（受控字典值，归属档口；采纳时写回 {@code stall.floor} 进入公开展示，
+     *              故与其余文本字段同等待遇，一并送检）
      * @return 合并后的待检文本；无任何文本字段时返回 {@code ""}
      */
     private String mergeModerationText(String name, String canteenName, String stallName, String floor,
@@ -448,28 +452,14 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .orderByDesc(DishCorrection::getCreatedAt);
     }
 
-    private LambdaQueryWrapper<DishCorrection> buildAdminQuery(String status, Long dishId) {
-        return buildAdminQuery(status, null, dishId);
-    }
-
     @Override
     public long countPending() {
         return correctionMapper.selectCount(buildAdminQuery("pending", null, null));
     }
 
     /**
-     * 待处理「已经下架」反馈数（管理端「疑似下架」聚合用）。
-     * <p>
-     * ⚠️<b>仅作参考展示，不是下架阈值</b> —— ≥1 条即进待办，是否下架由管理员人工决定
-     * （评审问题 1 决议 5.1.4：原「≥2 独立用户」门槛已取消，那是活跃度阈值、与下架无关）。
+     * 批量查询本页纠错目标菜品名：dishId 去重后一次 IN 查询，空集合返回空 Map（不发起查询）
      */
-    @Override
-    public long countPendingGone() {
-        return correctionMapper.selectCount(
-                buildAdminQuery(CorrectionConst.STATUS_PENDING, CorrectionConst.TYPE_GONE, null));
-    }
-
-    /** 批量查询本页纠错目标菜品名：dishId 去重后一次 IN 查询，空集合返回空 Map（不发起查询） */
     private Map<Long, String> batchDishNames(List<DishCorrection> records) {
         List<Long> dishIds = records.stream()
                 .map(DishCorrection::getDishId)
@@ -570,7 +560,17 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setId(c.getId());
         vo.setType(c.getType());
         vo.setDishId(c.getDishId());
-        vo.setDishName(c.getDishId() == null ? null : dishService.mapNameByIds(List.of(c.getDishId())).get(c.getDishId()));
+        // 目标菜品名与**当前 status** 实时回查（含已下架；菜品已物理删除时为 null）：
+        // 单条详情无 N+1，直接取管理端 VO；先 existsById 以避开 getForAdmin 的 4001（删除后仍要能看记录）。
+        String dishName = null;
+        String dishStatus = null;
+        if (c.getDishId() != null && dishService.existsById(c.getDishId())) {
+            DishAdminVO live = dishService.getForAdmin(c.getDishId());
+            dishName = live.getName();
+            dishStatus = live.getStatus();
+        }
+        vo.setDishName(dishName);
+        vo.setDishStatus(dishStatus);
         vo.setUserId(c.getUserId());
         vo.setUserNickname(c.getUserId() == null || c.getUserId() == ANONYMOUS_USER_ID ? null
                 : userService.mapNicknameByIds(List.of(c.getUserId())).get(c.getUserId()));
@@ -578,10 +578,9 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setNote(c.getNote());
         List<String> rawImages = c.getImages() == null ? List.of() : c.getImages();
         vo.setImages(rawImages.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(rawImages));
-        // gone 型**不返回差异对照**：各差异项列恒 NULL（无可对照的原值），submitted/differences 均置空，
-        // 管理端只需读note + images 即可判断，处置动作恒为「下架」。
+        // gone 型**不返回差异对照**：各差异项列恒 NULL（无可对照的原值），differences 置空，
+        // 管理端只需读 note + images 即可判断，处置动作恒为「下架」。
         boolean gone = CorrectionConst.TYPE_GONE.equals(c.getType());
-        vo.setSubmitted(gone ? Map.of() : buildSubmitted(c, vo.getImages()));
         vo.setDifferences(gone ? List.of() : buildDifferences(c));
         if (gone) {
             vo.setGoneUserCount(countPendingGoneByDish(c.getDishId()));
@@ -596,8 +595,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     /**
      * 同菜品待处理的 gone 反馈数（<b>参考值，非下架阈值</b>）。
      * <p>
-     * 用于管理端展示「有 N 人反馈已下架」；同用户对同一菜品在提交时已去重，故此处即独立用户数
-     * （匿名提交无法归属、不去重会计入其中 —— 这是刻意取舍：宁可高估也不漏报）。
+     * 用于管理端展示「有 N 人反馈已下架」；同 {@code user_id} 对同一菜品在提交时已去重（匿名按 {@code 0} 计），
+     * 故此处即独立 {@code user_id} 数。
      */
     private Long countPendingGoneByDish(Long dishId) {
         if (dishId == null) {
@@ -607,30 +606,6 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .eq(DishCorrection::getType, CorrectionConst.TYPE_GONE)
                 .eq(DishCorrection::getDishId, dishId)
                 .eq(DishCorrection::getStatus, CorrectionConst.STATUS_PENDING));
-    }
-
-    /** 用户提交的原始快照（**仅改动项**）—— 供「已同步 / 已被改回」等场景回看 */
-    private Map<String, Object> buildSubmitted(DishCorrection c, List<String> images) {
-        Map<String, Object> submitted = new LinkedHashMap<>();
-        putIfPresent(submitted, FIELD_NAME, c.getName());
-        putIfPresent(submitted, FIELD_PRICE, c.getPrice());
-        putIfPresent(submitted, FIELD_CANTEEN_NAME, c.getCanteenName());
-        putIfPresent(submitted, FIELD_STALL_NAME, c.getStallName());
-        putIfPresent(submitted, FIELD_FLOOR, c.getFloor());
-        Map<String, Object> attrs = JsonMapUtil.parseObject(c.getAttributes());
-        if (!attrs.isEmpty()) {
-            submitted.put("attributes", attrs);
-        }
-        if (!images.isEmpty()) {
-            submitted.put(FIELD_IMAGES, images);
-        }
-        return submitted;
-    }
-
-    private static void putIfPresent(Map<String, Object> target, String key, Object value) {
-        if (value != null && (!(value instanceof String s) || StringUtils.hasText(s))) {
-            target.put(key, value);
-        }
     }
 
     /**
@@ -844,7 +819,8 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .toList();
         boolean partial = adoptedLabels.size() < allDiffs.size();
 
-        String actualReply = applyAdoption(correction, resolvedStallId, accepted, req);
+        // 返回值恒为 null（无档口确认环节），故只取副作用、不接返回值
+        applyAdoption(correction, resolvedStallId, accepted, req);
         // 站内回执（提交人非空时投递，失败不阻塞采纳）
         // 落库 `reply` 缺省用固定文案；回执正文只在**管理员确实填了附注**时追加，避免复述固定文案
         String adminReply = req == null ? null : req.getReply();
@@ -920,10 +896,9 @@ public class CorrectionServiceImpl implements CorrectionService {
         correction.setReply(reply);
         correction.setRejectReason(null);
         correction.setHandledAt(LocalDateTime.now());
-        // 归档实际挂靠档口名（**null-safe，缺陷修复**）：局部提交下 stallName 快照可为 null
-        // （用户未改动档口名），原写法 correction.getStallName().equals(...) 在该情形直接 NPE（采纳 500）。
-        // 楼层纠错让这条路径从「罕见」变成常态（仅改楼层的提交 stallName 恒为 null），故必须收口。
-        // 语义不变：resolvedStallName 非空且与快照不同（快照为 null 亦属「不同」）时，以实际挂靠档口名归档。
+        // 归档实际挂靠档口名（**null-safe**）：局部提交下 stallName 快照可为 null（用户未改动档口名，
+        // 仅改楼层时亦恒为 null）⇒ 判空后再比较。
+        // 语义：resolvedStallName 非空且与快照不同（快照为 null 亦属「不同」）时，以实际挂靠档口名归档。
         if (resolvedStallName != null && !resolvedStallName.equals(correction.getStallName())) {
             correction.setStallName(resolvedStallName);
         }

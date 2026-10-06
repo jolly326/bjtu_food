@@ -158,7 +158,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     /**
      * token 失效自愈（BE-06）：首次失败若为 {@link TokenInvalidException}，
      * 先清空本地 token 缓存再重试一次（重试时 {@code tokenProvider.get()} 会重新拉取）。
-     * 重试仍失败则按原 fail-closed 口径抛 500，语义与修复前一致（不放行任何未过检内容）。
+     * 重试仍失败则按 fail-closed 口径抛 500，语义不变（不放行任何未过检内容）。
      *
      * @param action 单次微信调用（须把「取 token → 请求 → 判 errcode」整体包进来，重试才有意义）
      */
@@ -197,10 +197,10 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     /**
      * 内容安全接口失败的<b>归因提示</b>：把 errcode 直接编进返回给端上的文案。
      * <p>
-     * <b>为何把 errcode 透出到端上</b>（2026-10-02 起的三次线上事故教训）：
-     * 此前本类 4 个失败点一律抛「内容安全检测服务暂不可用，请稍后重试」，端上与排障都只能
-     * 看到这一句话，必须翻服务端日志才知道是<b>白名单没配（40164）</b>、<b>AppSecret 错（40125）</b>
-     * 还是<b>调用超限（48001）</b>——三次往返都卡在同一个信息缺口上。
+     * <b>为何把 errcode 透出到端上</b>：
+     * 若失败点一律抛「内容安全检测服务暂不可用，请稍后重试」，端上与排障都只能看到这一句话，
+     * 必须翻服务端日志才知道是<b>白名单没配（40164）</b>、<b>AppSecret 错（40125）</b>
+     * 还是<b>调用超限（48001）</b>。
      * 而 errcode 不含任何敏感信息（微信仅回传数字码与固定 errmsg），对非公网的小程序端透出
      * 无安全风险，却能让「看到提示」与「知道怎么修」之间<b>零日志往返</b>。
      * <p>

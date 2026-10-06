@@ -9,7 +9,7 @@ import org.springframework.util.StringUtils;
  * <p>
  * 为何不再保留布尔列：{@code user.verified} / {@code user.verified_at} 与 {@code bind_email} 三者表达
  * 同一事实，且历史全部写入路径恒成对写（认证 / 释放绑定替换 / 注销 三处同批更新同一行），属同源冗余；
- * 两列已随本次拍板退役（CREATE TABLE 移除列定义，存量库已直连远程库清理）。判据收敛到本类一处，避免各调用点各写一份
+ * 两列已移除（CREATE TABLE 移除列定义、存量库直连清理）。判据收敛到本类一处，避免各调用点各写一份
  * {@code != null} 判断而再度分裂（4031 分流共 3 处调用：{@code RequireVerifiedAspect}、
  * {@code ReviewServiceImpl}、{@code FeedbackServiceImpl}）。
  */

@@ -365,7 +365,7 @@ function onPreview(i: number) {
   align-items: center;
   justify-content: center;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--duration-fast) ease;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 .ip-remove::after {
   content: '';
@@ -389,7 +389,7 @@ function onPreview(i: number) {
   align-items: center;
   justify-content: center;
   gap: var(--spacing-2xs);
-  transition: opacity var(--duration-fast) ease;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 .ip-add:active { opacity: 0.6; }
 .ip-add.uploading { opacity: 0.55; }

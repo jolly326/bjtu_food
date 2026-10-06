@@ -17,10 +17,9 @@ import java.util.List;
  * DB 抖动等，任一情况都会让该菜品评分停在上一个值；原监听器的处理只是 {@code log.error("[ALERT] 评分重算失败，需人工补偿")}，
  * 即<b>把正确性寄托在人工</b>上。
  * <p>
- * 漂移的代价不是「数字不好看」：首页与列表排序的热度分
- * （{@code heatScoreExpr} = {@code view_count*1 + rating_count*100 + COALESCE(avg_rating,0)*20}，
- * 真源见 {@code DishMapper.xml}）直接消费 {@code avg_rating}/{@code rating_count}，
- * 漂移会<b>持续污染排序结果</b>，且用户看不出异常（不会报错，只是排序慢慢失真）。
+ * 漂移的代价不是「数字不好看」：{@code dish.avg_rating}/{@code rating_count} 是**详情页与列表出参的评分来源**，
+ * 漂移会让用户**直接看到错误评分**，而系统不报错、只被异步重算或本任务「悄悄修正」，用户与客服都无从察觉。
+ * （🔴 这两列不参与任何排序 —— 7 个视图走会话伪随机序；漂移危害为「评分展示错误」，兜底必要性不变。）
  * <p>
  * <b>本任务即补偿手段</b>：每日低频全量重算，把「人工补偿」变成「自动兜底」。
  * {@code recalcRatingBySubquery} 是<b>幂等全量重算</b>（子查询 AVG/COUNT 整体写回），

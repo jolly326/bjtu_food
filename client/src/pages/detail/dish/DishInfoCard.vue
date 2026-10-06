@@ -1,6 +1,6 @@
 ﻿<template>
   <CardSection>
-    <!-- 菜品信息卡（**本稿修订 **）：
+    <!-- 菜品信息卡：
          ① **名称行**（菜名 ≤2 行 + **「菜品有问题?」入口** + 价格组）→ ② 评分（左）/ 位置（右）同行
          → ③ 简介（**固定 ≤2 行截断、无展开**；`description` 为空则整块隐藏）
          → ④ **全卡唯一一条浅灰分隔线**（仅渲染在简介与属性容器之间，简介隐藏时一并消失）
@@ -8,7 +8,7 @@
          · 模块之间**靠垂直留白区分**（`--spacing-md`），除第 ④ 条外**不加任何分隔线**；
          · 卡内唯一可点件 = **「菜品有问题?」**（文字 + 小图标，**禁实色填充按钮**）；
          · 卡片内不做分享按钮（复用微信原生右上角分享）；
-         · **「菜品有问题?」= 全页唯一问题反馈入口**（本稿自底栏迁入本卡名称行、位于价格左侧）；
+         · **「菜品有问题?」= 全页唯一问题反馈入口**（位于本卡名称行、价格左侧）；
          · **不绘制评分进度条、不展示评价人数**（「有无评分」的唯一判据 = `avgRating` 是否为 `null`）。 -->
     <view class="dish-info">
       <!-- ① 名称行（flex 横向、垂直居中）：菜名（**≤2 行截断**）→「**菜品有问题?**」入口（价格左侧、视觉权重压低、图标与文字同色 `--text-tertiary`）→ 价格组
@@ -32,14 +32,15 @@
         </view>
       </view>
 
-      <!-- ② 评分（左）+ 位置（右）同行：`avgRating` 非空 → 黄星 + 均分；**为 null（零评价）→ 隐藏星、浅灰「暂无评分」** -->
+      <!-- ② 评分（左）+ 位置（右）同行：🔴 **恒渲染**黄星 + 均分 ——
+    出参 `avgRating` 零评价已兜底为 `5.0`（见 docs/api/client/dishes.md「零评价展示口径」），
+       故端上不再有「有无评分」分支；只显示均分、**不显示评价条数**（保持简洁）。 -->
       <view class="meta-row">
-        <view v-if="rating != null" class="rating-group" role="img" :aria-label="`评分 ${ratingText} 分`">
+        <view class="rating-group" role="img" :aria-label="`评分 ${ratingText} 分`">
           <!-- 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑 -->
           <IconSvg name="star-filled" :size="30" :color="COLOR_MAP['star']" class="rating-star" />
           <text class="rating-num">{{ ratingText }}</text>
         </view>
-        <text v-else class="rating-empty">暂无评分</text>
         <view class="loc-group" role="group" :aria-label="`位置：${locationText}`">
           <IconSvg name="location" :size="26" :color="COLOR_MAP['primary']" class="loc-icon" />
           <text class="loc-text">{{ locationText }}</text>
@@ -84,9 +85,10 @@ const props = defineProps<{
   locationText: string
   /**
    * 平均评分（`DishDetailVO.avgRating`，口径 = 仅未隐藏评价）。
-   * **该菜品零评价时为 `null`** —— 端上据此呈现「暂无评分」（不落 0.0 误导）。
+   * 🔴 **零评价时服务端已兜底为 `5.0`**（不返回 null）⇒ 端上恒渲染评分位，
+   * 无「有无评分」分支；只显示均分、不显示评价条数（保持简洁）。
    */
-  rating: number | null
+  rating: number
 }>()
 
 /** 均分文案（恒一位小数；走公共口径 `utils/dish.formatRating`） */
@@ -117,7 +119,7 @@ const dims = computed(() => {
   return list
 })
 
-/* 注：「菜品有问题?」为本稿新增—— 点击上抛 `correct`，由页面编排
+/* 注：「菜品有问题?」点击上抛 `correct`，由页面编排
    `useDishPage.onCorrectDishInfo` 跳独立反馈页（`correctionUrl(dishId)`，免认证、游客可直达）。 */
 </script>
 
@@ -134,7 +136,7 @@ const dims = computed(() => {
   letter-spacing: var(--tracking-h2);
   line-height: 1.2;
   color: var(--text-primary);
-  /* 本稿修订：最长 2 行、超出省略（原为单行 nowrap）；不与右侧入口 / 价格抢占空间 */
+  /* 最长 2 行、超出省略；不与右侧入口 / 价格抢占空间 */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -183,8 +185,6 @@ const dims = computed(() => {
   justify-content: center;
 }
 .rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); font-variant-numeric: tabular-nums; }
-/* 零评价：隐藏星，仅浅灰文案（不误报 0 分） */
-.rating-empty { flex: none; font-size: var(--font-small); color: var(--text-placeholder); }
 
 /* 右侧位置：定位图标 + 「食堂 · 楼层 · 档口」，超长省略 */
 .loc-group { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: var(--spacing-xs); }
@@ -219,8 +219,8 @@ const dims = computed(() => {
    这样「简介缺失、分隔线同步消失」时同样的间距仍然成立（不会少掉一段留白）。 */
 .divider { height: 2rpx; background: var(--border-color); margin: var(--spacing-sm) 0 0; }
 
-/* ⑤ 描述四维（**Round 23 还原 Round 22 之前的样式**）：水平等分、逐维渲染（缺项不渲染该列）、
-   无竖线分隔；**无底色 / 无边框 / 无内边距**（「浅米色标签容器」方案已退役）。
+/* ⑤ 描述四维：水平等分、逐维渲染（缺项不渲染该列）、
+   无竖线分隔；**无底色 / 无边框 / 无内边距**（采用无容器方案）。
    顶部留白由本块自持（`--spacing-md`）⇒ 简介缺失（分隔线同步消失）时仍有正确间距。 */
 .dims { display: flex; align-items: stretch; margin-top: var(--spacing-md); }
 /* 标签贴底对齐（justify-content: flex-end）：长值换行时各列标签仍在同一基线上 */

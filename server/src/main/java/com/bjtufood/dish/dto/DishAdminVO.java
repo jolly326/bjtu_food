@@ -13,8 +13,7 @@ import java.util.Map;
  * <p>
  * 与公开 VO 的差异：保留 {@code status}（上下架，管理端需处置）、{@code stallId} /
  * {@code createdAt} / {@code updatedAt}（管理端维护用）；<b>不返回 {@code viewCount}</b>
- * （dish-field-contract：浏览量仅服务热度排序，管理端不展示）。
- * 原 promoPrice / tags / spiceLevel / region 已下线，新增四维。
+ * （管理端不展示）。
  */
 @Data
 @Schema(description = "后台菜品列表展示信息")

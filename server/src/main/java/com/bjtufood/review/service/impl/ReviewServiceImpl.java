@@ -43,10 +43,9 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
     /**
-     * 落库事务边界：
-     * {@code submitReview} / {@code updateReview} 的 {@code @Transactional} 原先从方法入口就开始、横跨微信机审的
-     * HTTP 外呼 ⇒ 期间一直占用数据库连接；HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
-     * 现改为「先机审（无事务）→ 再落库（开事务）」。
+     * 落库事务边界：**只让落库一步进事务**（「先机审（无事务）→ 再落库（开事务）」）——
+     * 若事务从方法入口开始，会横跨微信机审的 HTTP 外呼，期间持续占用数据库连接；
+     * HikariCP 默认池仅 10 条，并发一高即被占满并拖垮只读请求。
      * <p>
      * 本类同时承载「写库 + 发 {@code ReviewSubmittedEvent}」：监听器为 AFTER_COMMIT 相位，
      * 事件必须发布在事务内，否则评分永不重算（详见 {@link ReviewPersister} 类注释）。
@@ -76,12 +75,18 @@ public class ReviewServiceImpl implements ReviewService {
 
     /**
      * 菜品评价公开列表：时间倒序唯一口径（created_at DESC）。
+     *
+     * @param rating 按星级筛选（1~5）；{@code null} = 不过滤。🔴 服务端过滤，**筛选参与分页**。
      */
     @Override
-    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize) {
+    public IPage<ReviewVO> listByDishId(Long dishId, int page, int pageSize, Integer rating) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId);
+        // 白名单校验：非法星级 400，不静默降级为「不过滤」（否则端上传错值会被当全部返回）
+        if (rating != null && (rating < 1 || rating > 5)) {
+            throw new BusinessException("星级筛选值不合法");
+        }
+        IPage<ReviewVO> pageResult = reviewMapper.selectReviewPageByDishId(new Page<>(page, pageSize), dishId, rating);
         fillImages(pageResult.getRecords());
         return pageResult;
     }
@@ -103,8 +108,8 @@ public class ReviewServiceImpl implements ReviewService {
      * 发表评价（**重复提交即覆盖**，简化）。
      * <p>
      * 同一用户对同一菜品只有一条评价：不存在则 INSERT，已存在则**覆盖同一行**
-     * （评分 / 文字 / 配图 / created_at 刷新 / is_hidden 重置 0）—— 端上不再区分首评与重评，
-     * 也无需先判定「我是否已评价」。
+     * （评分 / 文字 / 配图显式 set、is_hidden 重置 0、🔴 **`created_at` 保留原值不刷新**）——
+     * 端上不区分首评与重评，也无需先判定「我是否已评价」。
      * <p>
      * <b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
      * （{@link ReviewPersister#insertAndPublish} / {@link ReviewPersister#updateAndPublish}），
@@ -155,7 +160,7 @@ public class ReviewServiceImpl implements ReviewService {
     /**
      * 重新评价（覆盖式）：覆盖同一行（评分/文字/配图），不新建行。
      * <p>
-     * 覆盖语义：created_at 刷新为当前（时间倒序下置顶）、is_hidden 重置 0、
+     * 覆盖语义：🔴 **`created_at` 保留原值**（首次评价时间即固定位置，改评价不置顶）、is_hidden 重置 0、
      * 内容安全检测与首次发表同口径（违规 400 且原内容不变）、发既有 ReviewSubmittedEvent 重算聚合。
      * 鉴权 = 作者本人（非本人 403）；未认证由 Controller 的 @RequireVerified 给出 4031。
      */
@@ -186,7 +191,7 @@ public class ReviewServiceImpl implements ReviewService {
      * UGC 文本机检公共入口：取用户 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
      * 结果语义：risky 由 {@code checkText} 抛 400 拦截；
-     * pass 与机检 review 均视为放行，不存在「待复核」落库值（sec_state 已全链退役）。
+     * pass 与机检 review 均视为放行，不存在「待复核」落库值。
      * 边界（报告备案）：
      * 1. openid 为 NULL（历史学号账号）→ 跳过机审放行（msgSecCheck v2 openid 必填）；
      * 2. 微信凭据未配置（本地开发环境）→ 跳过机审放行；生产必须配置 WECHAT_APPID/WECHAT_SECRET。
@@ -247,7 +252,7 @@ public class ReviewServiceImpl implements ReviewService {
         int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = norm[0]; pageSize = norm[1];
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
-                // R6：Review::getUpdatedAt 已随 review.updated_at 列下线移除（该列不再存在）
+                // R6：review.updated_at 列已移除（该列不再存在）
                 .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
                         Review::getContent, Review::getImages, Review::getIsHidden,
                         Review::getCreatedAt)
@@ -434,7 +439,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 转换为管理端 VO（携带 is_hidden 处置字段与配图；sec_state 已随取消人工复核退役）
+     * 转换为管理端 VO（携带 is_hidden 处置字段与配图；人工复核已取消）
      */
     private ReviewAdminVO toAdminVO(Review review) {
         ReviewAdminVO vo = new ReviewAdminVO();

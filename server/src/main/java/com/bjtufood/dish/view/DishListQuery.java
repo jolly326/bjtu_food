@@ -26,12 +26,18 @@ public record DishListQuery(
         SortKind sortKind) {
 
     /**
-     * 排序口径（与 {@code DishViewDefs} 的 `sortKind` 7 项白名单**一一对应**）。
+     * 排序口径（与 {@code DishViewDefs} 的 `sortKind` 白名单**一一对应**）。
+     * <p>
+     * 🔴 **无 {@code HEAT}**：MVP 期 7 个视图全部走 {@code random}，不存在「热度排序」这个需求。
+     * 后期若重启热度排序，须重新拍板并**必须含浏览量封顶**（见 P0-3 评审）。
      */
     public enum SortKind {
-        /** 热度倒序（大类 / 搜索等默认口径）。 */
-        HEAT,
-        /** 会话种子稳定伪随机序（推荐流）。 */
+        /**
+         * 会话种子稳定伪随机序。
+         * <p>
+         * 🔴 **MVP 期 7 个视图全部走这一口径**：无「热度排序」需求（见 P0-3 评审决议）。
+         * 冷启动期让每道菜都有机会被看到，随机优于固定榜单。
+         */
         SEED_RANDOM,
         /** 折扣力度倒序（折扣视图）。 */
         DISCOUNT_DESC,
@@ -53,7 +59,6 @@ public record DishListQuery(
             return null;
         }
         return switch (sortKind.trim()) {
-            case "heat" -> SortKind.HEAT;
             case "random" -> SortKind.SEED_RANDOM;
             case "discountDesc" -> SortKind.DISCOUNT_DESC;
             case "priceAsc" -> SortKind.PRICE_ASC;

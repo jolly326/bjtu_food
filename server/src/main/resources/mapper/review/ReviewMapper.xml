@@ -61,6 +61,10 @@
                  JOIN user u ON r.user_id = u.id
         WHERE r.dish_id = #{dishId}
           AND r.is_hidden = 0
+        <!-- 按星级筛选（rating 入参）：值为空 ⇒ 不过滤；非空 ⇒ r.rating = #{rating} -->
+        <if test="rating != null">
+            AND r.rating = #{rating}
+        </if>
         ORDER BY r.created_at DESC
     </select>
 

@@ -28,9 +28,9 @@ import java.nio.charset.StandardCharsets;
  *   <li><b>微信凭据未配置</b>（本地开发）：{@code ContentSecurityService} 跳过机审。</li>
  * </ol>
  * <p>
- * 补齐：<b>菜品纠错链路已于当日接入 {@code msgSecCheck v2}</b>
+ * <b>菜品问题反馈链路同样接入 {@code msgSecCheck v2}</b>
  * （{@code CorrectionServiceImpl#submit} 合并四类自由文本字段为单次调用送检），
- * 故纠错不再是本类独自兜底的链路。
+ * 本类只作补充兜底。
  * <p>
  * 典型调用顺序见 {@code FeedbackServiceImpl.submit}：先 {@code localSensitiveFilter.filter(...)}
  * 落库前脱敏，再 {@code contentSecurityService.checkText(...)} 过权威审核。
@@ -38,19 +38,17 @@ import java.nio.charset.StandardCharsets;
  * <b>与微信服务的区别</b>：本类只做<b>词面精确匹配</b>（DFA 字典树），无网络往返、无调用额度限制，
  * 但查不出谐音/变体/语义违规；微信是语义级模型，覆盖面更广但需联网且 openid 必填。二者互补，不可互相替代。
  * <p>
- * 架构收口 P1-B：自 {@code common.utils.SensitiveFilter} 迁入 {@code moderation.service}，
- * 并更名为 {@code LocalSensitiveFilter}。两处改动的原因：
+ * <b>归属与命名</b>：
  * <ul>
  *   <li><b>位置</b>：本类与 {@link ContentSecurityService} 是同一条内容安全链路的两级，
- *       原先一个在 {@code common.utils}、一个在 {@code content.security}，
- *       调用方需同时依赖两处才能看清「同一条链路的两步」；现同归 {@code moderation} 域。</li>
- *   <li><b>命名</b>：原名 {@code Filter} 易与 Servlet 的 {@code Filter}（如
- *       {@code common.config.RequestLoggingFilter}）混淆，且未体现「本地 vs 远端」的分工；
- *       加 {@code Local} 前缀后，调用点 {@code localSensitiveFilter.filter(...)}
- *       与 {@code contentSecurityService.checkText(...)} 并列时语义自明。</li>
+ *       同归 {@code moderation} 域 —— 调用方在一处即可看清「同一条链路的两步」。</li>
+ *   <li><b>命名</b>：{@code Local} 前缀表达「本地 vs 远端」的分工，并避免与 Servlet 的
+ *       {@code Filter}（如 {@code common.config.RequestLoggingFilter}）混淆；
+ *       调用点 {@code localSensitiveFilter.filter(...)} 与
+ *       {@code contentSecurityService.checkText(...)} 并列时语义自明。</li>
  * </ul>
- * 注：与原类不同，本类是 <b>有状态 Spring Bean</b>（持有 DFA 字典树），
- * 故置于 {@code service} 而非原 {@code utils} 包（该包惯例放无状态静态方法）。
+ * 注：本类是 <b>有状态 Spring Bean</b>（持有 DFA 字典树），
+ * 故置于 {@code service}（{@code utils} 包惯例放无状态静态方法）。
  * <p>
  * 使用方式：
  * <pre>
@@ -79,8 +77,8 @@ public class LocalSensitiveFilter {
      *
      * <p><b>为何空词库要 fail-fast</b>：本类是微信机审的
      * <b>必要补丁</b>而非冗余——{@code msgSecCheck v2} 的 {@code openid} 必填，
-     * 游客（{@code userId=null}）与历史无 openid 账号一律<b>跳过机审放行</b>；
-     * 菜品纠错链路更是<b>完全不走机审</b>。这些场景全靠本类兜底。
+     * 游客（{@code userId=null}）与历史无 openid 账号一律<b>跳过机审放行</b>，
+     * 菜品问题反馈链路更是<b>完全不走机审</b>。这些场景全靠本类兜底。
      * <p>
      * 而旧实现对「词库文件缺失 / 解析出 0 条」只 {@code log.warn} 后静默 {@code return}，
      * 导致 DFA 树为空 → {@code containsSensitive} 对任意文本恒 {@code false}，
@@ -98,7 +96,7 @@ public class LocalSensitiveFilter {
         if (!resource.exists()) {
             throw new IllegalStateException(
                     "敏感词库文件不存在: " + SENSITIVE_WORDS_FILE + "（须位于 src/main/resources/ 根下才会进 classpath）。"
-                            + "本地过滤是游客 UGC 与菜品纠错链路的唯一兜底，缺失将使这些场景失去审核，不应启动。");
+                            + "本地过滤是游客 UGC 与菜品问题反馈链路的唯一兜底，缺失将使这些场景失去审核，不应启动。");
         }
         int count;
         try (BufferedReader reader = new BufferedReader(
@@ -119,7 +117,7 @@ public class LocalSensitiveFilter {
             throw new IllegalStateException(
                     "敏感词库为空: " + SENSITIVE_WORDS_FILE
                             + "（解析出 0 个有效词条——是否整份被注释？）。"
-                            + "本地过滤是游客 UGC 与菜品纠错链路的唯一兜底，空词库等同无兜底，不应启动。");
+                            + "本地过滤是游客 UGC 与菜品问题反馈链路的唯一兜底，空词库等同无兜底，不应启动。");
         }
         log.info("敏感词库加载完成，共 {} 个敏感词", count);
     }

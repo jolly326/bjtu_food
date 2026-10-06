@@ -127,8 +127,6 @@
               <text class="row-picker-text" :class="{ 'row-picker-text--ph': !model.floor }">{{ floorLabel }}</text>
               <IconSvg name="arrow-down" :size="24" :color="COLOR_MAP['text-tertiary']" />
             </view>
-            <!-- 未命中字典的兜底提示（非空但非预设值，如 `B2` / `5F`）：照实展示原值，不清空、不报错 -->
-            <text v-if="floorUnmapped && !errors['form.floor']" class="row-note">不在预设范围</text>
             <text v-if="errors['form.floor']" class="row-error row-error--narrow">{{ errors['form.floor'] }}</text>
           </view>
           <view class="cell" id="f-c-stallName">
@@ -159,7 +157,7 @@
         </view>
       </view>
 
-      <!-- 楼层固定字典单选弹层（R40 新增；底座 = 公共 BaseSheet，回抛存储值） -->
+      <!-- 楼层受控字典单选弹层（底座 = 公共 BaseSheet，回抛所选汉字） -->
       <FloorPickerSheet
         :visible="floorPickerOpen"
         :value="model.floor"
@@ -232,7 +230,7 @@ import FloorPickerSheet from './FloorPickerSheet.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { CORRECTION_IMAGE_MAX } from '@/constants/ugc'
 import { toastInfo } from '@/utils/error'
-import { FLOOR_OPTIONS, floorDisplay } from './useCorrection'
+import { FLOOR_OPTIONS } from './useCorrection'
 import type { CorrectionFormModel } from './useCorrection'
 import type { PickSource } from '@/components/imagePickSource'
 
@@ -291,23 +289,13 @@ defineExpose({ startPick })
 /** 聚焦字段键（聚焦时底线切主色；空 = 无聚焦） */
 const focused = ref('')
 
-/** 楼层字典弹层开合（R40；底座 = 公共 BaseSheet，懒挂载由 `visible` 驱动） */
+/** 楼层字典弹层开合（底座 = 公共 BaseSheet，懒挂载由 `visible` 驱动） */
 const floorPickerOpen = ref(false)
 
 /**
- * 楼层单元格展示文案（R40 · 展示层映射）。
- * `form.floor` 恒存**后端存储值**，此处查表渲染汉字；空串 ⇒ 占位「请选择楼层」。
+ * 楼层单元格展示文案：`form.floor` 即**汉字**（值即显示值）；空串 ⇒ 占位「请选择楼层」。
  */
-const floorLabel = computed(() => floorDisplay(props.model.floor)[0])
-
-/**
- * 楼层值**是否非空但未命中字典**（如管理端录入的 `B2` / `5F`）。
- * 用于挂「不在预设范围」提示 —— **仅提示，不阻断**：原值照实展示、未动即无 diff（UI 稿兜底口径）。
- */
-const floorUnmapped = computed(() => {
-  const v = props.model.floor.trim()
-  return !!v && !floorDisplay(v)[1]
-})
+const floorLabel = computed(() => props.model.floor || '请选择楼层')
 
 /** 打开楼层字典弹层（提交中禁开，避免与提交态交互打架） */
 function openFloorPicker() {
@@ -316,7 +304,7 @@ function openFloorPicker() {
 }
 
 /**
- * 选中字典项：写入**存储值**（非汉字）并撤下该字段的过期错误提示。
+ * 选中字典项：写入所选**汉字**（即存储值）并撤下该字段的过期错误提示。
  * 与文本字段口径一致 —— 用户一动内容就撤下上一次提交失败提示。
  */
 function onFloorSelect(value: string) {
@@ -397,8 +385,7 @@ function onSubmitTap() {
 /* 单元格内纵向排布：标签 / 输入 / 错误小字依次换行（错误小字换行到下一行而非挤在同行右侧） */
 .cell > .row-label,
 .cell > .row-field,
-.cell > .row-error,
-.cell > .row-note { display: block; width: 100%; }
+.cell > .row-error { display: block; width: 100%; }
 .cell > .row-field { display: flex; }
 .row-label {
   flex: none;
@@ -458,13 +445,6 @@ function onSubmitTap() {
   color: var(--color-error);
 }
 .row-error--narrow { padding-left: 96rpx; }
-/* 「不在预设范围」兜底提示：次要小字（非错误色）—— 仅告知、不阻断提交 */
-.row-note {
-  margin-top: var(--spacing-2xs);
-  padding-left: 96rpx;
-  font-size: var(--font-tiny);
-  color: var(--text-tertiary);
-}
 
 /* ===== ③ 属性编辑区（每个维度一组 AttributeGroup；组成员间距由组件内 `.ag` 承担） ===== */
 .attrs { margin-top: var(--spacing-lg); }

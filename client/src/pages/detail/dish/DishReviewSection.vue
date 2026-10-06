@@ -39,6 +39,28 @@
 
       <!-- ③ 有数据 / ④ 零评价（在途期整体不渲染） -->
       <template v-else-if="!pending">
+        <!-- 星级筛选条：`全部` + ⭐5~⭐1 共 6 项**静态枚举**（免服务端字典）。
+             🔴 渲染条件 = 「有评价 **或** 已选筛选」（hasAnyReview）——
+             筛选后命中 0 条时列表虽空，但筛选条必须保留，否则用户**无法切回「全部」**（死路）。 -->
+        <scroll-view v-if="hasAnyReview" class="rating-filter" scroll-x :show-scrollbar="false">
+          <view class="rating-filter-row">
+            <view
+              v-for="opt in RATING_FILTERS"
+              :key="String(opt.value ?? 'all')"
+              class="filter-chip"
+              :class="{ 'filter-chip--active': ratingFilter === opt.value }"
+              role="radio"
+              :aria-checked="ratingFilter === opt.value"
+              :aria-label="opt.label"
+              hover-class="filter-chip--pressed"
+              hover-stay-time="80"
+              @tap="emit('filter', opt.value)"
+            >
+              <text class="filter-chip-text">{{ opt.label }}</text>
+            </view>
+          </view>
+        </scroll-view>
+
         <!-- 有数据：评价列表（无「有用」入口；排序唯一时间倒序） -->
         <view v-if="reviews.length > 0" class="review-list">
           <view :style="{ height: topPad + 'px' }" />
@@ -53,9 +75,15 @@
           <view :style="{ height: bottomPad + 'px' }" />
         </view>
 
-        <!-- 零评价空态：**纯文本「暂无评价」**（无副文案、无引导按钮 —— 写评价入口唯一落点 = 标题行右侧按钮） -->
-        <!-- 统一空态组件：轻量形态（区块内空态，无底色） -->
-        <EmptyState v-else title="暂无评价" />
+        <!-- 空态二态（语义不同，勿混）：
+             ① **零评价**（ratingFilter == null）—— 信息卡评分位恒显「⭐ 5.0」兜底，
+                若此处写「暂无评价」会与之矛盾 ⇒ 改为**冷启动号召**「快来抢首评 ⭐ 5.0」；
+             ② **筛选无结果**（ratingFilter != null）—— 纯文案「暂无 X 星评价」，
+                🔴 此时上方筛选条仍渲染（hasAnyReview），保证可切回「全部」。 -->
+        <EmptyState
+          v-else
+          :title="ratingFilter == null ? '快来抢首评 ⭐ 5.0' : `暂无 ${ratingFilter} 星评价`"
+        />
       </template>
     </CardSection>
   </view>
@@ -74,6 +102,16 @@ import { COLOR_MAP } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
 import { useVirtualList } from '@/composables/usePagedList'
 
+/** 评价列表项（静态枚举，值域固定 1~5 ⇒ **无服务端字典**；`null` = 全部） */
+const RATING_FILTERS: ReadonlyArray<{ value: number | null; label: string }> = [
+  { value: null, label: '全部' },
+  { value: 5, label: '⭐5' },
+  { value: 4, label: '⭐4' },
+  { value: 3, label: '⭐3' },
+  { value: 2, label: '⭐2' },
+  { value: 1, label: '⭐1' },
+]
+
 const props = withDefaults(defineProps<{
   reviews: Review[]
   /**
@@ -91,9 +129,12 @@ const props = withDefaults(defineProps<{
   pending: boolean
   /** 页面滚动量（px）：驱动评价列表虚拟窗口（由父级 `scroll-view` 的 `@scroll` 下发） */
   scrollTop?: number
+  /** 当前星级筛选（`null` = 全部）：驱动筛选条高亮 + 空态文案二态区分 */
+  ratingFilter?: number | null
 }>(), {
   loadFailed: false,
   scrollTop: 0,
+  ratingFilter: null,
 })
 
 /** 虚拟列表：列表嵌在页面 `scroll-view` 内 ⇒ 外部滚动量 + 组件作用域查询 + 动态偏移（见 composable 文档） */
@@ -106,6 +147,11 @@ const { visible, topPad, bottomPad } = useVirtualList<Review>({
   scope: getCurrentInstance()?.proxy,
 })
 
+/** 筛选条渲染条件：有评价（列表非空）**或**已选筛选（ratingFilter != null）。
+ *  🔴 后半条是**死路修复**：筛选后命中 0 条 ⇒ 列表为空，若此时连筛选条一并隐藏，
+ *     用户将无法切回「全部」（唯一出口消失）。零评价且未筛选时仍不渲染（无可筛项）。 */
+const hasAnyReview = computed(() => props.reviews.length > 0 || props.ratingFilter !== null)
+
 /* 评价条数口径：**恒为已加载条数**（分页壳只有 `records`，服务端不回传总数）；
    数字经 `SectionTitle` 的 `count` 与标题合并渲染为「评价 12」（同色 / 小半号 / 等宽）。 */
 const emit = defineEmits<{
@@ -114,6 +160,8 @@ const emit = defineEmits<{
   (e: 'retry'): void
   /** 写评价（标题行右侧唯一入口；页面侧走 requireAuth → ReviewComposer） */
   (e: 'write'): void
+  /** 切换星级筛选（`null` = 全部）：页面侧重置分页并从第 1 页重拉 */
+  (e: 'filter', rating: number | null): void
 }>()
 </script>
 
@@ -168,6 +216,41 @@ const emit = defineEmits<{
   white-space: nowrap;
 }
 .write-entry--pressed { opacity: 0.6; }
+
+/* ===== 星级筛选条（`全部` + ⭐5~⭐1）=====
+    横向 scroll-x 单行不换行；chip 为独立可点件（min-height ≥88rpx 触达基线）。
+    选中态 = --color-primary-soft 底 + --color-primary 描边（形态基线 §二 TagChip）。
+    按压反馈 = opacity 微降（**禁 `transform: scale`** —— 全站红线）。 */
+.rating-filter {
+  width: 100%;
+  white-space: nowrap;
+  margin-bottom: var(--spacing-sm);
+}
+.rating-filter-row { display: inline-flex; align-items: center; gap: var(--spacing-xs); }
+.filter-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-target-size);
+  padding: 0 var(--spacing-md);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-btn);
+  background: var(--bg-soft);
+  -webkit-tap-highlight-color: transparent;
+}
+.filter-chip--active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+.filter-chip--pressed { opacity: 0.6; }
+.filter-chip-text {
+  font-size: var(--font-body);
+  font-weight: var(--weight-regular);
+  color: var(--text-body);
+  line-height: 1.2;
+}
+.filter-chip--active .filter-chip-text { color: var(--color-primary-text); font-weight: var(--weight-medium); }
 
 /* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 ===== */
 .review-section :deep(.retry-block) { margin: var(--spacing-sm) 0; }

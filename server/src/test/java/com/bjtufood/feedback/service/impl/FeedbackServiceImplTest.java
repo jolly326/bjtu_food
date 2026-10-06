@@ -50,9 +50,8 @@ import static org.mockito.Mockito.when;
  *       同一登录用户重复举报须 400；游客因无身份标识**不去重**；</li>
  *   <li><b>处理结论与不采纳原因</b>（{@code handle}）：{@code outcome} 白名单、
  *       {@code rejected ⇒ rejectReason 非空且 ≤200 字}、回复必填；</li>
- *   <li><b>回执投递判据</b>：<b>登录级</b>——userId 非空即投递（2026-10-01 拍板放宽：
- *       消息中心是登录级能力，游客提交的反馈也应收到处理结果，此前「仅已认证用户投递」
- *       会让游客的消息中心永久空转）；游客（userId=null）不投递（无归属可投）。</li>
+ *   <li><b>回执投递判据</b>：<b>登录级</b>——userId 非空即投递（消息中心是登录级能力，
+ *       游客提交的反馈同样收到处理结果）；userId=null 不投递（无归属可投）。</li>
  * </ol>
  * 被测类为纯 POJO：{@code @Transactional} 依赖 Spring 代理，单测中不生效，断言的是方法体内业务逻辑。
  */
@@ -75,7 +74,7 @@ class FeedbackServiceImplTest {
     private final ContentSecurityService contentSecurityService = mock(ContentSecurityService.class);
     private final ImageUrlUtil imageUrlUtil = mock(ImageUrlUtil.class);
     private final ReviewService reviewService = mock(ReviewService.class);
-    /** 举报原因字典真源（A7 落地后为 `report_reason` 表；原为 `FeedbackConst` 常量） */
+    /** 举报原因字典真源（`report_reason` 表） */
     private final ReportReasonService reportReasonService = mock(ReportReasonService.class);
 
     /**
@@ -364,8 +363,7 @@ class FeedbackServiceImplTest {
         req.setReply("已处理");
         service().handle(5L, req);
 
-        // 关键断言：口径已由「仅已认证用户」放宽为「登录即投递」——
-        // 此前游客的消息中心会永久空转（提交的反馈永远收不到处理结果）。
+        // 关键断言：口径为「登录即投递」（userId 非空即投递）。
         verify(notificationService).notify(any());
     }
 

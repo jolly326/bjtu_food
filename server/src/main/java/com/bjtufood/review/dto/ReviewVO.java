@@ -13,11 +13,9 @@ import java.util.List;
  * {@code id}、{@code userId}、{@code userNickname}、{@code userAvatar}、
  * {@code rating}、{@code content}、{@code images}、{@code createdAt}。
  * <p>
- * （change {@code dish-detail-contract-hardening}）：
- * 本类此前**同时承载本人视角** —— 多出 {@code dishId} / {@code dishName} / {@code isHidden}
- * 三字段，靠「调用哪个接口」区分字段集，属**类型系统无法表达**的契约模糊
- * （消费端写单一 interface 时，公开场景下这 3 个字段成为「类型说有、实际没有」的不安全类型）。
- * 现三字段**下沉到 {@link MyReviewVO}**（本人视角），本类只留公开字段集。
+ * 字段集**严格限定公开视角**：{@code dishId} / {@code dishName} / {@code isHidden} 三字段
+ * 归 {@link MyReviewVO}（本人视角）—— 「靠调用接口区分字段集」会让消费端写出
+ * 「类型说有、实际没有」的不安全类型。
  */
 @Data
 @Schema(description = "评价展示信息（公开视角，8 字段）")

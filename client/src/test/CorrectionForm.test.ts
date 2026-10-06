@@ -30,7 +30,7 @@ function makeModel(over: Partial<CorrectionFormModel> = {}) {
     name: '红烧肉',
     price: '12.50',
     canteenName: '一食堂',
-    floor: '2F',
+    floor: '二层',
     stallName: '窗口1',
     images: [],
     attributes: [],
@@ -78,7 +78,7 @@ function mountForm(over: Record<string, unknown> = {}, model = makeModel()) {
           name: 'FloorPickerSheetStub',
           props: ['visible'],
           emits: ['select'],
-          template: '<view class="floor-sheet-stub" @click="$emit(\'select\', \'3F\')" />',
+          template: '<view class="floor-sheet-stub" @click="$emit(\'select\', \'三层\')" />',
         },
       },
     },
@@ -169,8 +169,8 @@ describe('CorrectionForm · 字段就地写回', () => {
 })
 
 describe('CorrectionForm · 楼层选择', () => {
-  it('楼层单元格展示汉字（存储值 B1 → 负一层）', () => {
-    const { wrapper } = mountForm({}, makeModel({ floor: 'B1' }))
+  it('楼层单元格直接展示 floor 汉字值（值即显示值）', () => {
+    const { wrapper } = mountForm({}, makeModel({ floor: '负一层' }))
     expect(wrapper.text()).toContain('负一层')
   })
 
@@ -179,49 +179,33 @@ describe('CorrectionForm · 楼层选择', () => {
     expect(wrapper.text()).toContain('请选择楼层')
   })
 
-  it('选中后写入**存储值**而非汉字（汉字不得进提交路径）', async () => {
-    const model = makeModel({ floor: '2F' })
+  it('选中后写入所选**汉字**（即存储值）', async () => {
+    const model = makeModel({ floor: '二层' })
     const { wrapper } = mountForm({}, model)
     await wrapper.find('.row-field--picker').trigger('tap')
     await wrapper.find('.floor-sheet-stub').trigger('click')
-    expect(model.floor).toBe('3F')
+    expect(model.floor).toBe('三层')
   })
 
   it('选中楼层回抛 clear', async () => {
-    const model = makeModel({ floor: '2F' })
+    const model = makeModel({ floor: '二层' })
     const { wrapper } = mountForm({}, model)
     await wrapper.find('.row-field--picker').trigger('tap')
     await wrapper.find('.floor-sheet-stub').trigger('click')
     expect(wrapper.emitted('clear')?.some((e) => e[0] === 'form.floor')).toBe(true)
   })
 
-  it('未命中字典的值原样展示（管理端自由文本 B2）', () => {
-    const { wrapper } = mountForm({}, makeModel({ floor: 'B2' }))
-    // 兜底口径：原值照实显示，不清空也不报错
-    expect(wrapper.text()).toContain('B2')
-  })
-
-  it('未命中字典时挂「不在预设范围」提示（仅提示不阻断）', () => {
-    const { wrapper } = mountForm({}, makeModel({ floor: 'B2' }))
-    expect(wrapper.find('.row-note').exists()).toBe(true)
-  })
-
-  it('命中字典时不挂该提示', () => {
-    const { wrapper } = mountForm({}, makeModel({ floor: '2F' }))
-    expect(wrapper.find('.row-note').exists()).toBe(false)
-  })
-
   it('提交中禁开楼层弹层（visible 保持 false）', async () => {
-    const model = makeModel({ floor: '2F' })
+    const model = makeModel({ floor: '二层' })
     const { wrapper } = mountForm({ submitting: true }, model)
     await wrapper.find('.row-field--picker').trigger('tap')
     // 弹层受 `visible` 驱动；提交中被 openFloorPicker 拦截 ⇒ visible 仍为 false
     expect(wrapper.findComponent({ name: 'FloorPickerSheetStub' }).props('visible')).toBe(false)
-    expect(model.floor).toBe('2F')
+    expect(model.floor).toBe('二层')
   })
 
   it('未提交时点开楼层弹层（visible 变 true）', async () => {
-    const { wrapper } = mountForm({}, makeModel({ floor: '2F' }))
+    const { wrapper } = mountForm({}, makeModel({ floor: '二层' }))
     await wrapper.find('.row-field--picker').trigger('tap')
     expect(wrapper.findComponent({ name: 'FloorPickerSheetStub' }).props('visible')).toBe(true)
   })

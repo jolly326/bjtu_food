@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * 用户反馈服务接口
- * 删除「我的反馈列表」listMy（前端 getMyFeedback 已删，反馈中心下线），保留 submit/listForAdmin/handle。
+ * 职责：submit / listForAdmin / handle（不含「我的反馈列表」——反馈中心不在产品范围内）。
  */
 public interface FeedbackService {
 
@@ -45,8 +45,7 @@ public interface FeedbackService {
     /**
      * 举报原因字典（公开只读，`GET /report-reasons`）。
      * <p>
-     * **真源改为 `report_reason` 表**（A7 落地，2026-10-03）：原为代码常量 {@code FeedbackConst.REPORT_REASONS}，
-     * 现由 {@code ReportReasonService#listEnabled()} 供给 —— 字典可维护、免发版、免客户端改动。
+     * **真源 = `report_reason` 表**，由 {@code ReportReasonService#listEnabled()} 供给 —— 字典可维护、免发版、免客户端改动。
      * <p>
      * 出参结构**不变**（客户端契约零改动）：恰 {@code value} + {@code label}、无分页；
      * 变化只有两条 ——「**只下发启用项**」与「顺序来自表（拖拽后的 `order`）」。
@@ -58,7 +57,7 @@ public interface FeedbackService {
     /**
      * 反馈列表（管理端，按状态/类型/用户过滤）
      * <p>
-     * 内容安全态筛选入参已随 sec_state 全链退役删除。
+     * 内容安全态筛选入参随 sec_state 取消人工复核删除。
      *
      * @param keyword 关键词（可选，对反馈内容 content 或管理员回复 reply 模糊匹配）
      */
@@ -94,8 +93,7 @@ public interface FeedbackService {
      * 账号归属迁移：把 fromUserId 的反馈改挂到 toUserId（仅改 {@code user_feedback.user_id}）。
      * <p>
      * 调用方 = {@code feedback.event.FeedbackOwnershipListener}（订阅 auth 域发布的
-     * {@code UserOwnershipMigratedEvent}）。原先由 {@code AuthServiceImpl} 直接注入
-     * FeedbackMapper 改写，属跨域写他域表。
+     * {@code UserOwnershipMigratedEvent}）—— auth 域**不直接改写**本域表。
      * <p>
      * 账号注销不迁移：注销只软删 user 行，反馈行与 user_id 保持不动，昵称由 join user 实时取。
      *

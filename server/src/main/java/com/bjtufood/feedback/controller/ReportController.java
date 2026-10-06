@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 评价举报端点（RESTful 子资源：{@code POST /reviews/{id}/report}）。
  * <p>
- * <b>写入口拆分</b>：举报、意见反馈、菜品纠错三条链路各自独立——
+ * <b>写入口拆分</b>：举报、意见反馈、菜品问题反馈三条链路各自独立——
  * 反馈 {@code POST /feedback}、纠错 {@code POST /dishes/{id}/correction}、
  * 举报 {@code POST /reviews/{id}/report}（本端点）；三者各为独立 DTO / 校验，
  * 但底层仍共用 {@code user_feedback} 表与处置 / 回执服务。

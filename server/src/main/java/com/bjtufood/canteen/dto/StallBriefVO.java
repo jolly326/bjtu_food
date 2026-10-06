@@ -7,10 +7,8 @@ import lombok.NoArgsConstructor;
 /**
  * 档口简要项（跨域只读契约：id + 名称）。
  * <p>
- * 架构收口 P0-1：纠错采纳的「档口确认候选列表」此前由 correction 模块直接
- * import {@code canteen.entity.Stall}/{@code Canteen} + {@code StallMapper}/{@code CanteenMapper}
- * 自查拼装。现由 {@code StallService} 以本投影下发（查询与排序口径留在 canteen 模块），
- * 调用方按自己的 VO 组装，不再触达 canteen 实体与 Mapper。
+ * 纠错采纳的「档口确认候选列表」由 {@code StallService} 以本投影下发（查询与排序口径留在 canteen 模块）——
+ * 调用方**不触达** canteen 实体与 Mapper，按自己的 VO 组装。
  */
 @Data
 @NoArgsConstructor

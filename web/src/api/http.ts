@@ -1,13 +1,18 @@
 /**
- * fetch 封装（web 依赖无 axios）：注入管理端口令、解析 Result<T>、统一错误处理。
+ * fetch 封装（web 依赖无 axios）：注入管理端凭证、解析 `Result<T>`、统一错误处理。
  *
- * <p><b>鉴权口径</b>（真源 [C1 管理员登录与访问控制](../../../docs/api/web/auth.md)）：
- * **无登录体系** —— 口令由**构建期注入**（`VITE_ADMIN_TOKEN`）并以请求头
- * `X-Admin-Token` 携带（与后端 `AdminTokenFilter` 对应）；口令不匹配 / 账号受限 = **403 = 会话失效**，
- * **不存在 401 分支**，也不做任何登录页跳转（无 `Bearer` 令牌与 `/login` 体系）。
+ * <p><b>鉴权口径</b>（真源 [api/web/auth.md](../../../docs/api/web/auth.md) ·
+ * [C1 管理员登录与访问控制](../../../docs/func/web/C-账号与访问/C1-管理员登录与访问控制.md)）：
+ * 管理后台为**账密登录** —— 先 `POST /admin/auth/login` 换取管理端 JWT（存 `sessionStorage`），
+ * 后续请求一律带 `Authorization: Bearer <token>`；🔴 **前端不持有口令**。
+ *
+ * <p><b>401 = 会话失效</b>（未带 token / 签名无效 / 已过期 / 账号已停用）：由本层**统一**处理
+ * 「清 token → 跳登录页」，页面不渲染列表态（[UI 基线 §1.5 ⑥](../../../docs/ui/web/公共组件与形态基线.md)）。
+ * <b>403 = 已认证但无权限</b>（预留，当前无角色区分）：按普通业务错误抛出，**不**触发跳转。
  */
-import { ADMIN_TOKEN, API_BASE_URL } from './config'
-import { CODE_FORBIDDEN, CODE_OK, type AdminPage } from '@/types/common'
+import { API_BASE_URL } from './config'
+import { clearSession, getToken } from './session'
+import { CODE_OK, CODE_UNAUTHORIZED, type AdminPage } from '@/types/common'
 
 class ApiError extends Error {
   code: number
@@ -18,15 +23,31 @@ class ApiError extends Error {
 }
 
 /**
- * 会话失效（403）固定文案 —— 页面据此渲染「会话失效态」且**不渲染重试**
- * （重试必然再失败，见 [UI 基线 §1.5 ⑥](../../../docs/ui/web/公共组件与形态基线.md)）。
+ * 会话失效兜底文案 —— 仅当服务端未给 `message` 时使用。
+ * 正常情况下 401 的 `message` 会原样透出（如登录失败的「账号或密码错误」），
+ * 🔴 绝不能被统一文案吞掉，否则登录页无法提示真实原因。
  */
-const SESSION_INVALID_MESSAGE =
-  '管理员口令校验失败（403），请检查构建期注入的 ADMIN_TOKEN'
+const SESSION_INVALID_MESSAGE = '登录已失效，请重新登录'
 
-/** 是否为「会话失效」（403）：页面用它把第 ⑥ 态与普通错误态区分开 */
+/** 是否为「会话失效」（401）：列表层据此**不渲染**错误态与「重试」（重试必然再失败） */
 export function isSessionInvalid(err: unknown): boolean {
-  return err instanceof ApiError && err.code === CODE_FORBIDDEN
+  return err instanceof ApiError && err.code === CODE_UNAUTHORIZED
+}
+
+/**
+ * 401 处置回调（**由路由层注册**，见 `main.ts`）：清 token 之后跳登录页。
+ *
+ * <p>🔴 **为何不在本文件里直接 `import router`**：`router/index.ts` 会经 `api/auth.ts`
+ * 反向依赖本文件，直接引用会在模块初始化期形成**循环依赖**（`router` 可能还是 `undefined`）。
+ * 故本模块只「发信号」，跳转由路由层订阅 —— 依赖方向始终保持单向：`router → api → http`。
+ */
+export type UnauthorizedHandler = () => void
+
+let unauthorizedHandler: UnauthorizedHandler | null = null
+
+/** 注册 401 处置（应用启动时调用一次，见 `main.ts`） */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
+  unauthorizedHandler = handler
 }
 
 interface RequestOptions {
@@ -44,8 +65,9 @@ export async function request<T>(
 ): Promise<T> {
   const url = API_BASE_URL + path
   const headers: Record<string, string> = {}
-  // 管理端口令：构建期注入，随每次请求带出（无登录态、无令牌刷新）
-  if (ADMIN_TOKEN) headers['X-Admin-Token'] = ADMIN_TOKEN
+  // 管理端凭证：登录后签发的 JWT，随每次请求带出（无刷新机制，失效即重新登录）
+  const token = getToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
 
   let payload: BodyInit | undefined
   if (body !== undefined) {
@@ -81,22 +103,34 @@ export async function request<T>(
   }
   clearTimeout(timer)
 
-  // 403 = 会话失效（口令不匹配）：统一文案，页面据此渲染第 ⑥ 态，不做跳转
-  if (res.status === CODE_FORBIDDEN) {
-    throw new ApiError(CODE_FORBIDDEN, SESSION_INVALID_MESSAGE)
+  // **先解析体**：401 的 `message` 才是真实原因（如登录失败的「账号或密码错误」），
+  // 不能被统一文案吞掉。非 JSON 体时 `result` 为 null，由下方按 HTTP 状态兜底。
+  let parsed: { code: number; message: string; data: T | null } | null = null
+  try {
+    parsed = await res.json()
+  } catch {
+    parsed = null
   }
 
-  let result: { code: number; message: string; data: T | null }
-  try {
-    result = await res.json()
-  } catch {
+  const code = parsed?.code ?? res.status
+  const message = parsed?.message || (parsed ? `请求失败（${code}）` : `响应解析失败（HTTP ${res.status}）`)
+
+  // 🔴 401 = 会话失效：清 token → 跳登录页（跳转由路由层注册的 handler 负责）。
+  //    HTTP 状态与 body.code **任一**为 401 都算：`AdminAuthFilter` 回 HTTP 401，
+  //    而登录失败由 `GlobalExceptionHandler` 承载 body 的 code。
+  if (res.status === CODE_UNAUTHORIZED || code === CODE_UNAUTHORIZED) {
+    clearSession()
+    unauthorizedHandler?.()
+    throw new ApiError(CODE_UNAUTHORIZED, message || SESSION_INVALID_MESSAGE)
+  }
+
+  if (!parsed) {
     throw new ApiError(res.status, `响应解析失败（HTTP ${res.status}）`)
   }
-
-  if (result.code !== CODE_OK) {
-    throw new ApiError(result.code, result.message || `请求失败（${result.code}）`)
+  if (parsed.code !== CODE_OK) {
+    throw new ApiError(parsed.code, message)
   }
-  return result.data as T
+  return parsed.data as T
 }
 
 export function get<T>(path: string, params?: object): Promise<T> {
