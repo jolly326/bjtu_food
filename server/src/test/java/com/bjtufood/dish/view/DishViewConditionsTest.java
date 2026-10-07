@@ -50,6 +50,16 @@ class DishViewConditionsTest {
     }
 
     @Test
+    @DisplayName("分类键含下划线（如 set_meal）合法：经字典子查询翻译")
+    void translate_allowsUnderscoreInCategoryKey() {
+        QueryWrapper<Dish> wrapper = DishViewConditions.toWrapper(
+                DishViewConditions.validate(List.of(condition("mealType", "=", "set_meal"))), true);
+
+        assertThat(wrapper.getSqlSegment())
+                .contains("SELECT id FROM dish_category_value WHERE `key` = 'set_meal'");
+    }
+
+    @Test
     @DisplayName("白名单：操作符不属该字段 → 400（如 mealType 不支持 >=）")
     void illegalOpForField_rejected400() {
         assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("mealType", ">=", "noodle"))))

@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
-    private static final Pattern KEY_PATTERN = Pattern.compile("^[a-z0-9-]{1,20}$");
+    private static final Pattern KEY_PATTERN = Pattern.compile("^[a-z0-9_-]{1,20}$");
     private static final int LABEL_MAX = 32;
     /** 自动生成的分类键前缀（与手填的语义键形态区分，一眼可辨） */
     private static final String GENERATED_KEY_PREFIX = "cat-";

@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  * 菜品描述属性的<b>目录数据</b>：维度字典 + 编辑候选值。
  * <p>
  * <b>为什么单独成类</b>（而不是留在 {@code DishServiceImpl} 里加注解）：Spring 的声明式缓存靠代理实现，
- * <b>自调用不过代理</b>——留在原类里 {@code this.candidateValuesByFieldKey()} 上的 {@code @Cacheable}
+ * <b>自调用不过代理</b>——留在原类里 {@code this.candidateValuesByDimensionId()} 上的 {@code @Cacheable}
  * 会静默失效（编译期与启动期都不报错，只有性能数字会诚实地告诉你它没生效）。
  * 因此把「可缓存的目录数据」抽成独立 bean，由 service 注入调用，代理必然生效。
  * <p>

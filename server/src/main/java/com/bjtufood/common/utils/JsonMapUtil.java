@@ -12,7 +12,7 @@ import java.util.Map;
  * JSON 对象（{@code Map<String, Object>}）列处理工具类
  * <p>
  * 用于菜品描述属性 {@code dish.attributes} 一类的 JSON 对象列：
- * 键 = 维度 {@code fieldKey}，值 = 机器值（{@code single} 为字符串 / {@code multi} 为字符串数组）。
+ * 键 = 维度 ID（字符串形式），值 = 取值 ID（{@code single} 为数字 / {@code multi} 为数字数组）。
  * 「列 ↔ Map」的转换集中在此，避免各域各写一份 ObjectMapper。
  * <p>
  * <b>失败口径</b>：解析/序列化失败一律<b>回落</b>（空 Map / null）而不是抛异常——列值脏一点不该

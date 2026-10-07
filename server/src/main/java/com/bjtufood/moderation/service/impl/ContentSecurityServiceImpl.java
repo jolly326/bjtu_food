@@ -20,6 +20,11 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
@@ -270,25 +275,32 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     }
 
     private void doImgSecCheck(byte[] image, String accessToken) {
+        // 🔴 multipart 体必须**手工缓冲为 byte[]**（自带 boundary 与 Content-Length）：
+        //    交给 RestTemplate 的 MultiValueMap 会经 StreamingOutputStream 以 chunked 发送
+        //    （当前 Spring 版本下 setOutputStreaming(false) 已无法阻止流式输出），
+        //    微信网关对 chunked / 流式 multipart 上传回 412 / 「Error writing request body」（2026-10-07 线上实测）。
+        //    media part 仍带 filename（缺 filename 微信回 errcode=47001「data format error」）。
+        String boundary = "----bjtu" + UUID.randomUUID().toString().replace("-", "");
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        try {
+            buffer.write(("--" + boundary + "\r\n"
+                    + "Content-Disposition: form-data; name=\"media\"; filename=\"image.jpg\"\r\n"
+                    + "Content-Type: application/octet-stream\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            buffer.write(image);
+            buffer.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            log.error("imgSecCheck multipart 体缓冲失败", e);
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+        }
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setContentType(MediaType.parseMediaType("multipart/form-data; boundary=" + boundary));
+        headers.setContentLength(buffer.size());
         headers.set("User-Agent", WechatApiConst.USER_AGENT);
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        // 🔴 part 必须带 filename：微信 img_sec_check 要求 `media` 是「文件」项 —— 缺 filename
-        //    （退化为普通表单字段）会回 errcode=47001「data format error」（实测）。文件名仅用于让
-        //    Spring 写出 filename 与 part Content-Type；微信按字节嗅探实际类型（实测声明类型与实际
-        //    内容不符亦受理）。同理不可省：请求体须带 Content-Length，见 defaultRestTemplate()。
-        body.add("media", new ByteArrayResource(image) {
-            @Override
-            public String getFilename() {
-                return "image.jpg";
-            }
-        });
         String url = wechatProperties.api(WechatApiConst.IMG_SEC_CHECK_URL)
                 + (accessToken == null ? "" : "?access_token=" + accessToken);
         String respBody;
         try {
-            respBody = restTemplate.postForObject(url, new HttpEntity<>(body, headers), String.class);
+            respBody = restTemplate.postForObject(url, new HttpEntity<>(buffer.toByteArray(), headers), String.class);
         } catch (BusinessException e) {
             // token 获取失败等业务异常原样传播，不在此处二次包装
             throw e;

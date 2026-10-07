@@ -16,9 +16,9 @@ import lombok.Data;
 @Schema(description = "分类值登记请求")
 public class DishCategorySaveReq {
 
-    @Schema(description = "分类键（选填；小写字母 / 数字 / -，1~20；全站唯一；缺省自动生成）", example = "noodle")
+    @Schema(description = "分类键（选填；小写字母 / 数字 / - / _，1~20；全站唯一；缺省自动生成）", example = "noodle")
     @Size(max = 20, message = "分类键不能超过 20 字符")
-    @Pattern(regexp = "^[a-z0-9-]+$", message = "分类键只能包含小写字母、数字与 -")
+    @Pattern(regexp = "^[a-z0-9_-]+$", message = "分类键只能包含小写字母、数字、- 与 _")
     private String key;
 
     @Schema(description = "分类中文名（1~32 字；分类名唯一）", example = "面食粉类")
