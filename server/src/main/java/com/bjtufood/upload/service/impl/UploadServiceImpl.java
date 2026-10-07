@@ -215,21 +215,17 @@ public class UploadServiceImpl implements UploadService {
         // 1. batchdownloadfile 用 fileID 换取临时下载链接
         String downloadUrl = fetchCloudDownloadUrl(fileId);
 
-        // 2. 下载图片二进制
+        // 2. 下载图片二进制 —— 大小兜底即在此完成：readCapped 边读边截断，
+        // 超过 1MB（imgSecCheck 硬限制）直接抛 400，返回字节恒 ≤1MB（全链路唯一 1MB 兜底点）
         byte[] data = downloadImage(downloadUrl);
 
-        // 3. 大小兜底校验（imgSecCheck 硬限制 1MB；≤750×1334 尺寸由前端压缩保证）
-        if (data.length > WechatApiConst.MAX_IMAGE_SEC_CHECK_BYTES) {
-            throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
-        }
-
-        // 4. magic number 格式兜底（jpg/png/webp），扩展名按真实内容推断
+        // 3. magic number 格式兜底（jpg/png/webp），扩展名按真实内容推断
         String ext = detectImageExt(data);
 
-        // 5. imgSecCheck 内容安全检测（87014 → 400「图片包含违规内容，无法上传」）
+        // 4. imgSecCheck 内容安全检测（87014 → 400「图片包含违规内容，无法上传」）
         contentSecurityService.checkImage(data);
 
-        // 6. 转存 COS（key: ugc/{yyyyMMdd}/{uuid}.{ext}），返回绝对 URL
+        // 5. 转存 COS（key: ugc/{yyyyMMdd}/{uuid}.{ext}），返回绝对 URL
         String url = cosStorageService.upload(data, ext);
         return new UploadResultVO(url, null);
     }
@@ -375,8 +371,8 @@ public class UploadServiceImpl implements UploadService {
     }
 
     /**
-     * 边读边截断：累计字节数一旦超过 {@code limit} 立即抛出 400 并停止读取，
-     * 不把剩余字节读进内存（缓冲区仅 8KB 常驻）。
+     * 边读边截断（云存储链路 <b>唯一的 1MB 兜底点</b>）：累计字节数一旦超过 {@code limit}
+     * 立即抛出 400 并停止读取，不把剩余字节读进内存（缓冲区仅 8KB 常驻）。
      */
     private static byte[] readCapped(InputStream in, long limit) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();

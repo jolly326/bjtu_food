@@ -237,7 +237,7 @@ onMounted(() => reloadFirstPage())
         <thead>
           <tr>
             <th>菜品</th>
-            <th>用户</th>
+            <th>评价者</th>
             <th>评分</th>
             <th>内容</th>
             <th>配图</th>
@@ -249,7 +249,14 @@ onMounted(() => reloadFirstPage())
         <tbody>
           <tr v-for="row in items" :key="row.id">
             <td>{{ row.dishName ?? '菜品已删除' }}</td>
-            <td>{{ row.userNickname || '游客' }}</td>
+            <td>
+              <!-- 评价者主标识：头像（32×32 圆形）+ 昵称，占位范式与 UsersView 同源 -->
+              <div class="user-cell">
+                <img v-if="row.userAvatar" :src="row.userAvatar" class="avatar" alt="" />
+                <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
+                <span>{{ row.userNickname || '游客' }}</span>
+              </div>
+            </td>
             <td class="num">{{ row.rating }}★</td>
             <td><ClampText :text="row.content" /></td>
             <td>
@@ -339,7 +346,15 @@ onMounted(() => reloadFirstPage())
         <div class="meta-row">
           <span class="meta-key">作者</span>
           <span class="meta-val">
-            {{ current?.userNickname || '游客' }}<span class="muted"> #{{ current?.userId }}</span>
+            <!-- 头像与表格同源：无头像走统一占位（灰底 + 人形符） -->
+            <span class="user-cell">
+              <img v-if="current?.userAvatar" :src="current.userAvatar" class="avatar" alt="" />
+              <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
+              <span>
+                {{ current?.userNickname || '游客'
+                }}<span class="muted"> #{{ current?.userId }}</span>
+              </span>
+            </span>
           </span>
         </div>
         <div class="meta-row">
@@ -441,6 +456,27 @@ onMounted(() => reloadFirstPage())
 }
 .filters .form-input {
   width: 150px;
+}
+/* 评价者主标识：头像 + 昵称合并为一个单元格（范式与 UsersView 逐字同源） */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  display: block;
+  flex: none;
+}
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-soft);
+  color: var(--text-muted);
 }
 .thumbs {
   display: flex;

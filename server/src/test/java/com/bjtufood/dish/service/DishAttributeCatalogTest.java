@@ -43,7 +43,7 @@ class DishAttributeCatalogTest {
         d.setFieldKey(fieldKey);
         d.setName(name);
         d.setValueType("single");
-        d.setOrder(order);
+        d.setSortOrder(order);
         return d;
     }
 
@@ -52,7 +52,7 @@ class DishAttributeCatalogTest {
         v.setId(id);
         v.setDimensionId(dimensionId);
         v.setLabel(label);
-        v.setOrder(order);
+        v.setSortOrder(order);
         return v;
     }
 

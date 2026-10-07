@@ -1,3 +1,10 @@
+<script lang="ts">
+/** 上传图片项：`url` 之外为扩展预留字段（本期不启用 alt / caption 等） */
+export interface ImageItem {
+  url: string
+}
+</script>
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import { uploadImage } from '@/api/upload'
@@ -6,16 +13,18 @@ import { ElMessage } from 'element-plus'
 /**
  * 图片上传（[UI 基线 §1.11 / §2.5 #2](../../../docs/ui/web/公共组件与形态基线.md)）。
  *
- * <p>**顺序即语义**：`modelValue` 的顺序就是落库顺序，**首图恒为封面**（带「封面」角标）；
- * 缩略图支持拖拽排序（HTML5 DnD，本地重排后回传，父组件保存时持久化）。
+ * <p>**顺序即语义**：`modelValue: ImageItem[]` 的顺序就是落库顺序，**封面 = 首图（恒）**——
+ * 「封面」角标恒在 index 0，非首图提供「设为封面」动作（把该图移到首位），无独立封面标记；
+ * 缩略图**仅手柄可拖**（每格左上角 `DragHandle` 发起 HTML5 DnD，无禁用条件，
+ * 提交中的并发守卫由表单层 busy 统一控制）；父组件保存时按数组顺序映射为 `imageUrls: string[]` 上送。
  */
 const props = defineProps<{
-  modelValue: string[]
+  modelValue: ImageItem[]
   max?: number
   ratioHint?: string
   ariaLabel?: string
 }>()
-const emit = defineEmits<{ 'update:modelValue': [string[]] }>()
+const emit = defineEmits<{ 'update:modelValue': [ImageItem[]] }>()
 
 const uploading = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -33,7 +42,7 @@ async function onPick(e: Event): Promise<void> {
   uploading.value = true
   try {
     const { url } = await uploadImage(file)
-    emit('update:modelValue', [...props.modelValue, url])
+    emit('update:modelValue', [...props.modelValue, { url }])
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '上传失败')
   } finally {
@@ -45,6 +54,16 @@ async function onPick(e: Event): Promise<void> {
 function remove(i: number): void {
   const arr = [...props.modelValue]
   arr.splice(i, 1)
+  emit('update:modelValue', arr)
+}
+
+/** 设为封面 = 把该图移到首位（首图恒为封面，不做独立封面标记） */
+function makeCover(i: number): void {
+  if (i === 0) return
+  const arr = [...props.modelValue]
+  const [moved] = arr.splice(i, 1)
+  if (!moved) return
+  arr.unshift(moved)
   emit('update:modelValue', arr)
 }
 
@@ -63,18 +82,22 @@ function onDropThumb(target: number): void {
 
 <template>
   <div class="img-upload" role="group" :aria-label="ariaLabel ?? '图片上传'">
+    <!-- 整格退化为放置目标：仅手柄 draggable（dragstart / dragend 自手柄冒泡到格） -->
     <div
       class="thumb"
       :class="{ dragging: dragIndex === i }"
-      v-for="(u, i) in modelValue"
-      :key="u"
-      draggable="true"
-      @dragstart="dragIndex = i"
-      @dragend="dragIndex = null"
+      v-for="(img, i) in modelValue"
+      :key="img.url"
       @dragover.prevent
       @drop="onDropThumb(i)"
+      @dragend="dragIndex = null"
     >
-      <img :src="u" alt="" />
+      <img :src="img.url" alt="" />
+      <DragHandle
+        class="thumb-handle"
+        :label="`拖拽排序${ariaLabel ?? '图片'} ${i + 1}`"
+        @dragstart="dragIndex = i"
+      />
       <span class="thumb-cover" v-if="i === 0">封面</span>
       <button
         class="thumb-del"
@@ -83,6 +106,15 @@ function onDropThumb(target: number): void {
         @click="remove(i)"
       >
         ×
+      </button>
+      <button
+        class="thumb-cover-btn"
+        v-if="i !== 0"
+        type="button"
+        :aria-label="`将${ariaLabel ?? '图片'} ${i + 1} 设为封面`"
+        @click="makeCover(i)"
+      >
+        设为封面
       </button>
     </div>
     <button
@@ -115,7 +147,6 @@ function onDropThumb(target: number): void {
   overflow: hidden;
   border: 1px solid var(--border-light);
   background: var(--bg-soft);
-  cursor: grab;
   transition:
     box-shadow var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out);
@@ -132,6 +163,16 @@ function onDropThumb(target: number): void {
   -webkit-user-drag: none;
   user-select: none;
 }
+/* DragHandle（子组件根）落位与可见性：半透黑底同删除钮（图片上的浮层底，设计变量未设该档，
+   非结构尺寸，不硬造 token）；双类选择器确保覆盖组件内 `--text-muted` 缺省色 */
+.thumb .thumb-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--text-white);
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 0 0 var(--radius) 0;
+}
 .thumb-cover {
   position: absolute;
   left: 0;
@@ -143,6 +184,28 @@ function onDropThumb(target: number): void {
   color: var(--text-secondary);
   font-size: var(--font-xs);
   line-height: 1.6;
+}
+/* 「设为封面」= 移到首位；hover 过渡与缩略图同档（--duration-base + --ease-out） */
+.thumb-cover-btn {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  margin: var(--space-1);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  line-height: 1.6;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+.thumb-cover-btn:hover {
+  background: var(--color-primary-bg);
+  color: var(--color-primary-text);
 }
 .thumb-del {
   position: absolute;
@@ -172,6 +235,8 @@ function onDropThumb(target: number): void {
   align-items: center;
   justify-content: center;
 }
+/* 禁用态不上提 shared.css：全站仅此一处「添加格禁用」形态，无公共等价选择器
+   （.btn-*:disabled 均绑定在各自按钮类上），硬提炼需新造类，收益不抵成本 */
 .thumb.add:disabled {
   opacity: 0.5;
   cursor: not-allowed;

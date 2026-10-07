@@ -49,13 +49,13 @@ class ReportReasonServiceImplTest {
         return new ReportReasonServiceImpl(reportReasonMapper, feedbackMapper);
     }
 
-    private static ReportReason reason(Long id, String value, String status, int order) {
+    private static ReportReason reason(Long id, String value, String status, int sortOrder) {
         ReportReason r = new ReportReason();
         r.setId(id);
         r.setValue(value);
         r.setLabel("标签");
         r.setStatus(status);
-        r.setOrder(order);
+        r.setSortOrder(sortOrder);
         return r;
     }
 

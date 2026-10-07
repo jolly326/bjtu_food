@@ -86,3 +86,22 @@ describe('DishReviewSection 星级筛选条', () => {
     expect(w.emitted('filter')?.[0]).toEqual([null])
   })
 })
+
+describe('DishReviewSection 重置式在途（pending）', () => {
+  beforeEach(() => installUni())
+
+  it('🔴 在途且列表为空：列表位渲染「加载中…」文字行，不误闪空态', () => {
+    // 切星级筛选 / 提交后刷新期间：不整块空白，也不闪「暂无评价 / 抢首评」
+    const w = mountSection({ pending: true, ratingFilter: 5 })
+    expect(w.find('.list-foot').text()).toContain('加载中…')
+    expect(w.find('.empty-stub').exists()).toBe(false)
+  })
+
+  it('🔴 在途且列表非空：旧列表保留不清空，列表末尾追加在途行', () => {
+    const w = mountSection({ pending: true, reviews: [review(1, 5)], count: 1 })
+    expect(w.find('.review-list').exists()).toBe(true)
+    const foots = w.findAll('.list-foot')
+    expect(foots).toHaveLength(1)
+    expect(foots[0].text()).toContain('加载中…')
+  })
+})

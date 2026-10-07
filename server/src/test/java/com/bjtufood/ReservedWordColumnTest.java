@@ -20,15 +20,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 实体列名「保留字转义」门禁（回归锁定）。
  * <p>
  * <b>为什么必须有本测试</b>：MyBatis-Plus 由实体字段名直接生成列名，<b>不自动转义 MySQL 保留字</b>。
- * 字段 {@code private Integer order;} 会生成 {@code SELECT ... order ... ORDER BY order} ⇒
+ * 若实体保留 {@code private Integer order;} 这类字段，会生成 {@code SELECT ... order ... ORDER BY order} ⇒
  * 服务端 <b>SQL 语法错误（1064）→ 接口 500</b>，而单测 / 冒烟测试普遍 {@code @MockBean} 掉 Mapper，
- * <b>SQL 级错误在测试里完全测不出来</b>——线上 {@code GET /report-reasons} 500 即此因
- * （{@code report_reason.order} 漏加反引号，其余 4 张同名列实体均已按约定转义）。
+ * <b>SQL 级错误在测试里完全测不出来</b>。
  * <p>
  * 判据：实体（带 {@code @TableName}）中字段名命中 MySQL 保留字的，必须通过
- * {@code @TableField("<反引号包裹的列名>")} 显式转义。
- *
- * @see com.bjtufood.feedback.entity.ReportReason 起因（order 列）
+ * {@code @TableField("<反引号包裹的列名>")} 显式转义（或改用非保留字列名，如 {@code sort_order}）。
  */
 class ReservedWordColumnTest {
 

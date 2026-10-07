@@ -127,7 +127,12 @@ public class DishServiceImpl implements DishService {
                 req.getPageSize() == null ? 0 : req.getPageSize());
         req.setPage(norm[0]);
         req.setPageSize(norm[1]);
-        // 视图解析（查表取展示态 + 按 key 取代码逻辑，PR-06）：空值 = 首个启用视图（按 `order` 升序）；
+        // 契约口径（docs/api/client/dishes.md）：keyword ≤30 字符，超限 400 —— 与端上搜索框 maxlength=30 同口径，
+        // 防直调超长入参打到三路 LIKE 模糊匹配
+        if (req.getKeyword() != null && req.getKeyword().length() > 30) {
+            throw new BusinessException("关键词不能超过 30 字");
+        }
+        // 视图解析（查表取展示态 + 按 key 取代码逻辑，PR-06）：空值 = 首个启用视图（按 `sort_order` 升序）；
         // 未登记 / 逻辑无定义的键 400 报错，不静默降级。
         // 筛选条件与排序口径由代码常量 DishViewDefs 按 key 决定（见 DishViewResolver 与 DishViewConditions），
         // API 层不感知 meal_type / 价格等字段，端上也无排序入口。

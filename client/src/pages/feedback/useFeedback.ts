@@ -19,16 +19,32 @@ import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 /** 描述字数上限（用户口径 600 字；服务端上限 1000，端上更严） */
 export const CONTENT_MAX = 600
 
+/**
+ * `IssueForm` 的表单模型（`update:model` 载荷形状；`type` 空串 = 未选）。
+ */
+export interface FeedbackFormModel {
+  /** 反馈类型（`''` = 未选；选中值 = FeedbackType，与后端写入值域同源） */
+  type: FeedbackType | ''
+  /** 具体描述（必填，≤600 字） */
+  content: string
+  /** 截图（选填，≤3 张 COS URL） */
+  images: string[]
+}
+
 export function useFeedback() {
   // ---- ① 表单字段（全页唯一一套） ----
-  const form = reactive({
-    /** 反馈类型（`''` = 未选；选中值 = FeedbackType，与后端写入值域同源） */
-    type: '' as FeedbackType | '',
-    /** 具体描述（必填，≤600 字） */
+  const form = reactive<FeedbackFormModel>({
+    type: '',
     content: '',
-    /** 截图（选填，≤3 张 COS URL） */
-    images: [] as string[],
+    images: [],
   })
+
+  /**
+   * `IssueForm` 的 `update:model` 落点：子件以整值替换回抛，这里浅合并回 reactive 唯一真源。
+   */
+  function updateForm(next: FeedbackFormModel) {
+    Object.assign(form, next)
+  }
 
   /** 描述框占位：随选中类型切换；未选类型给通用引导（不得出现空占位） */
   const typePlaceholder = computed(() => {
@@ -190,6 +206,8 @@ export function useFeedback() {
     /** 全页唯一返回实现（有返回栈 navigateBack；无返回栈 reLaunch 首页），手动与自动返回共用 */
     goBack: backToHome,
     form,
+    /** `IssueForm` 的 `update:model` 落点（子件整值替换 → 浅合并回真源） */
+    updateForm,
     typePlaceholder,
     onPickType,
     fieldErrors,

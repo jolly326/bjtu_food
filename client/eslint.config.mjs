@@ -24,6 +24,7 @@ const UNI_GLOBALS = {
   UniApp: 'readonly',
   defineProps: 'readonly',
   defineEmits: 'readonly',
+  defineModel: 'readonly',
   defineExpose: 'readonly',
   defineOptions: 'readonly',
 }
@@ -87,9 +88,9 @@ export default [
       'no-undef': 'off',
       /* 小程序具名插槽**必须**写 `slot="name"` 属性（端上语法），非 Vue2 遗留写法 */
       'vue/no-deprecated-slot-attribute': 'off',
-      /* 表单组件以对象 prop（`model`）承载表单模型、子组件直接改其字段；
-         单向数据流收敛属独立重构项，先以 warn 保持可见（不阻断门禁）。 */
-      'vue/no-mutating-props': 'warn',
+      /* 表单模型一律走 `v-model`（`defineModel`）整值替换回抛 `update:model`、由父级合并真源，
+         子组件禁止就地改对象 prop（纠错 / 意见反馈两表单按此口径实现）。 */
+      'vue/no-mutating-props': 'error',
       /* 未使用参数 / 变量以 `_` 前缀显式表示「有意忽略」 */
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [

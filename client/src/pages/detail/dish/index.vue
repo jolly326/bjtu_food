@@ -181,17 +181,21 @@ const dp = useDishPage()
   /* 底部让位**精确等于**固定操作栏高度（token 已按「8 + 44 + 8 = 60px」定档）——
      不再叠加 `--spacing-lg`（那会在滚动区下沿与操作栏之间留出一条可见空档）。
      内容末端的呼吸感由卡片自身 margin 提供，不靠这里补。 */
-  /* 底部**无固定操作栏**：不再预留 `--action-bar-height`，
-     仅保留常规底部呼吸位；`env(safe-area-inset-bottom)` 由页面滚动末端自然兜底。 */
+  /* 底部**无固定操作栏**：页根只保留常规呼吸位 `--spacing-md`；
+     Home Indicator 避让由滚动区 `.dish-scroll` 的底部留白承担（基线 §1.1「滚动区底部安全区恒需要」）。 */
   padding-bottom: var(--spacing-md);
 }
 
 /* ===== 滚动区（与首页 §11 同构）=====
    `flex: 1` ⇒ 顶边 = 标题带下沿（页面 `padding-top` 让出）、底边 = 底部操作栏上沿。
-   内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。 */
+   内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。
+   底部安全区（**恒需要**，基线 §1.1）：`--spacing-md` 呼吸位 + `env(safe-area-inset-bottom)` ——
+   全屏手势机型上末条评价的正文与三点菜单不再压在 Home Indicator 下。 */
 .dish-scroll {
   flex: 1;
   min-height: 0;
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
 /* ===== hero 卡（滚动区首块）=====

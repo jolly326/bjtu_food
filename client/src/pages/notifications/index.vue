@@ -64,6 +64,15 @@
         title="暂无通知"
         :desc="emptyDesc"
       />
+
+      <!-- 触底反馈（基线 §1.17「列表底部反馈」）：列表有数据时在列表末尾给出
+           「加载更多在途」/「到底」两态 —— 触底加载与封口不再静默无信号。 -->
+      <view v-if="loading && list.length" class="list-foot">
+        <text class="list-foot-text">正在加载更多…</text>
+      </view>
+      <view v-else-if="finished && list.length" class="list-foot">
+        <text class="list-foot-text">没有更多了</text>
+      </view>
     </scroll-view>
   </view>
 </template>
@@ -77,7 +86,7 @@ import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
-import { toastError, toastSuccess } from '@/utils/error'
+import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { listNotifications, readNotification, readAllNotifications, type Notification } from '@/api/notify'
 import { formatDateTime } from '@/utils/time'
 import { backToHome } from '@/utils/back'
@@ -95,12 +104,12 @@ const loaded = ref(false)
 /**
  * 分页列表（公共 composable）。
  *
- * 首屏失败语义（MP-012）：失败置 `loadFailed` 渲染「加载失败 · 点击重试」块，与「暂无通知」区分；
- * 未认证被拒（4031/403）不渲染失败块（认证边界），零通知时由空态给出认证引导。
+ * 首屏失败语义（MP-012）：失败置 `loadFailed` 渲染「加载失败 · 点击重试」块，与「暂无通知」区分
+ * （`GET /my/notifications` 为登录级端点，无认证级 4031 分流；零通知时由空态承载）。
  *
  * 本页差异经选项注入：成功后刷新未读数（保持红点同步）、首屏结束置 `loaded`。
  */
-const { list, loading, loadFailed, load, loadMore } = usePagedList<Notification>({
+const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<Notification>({
   fetchPage: async (page, pageSize) => (await listNotifications({ page, pageSize })).list,
   maxPages: MAX_LIST_PAGES,
   onLoadSuccess: () => { notifyStore.fetchUnread() },
@@ -166,7 +175,12 @@ async function onTap(n: Notification) {
     try {
       await readNotification(n.id)
     } catch {
-      // 失败静默；但本地已乐观置位、与服务端不一致 → 置脏，下次进入本页必然重拉对齐（MP-07）
+      // 失败必须可见（乐观更新策略不动）：① 回滚本地已读态（消除与服务端不一致的假状态）
+      n.isRead = false
+      // ② 提示失败；未读数随回滚重拉对齐红点
+      toastInfo('标记已读失败，请稍后重试')
+      notifyStore.fetchUnread({ force: true })
+      // ③ 置脏，下次进入本页必然重拉对齐（MP-07）
       markDirty()
     }
   }

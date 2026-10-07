@@ -88,7 +88,7 @@ class DishAttributeAdminServiceImplTest {
         d.setFieldKey(fieldKey);
         d.setName(name);
         d.setValueType(valueType);
-        d.setOrder(order);
+        d.setSortOrder(order);
         return d;
     }
 
@@ -97,7 +97,7 @@ class DishAttributeAdminServiceImplTest {
         v.setId(id);
         v.setDimensionId(dimensionId);
         v.setLabel(label);
-        v.setOrder(order);
+        v.setSortOrder(order);
         return v;
     }
 
@@ -198,7 +198,7 @@ class DishAttributeAdminServiceImplTest {
         assertThat(saved.getFieldKey()).isEqualTo("dietType");
         assertThat(saved.getName()).isEqualTo("饮食属性");
         assertThat(saved.getValueType()).isEqualTo("single");
-        assertThat(saved.getOrder()).isEqualTo(5);
+        assertThat(saved.getSortOrder()).isEqualTo(5);
         assertThat(vo.getId()).isEqualTo(9L);
         assertThat(vo.getFieldKey()).isEqualTo("dietType");
         assertThat(vo.getDishCount()).isZero();
@@ -221,7 +221,7 @@ class DishAttributeAdminServiceImplTest {
 
         service().createDimension("dietType", "饮食属性", "single");
 
-        assertThat(inserted.get().getOrder()).isEqualTo(1);
+        assertThat(inserted.get().getSortOrder()).isEqualTo(1);
     }
 
     @Test
@@ -316,7 +316,7 @@ class DishAttributeAdminServiceImplTest {
         assertThat(patch.getName()).isEqualTo("口味");
         assertThat(patch.getValueType()).isEqualTo("single");
         assertThat(patch.getFieldKey()).isNull();
-        assertThat(patch.getOrder()).isNull();
+        assertThat(patch.getSortOrder()).isNull();
         verifyNoInteractions(dishMapper);
     }
 
@@ -429,7 +429,7 @@ class DishAttributeAdminServiceImplTest {
         verify(dimensionMapper, times(2)).updateById(captor.capture());
         Map<Long, Integer> orders = new HashMap<>();
         for (DishAttributeDimension patch : captor.getAllValues()) {
-            orders.put(patch.getId(), patch.getOrder());
+            orders.put(patch.getId(), patch.getSortOrder());
             assertThat(patch.getName()).isNull();
             assertThat(patch.getFieldKey()).isNull();
         }
@@ -541,7 +541,7 @@ class DishAttributeAdminServiceImplTest {
 
         assertThat(inserted.get().getDimensionId()).isEqualTo(1L);
         assertThat(inserted.get().getLabel()).isEqualTo("全素");
-        assertThat(inserted.get().getOrder()).isEqualTo(4);
+        assertThat(inserted.get().getSortOrder()).isEqualTo(4);
         assertThat(vo.getId()).isEqualTo(31L);
         assertThat(vo.getDimensionId()).isEqualTo(1L);
         assertThat(vo.getLabel()).isEqualTo("全素");
@@ -565,7 +565,7 @@ class DishAttributeAdminServiceImplTest {
 
         service().createValue(1L, "半荤");
 
-        assertThat(inserted.get().getOrder()).isEqualTo(1);
+        assertThat(inserted.get().getSortOrder()).isEqualTo(1);
     }
 
     // ==================== 取值：updateValue / deleteValue ====================
@@ -616,7 +616,7 @@ class DishAttributeAdminServiceImplTest {
         DishAttributeValue patch = capturedPatch(DishAttributeValue.class, valueMapper);
         assertThat(patch.getId()).isEqualTo(7L);
         assertThat(patch.getLabel()).isEqualTo("中辣");
-        assertThat(patch.getOrder()).isNull();
+        assertThat(patch.getSortOrder()).isNull();
         assertThat(patch.getDimensionId()).isNull();
         verifyNoInteractions(dishMapper);
     }
@@ -706,7 +706,7 @@ class DishAttributeAdminServiceImplTest {
         verify(valueMapper, times(2)).updateById(captor.capture());
         Map<Long, Integer> orders = new HashMap<>();
         for (DishAttributeValue patch : captor.getAllValues()) {
-            orders.put(patch.getId(), patch.getOrder());
+            orders.put(patch.getId(), patch.getSortOrder());
             assertThat(patch.getLabel()).isNull();
             assertThat(patch.getDimensionId()).isNull();
         }
@@ -813,7 +813,7 @@ class DishAttributeAdminServiceImplTest {
         assertThat(result).containsOnly(entry("dietType", 21L));
         assertThat(inserted.get().getDimensionId()).isEqualTo(1L);
         assertThat(inserted.get().getLabel()).isEqualTo("全素");
-        assertThat(inserted.get().getOrder()).isEqualTo(2);
+        assertThat(inserted.get().getSortOrder()).isEqualTo(2);
     }
 
     @Test

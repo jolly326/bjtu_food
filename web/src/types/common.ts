@@ -295,6 +295,8 @@ export interface ReviewAdminVO {
   dishName: string | null
   userId: number
   userNickname: string
+  /** 评价者头像绝对 URL（联表带出；游客 / 未设置 / 已注销 → null，走统一占位） */
+  userAvatar: string | null
   rating: number
   content: string
   images: string[]

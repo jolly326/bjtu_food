@@ -22,7 +22,7 @@ import {
 import type { BannerAdminVO, BannerSaveReq } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
-import ImageUpload from '@/components/ImageUpload.vue'
+import ImageUpload, { type ImageItem } from '@/components/ImageUpload.vue'
 import ListState from '@/components/ListState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
@@ -33,7 +33,8 @@ const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
 const open = ref(false)
 const editing = ref<BannerAdminVO | null>(null)
 const saving = ref(false)
-const bannerImages = ref<string[]>([])
+/** 组件态 = `{ url }` 对象数组（ImageUpload 契约）；保存时取首图映射回 `imageUrl` */
+const bannerImages = ref<ImageItem[]>([])
 
 const title = computed(() => (editing.value ? '编辑 Banner' : '新建 Banner'))
 
@@ -45,12 +46,13 @@ function openCreate(): void {
 
 function openEdit(row: BannerAdminVO): void {
   editing.value = row
-  bannerImages.value = row.imageUrl ? [row.imageUrl] : []
+  // 编辑回显：契约出参 `imageUrl` 映射为组件对象数组（单张，即封面）
+  bannerImages.value = row.imageUrl ? [{ url: row.imageUrl }] : []
   open.value = true
 }
 
 async function save(): Promise<void> {
-  const imageUrl = bannerImages.value[0] ?? ''
+  const imageUrl = bannerImages.value[0]?.url ?? ''
   if (!imageUrl) {
     ElMessage.warning('请上传 Banner 图片')
     return

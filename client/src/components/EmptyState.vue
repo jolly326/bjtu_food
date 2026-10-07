@@ -29,8 +29,11 @@
  * EmptyState —— 「暂无数据」空态展示块
  *
  * 消费方：
- * - pages/notifications/index.vue（暂无通知）
- * - pages/my-reviews/index.vue（游客态 / 删空后的提示）
+ * - pages/notifications/index.vue（暂无通知；无底色）
+ * - pages/my-reviews/index.vue（游客态 / 删空后的提示；card 变体）
+ * - pages/home/HomeContent.vue（首页零菜品；无底色）
+ * - pages/find/index.vue（搜索无结果引导；card 变体）
+ * - pages/detail/dish/DishReviewSection.vue（评价区零评价 / 筛选无结果；无底色、无图标）
  *
  * 仅承载展示与 CTA 上抛；数据获取、空/失败判定与重拉路径由各消费方持有。
  */
@@ -87,11 +90,20 @@ const emit = defineEmits<{
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
   text-align: center;
+  /* 文案槽断行保护（基线 §1.8 / §2.6）：标题最多 2 行折叠；插值文案（如搜索关键词）
+     的超长无空格串在折叠处换行而非横向溢出。 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .es-desc {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
   text-align: center;
+  /* 同 §1.8 断行口径：超长无空格串（URL / 长英文）不横向溢出卡壳 */
+  overflow-wrap: anywhere;
 }
 /* CTA：主色胶囊（统一了原「搜索无结果 · 推荐这道菜」与「写第一条评价」两处按钮语言） */
 .es-action {

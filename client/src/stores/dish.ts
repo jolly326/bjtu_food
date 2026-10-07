@@ -17,12 +17,13 @@ export const LOADING_KEY_HOME = 'home'
 /** loading key：首页列表触底加载更多（模块私有；对外由 `homeLoadingMore` 派生） */
 const LOADING_KEY_HOME_MORE = 'homeMore'
 /**
- * loading key：**切视图**（模块私有）。
- * 与 `LOADING_KEY_HOME` 分开登记，是为了让 `HomeContent` 的在途判定（只订阅 `LOADING_KEY_HOME`）
- * **不被切视图触发** —— 切视图时保留旧列表在屏，否则列表清空 + 内容塌成 0 会让
- * `scroll-view` 把滚动位置钳回顶部（用户可见 bug：切标签弹回首页顶部）。
+ * loading key：**切视图**。
+ * 与 `LOADING_KEY_HOME` 分开登记，是为了让 `HomeContent` 的首屏在途判定（只订阅 `LOADING_KEY_HOME`）
+ * **不被切视图触发** —— 切视图时保留旧列表在屏（否则列表清空 + 内容塌成 0 会让
+ * `scroll-view` 把滚动位置钳回顶部：用户可见 bug：切标签弹回首页顶部），
+ * 在途信号由列表末尾的「正在切换…」文字行承担（`HomeContent` 订阅本 key）。
  */
-const LOADING_KEY_HOME_SWAP = 'homeSwap'
+export const LOADING_KEY_HOME_SWAP = 'homeSwap'
 export const useDishStore = defineStore('dish', () => {
   /**
    * 在途请求登记：单一 loading 被多个并发请求共享会互相提前解除（S-6）。
@@ -265,7 +266,7 @@ export const useDishStore = defineStore('dish', () => {
     isLoading,
     // 首页列表流（唯一筛选维度 = 筛选视图）
     viewList, filterView,
-    homeList, homeLoadingMore, homePageLimited, homeError,
+    homeList, homeLoadingMore, homeFinished, homePageLimited, homeError,
     fetchDishViews, setHomeView, fetchHomeDishes, loadMoreHomeDishes,
     // 搜索 / 猜你喜欢
     search,

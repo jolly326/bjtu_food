@@ -111,7 +111,7 @@ class DishCacheBenchmarkTest {
         v.setId(id);
         v.setDimensionId(dimensionId);
         v.setLabel(label);
-        v.setOrder(order);
+        v.setSortOrder(order);
         return v;
     }
 
@@ -303,7 +303,7 @@ class DishCacheBenchmarkTest {
         v.setId(id);
         v.setKey(key);
         v.setLabel(label);
-        v.setOrder(order);
+        v.setSortOrder(order);
         v.setEnabled(true);
         return v;
     }
@@ -315,7 +315,7 @@ class DishCacheBenchmarkTest {
         dim.setFieldKey(fieldKey);
         dim.setName(name);
         dim.setValueType(valueType);
-        dim.setOrder(order);
+        dim.setSortOrder(order);
         return dim;
     }
 

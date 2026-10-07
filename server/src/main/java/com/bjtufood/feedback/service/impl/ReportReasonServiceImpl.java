@@ -47,7 +47,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
     public List<ReportReasonVO> listEnabled() {
         return reportReasonMapper.selectList(new LambdaQueryWrapper<ReportReason>()
                         .eq(ReportReason::getStatus, STATUS_ON)
-                        .orderByAsc(ReportReason::getOrder))
+                        .orderByAsc(ReportReason::getSortOrder))
                 .stream()
                 .map(r -> new ReportReasonVO(r.getValue(), r.getLabel()))
                 .toList();
@@ -56,7 +56,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
     @Override
     public List<ReportReasonAdminVO> listAllForAdmin() {
         return reportReasonMapper.selectList(new LambdaQueryWrapper<ReportReason>()
-                        .orderByAsc(ReportReason::getOrder)
+                        .orderByAsc(ReportReason::getSortOrder)
                         .orderByDesc(ReportReason::getUpdatedAt))
                 .stream()
                 .map(this::toAdminVO)
@@ -79,7 +79,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
         entity.setValue(normalizedValue);
         entity.setLabel(normalizedLabel);
         entity.setStatus(STATUS_ON);
-        entity.setOrder(nextOrder());
+        entity.setSortOrder(nextOrder());
         reportReasonMapper.insert(entity);
         return toAdminVO(reportReasonMapper.selectById(entity.getId()));
     }
@@ -131,7 +131,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
         for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
             ReportReason update = new ReportReason();
             update.setId(e.getKey());
-            update.setOrder(e.getValue());
+            update.setSortOrder(e.getValue());
             reportReasonMapper.updateById(update);
         }
     }
@@ -175,11 +175,11 @@ public class ReportReasonServiceImpl implements ReportReasonService {
                 .eq(Feedback::getSub, value));
     }
 
-    /** 新项排最后：现有最大 order + 1 */
+    /** 新项排最后：现有最大 sortOrder + 1 */
     private int nextOrder() {
         List<ReportReason> all = reportReasonMapper.selectList(new LambdaQueryWrapper<ReportReason>()
-                .orderByDesc(ReportReason::getOrder));
-        return all.isEmpty() || all.get(0).getOrder() == null ? 1 : all.get(0).getOrder() + 1;
+                .orderByDesc(ReportReason::getSortOrder));
+        return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
     }
 
     private void requireExists(Long id) {
@@ -212,7 +212,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
         vo.setId(entity.getId());
         vo.setValue(entity.getValue());
         vo.setLabel(entity.getLabel());
-        vo.setOrder(entity.getOrder());
+        vo.setOrder(entity.getSortOrder());
         vo.setStatus(entity.getStatus());
         vo.setFeedbackCount(countFeedbackByValue(entity.getValue()));
         vo.setUpdatedAt(entity.getUpdatedAt());

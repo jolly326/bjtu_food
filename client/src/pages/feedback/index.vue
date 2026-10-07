@@ -14,6 +14,7 @@
         <IssueForm
           ref="issueFormRef"
           :model="form"
+          @update:model="updateForm"
           :errors="fieldErrors"
           :submitting="submitting"
           :placeholder="typePlaceholder"
@@ -69,6 +70,7 @@ import { IMAGE_PICK_ACTIONS, isPickSource, type PickSource } from '@/components/
 const {
   goBack,
   form,
+  updateForm,
   typePlaceholder,
   onPickType,
   fieldErrors,

@@ -25,6 +25,7 @@
         :value="modelValue"
         type="text"
         confirm-type="search"
+        maxlength="30"
         placeholder="搜索菜品、食堂、档口"
         placeholder-class="search-bar-ph"
         :adjust-position="true"

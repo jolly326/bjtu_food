@@ -64,6 +64,15 @@
         :action-text="isGuest ? '去认证' : '去找一道菜'"
         @action="onEmptyAction"
       />
+
+      <!-- 触底反馈（基线 §1.17「列表底部反馈」）：列表有数据时在列表末尾给出
+           「加载更多在途」/「到底」两态 —— 触底加载与封口不再静默无信号。 -->
+      <view v-if="loading && list.length" class="list-foot">
+        <text class="list-foot-text">正在加载更多…</text>
+      </view>
+      <view v-else-if="finished && list.length" class="list-foot">
+        <text class="list-foot-text">没有更多了</text>
+      </view>
     </scroll-view>
 
     <!-- 三点菜单（与菜品详情评价区同款交互）：「删除评价」危险红动作项 -->
@@ -138,7 +147,7 @@ function onEmptyAction() {
  * 第 1 页重拉 / 触底加载更多 / 去重追加 / 失败回退页码 / `loading` 重入守卫 —— 全站一套语义。
  * 本页差异经选项注入：游客跳过（端点需登录，调必 401）。
  */
-const { list, loading, loadFailed, load, loadMore } = usePagedList<MyReview>({
+const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<MyReview>({
   fetchPage: async (page, pageSize) => (await listMyReviews({ page, pageSize })).list,
   canLoad: () => userStore.isVerified(),
   maxPages: MAX_LIST_PAGES,

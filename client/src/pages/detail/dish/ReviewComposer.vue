@@ -68,18 +68,21 @@
         />
       </view>
 
-      <!-- 提交：主色实底；两档态分别绑 class ——
-           未选星 = `.disabled`（灰底灰字，aria-disabled）；提交中 = `.busy`（主色实底 + opacity .6，aria-busy） -->
+      <!-- 提交：主色实底；三档态分别绑 class ——
+           未选星 / 限频退避 = `.disabled`（灰底灰字，aria-disabled）；提交中 = `.busy`（主色实底 + opacity .6，aria-busy） -->
       <view
         class="rc-submit"
-        :class="{ disabled: !rating, busy: submitting }"
+        :class="{ disabled: !rating || cooling(), busy: submitting }"
         role="button"
-        :aria-disabled="!rating ? 'true' : 'false'"
+        :aria-disabled="!rating || cooling() ? 'true' : 'false'"
         :aria-busy="submitting ? 'true' : 'false'"
         @tap="onSubmit"
       >
         <text class="rc-submit-text">{{ submitting ? '提交中…' : '发布评价' }}</text>
       </view>
+
+      <!-- 限频退避提示：被限频后提交钮进禁用档 + 倒计时走秒，结束自动恢复（弱网连点不再拖长封锁） -->
+      <text v-if="cooling()" class="rc-cooldown" role="alert">提交太频繁，{{ cooldownSeconds }} 秒后再试</text>
     </view>
   </BaseSheet>
 
@@ -100,6 +103,7 @@ import { IMAGE_PICK_ACTIONS, isPickSource, type PickSource } from '@/components/
 import { COLOR_MAP } from '@/theme/tokens'
 import { createReview } from '@/api/review'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
+import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 
 const props = defineProps<{
   /** 受控显隐（由 BaseSheet close 驱动父级更新后回写） */
@@ -122,6 +126,10 @@ const content = ref('')
 /** 配图（COS URL，≤3 张；经 ImagePicker 安检上传） */
 const images = ref<string[]>([])
 const submitting = ref(false)
+
+// 限频退避（P2-7）：写评价被后端限频时不再当作不可恢复失败 ——
+// 提交钮进禁用档 + 钮下倒计时文案，倒计时结束自动恢复（连点只会拖长封锁，禁点止损）
+const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } = useRateLimitCooldown()
 
 /* 配图来源弹层：ImagePicker 上抛 pick → 本层弹 ActionSheet → 选中后回调 startPick 落地 */
 const pickSheetOpen = ref(false)
@@ -155,7 +163,7 @@ function onClose() {
 
 
 async function onSubmit() {
-  if (submitting.value) return
+  if (submitting.value || cooling()) return
   if (rating.value < 1) {
     toastInfo('请先选择评分')
     return
@@ -170,11 +178,15 @@ async function onSubmit() {
     }
     // 恒 POST：同一用户对同一菜品的重复提交由服务端覆盖旧评价（端上不区分首评 / 重评）
     await createReview(props.dishId, payload)
+    clearCooldown()
     toastSuccess('评价成功')
     emit('submitted')
     onClose()
   } catch (e) {
-    toastError(e, '发布失败，请稍后重试')
+    // 限频：进倒计时退避（提交钮禁用 + 钮下倒计时文案），不重复弹通用失败 toast
+    if (!handleRateLimit(e)) {
+      toastError(e, '发布失败，请稍后重试')
+    }
   } finally {
     submitting.value = false
   }
@@ -208,7 +220,7 @@ async function onSubmit() {
 
 .rc-input-wrap { position: relative; }
 /* auto-height 上限 320rpx（评审 B1-③）：长文不再无限撑高，超出由 BaseSheet scroll-body 滚动承接 */
-.rc-input { width: 100%; box-sizing: border-box; min-height: 160rpx; max-height: 320rpx; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-lg); background: var(--bg-input); border-radius: var(--radius-card); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; }
+.rc-input { width: 100%; box-sizing: border-box; min-height: 160rpx; max-height: 320rpx; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-lg); background: var(--bg-input); border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; }
 .rc-ph { color: var(--text-hint); }
 .rc-count { position: absolute; right: var(--spacing-sm); bottom: var(--spacing-sm); font-size: var(--font-aux); color: var(--text-tertiary); }
 
@@ -225,4 +237,7 @@ async function onSubmit() {
    （与 AppButton.loading 同值）；文字仍取 `--color-on-primary`。 */
 .rc-submit.busy { opacity: 0.6; }
 .rc-submit-text { font-size: var(--font-subtitle); font-weight: var(--weight-medium); color: var(--color-on-primary); }
+
+/* 限频退避提示：倒计时实时走秒（「提交太频繁，N 秒后再试」），与全站错误行同色语言 */
+.rc-cooldown { display: block; margin-top: var(--spacing-2xs); font-size: var(--font-aux); color: var(--color-error); text-align: center; }
 </style>

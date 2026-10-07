@@ -272,9 +272,14 @@ function goToSearch() {
   uni.navigateTo({ url: PATH.find })
 }
 
-/** 列表失败重试：走与首屏同一条重拉路径 */
-async function retryWaterfall() {
-  await dishStore.fetchHomeDishes(true)
+/**
+ * 列表失败重试（HomeContent 上抛）：走既有重拉路径。
+ * · 默认（首屏失败且列表为空，`RetryBlock`）：清列表重拉首屏；
+ * · `keepList=true`（切视图失败行）：走 `fetchHomeDishes(true, true)` 同一条切视图路径 ——
+ *   旧列表保留在屏，在途由列表末尾「正在切换…」承担，不塌空。
+ */
+async function retryWaterfall(keepList = false) {
+  await dishStore.fetchHomeDishes(true, keepList)
 }
 
 function onScrollToLower() {

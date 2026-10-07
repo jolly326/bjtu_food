@@ -57,10 +57,11 @@
           </view>
         </view>
 
-        <!-- 表单错误行：`role=alert` 即时播报；**无红色底块**，仅浅红文字 + alert 图标；点击即清 -->
-        <view v-if="formError" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
+        <!-- 表单错误行：`role=alert` 即时播报；**无红色底块**，仅浅红文字 + alert 图标；点击即清。
+             限频退避时本行实时走秒展示「发送太频繁，N 秒后再试」。 -->
+        <view v-if="formErrorText" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
           <IconSvg name="alert" :size="24" :color="COLOR_MAP.error" class="form-error-icon" />
-          <text class="form-error-text">{{ formError }}</text>
+          <text class="form-error-text">{{ formErrorText }}</text>
         </view>
 
         <!-- 认证主按钮：全站统一 `AppButton`（24rpx 圆角 / 主色实底 / 禁用置灰）。
@@ -105,6 +106,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
 import { errorMessage, toastInfo, toastSuccess } from '@/utils/error'
+import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
 import { isValidStudentNo } from '@/utils/validate'
@@ -114,11 +116,21 @@ const userStore = useUserStore()
 // 冷却必须用 storeToRefs 保持响应性（跨页面持有，重进页面续接剩余秒数）
 const { codeCooldown } = storeToRefs(authStore)
 
+// 发码限频退避（P2-7）：被后端限频时不再当作不可恢复失败 ——
+// 发码钮进禁用档（退避秒数走秒），倒计时文案复用 `.form-error` 行实时展示，结束自动恢复
+const { cooldownSeconds: rateLimitSeconds, cooling: rateLimited, handleError: handleRateLimit } =
+  useRateLimitCooldown()
+
 // ---- 认证表单状态 ----
 const form = ref({ username: '', code: '' })
 const formError = ref('')
 function setError(msg: string) { formError.value = msg }
 function clearError() { formError.value = '' }
+
+/** 错误行展示文案：限频退避优先（倒计时实时走秒，结束自动消失），其余用已置错误文案 */
+const formErrorText = computed(() =>
+  rateLimited() ? `发送太频繁，${rateLimitSeconds.value} 秒后再试` : formError.value,
+)
 
 /** 当前聚焦字段（驱动底线高亮）：空串 = 无聚焦 */
 const focusField = ref('')
@@ -129,18 +141,23 @@ const NOTE_PRIVACY = '仅用于核验本校校园身份，认证后将与当前�
 
 /** 学号弱校验口径：去除首尾空白后须为非空纯数字（不限定位数） */
 const usernameValid = computed(() => isValidStudentNo(form.value.username))
-/** 发码钮可用性：学号合法 && 非冷却 && 无发送在途 */
-const codeActionEnabled = computed(() => usernameValid.value && codeCooldown.value === 0 && !sendingCode.value)
+/** 发码钮可用性：学号合法 && 非冷却 && 非限频退避 && 无发送在途 */
+const codeActionEnabled = computed(
+  () => usernameValid.value && codeCooldown.value === 0 && !rateLimited() && !sendingCode.value,
+)
 /** 认证钮可用性：学号合法非空 && 验证码非空 && 无请求在途 */
 const submitEnabled = computed(() => usernameValid.value && form.value.code.trim() !== '' && !isBusy.value)
 
 const isBusy = ref(false)
 const sendingCode = ref(false)
 const primaryText = computed(() => (isBusy.value ? '认证中…' : '认证'))
-/** 发码钮文案：发送在途 / 倒计时 / 常态三分支 */
-const codeButtonText = computed(() =>
-  sendingCode.value ? '发送中…' : codeCooldown.value > 0 ? `${codeCooldown.value}s后重发` : '获取验证码',
-)
+/** 发码钮文案：发送在途 / 冷却倒计时 / 限频退避 / 常态四分支 */
+const codeButtonText = computed(() => {
+  if (sendingCode.value) return '发送中…'
+  if (codeCooldown.value > 0) return `${codeCooldown.value}s后重发`
+  if (rateLimited()) return `${rateLimitSeconds.value}s后重发`
+  return '获取验证码'
+})
 const codeActionLabel = computed(() =>
   sendingCode.value ? '发送中' : codeCooldown.value > 0 ? `${codeCooldown.value}s后重发验证码` : '获取验证码',
 )
@@ -176,7 +193,10 @@ async function sendCode() {
     await sendEmailCode(username)
     toastSuccess('验证码已发送')
     authStore.startCooldown()
-  } catch (e) { setError(errorMessage(e, '验证码发送失败')) } finally { sendingCode.value = false }
+  } catch (e) {
+    // 限频：进倒计时退避，倒计时文案复用 `.form-error` 行实时走秒；其余错误给通用文案
+    if (!handleRateLimit(e)) setError(errorMessage(e, '验证码发送失败'))
+  } finally { sendingCode.value = false }
 }
 
 /** 认证成功标记：区分「完成认证返回」与「中途放弃」（决定 onUnload 是否清待办） */

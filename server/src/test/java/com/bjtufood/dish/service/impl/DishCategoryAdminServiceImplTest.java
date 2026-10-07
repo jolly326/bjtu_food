@@ -54,7 +54,7 @@ class DishCategoryAdminServiceImplTest {
         c.setId(id);
         c.setKey(key);
         c.setLabel(label);
-        c.setOrder(order);
+        c.setSortOrder(order);
         return c;
     }
 

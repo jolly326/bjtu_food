@@ -15,15 +15,15 @@
  * ======================================================================== */
 page {
   /* 圆角标度（单位统一 rpx，与 --spacing-* 同单位；none/circle 为形状修饰，非量级）
-     值域遵循「块越大越圆」：极小件 12 → 小件 / 标签 20 → 卡片 / 按钮 / 图标底 24 → 弹层 48。
-     24rpx = 12pt（Apple 卡片 / 按钮常规圆角），48rpx = 24pt（弹层顶部）；观感偏圆润、柔和。 */
+     跨端同值口径（web px × 2 = client rpx，@375pt）：微件/标签 12px → 控件 16px → 面板 20px → 弹层 28px；
+     层级「微件/标签 < 控件 < 面板 < 弹层」，取值落在 4pt 栅格，观感圆润、柔和（真源 设计变量.md §2.1）。 */
   --radius-none: 0;
-  --radius-xs: 20rpx;
-  --radius-tag: 20rpx;
-  --radius-card: 24rpx;
-  --radius-modal: 48rpx;
-  --radius-btn: 24rpx;
-  --radius-icon: 24rpx;
+  --radius-xs: 24rpx;
+  --radius-tag: 24rpx;
+  --radius-card: 40rpx;
+  --radius-modal: 56rpx;
+  --radius-btn: 32rpx;
+  --radius-icon: 32rpx;
   /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签），统一全圆角 */
   --radius-pill: 999rpx;
   /* 正圆（头像 / 圆点 / 指示器） */

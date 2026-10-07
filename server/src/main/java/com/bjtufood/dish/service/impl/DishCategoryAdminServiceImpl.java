@@ -43,7 +43,7 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
     public List<DishCategoryAdminVO> listAll() {
         Map<String, Long> countByKey = dishCountByKey();
         return categoryMapper.selectList(new LambdaQueryWrapper<DishCategoryValue>()
-                        .orderByAsc(DishCategoryValue::getOrder)
+                        .orderByAsc(DishCategoryValue::getSortOrder)
                         .orderByAsc(DishCategoryValue::getId))
                 .stream()
                 .map(c -> toVO(c, countByKey))
@@ -62,7 +62,7 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         DishCategoryValue entity = new DishCategoryValue();
         entity.setKey(normalizedKey);
         entity.setLabel(normalizedLabel);
-        entity.setOrder(nextOrder());
+        entity.setSortOrder(nextOrder());
         categoryMapper.insert(entity);
         return toVO(categoryMapper.selectById(entity.getId()), dishCountByKey());
     }
@@ -91,7 +91,7 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         DishCategoryValue entity = new DishCategoryValue();
         entity.setKey(normalizedKey);
         entity.setLabel(normalizedKey);
-        entity.setOrder(AUTO_REGISTER_ORDER);
+        entity.setSortOrder(AUTO_REGISTER_ORDER);
         categoryMapper.insert(entity);
         return normalizedKey;
     }
@@ -136,8 +136,8 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
     private int nextOrder() {
         List<DishCategoryValue> all = categoryMapper.selectList(new LambdaQueryWrapper<DishCategoryValue>()
-                .orderByDesc(DishCategoryValue::getOrder));
-        return all.isEmpty() || all.get(0).getOrder() == null ? 1 : all.get(0).getOrder() + 1;
+                .orderByDesc(DishCategoryValue::getSortOrder));
+        return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
     }
 
     private static String normalizeKey(String key) {
@@ -164,7 +164,7 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         vo.setId(entity.getId());
         vo.setKey(entity.getKey());
         vo.setLabel(entity.getLabel());
-        vo.setOrder(entity.getOrder());
+        vo.setOrder(entity.getSortOrder());
         vo.setDishCount(countByKey.getOrDefault(entity.getKey(), 0L));
         vo.setUpdatedAt(entity.getUpdatedAt());
         return vo;

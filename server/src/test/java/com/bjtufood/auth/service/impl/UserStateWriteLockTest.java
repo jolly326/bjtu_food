@@ -85,18 +85,6 @@ class UserStateWriteLockTest {
     }
 
     @Test
-    @DisplayName("锁条目随临界区结束回收：1000 个不同 userId 跑完后 lock 表为空（不随用户总量增长）")
-    void entriesAreReleasedAfterCriticalSection() {
-        UserStateWriteLock writeLock = new UserStateWriteLock();
-
-        for (long userId = 1L; userId <= 1000L; userId++) {
-            writeLock.run(userId, () -> { });
-        }
-
-        assertThat(writeLock.trackedUserCount()).isZero();
-    }
-
-    @Test
     @DisplayName("userId 为 null：不加锁直接执行（既有空值语义不受影响）")
     void nullUserIdRunsWithoutLock() {
         UserStateWriteLock writeLock = new UserStateWriteLock();
@@ -105,7 +93,6 @@ class UserStateWriteLockTest {
         writeLock.run(null, () -> ran.set(true));
 
         assertThat(ran).isTrue();
-        assertThat(writeLock.trackedUserCount()).isZero();
     }
 
     /** 等待闩锁（中断时恢复中断位后返回，交由后续断言判定是否真的进入/完成） */

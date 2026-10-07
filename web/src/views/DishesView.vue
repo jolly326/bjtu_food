@@ -39,7 +39,7 @@ import { fenToYuan, formatYuan, yuanToFen } from '@/utils/money'
 import { usePagedList } from '@/composables/usePagedList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import BaseModal from '@/components/BaseModal.vue'
-import ImageUpload from '@/components/ImageUpload.vue'
+import ImageUpload, { type ImageItem } from '@/components/ImageUpload.vue'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -107,7 +107,8 @@ const form = ref({
   originalPriceYuan: '',
   mealType: '',
   description: '',
-  images: [] as string[],
+  /** 组件态 = `{ url }` 对象数组（ImageUpload 契约）；提交时映射回 `imageUrls: string[]` */
+  images: [] as ImageItem[],
 })
 const attrSingle = ref<Record<string, string>>({})
 const attrMulti = ref<Record<string, string>>({})
@@ -151,7 +152,8 @@ async function openEdit(row: DishAdminListItemVO): Promise<void> {
       originalPriceYuan: d.originalPrice == null ? '' : String(fenToYuan(d.originalPrice)),
       mealType: d.mealType,
       description: d.description,
-      images: [...d.images],
+      // 编辑回显：契约出参 `images: string[]`（有序）映射为组件对象数组，顺序不变 ⇒ 首图仍是封面
+      images: d.images.map((url) => ({ url })),
     }
     attrSingle.value = {}
     attrMulti.value = {}
@@ -221,7 +223,8 @@ async function save(): Promise<void> {
     originalPrice,
     mealType: form.value.mealType.trim(),
     description: form.value.description,
-    images: form.value.images,
+    // 提交映射：按数组顺序回 `imageUrls: string[]`（首图即封面，后端 / client 契约零变更）
+    images: form.value.images.map((img) => img.url),
     attributes: buildAttributes(),
   }
   saving.value = true

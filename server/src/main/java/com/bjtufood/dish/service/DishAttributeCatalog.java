@@ -47,7 +47,7 @@ public class DishAttributeCatalog {
     private final CacheManager cacheManager;
 
     /**
-     * 维度字典（按 {@code order} 升序）。
+     * 维度字典（按 {@code sort_order} 升序）。
      * <p>
      * 应用内没有该表的写入口（由建表种子维护），所以 TTL 可以放宽到字典级（10 分钟）。
      */
@@ -55,12 +55,12 @@ public class DishAttributeCatalog {
     public List<DishAttributeDimension> dimensions() {
         return List.copyOf(dimensionMapper.selectList(
                 new LambdaQueryWrapper<DishAttributeDimension>()
-                        .orderByAsc(DishAttributeDimension::getOrder)));
+                        .orderByAsc(DishAttributeDimension::getSortOrder)));
     }
 
     /**
      * 编辑候选值（**取值字典驱动**，A4 落地 2026-10-03）：按维度 {@code fieldKey} 汇总
-     * 该维度下**取值字典**的 `label`，按字典 `order` 升序。
+     * 该维度下**取值字典**的 `label`，按字典 `sort_order` 升序。
      * <p>
      * 候选值只从取值字典直读，<b>不</b>扫全库菜品 {@code attributes} 聚合：{@code attributes} 存的是
      * 取值 ID（A4），对 ID 串做频次去重得不到可用中文候选，聚合路径的语义不成立。
@@ -74,7 +74,7 @@ public class DishAttributeCatalog {
                 .collect(Collectors.toMap(DishAttributeDimension::getId, DishAttributeDimension::getFieldKey));
         Map<String, List<String>> result = new HashMap<>();
         for (DishAttributeValue value : valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
-                .orderByAsc(DishAttributeValue::getOrder))) {
+                .orderByAsc(DishAttributeValue::getSortOrder))) {
             String fieldKey = fieldKeyById.get(value.getDimensionId());
             if (fieldKey != null && StringUtils.hasText(value.getLabel())) {
                 result.computeIfAbsent(fieldKey, k -> new ArrayList<>()).add(value.getLabel());

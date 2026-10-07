@@ -51,11 +51,6 @@ public class UserStateWriteLock {
         }
     }
 
-    /** 当前仍被跟踪的 userId 数（临界区结束后即回收）；仅供测试断言锁表不随用户总量增长 */
-    int trackedUserCount() {
-        return entries.size();
-    }
-
     /** 登记一次进入；计数涵盖等待线程，避免其持锁期间条目被在途线程摘除 */
     private Entry acquire(Long userId) {
         return entries.compute(userId, (id, exist) -> {

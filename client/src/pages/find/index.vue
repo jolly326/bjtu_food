@@ -151,7 +151,7 @@
           card
           icon="search"
           :icon-size="48"
-          :title="`没搜到「${keyword}」相关的菜`"
+          :title="`没搜到「${emptyTitleKeyword}」相关的菜`"
           desc="把它报给我们，让更多同学也能找到"
           action-text="推荐这道菜"
           @action="goContributeNotFound"
@@ -177,7 +177,7 @@
  * 结果态的退出**不由返回键承担**：改由搜索框右侧「清空」承担（清词 + 回发现态）——
  * 返回键在结果态「先退状态、再退页」的两段语义不可见，用户会读作「按了返回却没退页」。
  */
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
@@ -223,6 +223,11 @@ const { guessLikeList, load: loadDiscover } = useDiscover()
 
 /** 固定标题带高（px）：带为 `position: fixed`，页面根层须用等量 padding 顶开内容 */
 const { titleBandPx } = useNavMetrics()
+
+/** 无结果标题的关键词展示截断：超过 10 字符取前 10 + `…`（与 `.history-chip-text` 省略口径同源） */
+const emptyTitleKeyword = computed(() =>
+  keyword.value.length > 10 ? `${keyword.value.slice(0, 10)}…` : keyword.value,
+)
 
 function onBack() {
   backToHome()
@@ -362,9 +367,7 @@ onShow(() => {
   transition: opacity var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-/* 「猜你喜欢」词条 vs 搜索记录**必须可区分**：推荐词 = 暖黄底 + 深棕字。
-   fallback 仅用于色板落地前的过渡——`--bg-soft-yellow` / `--text-body` 落地（）后区分自动生效；
-   ⚠️ 落地后不得再依赖 fallback（回落会让两区块 chip 完全同款）。 */
-.history-chip-hot { background: var(--bg-soft-yellow, var(--bg-soft)); }
-.history-chip-hot .history-chip-text { color: var(--text-body, var(--text-secondary)); }
+/* 「猜你喜欢」词条 vs 搜索记录**必须可区分**：推荐词 = 暖黄底 + 深棕字，用于与搜索记录区分 */
+.history-chip-hot { background: var(--bg-soft-yellow); }
+.history-chip-hot .history-chip-text { color: var(--text-body); }
 </style>

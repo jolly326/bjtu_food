@@ -88,16 +88,23 @@ import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import type { PickSource } from '@/components/imagePickSource'
 import { UGC_IMAGE_MAX as IMAGE_MAX } from '@/constants/ugc'
-import { CONTENT_MAX } from './useFeedback'
+import { CONTENT_MAX, type FeedbackFormModel } from './useFeedback'
 
-const props = defineProps<{
-  model: { type: FeedbackType | ''; content: string; images: string[] }
+defineProps<{
   errors: Record<string, string>
   /** 提交中：禁选截图（与写评价抽屉同口径） */
   submitting?: boolean
   /** 描述框占位（随选中类型切换，由编排层按 FEEDBACK_TYPES 派生；未选类型时给通用文案） */
   placeholder: string
 }>()
+
+/**
+ * 表单值（`v-model` 双向；父级 reactive 为唯一真源）。
+ * 本组件**不改 prop 对象本身**：字段变化以整值替换经 `update:model` 回抛，
+ * 由父级 `useFeedback.updateForm` 浅合并回 reactive 真源。
+ */
+const model = defineModel<FeedbackFormModel>('model', { required: true })
+
 const emit = defineEmits<{
   (e: 'clear', key: string): void
   (e: 'pick', value: FeedbackType): void
@@ -135,12 +142,13 @@ function onPick(value: FeedbackType) {
  */
 function onTextInput(e: Event) {
   const detail = (e as unknown as { detail?: { value?: string } })?.detail
-  props.model.content = detail?.value ?? ''
+  model.value = { ...model.value, content: detail?.value ?? '' }
   emit('clear', 'form.content')
 }
 
+/** 截图增删：整值替换经 `update:model` 回抛（禁就地改 prop 对象） */
 function onImagesChange(urls: string[]) {
-  props.model.images = urls
+  model.value = { ...model.value, images: urls }
 }
 </script>
 
