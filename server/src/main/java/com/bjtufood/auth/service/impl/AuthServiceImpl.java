@@ -53,17 +53,23 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final WechatService wechatService;
     /**
-     * 跨域写侧出口（P0-1 架构收口）：auth 不再注入 review / feedback / notify 的 Mapper 直改他域表，
-     * 改为在事务内发布领域事件，各域监听器自理本域表。
+     * 跨域写侧出口（P0-1 架构收口）：auth <b>不</b>注入 review / feedback / notify 的 Mapper 直改他域表，
+     * 只在事务内发布领域事件，由各域监听器自理本域表。
      * <p>
      * 监听器均为同步 {@code @EventListener}（非 AFTER_COMMIT）→ 仍在调用方事务内执行，
-     * 任一环节失败整体回滚，与原内联写库的事务边界逐字一致。
+     * 任一环节失败整体回滚（与直接在本事务内写库的事务边界等价）。
      */
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
     private final LocalSensitiveFilter localSensitiveFilter;
     private final ContentSecurityService contentSecurityService;
     private final TokenBlacklist tokenBlacklist;
+    /**
+     * 「DB status 写 + TokenBlacklist 写」的临界区（详见 {@link UserStateWriteLock} 类注释）。
+     * 与 {@code UserServiceImpl#updateStatus} 共用同一实例：同一 userId 的「注销」与「管理员启停」
+     * 两条状态写入口互相串行，避免终态出现「DB = active 且该 userId 仍在拉黑中」。
+     */
+    private final UserStateWriteLock userStateWriteLock;
     /**
      * 验证码校验失败计数护栏（A1：防 6 位码暴力枚举，口径见 {@link VerifyCodeAttemptGuard} 类注释）。
      * <p>
@@ -91,8 +97,7 @@ public class AuthServiceImpl implements AuthService {
         if (UserConst.STATUS_DELETED.equals(user.getStatus())) {
             throw new BusinessException("账号已注销");
         }
-        // last_login_at 写入点已移除
-        // unionid 已不在表中，微信登录仅消费 openid，无需回写
+        // 微信登录只读 user（openid / status），不回写任何列
         return toLoginVO(user);
     }
 
@@ -138,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 认证写入（此处才开事务）：释放他微信绑定 + 归属迁移 + 历史邮箱账号清理 + 置当前账号 bind_email。
         // 四步同生共死——否则会出现「邮箱已释放但业务数据没迁移」的中间态（数据悬在新旧两账号之间）。
-        // 各步实现与判据见 VerifyCodePersister#applyVerifiedBinding（逐字迁移，行为不变）。
+        // 各步实现与判据见 VerifyCodePersister#applyVerifiedBinding。
         verifyCodePersister.applyVerifiedBinding(current, email);
 
         return toUserInfo(current);
@@ -193,6 +198,20 @@ public class AuthServiceImpl implements AuthService {
         if (userId == null) {
             throw new BusinessException(401, "请先登录");
         }
+        // 「读现状 → 写库(deleted) → 写 TokenBlacklist」整体进同一 userId 临界区（与管理员启停共用一把锁）：
+        // 否则「管理员启用 vs 本人注销」交错可留下终态 DB=active 且该 userId 仍被拉黑的账号 ——
+        // 其重新登录换到的新 token 也会被 JwtAuthFilter 按 userId 判定失效而一律 401。
+        // 事务边界说明：本方法由 @Transactional 代理开启事务，锁在事务内获取
+        // （取锁 → 事务内多条写 → 写黑名单 → 释放锁 → 提交）。同一 userId 的 DB 写由行锁排队，
+        // 且黑名单写紧随本临界区内的 DB 写之后 ⇒ 终态仍是「最后一个临界区说了算」，两者不会互相矛盾。
+        userStateWriteLock.run(userId, () -> doDeleteAccount(userId, token));
+    }
+
+    /**
+     * {@link #deleteAccount} 的临界区主体：仅在 userId 临界区内同步执行（同一线程 ⇒ 仍在
+     * {@code deleteAccount} 的事务中），异常原样上抛以触发整体回滚。
+     */
+    private void doDeleteAccount(Long userId, String token) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(401, "请先登录");
@@ -236,8 +255,8 @@ public class AuthServiceImpl implements AuthService {
 
         // 系统通知：账号维度的过程性数据，注销后账号不可再进入、无任何读取方，
         // 保留即孤儿数据只增不减，故随注销物理删除（与 review / user_feedback「内容价值」保留口径区分）。
-        // P0-1：改为发布账号注销事件，由 notify 域监听器硬删该用户全部站内消息
-        // （发布点即 notificationMapper.delete(...) 的位置，同步监听 → 仍在本事务内，失败整体回滚）。
+        // P0-1：发布账号注销事件，由 notify 域监听器硬删该用户全部站内消息
+        // （同步监听 → 仍在本事务内执行，失败整体回滚）。
         eventPublisher.publishEvent(new UserAccountClosedEvent(userId));
 
         // token 立即失效（复用 TokenBlacklist，与管理员禁用同一机制）：
@@ -262,7 +281,7 @@ public class AuthServiceImpl implements AuthService {
     public UserInfoVO toUserInfo(User user) {
         // 字段集恰 5 个：id/username/nickname/avatar/bindEmail；
         // verified（bindEmail 派生冗余）、email/status/guestShortId/createdAt
-        // 已从 VO 删除且不得回流（见 UserInfoVO 类注释）
+        // 不在 VO 内且不得回流（见 UserInfoVO 类注释）
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
         // username 端上零消费，不出参（账号标识保留在 user 表与 JWT 载荷，供日志）
@@ -275,7 +294,7 @@ public class AuthServiceImpl implements AuthService {
     // ============================ 私有方法 ============================
 
     private LoginVO toLoginVO(User user) {
-        // JWT 载荷不含 role（role 已移除）：学生态 authorities 由 JwtAuthFilter 固定授予
+        // JWT 载荷不含 role（user 表无 role 列）：学生态 authorities 由 JwtAuthFilter 固定授予
         String token = jwtUtil.createToken(user.getId(), user.getUsername());
         return new LoginVO(token, toUserInfo(user));
     }

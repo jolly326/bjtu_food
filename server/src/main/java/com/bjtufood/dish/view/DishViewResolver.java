@@ -1,6 +1,7 @@
 package com.bjtufood.dish.view;
 
 import com.bjtufood.dish.entity.DishFilterView;
+import org.springframework.util.StringUtils;
 
 /**
  * 筛选视图（表行 + {@link DishViewDefs} 逻辑）→ SQL 取数参数（{@link DishListQuery}）—— **唯一分派点**。
@@ -33,7 +34,10 @@ public final class DishViewResolver {
         if (sortKind == null) {
             return null;
         }
-        String effectiveSeed = sortKind == DishListQuery.SortKind.SEED_RANDOM ? seed : null;
+        // 契约口径（docs/api/client/dishes.md）：命中 keyword 时 seed 不参与排序，
+        // 故 keyword 非空时 effectiveSeed 置 null（seed 仅在无 keyword 的 SEED_RANDOM 视图下生效）
+        String effectiveSeed = sortKind == DishListQuery.SortKind.SEED_RANDOM
+                && !StringUtils.hasText(keyword) ? seed : null;
         // 条件取自代码常量 DishViewDefs（类初始化时已过白名单），直接使用
         return new DishListQuery(keyword, effectiveSeed, def.conditions(), sortKind);
     }

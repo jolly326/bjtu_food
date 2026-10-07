@@ -21,7 +21,7 @@
         class="band-back"
         role="button"
         aria-label="返回"
-        hover-class="band-back-pressed"
+        hover-class="pressed"
         @tap="emit('back')"
       >
         <text class="band-back-text">返回</text>
@@ -103,14 +103,14 @@ const bandStyle = computed(() => ({
 }
 
 /* ===== 左区：与**最左侧的 gap 由本区 `padding-left` 产生** =====
-   `--spacing-md`（24rpx = 12px）= 页面级 gutter —— 与卡片左边线**同轴对齐**，
+   `--page-gutter`（32rpx = 16pt）= 页面级 gutter —— 与卡片左边线**同轴对齐**，
    即「标题左缘 = 内容左缘」。⚠️ gap 只允许由 padding / border 产生（不得用 margin 或定位偏移，
    否则会连带平移居中区基准）。如需更大，改这一个值即可。 */
 .band-left {
   display: flex;
   align-items: center;
   min-width: 0;
-  padding-left: var(--spacing-md);
+  padding-left: var(--page-gutter);
 }
 /* 三处文字（左页面名 / 左「返回」/ 居中页面名）**字号唯一来源**：`--font-title`
    （与首页「知行食记」同档，2026-09-27 用户裁决；三处视觉完全同级） */
@@ -140,7 +140,8 @@ const bandStyle = computed(() => ({
   pointer-events: auto;
   -webkit-tap-highlight-color: transparent;
 }
-.band-back-pressed { opacity: 0.55; }
+/* 按压反馈与全站顶栏返回区（AppHeader）同源同值 */
+.band-back.pressed { opacity: 0.6; }
 /* 「返回」与页面名**完全同级**（同字号 + 同字重）：用户裁决 —— 三处（左页面名 /
    左「返回」/ 居中页面名）默认均取 `--font-title` + **粗体**，与首页「知行食记」一致。 */
 .band-back-text {

@@ -1,8 +1,12 @@
 package com.bjtufood.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bjtufood.auth.config.TokenBlacklist;
+import com.bjtufood.auth.constant.UserConst;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.dto.UserBriefVO;
 import com.bjtufood.auth.entity.User;
@@ -21,11 +25,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,6 +45,8 @@ import static org.mockito.Mockito.when;
  * 聚焦<b>UGC 准入判据（{@code requireUgcAuthorized}）</b>与<b>跨域只读契约</b>——
  * 前者是全站唯一的 UGC 写门（{@code @RequireVerified} 切面、评价提交、反馈写入都经它），
  * 错误码语义（401 / 403 / 4031）直接决定端上引导，锁死价值最高；后者是 P0-1 跨域解耦的落点。
+ * 另含<b>管理端状态写（{@code updateStatus}）</b>的两条高风险口径：列级更新（防与本人资料更新
+ * 互相覆盖）与「DB 写 + 黑名单写」同临界区（防终态 status=active 却被拉黑、用户永久 401）。
  * <p>
  * 不做真库集成：Mapper 全部打桩，被测类是纯 POJO（无 Spring 代理，{@code @Transactional} 不生效也无需生效）。
  */
@@ -65,9 +75,14 @@ class UserServiceImplTest {
     private final UserMapper userMapper = mock(UserMapper.class);
     private final ImageUrlUtil imageUrlUtil = mock(ImageUrlUtil.class);
     private final TokenBlacklist tokenBlacklist = mock(TokenBlacklist.class);
+    /**
+     * 真实实例（非 mock）：{@code updateStatus} 的并发语义就是本组件的临界区语义，
+     * 打桩会让「禁用 + 启用交错」的用例失去意义。状态写用例各自另建实例，避免用例间共享锁状态。
+     */
+    private final UserStateWriteLock userStateWriteLock = new UserStateWriteLock();
 
     private UserServiceImpl service() {
-        return new UserServiceImpl(userMapper, imageUrlUtil, tokenBlacklist);
+        return new UserServiceImpl(userMapper, imageUrlUtil, tokenBlacklist, userStateWriteLock);
     }
 
     private static User user(Long id, String status, String bindEmail) {
@@ -222,5 +237,110 @@ class UserServiceImplTest {
         assertThat(svc.mapNicknameByIds((Collection<Long>) null)).isEmpty();
         assertThat(svc.mapNicknameByIds(List.of())).isEmpty();
         verify(userMapper, never()).selectList(any());
+    }
+
+    // ==================== updateStatus：列级更新 + 「DB 写 / 黑名单写」同临界区 ====================
+
+    @Test
+    @DisplayName("updateStatus：只写 status 一列，不整行回写")
+    void updateStatusWritesStatusColumnOnly() {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, UserConst.STATUS_ACTIVE, "a@bjtu.edu.cn"));
+        AtomicReference<Wrapper<User>> captured = new AtomicReference<>();
+        when(userMapper.update(isNull(), any())).thenAnswer(inv -> {
+            captured.set(inv.getArgument(1));
+            return 1;
+        });
+
+        service().updateStatus(1L, UserConst.STATUS_DISABLED);
+
+        assertThat(captured.get())
+                .as("状态写必须是列级更新（update(entity=null, LambdaUpdateWrapper)）：整行实体回写会把各非空列一并写回")
+                .isInstanceOf(LambdaUpdateWrapper.class);
+        AbstractWrapper<?, ?, ?> wrapper = (AbstractWrapper<?, ?, ?>) captured.get();
+        assertThat(wrapper.getSqlSet())
+                .as("SET 片段 = status。updated_at 由 DB 时钟维护"
+                        + "（docs/schema/README.md §时间戳写入来源），应用层不写该列")
+                .contains("status=")
+                .doesNotContain("updated_at=");
+        assertThat(wrapper.getSqlSet())
+                .as("整行回写会连带写回昵称/头像等列，与本人 PUT /auth/profile 的局部更新并发时互相覆盖")
+                .doesNotContain("nickname")
+                .doesNotContain("avatar")
+                .doesNotContain("bind_email")
+                .doesNotContain("openid")
+                .doesNotContain("username");
+        assertThat(wrapper.getParamNameValuePairs().values())
+                .as("status 新值必须作为参数落库")
+                .contains(UserConst.STATUS_DISABLED);
+        verify(tokenBlacklist).revokeUser(1L);
+    }
+
+    @Test
+    @DisplayName("并发「禁用 + 启用」交错：终态不得出现 status=active 且该 userId 仍在拉黑中")
+    void interleavedDisableAndEnableNeverLeavesActiveButRevoked() throws Exception {
+        UserMapper mapper = mock(UserMapper.class);
+        // 真实现（非 mock）：断言对象就是最终拉黑状态
+        TokenBlacklist blacklist = new TokenBlacklist();
+        UserServiceImpl svc = new UserServiceImpl(mapper, imageUrlUtil, blacklist, new UserStateWriteLock());
+
+        // 假 user 行（替代真库，使交错可被确定性构造）
+        AtomicReference<String> dbStatus = new AtomicReference<>(UserConst.STATUS_ACTIVE);
+        // 禁用方「已写库、尚未写黑名单」——即「DB 写」与「黑名单写」之间的非原子窗口
+        CountDownLatch disabledWritten = new CountDownLatch(1);
+        // 启用方整段跑完（含 restoreUser）后才计数
+        CountDownLatch enabledFinished = new CountDownLatch(1);
+
+        when(mapper.selectById(1L)).thenAnswer(inv -> user(1L, dbStatus.get(), "a@bjtu.edu.cn"));
+        when(mapper.update(isNull(), any()))
+                // 第 1 次调用 = 禁用方写库：停在「写库完成 → 写黑名单」之间，把该窗口交给启用方
+                .thenAnswer(inv -> {
+                    dbStatus.set(UserConst.STATUS_DISABLED);
+                    disabledWritten.countDown();
+                    // 上界等待：启用方被挡在同一临界区外时此处必然等到超时（预期路径）；
+                    // 未共用临界区时由启用方整段跑完提前放行，最终状态随即被断言检出
+                    enabledFinished.await(200, TimeUnit.MILLISECONDS);
+                    return 1;
+                })
+                // 第 2 次调用 = 启用方写库（仅在禁用方让出临界区后到达）
+                .thenAnswer(inv -> {
+                    dbStatus.set(UserConst.STATUS_ACTIVE);
+                    return 1;
+                });
+
+        AtomicReference<Throwable> disableFailure = new AtomicReference<>();
+        Thread disable = new Thread(() -> {
+            try {
+                svc.updateStatus(1L, UserConst.STATUS_DISABLED);
+            } catch (Throwable t) {
+                disableFailure.set(t);
+            }
+        });
+        disable.start();
+        assertThat(disabledWritten.await(2, TimeUnit.SECONDS)).isTrue();
+
+        AtomicReference<Throwable> enableFailure = new AtomicReference<>();
+        Thread enable = new Thread(() -> {
+            try {
+                svc.updateStatus(1L, UserConst.STATUS_ACTIVE);
+            } catch (Throwable t) {
+                enableFailure.set(t);
+            } finally {
+                enabledFinished.countDown();
+            }
+        });
+        enable.start();
+
+        disable.join(2000);
+        enable.join(2000);
+        assertThat(disable.isAlive()).as("禁用线程必须在 2s 内结束（不得死锁）").isFalse();
+        assertThat(enable.isAlive()).as("启用线程必须在 2s 内结束（不得死锁）").isFalse();
+        assertThat(disableFailure.get()).isNull();
+        assertThat(enableFailure.get()).isNull();
+
+        // 终态自洽：active 必须同时「未被拉黑」，否则用户连重新登录换到的新 token 也一律 401
+        assertThat(dbStatus.get()).isEqualTo(UserConst.STATUS_ACTIVE);
+        assertThat(blacklist.isUserRevoked(1L))
+                .as("终态 DB=active 时该 userId 不得仍在拉黑中（若「DB 写 + 黑名单写」未同临界区，此处会为 true）")
+                .isFalse();
     }
 }

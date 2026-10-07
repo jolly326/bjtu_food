@@ -68,7 +68,7 @@ function stripComments(src, isScss) {
   let out = src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
   if (isScss) {
     // 仅 .scss 有 // 行注释；避免误伤 url(//…) 与协议里的 //
-    out = out.replace(/(^|[^:\/])\/\/[^\n]*/gm, (m, p1) => p1 + ' '.repeat(m.length - p1.length))
+    out = out.replace(/(^|[^:/])\/\/[^\n]*/gm, (m, p1) => p1 + ' '.repeat(m.length - p1.length))
   }
   return out
 }

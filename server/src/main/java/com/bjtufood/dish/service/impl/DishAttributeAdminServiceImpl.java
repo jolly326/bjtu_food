@@ -62,7 +62,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
     @Override
     public List<DishDimensionAdminVO> listDimensions() {
         List<DishAttributeDimension> dimensions = dimensionMapper.selectList(
-                new LambdaQueryWrapper<DishAttributeDimension>().orderByAsc(DishAttributeDimension::getOrder));
+                new LambdaQueryWrapper<DishAttributeDimension>().orderByAsc(DishAttributeDimension::getSortOrder));
         Usage usage = scanUsage();
         return dimensions.stream().map(d -> {
             DishDimensionAdminVO vo = new DishDimensionAdminVO();
@@ -70,7 +70,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
             vo.setFieldKey(d.getFieldKey());
             vo.setName(d.getName());
             vo.setValueType(d.getValueType());
-            vo.setOrder(d.getOrder());
+            vo.setOrder(d.getSortOrder());
             vo.setDishCount(usage.dishCountByFieldKey.getOrDefault(d.getFieldKey(), 0L));
             vo.setValueCount(usage.valueCountByDimensionId.getOrDefault(d.getId(), 0L));
             vo.setUpdatedAt(d.getUpdatedAt());
@@ -90,7 +90,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         entity.setFieldKey(key);
         entity.setName(dimensionName);
         entity.setValueType(type);
-        entity.setOrder(nextDimensionOrder());
+        entity.setSortOrder(nextDimensionOrder());
         dimensionMapper.insert(entity);
         DishAttributeDimension saved = dimensionMapper.selectById(entity.getId());
         DishDimensionAdminVO vo = new DishDimensionAdminVO();
@@ -98,7 +98,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         vo.setFieldKey(saved.getFieldKey());
         vo.setName(saved.getName());
         vo.setValueType(saved.getValueType());
-        vo.setOrder(saved.getOrder());
+        vo.setOrder(saved.getSortOrder());
         vo.setDishCount(0L);
         vo.setValueCount(0L);
         vo.setUpdatedAt(saved.getUpdatedAt());
@@ -153,7 +153,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
             DishAttributeDimension update = new DishAttributeDimension();
             update.setId(e.getKey());
-            update.setOrder(e.getValue());
+            update.setSortOrder(e.getValue());
             dimensionMapper.updateById(update);
         }
     }
@@ -165,7 +165,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         requireDimension(dimensionId);
         List<DishAttributeValue> values = valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
                 .eq(DishAttributeValue::getDimensionId, dimensionId)
-                .orderByAsc(DishAttributeValue::getOrder));
+                .orderByAsc(DishAttributeValue::getSortOrder));
         Usage usage = scanUsage();
         return values.stream().map(v -> toValueVO(v, usage)).toList();
     }
@@ -179,7 +179,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         DishAttributeValue entity = new DishAttributeValue();
         entity.setDimensionId(dimensionId);
         entity.setLabel(text);
-        entity.setOrder(nextValueOrder(dimensionId));
+        entity.setSortOrder(nextValueOrder(dimensionId));
         valueMapper.insert(entity);
         return toValueVO(valueMapper.selectById(entity.getId()), scanUsage());
     }
@@ -220,7 +220,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
             DishAttributeValue update = new DishAttributeValue();
             update.setId(e.getKey());
-            update.setOrder(e.getValue());
+            update.setSortOrder(e.getValue());
             valueMapper.updateById(update);
         }
     }
@@ -296,7 +296,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
                 DishAttributeValue created = new DishAttributeValue();
                 created.setDimensionId(dimension.getId());
                 created.setLabel(text);
-                created.setOrder(nextValueOrder(dimension.getId()));
+                created.setSortOrder(nextValueOrder(dimension.getId()));
                 valueMapper.insert(created);
                 existing = created;
             }
@@ -464,7 +464,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         vo.setId(v.getId());
         vo.setDimensionId(v.getDimensionId());
         vo.setLabel(v.getLabel());
-        vo.setOrder(v.getOrder());
+        vo.setOrder(v.getSortOrder());
         vo.setDishCount(usage.dishCountByValueId.getOrDefault(v.getId(), 0L));
         vo.setUpdatedAt(v.getUpdatedAt());
         return vo;
@@ -472,15 +472,15 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
 
     private int nextDimensionOrder() {
         List<DishAttributeDimension> all = dimensionMapper.selectList(
-                new LambdaQueryWrapper<DishAttributeDimension>().orderByDesc(DishAttributeDimension::getOrder));
-        return all.isEmpty() || all.get(0).getOrder() == null ? 1 : all.get(0).getOrder() + 1;
+                new LambdaQueryWrapper<DishAttributeDimension>().orderByDesc(DishAttributeDimension::getSortOrder));
+        return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
     }
 
     private int nextValueOrder(Long dimensionId) {
         List<DishAttributeValue> all = valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
                 .eq(DishAttributeValue::getDimensionId, dimensionId)
-                .orderByDesc(DishAttributeValue::getOrder));
-        return all.isEmpty() || all.get(0).getOrder() == null ? 1 : all.get(0).getOrder() + 1;
+                .orderByDesc(DishAttributeValue::getSortOrder));
+        return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
     }
 
     private static String requireFieldKey(String fieldKey) {

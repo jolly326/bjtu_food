@@ -91,12 +91,15 @@ async function submitRename(): Promise<void> {
 }
 
 /* ==================== 启停 / 删除 ==================== */
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function toggle(row: ReportReasonAdminVO): Promise<void> {
   const next: OnOffStatus = row.status === 'on' ? 'off' : 'on'
   const hint =
     next === 'on'
       ? `确认启用「${row.label}」？举报弹层将再次出现该选项（启用数上限 8 条）。`
-      : `确认停用「${row.label}」？停用后举报弹层不再展示该选项（历史举报仍能翻译出中文），但**不能停用最后一条启用**。`
+      : `确认停用「${row.label}」？停用后举报弹层不再展示该选项（历史举报仍能翻译出中文），但不能停用最后一条启用。`
   try {
     await confirmDelete(hint, {
       title: next === 'on' ? '启用原因' : '停用原因',
@@ -105,6 +108,7 @@ async function toggle(row: ReportReasonAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await updateReportReasonStatus(row.id, next)
     ElMessage.success(next === 'on' ? '已启用' : '已停用')
@@ -112,25 +116,30 @@ async function toggle(row: ReportReasonAdminVO): Promise<void> {
   } catch (e) {
     // 停用最后一条启用 / 启用数超上限 → 后端原文
     fail(e)
+  } finally {
+    busyId.value = null
   }
 }
 
 async function remove(row: ReportReasonAdminVO): Promise<void> {
   const hint =
     row.feedbackCount > 0
-      ? `该原因已被 ${row.feedbackCount} 条举报引用，**不能删除**（删掉会让历史举报翻不出中文）—— 请改用「停用」。`
+      ? `该原因已被 ${row.feedbackCount} 条举报引用，不能删除（删掉会让历史举报翻不出中文）—— 请改用「停用」。`
       : '确认删除该举报原因？删除后举报弹层不再出现该选项。'
   try {
     await confirmDelete(hint, { title: '删除原因' })
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteReportReason(row.id)
     ElMessage.success('已删除')
     await load()
   } catch (e) {
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -170,15 +179,8 @@ onMounted(() => load())
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="(row, index) in items"
-            :key="row.id"
-            draggable="true"
-            @dragstart="onDragStart(index)"
-            @dragover.prevent
-            @drop="onDrop(index)"
-          >
-            <td class="drag-col" title="拖拽排序">⋮⋮</td>
+          <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
+            <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
             <td>{{ row.label }}</td>
             <td>
               <code>{{ row.value }}</code>
@@ -187,17 +189,31 @@ onMounted(() => load())
             <td><StatusTag :status="row.status" kind="onoff" /></td>
             <td class="muted">{{ row.updatedAt }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="openRename(row)">改名</button>
-              <button class="link" type="button" @click="toggle(row)">
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openRename(row)"
+              >
+                改名
+              </button>
+              <button class="link" type="button" :disabled="busyId === row.id" @click="toggle(row)">
                 {{ row.status === 'on' ? '停用' : '启用' }}
               </button>
-              <button class="link danger" type="button" @click="remove(row)">删除</button>
+              <button
+                class="link danger"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="remove(row)"
+              >
+                删除
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
       <p class="foot-note">
-        机器值是历史举报的数据锚点，**在用后不可修改**（要改就停用旧值、新建一个）；下线一律用「停用」。
+        机器值是历史举报的数据锚点，在用后不可修改（要改就停用旧值、新建一个）；下线一律用「停用」。
       </p>
     </div>
 
@@ -211,7 +227,7 @@ onMounted(() => load())
           v-model="newValue"
           placeholder="小写字母 / 数字 / -（如 spam）"
         />
-        <div class="hint">全站唯一，**在用后不可修改**</div>
+        <div class="hint">全站唯一，在用后不可修改</div>
       </div>
       <div class="field">
         <label for="rr-new-label">中文标签</label>
@@ -253,13 +269,6 @@ onMounted(() => load())
 </template>
 
 <style scoped>
-.drag-col {
-  width: 28px;
-  color: var(--text-muted);
-  cursor: grab;
-  user-select: none;
-  text-align: center;
-}
 .num {
   font-variant-numeric: tabular-nums;
 }

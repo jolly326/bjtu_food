@@ -114,7 +114,7 @@ let computedCount = 0
 let watchCount = 0
 for (const [file, text] of sourceTexts) {
   if (file.endsWith('.json') || file.endsWith('.scss')) continue
-  deepListRefs += countMatches(text, /\bref<[A-Za-z][\w<>\[\]| ]*\[\s*\]>\s*\(/g) + countMatches(text, /\bref\s*\(\s*\[\s*\]\s*\)/g)
+  deepListRefs += countMatches(text, /\bref<[A-Za-z][\w<>[\]| ]*\[\s*\]>\s*\(/g) + countMatches(text, /\bref\s*\(\s*\[\s*\]\s*\)/g)
   shallowRefs += countMatches(text, /\bshallowRef\s*\(/g)
   computedCount += countMatches(text, /\bcomputed\s*\(/g)
   watchCount += countMatches(text, /\bwatch(?:Effect)?\s*\(/g)

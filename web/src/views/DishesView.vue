@@ -39,7 +39,7 @@ import { fenToYuan, formatYuan, yuanToFen } from '@/utils/money'
 import { usePagedList } from '@/composables/usePagedList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import BaseModal from '@/components/BaseModal.vue'
-import ImageUpload from '@/components/ImageUpload.vue'
+import ImageUpload, { type ImageItem } from '@/components/ImageUpload.vue'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -107,7 +107,8 @@ const form = ref({
   originalPriceYuan: '',
   mealType: '',
   description: '',
-  images: [] as string[],
+  /** 组件态 = `{ url }` 对象数组（ImageUpload 契约）；提交时映射回 `imageUrls: string[]` */
+  images: [] as ImageItem[],
 })
 const attrSingle = ref<Record<string, string>>({})
 const attrMulti = ref<Record<string, string>>({})
@@ -134,9 +135,13 @@ function openCreate(): void {
   open.value = true
 }
 
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function openEdit(row: DishAdminListItemVO): Promise<void> {
   // A3：列表行是**瘦身 VO**（不带 description / images / attributes），而 `PUT` 是**整体替换**
   // ⇒ 必须先用详情端点取全字段回填；否则保存会把这些字段当成「未传 / 空」而清空（不可逆）。
+  busyId.value = row.id
   try {
     const d = await getDish(row.id)
     editing.value = d
@@ -147,7 +152,8 @@ async function openEdit(row: DishAdminListItemVO): Promise<void> {
       originalPriceYuan: d.originalPrice == null ? '' : String(fenToYuan(d.originalPrice)),
       mealType: d.mealType,
       description: d.description,
-      images: [...d.images],
+      // 编辑回显：契约出参 `images: string[]`（有序）映射为组件对象数组，顺序不变 ⇒ 首图仍是封面
+      images: d.images.map((url) => ({ url })),
     }
     attrSingle.value = {}
     attrMulti.value = {}
@@ -159,6 +165,8 @@ async function openEdit(row: DishAdminListItemVO): Promise<void> {
     open.value = true
   } catch (e) {
     fail(e, '加载菜品详情失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -215,7 +223,8 @@ async function save(): Promise<void> {
     originalPrice,
     mealType: form.value.mealType.trim(),
     description: form.value.description,
-    images: form.value.images,
+    // 提交映射：按数组顺序回 `imageUrls: string[]`（首图即封面，后端 / client 契约零变更）
+    images: form.value.images.map((img) => img.url),
     attributes: buildAttributes(),
   }
   saving.value = true
@@ -268,29 +277,35 @@ async function submitCopy(): Promise<void> {
 /* ==================== 上下架 / 删除 ==================== */
 async function toggle(row: DishAdminListItemVO): Promise<void> {
   const next: OnOffStatus = row.status === 'on' ? 'off' : 'on'
+  busyId.value = row.id
   try {
     await updateDishStatus(row.id, next)
     ElMessage.success(next === 'on' ? '已上架' : '已下架')
     await reload()
   } catch (e) {
     fail(e)
+  } finally {
+    busyId.value = null
   }
 }
 
 async function remove(row: DishAdminListItemVO): Promise<void> {
   try {
-    await confirmDelete(`确认删除菜品「${row.name}」？其**全部评价将一并删除**且不可恢复。`, {
+    await confirmDelete(`确认删除菜品「${row.name}」？其全部评价将一并删除且不可恢复。`, {
       title: '删除菜品',
     })
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteDish(row.id)
     ElMessage.success('已删除')
     await reload()
   } catch (e) {
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -412,12 +427,33 @@ onMounted(async () => {
               {{ row.recentViewCount ?? 0 }}
             </td>
             <td class="actions">
-              <button class="link" type="button" @click="openEdit(row)">编辑</button>
-              <button class="link" type="button" @click="openCopy(row)">复制</button>
-              <button class="link" type="button" @click="toggle(row)">
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openEdit(row)"
+              >
+                编辑
+              </button>
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openCopy(row)"
+              >
+                复制
+              </button>
+              <button class="link" type="button" :disabled="busyId === row.id" @click="toggle(row)">
                 {{ row.status === 'on' ? '下架' : '上架' }}
               </button>
-              <button class="link danger" type="button" @click="remove(row)">删除</button>
+              <button
+                class="link danger"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="remove(row)"
+              >
+                删除
+              </button>
             </td>
           </tr>
         </tbody>
@@ -526,7 +562,7 @@ onMounted(async () => {
         <input id="copy-name" class="form-input" v-model="copyName" @keyup.enter="submitCopy" />
       </div>
       <p class="hint">
-        其余字段（价格 / 分类 / 属性 / 图片）全部复制源菜品；**副本默认下架**，确认内容后再上架。
+        其余字段（价格 / 分类 / 属性 / 图片）全部复制源菜品；副本默认下架，确认内容后再上架。
       </p>
       <template #actions>
         <button class="btn-secondary" type="button" @click="copyOpen = false">取消</button>

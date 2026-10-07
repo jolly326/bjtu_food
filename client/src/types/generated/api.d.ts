@@ -34,14 +34,14 @@ export interface paths {
   "/admin/users/{id}/status": {
     /**
      * 启用/禁用用户
-     * @description 用途：修改用户账号状态。disabled 用户无法登录。
+     * @description 用途：修改用户账号状态（只改 status，取值为字符串枚举 active=启用 / disabled=禁用）。disabled 用户无法登录，且其已签发 token 即时失效。
      */
     put: operations["updateStatus"];
   };
   "/admin/stalls/{id}": {
     /**
      * 编辑档口
-     * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。
+     * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。floor / windowNo 缺省 = 保持原值，windowNo 空串 = 清空。
      */
     put: operations["updateStall"];
     /**
@@ -188,7 +188,7 @@ export interface paths {
   "/admin/canteens/{id}": {
     /**
      * 编辑食堂
-     * @description 用途：修改食堂名称（新名重名 → 400）。
+     * @description 用途：修改食堂名称（新名重名 → 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
      */
     put: operations["updateCanteen"];
     /**
@@ -324,7 +324,7 @@ export interface paths {
     get: operations["listStalls"];
     /**
      * 新增档口
-     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。
+     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体只接收 canteenId / name / floor / windowNo（StallSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
      */
     post: operations["createStall"];
   };
@@ -410,7 +410,7 @@ export interface paths {
     get: operations["listCanteens"];
     /**
      * 新增食堂
-     * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。
+     * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
      */
     post: operations["createCanteen"];
   };
@@ -526,14 +526,14 @@ export interface paths {
   "/admin/users": {
     /**
      * 用户列表
-     * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=10&status=active&keyword=干饭
+     * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=20&status=active&keyword=干饭
      */
     get: operations["listUsers"];
   };
   "/admin/reviews": {
     /**
      * 全部评价列表
-     * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=10&hidden=false&dishId=3
+     * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=20&hidden=false&dishId=3
      */
     get: operations["listAll"];
   };
@@ -671,54 +671,37 @@ export interface components {
        */
       bindEmail?: string;
     };
-    /** @description 档口 */
-    Stall: {
+    /** @description 启用/禁用请求体 {status}；status 缺失/空白或非法返回 400 */
+    UserStatusReq: {
+      /**
+       * @description 状态：active=启用 / disabled=禁用
+       * @example disabled
+       */
+      status: string;
+    };
+    /** @description 档口新增 / 修改请求 */
+    StallSaveReq: {
       /**
        * Format: int64
-       * @description 档口ID
+       * @description 所属食堂ID（必填，须为已存在食堂）
+       * @example 1
        */
-      id?: number;
+      canteenId: number;
       /**
-       * Format: int64
-       * @description 所属食堂ID
-       */
-      canteenId?: number;
-      /**
-       * @description 档口名称
+       * @description 档口名称（1~64 字；同食堂下唯一，重名 400）
        * @example 面食窗口
        */
-      name?: string;
-      /** @description 档口多图JSON */
-      images?: string;
-      /** @description 档口位置 */
-      location?: string;
+      name: string;
       /**
-       * @description 楼层（受控字典值·值即汉字，如「二层」）
+       * @description 楼层（受控字典、值即汉字：负一层/一层/二层/三层/四层；缺省 = 保持原值，不支持清空）
        * @example 二层
        */
       floor?: string;
       /**
-       * @description 窗口号
+       * @description 窗口号（≤32 字；缺省 = 保持原值，空串 = 清空）
        * @example 3号窗口
        */
       windowNo?: string;
-      /** @description 档口描述 */
-      description?: string;
-      /**
-       * Format: int32
-       * @description 排序权重
-       */
-      sortOrder?: number;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
     };
     /** @description 举报原因改名请求 */
     ReportReasonRenameReq: {
@@ -924,39 +907,13 @@ export interface components {
        */
       rejectReason: string;
     };
-    /** @description 食堂 */
-    Canteen: {
+    /** @description 食堂新增 / 改名请求 */
+    CanteenSaveReq: {
       /**
-       * Format: int64
-       * @description 食堂ID
-       */
-      id?: number;
-      /**
-       * @description 食堂名称
+       * @description 食堂名称（1~64 字；全站唯一，重名 400）
        * @example 第一食堂
        */
-      name?: string;
-      /** @description 食堂图片URL列表JSON */
-      images?: string;
-      /** @description 食堂位置 */
-      location?: string;
-      /** @description 食堂描述 */
-      description?: string;
-      /**
-       * Format: int32
-       * @description 排序权重
-       */
-      sortOrder?: number;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
+      name: string;
     };
     /** @description Banner 保存请求 */
     BannerSaveReq: {
@@ -3241,7 +3198,7 @@ export interface operations {
   };
   /**
    * 启用/禁用用户
-   * @description 用途：修改用户账号状态。disabled 用户无法登录。
+   * @description 用途：修改用户账号状态（只改 status，取值为字符串枚举 active=启用 / disabled=禁用）。disabled 用户无法登录，且其已签发 token 即时失效。
    */
   updateStatus: {
     parameters: {
@@ -3260,9 +3217,7 @@ export interface operations {
          *   "status": "disabled"
          * }
          */
-        "application/json": {
-          [key: string]: string;
-        };
+        "application/json": components["schemas"]["UserStatusReq"];
       };
     };
     responses: {
@@ -3300,7 +3255,7 @@ export interface operations {
   };
   /**
    * 编辑档口
-   * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。
+   * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。floor / windowNo 缺省 = 保持原值，windowNo 空串 = 清空。
    */
   updateStall: {
     parameters: {
@@ -3314,7 +3269,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["Stall"];
+        "application/json": components["schemas"]["StallSaveReq"];
       };
     };
     responses: {
@@ -4439,7 +4394,7 @@ export interface operations {
   };
   /**
    * 编辑食堂
-   * @description 用途：修改食堂名称（新名重名 → 400）。
+   * @description 用途：修改食堂名称（新名重名 → 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
    */
   updateCanteen: {
     parameters: {
@@ -4453,7 +4408,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["Canteen"];
+        "application/json": components["schemas"]["CanteenSaveReq"];
       };
     };
     responses: {
@@ -5307,12 +5262,12 @@ export interface operations {
   };
   /**
    * 新增档口
-   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。
+   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体只接收 canteenId / name / floor / windowNo（StallSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
    */
   createStall: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["Stall"];
+        "application/json": components["schemas"]["StallSaveReq"];
       };
     };
     responses: {
@@ -5955,12 +5910,12 @@ export interface operations {
   };
   /**
    * 新增食堂
-   * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。
+   * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
    */
   createCanteen: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["Canteen"];
+        "application/json": components["schemas"]["CanteenSaveReq"];
       };
     };
     responses: {
@@ -6573,7 +6528,7 @@ export interface operations {
   };
   /**
    * 用户列表
-   * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=10&status=active&keyword=干饭
+   * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=20&status=active&keyword=干饭
    */
   listUsers: {
     parameters: {
@@ -6621,7 +6576,7 @@ export interface operations {
   };
   /**
    * 全部评价列表
-   * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=10&hidden=false&dishId=3
+   * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=20&hidden=false&dishId=3
    */
   listAll: {
     parameters: {

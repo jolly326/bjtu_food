@@ -38,10 +38,9 @@ public class DishCategoryValue {
     @Schema(description = "分类中文名（可改，改名免费）", example = "面食粉类")
     private String label;
 
-    /** MySQL 保留字列，列名显式加反引号（MyBatis-Plus 不自动转义保留字） */
-    @TableField("`order`")
+    /** 顺序（后台下拉 / 列表展示序） */
     @Schema(description = "顺序（后台下拉 / 列表展示序）", example = "3")
-    private Integer order;
+    private Integer sortOrder;
 
     /** 更新时间（本表**无 created_at**，与 dish_attribute_* 同口径） */
     @TableField(fill = FieldFill.INSERT_UPDATE)

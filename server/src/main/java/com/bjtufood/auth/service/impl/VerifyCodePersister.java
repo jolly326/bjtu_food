@@ -152,9 +152,9 @@ public class VerifyCodePersister {
     /**
      * 数据归属迁移：把旧账号 user_id 下的业务数据改挂到新账号。
      * <p>
-     * P0-1 架构收口：本方法不再持有 review / feedback / notify 的 Mapper，改为发布
+     * P0-1 架构收口：本方法不持有 review / feedback / notify 的 Mapper，只发布
      * {@code UserOwnershipMigratedEvent}，由各域监听器自理本域表（review 独有的
-     * 「先清理目标账号已存在的同 dish 冲突行、再改归属」知识一并收敛回 review 域实现）。
+     * 「先清理目标账号已存在的同 dish 冲突行、再改归属」知识留在 review 域实现内）。
      * 监听器为同步 {@code @EventListener} → 仍在 {@link #applyVerifiedBinding} 事务内执行，失败整体回滚。
      */
     private void publishOwnershipMigrated(Long fromUserId, Long toUserId) {

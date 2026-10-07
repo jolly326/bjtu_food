@@ -98,7 +98,7 @@ function handleBack() {
 /* 返回：绝对定位在左，`top/bottom: 0` 撑满行高 ⇒ 触达区 = 导航行高（≥88rpx，Apple 44pt 下限） */
 .back-area {
   position: absolute;
-  left: var(--spacing-md);
+  left: var(--page-gutter);
   top: 0;
   bottom: 0;
   display: flex;
@@ -135,7 +135,7 @@ function handleBack() {
   left: auto;
   transform: none;
   text-align: left;
-  margin-left: var(--spacing-md);
+  margin-left: var(--page-gutter);
   max-width: none;
   font-size: var(--font-title);
   font-weight: var(--weight-bold);

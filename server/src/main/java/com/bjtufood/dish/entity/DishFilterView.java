@@ -37,9 +37,9 @@ public class DishFilterView {
     @Schema(description = "tab 文案（可改）", example = "面食粉类")
     private String label;
 
-    @TableField("`order`")
+    /** 展示顺序（升序） */
     @Schema(description = "展示顺序（升序）", example = "4")
-    private Integer order;
+    private Integer sortOrder;
 
     @Schema(description = "是否在 client 首页出现（false=tab 隐藏）")
     private Boolean enabled;

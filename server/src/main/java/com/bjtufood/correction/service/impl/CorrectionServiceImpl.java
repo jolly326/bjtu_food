@@ -105,7 +105,7 @@ public class CorrectionServiceImpl implements CorrectionService {
     @Override
     public void submit(Long userId, Long dishId, DishCorrectionReq req) {
         // 菜品不存在与已下架同款处理（对公开接口而言「下架」等价于「不存在」，与 DishServiceImpl 详情口径一致）；
-        // 存在性 + 在售态口径由 dish 域唯一持有（P0-1：correction 不再 import Dish 实体/DishConst/DishMapper）
+        // 存在性 + 在售态口径由 dish 域唯一持有（P0-1：本域不 import Dish 实体/DishConst/DishMapper）
         if (!dishService.existsOnSale(dishId)) {
             throw new BusinessException(4001, "菜品不存在");
         }
@@ -175,12 +175,12 @@ public class CorrectionServiceImpl implements CorrectionService {
      * <p>
      * 匿名提交（{@code userId == 0}）同样参与去重 —— 与命名用户同口径，{@code 0} 即「匿名」这一归属。
      * <p>
-     * 不限定 {@code status}：已拒绝 / 已采纳后再次提交<b>不再新增行</b>。去重是<b>防单人刷队列</b>，
+     * 不限定 {@code status}：某条已拒绝 / 已采纳后，再次提交也<b>不新增行</b>。去重是<b>防单人刷队列</b>，
      * 不是决策门槛（≥1 条即进待办，是否下架由管理员人工决定）。
      *
      * @param userId 提交人（{@code 0} = 匿名）
      * @param dishId 菜品
-     * @return true = 已有记录，本次不再重复落库
+     * @return true = 已有记录，本次不重复落库
      */
     private boolean existsGoneByUser(Long userId, Long dishId) {
         LambdaQueryWrapper<DishCorrection> wrapper = new LambdaQueryWrapper<DishCorrection>()
@@ -410,7 +410,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         IPage<DishCorrection> p = correctionMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
         // 批量补齐提交人昵称（一次 IN 查询，消除 N+1；匿名 userId=0 不参与）——
-        // 经 auth 域只读契约下发（P0-1：不再注入 UserMapper）
+        // 经 auth 域只读契约下发（P0-1：本域不注入 UserMapper）
         List<Long> userIds = p.getRecords().stream()
                 .map(DishCorrection::getUserId)
                 .filter(id -> id != null && id != ANONYMOUS_USER_ID)
@@ -470,7 +470,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (dishIds.isEmpty()) {
             return Map.of();
         }
-        // 菜品名经 dish 域只读契约下发（P0-1：不再注入 DishMapper；口径=不过滤上架态，见接口注释）
+        // 菜品名经 dish 域只读契约下发（P0-1：本域不注入 DishMapper；口径=不过滤上架态，见接口注释）
         return dishService.mapNameByIds(dishIds);
     }
 
@@ -846,9 +846,9 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 保护「菜品首图必填」等既有不变量；随后纠错记录归档（status/reply/handled_at，
      * stall_name 以实际挂靠档口名落库，管理端指定档口可能不同于提交名）。
      * <p>
-     * P0-1：写回动作经 {@link DishService#applyCorrection(DishCorrectionCmd)} 下发——correction
-     * 不再构造 {@code Dish} 实体、不再注入 DishMapper，images 的 JSON 序列化与 null 跳过策略
-     * 属 dish 域落库形态，一并收回 dish 实现。
+     * P0-1：写回动作经 {@link DishService#applyCorrection(DishCorrectionCmd)} 下发——本域
+     * 不构造 {@code Dish} 实体、不注入 DishMapper，images 的 JSON 序列化与 null 跳过策略
+     * 属 dish 域落库形态，归 dish 实现。
      * <p>
      * <b>楼层纠错</b>：{@code floor} <b>不写回 dish</b>——楼层归属<b>档口</b>
      * （{@code stall.floor}），菜品无楼层字段。故本次纠错携带楼层时，写入上面已解析出的
@@ -912,8 +912,8 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 无匹配食堂时 = 全量档口（canteen_id 升序 → sort_order 升序，与既有档口排序口径一致）。
      */
     private List<StallConfirmVO.StallCandidate> buildCandidates(String canteenName) {
-        // 候选档口取数（含「按名找食堂」）经 canteen 域只读契约下发（P0-1：不再注入 CanteenMapper/StallMapper），
-        // 两分支的排序口径与原实现逐条一致；本域只负责组装自己的 VO。
+        // 候选档口取数（含「按名找食堂」）经 canteen 域只读契约下发（P0-1：本域不注入 CanteenMapper/StallMapper），
+        // 两分支的排序口径由该契约保证；本域只负责组装自己的 VO。
         return stallService.listBriefCandidates(canteenName).stream()
                 .map(s -> new StallConfirmVO.StallCandidate(s.getId(), s.getName()))
                 .toList();
@@ -939,7 +939,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (!CorrectionConst.OUTCOME_REJECTED.equals(outcome)) {
             throw new BusinessException(400, "处理结论非法（本端点仅支持 rejected=不采纳/退回）");
         }
-        // reply **可选**（B4，2026-10-03）：DTO 仅卡长度，Service 不再拦必填；
+        // reply **可选**（B4，2026-10-03）：DTO 仅卡长度，Service 不拦必填；
         // 留空时回执正文退化为「不采纳原因」（必填项），保证提交人始终收到可读内容。
         String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
         // 上限 600 字（回执正文 = 前缀 + 回复全文，须 ≤ notification.content 的 1024 列宽）

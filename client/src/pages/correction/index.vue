@@ -37,6 +37,7 @@
         v-else-if="problemType === 'field'"
         ref="correctionFormRef"
         :model="form"
+        @update:model="updateForm"
         :dish-name="dishName"
         :dish-location="dishLocation"
         :detail-loading="loading"
@@ -107,6 +108,7 @@ const {
   isGone,
   selectType,
   form,
+  updateForm,
   dishName,
   dishLocation,
   loading,

@@ -25,6 +25,7 @@
         :value="modelValue"
         type="text"
         confirm-type="search"
+        maxlength="30"
         placeholder="搜索菜品、食堂、档口"
         placeholder-class="search-bar-ph"
         :adjust-position="true"
@@ -37,6 +38,8 @@
         class="search-bar-clear"
         role="button"
         aria-label="清除关键词"
+        hover-class="pressed"
+        hover-stop-propagation
         @tap.stop="emit('clear')"
       >
         <IconSvg name="close" :size="30" :color="COLOR_MAP['text-placeholder']" />
@@ -120,9 +123,9 @@ function onInput(e: Event) {
 </script>
 
 <style scoped>
-/* 宿主：只负责页面级左右 gutter（与全站 `--spacing-md` 一致），高度由内层胶囊自持 */
+/* 宿主：只负责页面级左右 gutter（与全站 `--page-gutter` 一致），高度由内层胶囊自持 */
 .search-bar-host {
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--page-gutter);
   box-sizing: border-box;
 }
 
@@ -178,7 +181,8 @@ function onInput(e: Event) {
   border-radius: var(--radius-circle);
   -webkit-tap-highlight-color: transparent;
 }
-.search-bar-clear:active { opacity: 0.55; }
+/* 按压反馈：清除钮属「小件」档（行内图标钮）⇒ 0.6 */
+.search-bar-clear.pressed { opacity: 0.6; }
 
 /* ④ 内嵌「搜索」按钮：贴胶囊右端、与胶囊等高（`align-self: stretch` + 上下 `--spacing-xs` 内距）
    填充档主色 + 白字（实测 5.01:1 ✅，见 UI 文档 / §10.2 取色边界）；

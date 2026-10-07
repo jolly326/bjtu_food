@@ -117,8 +117,9 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
 
 /* ========== 交互状态工具类 ==========
    统一禁用态与键盘焦点、hover，避免各组件散落重复实现。 */
-/* 禁用态：弱化 + 禁点 */
-.is-disabled { opacity: 0.5; pointer-events: none; filter: grayscale(0.2); }
+/* 禁用态：仅禁点；视觉弱化由各消费组件按禁用档自行表达（实底转灰底灰字 / 描边转中性），
+   故此处**不再**降透明或降灰度 —— opacity 全站只用于表达「在途 busy」。 */
+.is-disabled { pointer-events: none; }
 /* 键盘焦点环（Apple 焦点规范：仅键盘可达时显示，触屏/鼠标不显）。
    fix：文本输入类（input / textarea）聚焦时 SHALL NOT 呈现主色描边——移动端/小程序点击输入框
    即命中 :focus-visible，主色（暖砖红）描边会被读成「红色边框」。输入态由各输入容器自身样式表达
@@ -134,17 +135,24 @@ input:focus-visible,
 textarea:focus-visible {
   outline: none;
 }
-/* MVP 仅保留 :active opacity 反馈（无 .hoverable 缩放）。 */
+/* 按压反馈全站统一走 hover-class（`.pressed` 兜底 + 各处局部覆盖），无 .hoverable 缩放。 */
 
-/* 列表触底反馈（与 home feed-foot 同源：居中次级灰小字，不抢内容焦点）。
-   供列表页在 scroll-view 底部统一呈现「加载中 / 已到底」态。 */
+/* 列表文字行（**全站唯一实现**：居中次级灰小字，不抢内容焦点）。用法：
+   ① **首屏在途**（尚未拿到任何数据）＝「加载中…」——在途只给文字行、不给骨架屏
+      （禁的是伪内容与抖动，不是文字；静默 = 慢网白屏）；
+   ② **加载更多在途**＝列表末尾「正在加载更多…」；**切视图 / 重置式刷新在途**＝
+      「正在切换…」/「加载中…」（旧列表保留，不清空）；
+   ③ **已到底 / 已封顶**＝「没有更多了」（find 结果态用场景化「没有更多结果了」）/「已展示前 N 个结果」。
+   触底三态判据见 docs/ui/client/公共组件与形态基线.md §1.17「列表底部反馈」。
+   消费方：home 瀑布流、find 结果列表、notifications、my-reviews、菜品详情。 */
 .list-foot {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--spacing-md) var(--spacing-lg);
+  padding: 0 var(--page-gutter) var(--spacing-lg);
 }
 .list-foot-text {
+  /* 12px 是正文可读下限（--font-aux 22rpx 在窄屏折合 ≈10px，低于下限） */
   font-size: var(--font-small);
   color: var(--text-tertiary);
   text-align: center;

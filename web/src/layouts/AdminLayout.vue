@@ -166,8 +166,8 @@ const groups: NavGroup[] = [
   font-size: var(--font-base);
   font-weight: var(--weight-medium);
   transition:
-    background 0.2s var(--ease-out),
-    color 0.2s var(--ease-out);
+    background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 .nav-item:hover {
@@ -202,7 +202,7 @@ const groups: NavGroup[] = [
 
 .view-fade-enter-active,
 .view-fade-leave-active {
-  transition: opacity 0.18s var(--ease-out);
+  transition: opacity var(--duration-base) var(--ease-out);
 }
 .view-fade-enter-from,
 .view-fade-leave-to {
@@ -212,7 +212,7 @@ const groups: NavGroup[] = [
 @media (prefers-reduced-motion: reduce) {
   .view-fade-enter-active,
   .view-fade-leave-active {
-    transition: opacity 0.18s ease;
+    transition: opacity var(--duration-base) var(--ease-out);
   }
 }
 

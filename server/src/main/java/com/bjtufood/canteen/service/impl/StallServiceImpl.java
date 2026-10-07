@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.canteen.constant.FloorDict;
 import com.bjtufood.canteen.dto.StallAdminVO;
 import com.bjtufood.canteen.dto.StallBriefVO;
+import com.bjtufood.canteen.dto.StallSaveReq;
 import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
@@ -19,7 +20,9 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -34,6 +37,9 @@ public class StallServiceImpl implements StallService {
 
     /** 新建档口时未提供有效所属食堂的报错文案（与 web 端「食堂必填」契约一致） */
     private static final String MSG_CANTEEN_REQUIRED = "请选择所属食堂";
+
+    /** 「同食堂下档口重名」的统一报错文案：新增与改名共用同一句，避免同语义两套措辞 */
+    private static final String MSG_STALL_NAME_DUPLICATE = "该食堂下已存在同名档口";
 
     private final StallMapper stallMapper;
     private final CanteenMapper canteenMapper;
@@ -52,7 +58,7 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public List<StallAdminVO> listAllForAdmin(Long canteenId) {
-        // 排序口径（A2）：食堂 → 档口名（原按 sort_order，sort_order 已收窄为保留列）
+        // 排序口径（A2）：食堂升序 → 档口名升序 → 更新时间降序
         List<Stall> stalls = stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                 .eq(canteenId != null, Stall::getCanteenId, canteenId)
                 .orderByAsc(Stall::getCanteenId)
@@ -61,66 +67,84 @@ public class StallServiceImpl implements StallService {
         if (stalls.isEmpty()) {
             return List.of();
         }
+        // 食堂名一次批量取回：逐档口回查会让列表退化成 N 次查询（档口虽为十数条量级，
+        // 查询数仍随行数线性放大）。跨行批量化范式与 CanteenAdminController#fillAvgRatings 一致。
+        Map<Long, String> canteenNames = loadCanteenNames(stalls);
         // 均分由调用方批量补齐（编排在 CanteenAdminController#fillAvgRatings，以断开 canteen -> review 包级边）；
         // 本方法只负责档口自身字段，未补齐前保持 0.00 语义。
         return stalls.stream()
-                .map(s -> toAdminVO(s, BigDecimal.ZERO))
+                .map(s -> toAdminVO(s, canteenNames.get(s.getCanteenId()), BigDecimal.ZERO))
                 .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void update(Stall stall) {
-        // canteen_id=0 收口：canteenId 显式传入时必须为有效食堂
+    public void update(Long id, StallSaveReq req) {
+        // canteen_id=0 收口：canteenId 是必填字段，必须为有效食堂
         // （dish 列表/详情 joinDishSql 对 canteen 为 INNER JOIN，挂 0 的档口菜品会被静默剔除）。
-        // null=不修改（MyBatis-Plus updateById NOT_NULL 策略跳过），不校验。
-        if (stall.getCanteenId() != null) {
-            if (stall.getCanteenId() <= 0 || canteenMapper.selectById(stall.getCanteenId()) == null) {
-                throw new BusinessException("请选择所属食堂");
-            }
+        if (req.getCanteenId() == null || req.getCanteenId() <= 0
+                || canteenMapper.selectById(req.getCanteenId()) == null) {
+            throw new BusinessException(MSG_CANTEEN_REQUIRED);
         }
         // 楼层受控字典（值即汉字，唯一真源 FloorDict / docs/schema/stall.md）：
-        // null = 不修改（NOT_NULL 策略跳过）；非空则必须命中字典，否则会把字典外值写进档口楼层，
-        // 端上与详情页随后无法解释该值（详见 docs/api/web/stalls.md 的错误码节）。
-        if (stall.getFloor() != null) {
-            if (!StringUtils.hasText(stall.getFloor())) {
+        // 缺省 = 保持原值（局部实体不带该列，updateById 的 NOT_NULL 策略跳过）；
+        // 给了值就必须命中字典，否则会把字典外值写进档口楼层，端上与详情页随后无法解释该值；
+        // 字典内没有「空楼层」⇒ 空白串一律 400，**不支持清空**（详见 docs/api/web/stalls.md 的空值语义表）。
+        String floor = null;
+        if (req.getFloor() != null) {
+            if (!StringUtils.hasText(req.getFloor())) {
                 throw new BusinessException("楼层不能为空");
             }
-            if (!FloorDict.isValid(stall.getFloor())) {
+            if (!FloorDict.isValid(req.getFloor())) {
                 throw new BusinessException("楼层不在预设范围内");
             }
-            stall.setFloor(FloorDict.normalize(stall.getFloor()));
+            floor = FloorDict.normalize(req.getFloor());
         }
         // A2：改名同样受「**同食堂下**唯一」约束 —— 只在新增时校验的话，
-        // 「把档口改名成同食堂已有的名」会绕过约束。canteenId 未传（不修改归属）时取当前归属再判。
-        if (stall.getName() != null && !stall.getName().isBlank()) {
-            String trimmed = stall.getName().trim();
-            Long belongCanteenId = stall.getCanteenId();
-            if (belongCanteenId == null && stall.getId() != null) {
-                Stall current = stallMapper.selectById(stall.getId());
-                belongCanteenId = current == null ? null : current.getCanteenId();
-            }
-            if (belongCanteenId != null) {
-                DuplicateGuard.assertUnique(stallMapper, new LambdaQueryWrapper<Stall>()
-                        .eq(Stall::getCanteenId, belongCanteenId)
-                        .eq(Stall::getName, trimmed)
-                        .ne(Stall::getId, stall.getId()), "该食堂下档口名称已存在");
-            }
-            stall.setName(trimmed);
+        // 「把档口改名成同食堂已有的名」会绕过约束。归属由必填的 canteenId 给出，无需回查当前归属。
+        String trimmed = req.getName() == null ? null : req.getName().trim();
+        if (trimmed == null || trimmed.isEmpty()) {
+            throw new BusinessException("档口名称不能为空");
         }
-        if (stall.getId() == null || stallMapper.updateById(stall) == 0) {
-            throw new BusinessException("Stall not found");
+        if (trimmed.length() > 64) {
+            throw new BusinessException("档口名称不能超过 64 字");
+        }
+        DuplicateGuard.assertUnique(stallMapper, new LambdaQueryWrapper<Stall>()
+                .eq(Stall::getCanteenId, req.getCanteenId())
+                .eq(Stall::getName, trimmed)
+                .ne(Stall::getId, id), MSG_STALL_NAME_DUPLICATE);
+        // 局部实体 + updateById（NOT_NULL 策略）：只写本次提交的可编辑列，
+        // 保留列（images / location / description / sort_order）与时间列原样保留。
+        Stall patch = new Stall();
+        patch.setId(id);
+        patch.setCanteenId(req.getCanteenId());
+        patch.setName(trimmed);
+        if (floor != null) {
+            patch.setFloor(floor);
+        }
+        // windowNo：缺省 = 保持原值（NOT_NULL 策略跳过）；给了值即覆盖，
+        // 纯空白＝清空 —— 清空以空串落地（updateById 对 null 是「不写列」，无法表达清空），
+        // 出参侧统一归一为空串，与「无窗口号」同形，端上无需判空。
+        if (req.getWindowNo() != null) {
+            patch.setWindowNo(StringUtils.hasText(req.getWindowNo()) ? req.getWindowNo() : "");
+        }
+        if (id == null || stallMapper.updateById(patch) == 0) {
+            throw new BusinessException(4001, "档口不存在");
         }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public StallAdminVO createStall(Stall stall) {
-        if (stall.getCanteenId() == null || stall.getCanteenId() <= 0
-                || canteenMapper.selectById(stall.getCanteenId()) == null) {
-            throw new BusinessException("请选择所属食堂");
+    public StallAdminVO createStall(StallSaveReq req) {
+        // 校验与出参复用同一次食堂查询：食堂名由这里直接传给 toAdminVO，
+        // 避免「校验查一次、填 canteenName 再查一次」的重复回查。
+        Canteen canteen = req.getCanteenId() == null || req.getCanteenId() <= 0
+                ? null
+                : canteenMapper.selectById(req.getCanteenId());
+        if (canteen == null) {
+            throw new BusinessException(MSG_CANTEEN_REQUIRED);
         }
-        String name = stall.getName() == null ? null : stall.getName().trim();
+        String name = req.getName() == null ? null : req.getName().trim();
         if (name == null || name.isEmpty()) {
             throw new BusinessException("档口名称不能为空");
         }
@@ -129,24 +153,25 @@ public class StallServiceImpl implements StallService {
         }
         // 同食堂下唯一（应用层校验，不加强 DB 唯一索引 —— 历史数据可能已有重复）
         DuplicateGuard.assertUnique(stallMapper, new LambdaQueryWrapper<Stall>()
-                .eq(Stall::getCanteenId, stall.getCanteenId())
-                .eq(Stall::getName, name), "该食堂下已存在同名档口");
+                .eq(Stall::getCanteenId, req.getCanteenId())
+                .eq(Stall::getName, name), MSG_STALL_NAME_DUPLICATE);
         // 楼层：可选；给了就必须命中受控字典（值即汉字，见 FloorDict）
-        if (stall.getFloor() != null) {
-            if (!StringUtils.hasText(stall.getFloor())) {
+        if (req.getFloor() != null) {
+            if (!StringUtils.hasText(req.getFloor())) {
                 throw new BusinessException("楼层不能为空");
             }
-            if (!FloorDict.isValid(stall.getFloor())) {
+            if (!FloorDict.isValid(req.getFloor())) {
                 throw new BusinessException("楼层不在预设范围内");
             }
         }
         Stall saved = new Stall();
-        saved.setCanteenId(stall.getCanteenId());
+        saved.setCanteenId(req.getCanteenId());
         saved.setName(name);
-        saved.setFloor(FloorDict.normalize(stall.getFloor()));
-        saved.setWindowNo(stall.getWindowNo());
+        saved.setFloor(FloorDict.normalize(req.getFloor()));
+        // windowNo 为空 / 纯空白 → 落库 NULL（不留空串；出参侧归一为空串，端上无需判空）
+        saved.setWindowNo(StringUtils.hasText(req.getWindowNo()) ? req.getWindowNo() : null);
         stallMapper.insert(saved);
-        return toAdminVO(stallMapper.selectById(saved.getId()), BigDecimal.ZERO);
+        return toAdminVO(stallMapper.selectById(saved.getId()), canteen.getName(), BigDecimal.ZERO);
     }
 
     @Override
@@ -184,7 +209,7 @@ public class StallServiceImpl implements StallService {
         update.setId(stallId);
         update.setFloor(normalized);
         if (stallMapper.updateById(update) == 0) {
-            throw new BusinessException("档口不存在");
+            throw new BusinessException(4001, "档口不存在");
         }
     }
 
@@ -267,7 +292,7 @@ public class StallServiceImpl implements StallService {
 
     @Override
     public List<StallBriefVO> listBriefCandidates(String canteenName) {
-        // 原实现在 correction 侧直接注入 CanteenMapper/StallMapper；「按名找食堂」属 canteen 域知识，现收回本域
+        // 「按名找食堂」属 canteen 域知识：correction 侧只消费本方法，不自行注入 CanteenMapper/StallMapper
         Canteen canteen = StringUtils.hasText(canteenName)
                 ? canteenMapper.selectOne(new LambdaQueryWrapper<Canteen>()
                         .eq(Canteen::getName, canteenName)
@@ -327,24 +352,65 @@ public class StallServiceImpl implements StallService {
         return trimmed;
     }
 
-    private StallAdminVO toAdminVO(Stall stall, BigDecimal avgRating) {
+    /**
+     * 批量取「食堂 ID → 食堂名」（列表填充 {@code canteenName} 用）。
+     * <p>
+     * 一次 {@code IN} 查询取回列表涉及的全部食堂，替代逐档口 {@code selectById} 的 N+1。
+     * 未挂食堂（{@code canteenId} 为空）或食堂已不存在时不出现在映射中，调用方按 null 落值 ——
+     * 与逐档口回查同口径（查不到即为 null）。
+     */
+    private Map<Long, String> loadCanteenNames(List<Stall> stalls) {
+        Set<Long> canteenIds = stalls.stream()
+                .map(Stall::getCanteenId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (canteenIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Canteen> canteens = canteenMapper.selectBatchIds(canteenIds);
+        if (canteens == null || canteens.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, String> names = new HashMap<>(canteens.size());
+        for (Canteen canteen : canteens) {
+            if (canteen != null && canteen.getId() != null) {
+                names.put(canteen.getId(), canteen.getName());
+            }
+        }
+        return names;
+    }
+
+    /**
+     * 档口实体 → 后台 VO。
+     *
+     * @param canteenName 所属食堂名，由调用方一次/批量取回后传入
+     *                    （列表场景见 {@link #loadCanteenNames}）——本方法不做任何回查
+     */
+    private StallAdminVO toAdminVO(Stall stall, String canteenName, BigDecimal avgRating) {
         StallAdminVO vo = new StallAdminVO();
         vo.setId(stall.getId());
         vo.setCanteenId(stall.getCanteenId());
-        vo.setCanteenName(getCanteenNameByStallId(stall.getId()));
+        vo.setCanteenName(canteenName);
         vo.setName(stall.getName());
-        vo.setLocation(stall.getLocation());
+        // 出参空值口径：可空字符串列（含保留列）恒非空串，端上无需判空
+        // （与 client 侧菜品详情的 COALESCE(s.floor, '') 同口径）
+        vo.setLocation(orEmpty(stall.getLocation()));
         // 楼层/窗口号（端上有消费：档口卡展示位置）。
-        vo.setFloor(stall.getFloor());
-        vo.setWindowNo(stall.getWindowNo());
-        vo.setDescription(stall.getDescription());
+        vo.setFloor(orEmpty(stall.getFloor()));
+        vo.setWindowNo(orEmpty(stall.getWindowNo()));
+        vo.setDescription(orEmpty(stall.getDescription()));
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
-        // 档口评分统一实时聚合（BCNF：stall.avg_rating 孤岛字段已删，与 toVO 同口径，避免两端不一致）
+        // 档口评分统一实时聚合（均分不落库，与 toVO 同口径，避免两端不一致）
         // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.00 兜底
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
         vo.setSortOrder(stall.getSortOrder());
         vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;
+    }
+
+    /** 出参空值归一：{@code null} → 空串（后台列表的字符串列恒非空串，端上无需判空） */
+    private static String orEmpty(String value) {
+        return value == null ? "" : value;
     }
 }

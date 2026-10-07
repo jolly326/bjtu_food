@@ -1,7 +1,6 @@
 package com.bjtufood.canteen.service;
 
 import com.bjtufood.canteen.dto.CanteenAdminVO;
-import com.bjtufood.canteen.entity.Canteen;
 
 import java.util.List;
 
@@ -24,12 +23,18 @@ public interface CanteenService {
     List<CanteenAdminVO> listAllForAdmin();
 
     /**
-     * 编辑食堂
+     * 编辑食堂（{@code PUT /admin/canteens/{id}}）：改名走应用层全站查重，重名 → 400。
+     * <p>
+     * 入参是<b>字段值</b>而非实体（entity）：食堂的可编辑字段只有名称，把实体交给调用方
+     * 会让保留列（{@code images} / {@code location} / {@code description} / {@code sort_order}）
+     * 与时间列一并暴露在写入面上。
      *
-     * @param canteen 食堂信息（含ID）
-     * @throws com.bjtufood.common.exception.BusinessException 食堂不存在
+     * @param id   目标食堂 ID（路径参数）
+     * @param name 新名称（1~64 字，按 trim 后取值）
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 食堂不存在；
+     *         code=400 名称为空 / 超长 / 重名
      */
-    void update(Canteen canteen);
+    void update(Long id, String name);
 
     /**
      * 新增食堂（{@code POST /admin/canteens}）：名称应用层查重（重名 → 400），不加强 DB 唯一索引。

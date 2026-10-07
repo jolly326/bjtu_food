@@ -1,5 +1,5 @@
 <template>
-  <!-- 评价卡：整卡一张（卡头 + flat 条目）；三态齐全（加载中静默 / 失败可重试 / 零评价）
+  <!-- 评价卡：整卡一张（卡头 + flat 条目）；三态齐全（在途文字行 / 失败可重试 / 零评价）
        P3-01：卡头改用 SectionTitle（「分区标题一律 SectionTitle」）。
        标题行 = 左「评价 + 条数」（合并为一个标题块，数字同色 / 小半号 / 等宽）
        + 右**「写评价」轻量入口**（主色笔形图标 + 文字，**非按钮形态**）；
@@ -31,15 +31,22 @@
         </template>
       </SectionTitle>
 
-      <!-- ① a11y 红线：不设加载骨架/loading 指示。首屏拉取 / 重试 / 提交后刷新的在途期
-           （pending）本区块不渲染任何内容，保持空白静默——不得误闪空态文案。 -->
+      <!-- ① 重置式在途（pending）只给文字行、不给骨架屏（禁的是伪内容与抖动，不是文字）：
+           列表为空 ⇒ 列表位渲染一行 `.list-foot`「加载中…」，不误闪空态；
+           列表非空 ⇒ 保留旧列表不清空（切星级筛选 / 提交后刷新期间不出现整块空白卡壳），
+           列表末尾追加一行在途文字行。 -->
 
       <!-- ② 失败态：可重试（PR-03 失败态必备，避免误闪空态误导用户） -->
       <RetryBlock v-if="loadFailed" :margin="false" @retry="emit('retry')" />
 
-      <!-- ③ 有数据 / ④ 零评价（在途期整体不渲染） -->
-      <template v-else-if="!pending">
-        <!-- 星级筛选条：`全部` + ⭐5~⭐1 共 6 项**静态枚举**（免服务端字典）。
+      <!-- ③ 在途且列表为空：列表位的在途文字行 -->
+      <view v-else-if="pending && reviews.length === 0" class="list-foot">
+        <text class="list-foot-text">加载中…</text>
+      </view>
+
+      <!-- ④ 有数据（含在途期保留旧列表）/ ⑤ 零评价 -->
+      <template v-else>
+        <!-- 星级筛选条：`全部` + 5星~1星 共 6 项**纯文字枚举**（免服务端字典）。
              🔴 渲染条件 = 「有评价 **或** 已选筛选」（hasAnyReview）——
              筛选后命中 0 条时列表虽空，但筛选条必须保留，否则用户**无法切回「全部」**（死路）。 -->
         <scroll-view v-if="hasAnyReview" class="rating-filter" scroll-x :show-scrollbar="false">
@@ -75,15 +82,32 @@
           <view :style="{ height: bottomPad + 'px' }" />
         </view>
 
-        <!-- 空态二态（语义不同，勿混）：
-             ① **零评价**（ratingFilter == null）—— 信息卡评分位恒显「⭐ 5.0」兜底，
-                若此处写「暂无评价」会与之矛盾 ⇒ 改为**冷启动号召**「快来抢首评 ⭐ 5.0」；
+        <!-- 空态二态（语义不同，勿混；在途期不渲染，避免误闪空态）：
+             ① **零评价**（ratingFilter == null）—— 信息卡评分位恒显「star-filled 图标 + 5.0」兜底，
+                若此处写「暂无评价」会与之矛盾 ⇒ 改为**冷启动号召**
+                「star-filled 图标 + 快来抢首评 + 数字 5.0」（图形 + 纯文案组合，禁 emoji 字符；
+                数字 tabular-nums、--font-h3 同价格档，非可点件）；
              ② **筛选无结果**（ratingFilter != null）—— 纯文案「暂无 X 星评价」，
                 🔴 此时上方筛选条仍渲染（hasAnyReview），保证可切回「全部」。 -->
-        <EmptyState
-          v-else
-          :title="ratingFilter == null ? '快来抢首评 ⭐ 5.0' : `暂无 ${ratingFilter} 星评价`"
-        />
+        <template v-else-if="!pending">
+          <!-- ① 零评价：star-filled 图标 + 快来抢首评 + 数字 5.0（冷启动号召，非可点件） -->
+          <EmptyState
+            v-if="ratingFilter == null"
+            icon="star-filled"
+            icon-color="star"
+            :icon-size="36"
+            title="快来抢首评"
+          >
+            <text class="zero-rating-num">5.0</text>
+          </EmptyState>
+          <!-- ② 筛选无结果：纯文案（不显示「暂无评价」—— 那是零评价态的文案，语义不同） -->
+          <EmptyState v-else :title="`暂无 ${ratingFilter} 星评价`" />
+        </template>
+
+        <!-- 重置式在途且列表非空：旧列表保留，列表末尾追加在途行（不整块清空） -->
+        <view v-if="pending && reviews.length > 0" class="list-foot">
+          <text class="list-foot-text">加载中…</text>
+        </view>
       </template>
     </CardSection>
   </view>
@@ -102,14 +126,15 @@ import { COLOR_MAP } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
 import { useVirtualList } from '@/composables/usePagedList'
 
-/** 评价列表项（静态枚举，值域固定 1~5 ⇒ **无服务端字典**；`null` = 全部） */
+/** 评价列表项（静态枚举，值域固定 1~5 ⇒ **无服务端字典**；`null` = 全部）。
+ *  label = chip 纯文字（「N星」，SHALL NOT 用 emoji 星「⭐」—— 小尺寸 chip 内图标 + 数字过挤） */
 const RATING_FILTERS: ReadonlyArray<{ value: number | null; label: string }> = [
   { value: null, label: '全部' },
-  { value: 5, label: '⭐5' },
-  { value: 4, label: '⭐4' },
-  { value: 3, label: '⭐3' },
-  { value: 2, label: '⭐2' },
-  { value: 1, label: '⭐1' },
+  { value: 5, label: '5星' },
+  { value: 4, label: '4星' },
+  { value: 3, label: '3星' },
+  { value: 2, label: '2星' },
+  { value: 1, label: '1星' },
 ]
 
 const props = withDefaults(defineProps<{
@@ -123,8 +148,10 @@ const props = withDefaults(defineProps<{
   /** 评价首屏/刷新是否失败（失败 ≠ 零评价，渲染可重试失败态） */
   loadFailed?: boolean
   /**
-   * 重置式评价请求在途（首屏 / 重试 / 提交后刷新）：
-   * 为真时本区块空白静默，不渲染列表与空态（避免在途瞬间误闪「暂无评价」）。
+   * 重置式评价请求在途（首屏 / 重试 / 提交后刷新 / 切星级筛选）：
+   * 列表为空 ⇒ 列表位渲染一行「加载中…」文字行（避免在途瞬间误闪「暂无评价」）；
+   * 列表非空 ⇒ 保留旧列表不清空，列表末尾追加一行在途文字行
+   * （切筛选 / 提交后刷新期间不出现整块空白卡壳）。在途只给文字行、不给骨架屏。
    */
   pending: boolean
   /** 页面滚动量（px）：驱动评价列表虚拟窗口（由父级 `scroll-view` 的 `@scroll` 下发） */
@@ -168,7 +195,7 @@ const emit = defineEmits<{
 <style scoped>
 /* 纵向间距：块间距统管在外层（卡壳本身 `flush`，见模板）；同页两卡内距由此统一到 `--spacing-md`
     */
-.review-section { margin: var(--spacing-sm) var(--spacing-md) 0; }
+.review-section { margin: var(--spacing-md) var(--page-gutter) 0; }
 /* 条目之间 1rpx 浅分隔线（与系统通知页 / 我的评价页同语言）；
    行内距由条目自身承担，最上 / 最下无线；负 margin 抵消 CardSection 内距使分隔线撑满卡宽 */
 .review-list { display: flex; flex-direction: column; }
@@ -217,8 +244,9 @@ const emit = defineEmits<{
 }
 .write-entry--pressed { opacity: 0.6; }
 
-/* ===== 星级筛选条（`全部` + ⭐5~⭐1）=====
+/* ===== 星级筛选条（`全部` + 5星~1星，chip 纯文字）=====
     横向 scroll-x 单行不换行；chip 为独立可点件（min-height ≥88rpx 触达基线）。
+    圆角 = `--radius-pill`（基线 §1.2「标签两档」：可点胶囊 chip → pill；消费方已登记）。
     选中态 = --color-primary-soft 底 + --color-primary 描边（形态基线 §二 TagChip）。
     按压反馈 = opacity 微降（**禁 `transform: scale`** —— 全站红线）。 */
 .rating-filter {
@@ -235,7 +263,7 @@ const emit = defineEmits<{
   min-height: var(--tap-target-size);
   padding: 0 var(--spacing-md);
   border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-pill);
   background: var(--bg-soft);
   -webkit-tap-highlight-color: transparent;
 }
@@ -251,6 +279,15 @@ const emit = defineEmits<{
   line-height: 1.2;
 }
 .filter-chip--active .filter-chip-text { color: var(--color-primary-text); font-weight: var(--weight-medium); }
+
+/* ===== 零评价空态的兜底评分数字：--font-h3 同价格档 + tabular-nums（与信息卡评分数字同语言） ===== */
+.zero-rating-num {
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
 
 /* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 ===== */
 .review-section :deep(.retry-block) { margin: var(--spacing-sm) 0; }

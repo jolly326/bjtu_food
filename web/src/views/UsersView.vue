@@ -1,10 +1,14 @@
 <script setup lang="ts">
 /**
- * C2 用户管理（页面规格见 [列表页模板.md](../../../docs/ui/web/列表页模板.md) §一）。
+ * C2 用户管理（页面规格见 [列表页模板.md](../../../docs/ui/web/列表页模板.md) §一 + §C2）。
+ *
+ * <p>列序（§C2）：`用户`（主标识列 —— 头像 + 昵称合并为一个单元格）→ `账号`（`username`）→ `认证` →
+ * `状态` → `注册时间` → `更新时间` → `操作`。
  *
  * <p>要点：分页（`AdminPageResult`，**页码 + 共 N 条**）；筛选 = 关键词 + 状态；
  * **认证态不单独出字段** —— 按 `bindEmail` 是否为空派生（空串 = 未认证，管理端 VO 恒非空串）；
- * 状态列恒用 `StatusTag`（`kind="user"`）；禁用 / 启用为行内文字动作，确认文案含影响面。
+ * 状态列恒用 `StatusTag`（`kind="user"`）；禁用 / 启用为行内文字动作 ——
+ * **禁用**走二次确认（文案写明影响面），**启用**直接执行（无二次确认）；提交中该行动作置灰。
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -45,24 +49,30 @@ const {
   listUsers({ page: pageNo, pageSize, ...params() }),
 )
 
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function toggle(row: UserAdminVO): Promise<void> {
   const disabled = row.status !== 'disabled'
-  try {
-    await confirmDelete(
-      disabled
-        ? `确认禁用用户「${row.nickname || row.id}」？禁用后其登录与写操作将被拒绝（已发表内容保留），且不再收到处置回执。`
-        : `确认启用用户「${row.nickname || row.id}」？`,
-      { title: disabled ? '禁用用户' : '启用用户', confirmText: disabled ? '禁用' : '启用' },
-    )
-  } catch {
-    return
+  if (disabled) {
+    try {
+      await confirmDelete(
+        `禁用后：该用户无法再登录，已登录的会话立即失效（写操作被拒）；已发表内容保留，可随时启用恢复。确认禁用「${row.nickname || row.id}」？`,
+        { title: '禁用用户', confirmText: '禁用' },
+      )
+    } catch {
+      return
+    }
   }
+  busyId.value = row.id
   try {
-    await setUserStatus(row.id, { disabled })
+    await setUserStatus(row.id, { status: disabled ? 'disabled' : 'active' })
     ElMessage.success(disabled ? '已禁用' : '已启用')
     await reload()
   } catch (e) {
     fail(e)
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -83,7 +93,7 @@ onMounted(() => reloadFirstPage())
       <input
         class="form-input"
         v-model="fKeyword"
-        placeholder="昵称 / 邮箱"
+        placeholder="昵称 / 账号 / 邮箱"
         @keyup.enter="reloadFirstPage"
       />
       <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
@@ -109,32 +119,39 @@ onMounted(() => reloadFirstPage())
       <table class="table">
         <thead>
           <tr>
-            <th>头像</th>
-            <th>昵称</th>
-            <th>校园邮箱</th>
+            <th>用户</th>
+            <th>账号</th>
+            <th>认证</th>
             <th>状态</th>
-            <th>评价数</th>
             <th>注册时间</th>
+            <th>更新时间</th>
             <th class="actions">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in items" :key="row.id">
             <td>
-              <img v-if="row.avatar" :src="row.avatar" class="avatar" alt="" />
-              <span v-else class="avatar avatar-placeholder">·</span>
+              <div class="user-cell">
+                <img v-if="row.avatar" :src="row.avatar" class="avatar" alt="" />
+                <span v-else class="avatar avatar-placeholder">·</span>
+                <span>{{ row.nickname || '—' }}</span>
+              </div>
             </td>
-            <td>{{ row.nickname || '—' }}</td>
+            <td class="ellipsis muted">{{ row.username }}</td>
             <!-- 认证态派生：空串 = 未认证（不单独出认证字段） -->
-            <td>{{ row.bindEmail || '未认证' }}</td>
+            <td>
+              <span v-if="row.bindEmail" class="email">{{ row.bindEmail }}</span>
+              <span v-else class="muted">未认证</span>
+            </td>
             <td><StatusTag :status="row.status" kind="user" /></td>
-            <td>{{ row.reviewCount }}</td>
             <td class="muted">{{ row.createdAt }}</td>
+            <td class="muted">{{ row.updatedAt || '—' }}</td>
             <td class="actions">
               <button
                 v-if="row.status !== 'deleted'"
                 class="link"
                 type="button"
+                :disabled="busyId === row.id"
                 @click="toggle(row)"
               >
                 {{ row.status === 'disabled' ? '启用' : '禁用' }}
@@ -167,12 +184,19 @@ onMounted(() => reloadFirstPage())
 .filters .form-input {
   width: 180px;
 }
+/* 主标识列：头像 + 昵称合并为一个单元格（列表页模板 §C2） */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
 .avatar {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-circle);
+  border-radius: var(--radius-pill);
   object-fit: cover;
   display: block;
+  flex: none;
 }
 .avatar-placeholder {
   display: flex;
@@ -183,6 +207,10 @@ onMounted(() => reloadFirstPage())
 }
 .muted {
   color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+/* 认证列：已认证邮箱（`--font-sm`，颜色随正文默认档） */
+.email {
   font-size: var(--font-sm);
 }
 </style>

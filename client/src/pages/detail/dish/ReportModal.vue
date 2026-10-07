@@ -31,13 +31,15 @@
       <!-- 字典加载失败：轻提示 + 关闭重开重拉（低频动作，不引入重试块） -->
       <text v-else class="rp-empty">{{ reasonsFailed ? '举报原因加载失败，请关闭后重试' : '加载中…' }}</text>
 
-      <!-- 提交：选中原因后可用；提交中禁用 -->
+      <!-- 提交：选中原因后可用；两档态分别绑 class ——
+           未选原因 = `.disabled`（灰底灰字，aria-disabled）；提交中 = `.busy`（主色实底 + opacity .6，aria-busy） -->
       <view
         class="rp-submit"
-        :class="{ disabled: !selected || submitting }"
+        :class="{ disabled: !selected, busy: submitting }"
         role="button"
         :aria-label="'提交举报'"
-        :aria-disabled="!selected || submitting ? 'true' : 'false'"
+        :aria-disabled="!selected ? 'true' : 'false'"
+        :aria-busy="submitting ? 'true' : 'false'"
         @tap="onSubmit"
       >
         <text class="rp-submit-text">{{ submitting ? '提交中…' : '提交举报' }}</text>
@@ -140,13 +142,22 @@ function onSubmit() {
 .rp-submit {
   margin-top: var(--spacing-sm);
   padding: var(--spacing-sm) 0;
-  /* 圆角统一到全站主按钮档位 `--radius-btn`（16rpx）—— 原裸值 12rpx 与全站主钮不同档 */
+  /* 圆角统一到全站主按钮档位 `--radius-btn`（24rpx） */
   border-radius: var(--radius-btn);
   background: var(--color-primary);
   text-align: center;
 }
+/* 未填档（未选原因）：灰底 + 灰字，**不降透明** —— opacity 全站只表「在途」 */
 .rp-submit.disabled {
-  opacity: 0.5;
+  background: var(--bg-input);
+}
+.rp-submit.disabled .rp-submit-text {
+  color: var(--text-tertiary);
+}
+/* 在途档（提交中）：**保留主色实底**（`--color-primary` 不换底），仅降至 opacity 0.6
+   （与 AppButton.loading 同值）；文字仍取 `--color-on-primary` */
+.rp-submit.busy {
+  opacity: 0.6;
 }
 .rp-submit-text {
   /* 主色底上的文字：走 --color-on-primary（不写裸 #ffffff） */

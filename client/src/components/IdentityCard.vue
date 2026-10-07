@@ -10,6 +10,7 @@
     :class="{ 'identity-card--verified': verified, 'identity-card--tappable': mode === 'entry' }"
     :role="mode === 'entry' ? 'button' : undefined"
     :aria-label="mode === 'entry' ? '查看我的主页' : undefined"
+    :hover-class="mode === 'entry' ? 'pressed' : 'none'"
     @tap="onCardTap"
   >
     <!-- 顶部 6rpx 主色软条纹：通栏贴顶、由卡壳圆角裁切；游客态 transparent（占位保留，两态等高） -->
@@ -167,8 +168,9 @@ function onCardTap() {
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.identity-card--tappable:active {
+.identity-card--tappable.pressed {
   background-color: var(--bg-soft);
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

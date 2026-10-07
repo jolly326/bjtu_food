@@ -10,6 +10,7 @@
         class="as-item"
         role="button"
         :style="rowStyle(item)"
+        hover-class="pressed"
         @tap="pick(item)"
       >
         <IconSvg v-if="item.icon" :name="item.icon" :size="34" :color="iconColor(item)" class="as-item-icon" />
@@ -87,7 +88,6 @@ function pick(item: ActionSheetItem) {
 }
 .as-items > .as-item:first-child { border-top: none; }
 .as-item::after { border: none; }
-.as-item:active { opacity: 0.7; }
 .as-item-icon { flex-shrink: 0; }
 .as-item-text { font-weight: var(--weight-medium); }
 </style>

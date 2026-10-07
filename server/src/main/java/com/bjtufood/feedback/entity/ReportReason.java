@@ -39,9 +39,10 @@ public class ReportReason {
     @Schema(description = "中文标签", example = "垃圾广告 / 营销刷屏")
     private String label;
 
-    /** 展示顺序（升序） */
+    /** 展示顺序（升序；列名用 sort_order，避开 MySQL 保留字 order） */
+    @TableField("sort_order")
     @Schema(description = "展示顺序（升序）")
-    private Integer order;
+    private Integer sortOrder;
 
     /** 状态：on=启用 / off=停用 */
     @Schema(description = "状态：on=启用 / off=停用")

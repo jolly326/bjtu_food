@@ -12,6 +12,7 @@ import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.view.DishListQuery;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -117,4 +118,52 @@ public interface DishMapper extends BaseMapper<Dish> {
      * @return 菜品 ID 升序列表
      */
     List<Long> selectDishIdsWithRatings(@Param("lastId") long lastId, @Param("limit") int limit);
+
+    /**
+     * 批量统计多个档口下的菜品数（管理端档口列表 {@code GET /admin/stalls} 的 {@code dishCount}）。
+     *
+     * <p>一次 {@code COUNT(*) GROUP BY stall_id} 取回「档口 → 菜品数」映射，替代逐档口调用
+     * {@code DishService#countByStallId} 的 N+1（档口虽为十数条量级，但逐行查询会随列表行数线性放大）。
+     *
+     * <p><b>计入口径与逐档口计数完全一致</b>：只按 {@code dish.stall_id} 过滤，<b>不筛在售状态</b>——
+     * 这里的用途是「档口下是否还有菜」，下架菜同样不能随档口一起消失（与删除受阻判据同源）。
+     *
+     * <p><b>🔴 为什么返回 {@code List<StallDishCountRow>} 而非 {@code Map<Long, Long>}</b>：
+     * MyBatis 的 {@code resultType=Map} 键名受 {@code map-underscore-to-camel-case} 影响（实测取不到值），
+     * 而 {@code @MapKey} + {@code resultMap} 的值是整行 {@code HashMap}（非单值），
+     * 泛型 {@code Map<Long, Long>} 会直接 {@code ClassCastException}；与
+     * {@link DishViewLogMapper#countRecentViewsByDishIds} 同一处置（POJO 承载，Service 侧转 Map）。
+     *
+     * @param stallIds 档口 ID 集合（调用方保证非空，空集应跳过调用）
+     * @return 每行 = 一个「其下有菜品」的档口；<b>无菜品的档口不出现在结果中</b>（调用方需补 0）
+     */
+    List<StallDishCountRow> countByStallIds(@Param("stallIds") Collection<Long> stallIds);
+
+    /**
+     * 「档口下菜品数」聚合行（{@code COUNT(*) GROUP BY stall_id} 的单行承载）。
+     *
+     * <p>仅为规避 MyBatis 的 {@code Map} 返回类型歧义而存在，不作其他用途、不直接出参。
+     */
+    class StallDishCountRow {
+        /** 档口 ID */
+        private Long stallId;
+        /** 该档口下的菜品数 */
+        private Long dishCount;
+
+        public Long getStallId() {
+            return stallId;
+        }
+
+        public void setStallId(Long stallId) {
+            this.stallId = stallId;
+        }
+
+        public Long getDishCount() {
+            return dishCount;
+        }
+
+        public void setDishCount(Long dishCount) {
+            this.dishCount = dishCount;
+        }
+    }
 }

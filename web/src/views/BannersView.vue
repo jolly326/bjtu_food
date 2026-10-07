@@ -22,7 +22,7 @@ import {
 import type { BannerAdminVO, BannerSaveReq } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
-import ImageUpload from '@/components/ImageUpload.vue'
+import ImageUpload, { type ImageItem } from '@/components/ImageUpload.vue'
 import ListState from '@/components/ListState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 
@@ -33,7 +33,8 @@ const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
 const open = ref(false)
 const editing = ref<BannerAdminVO | null>(null)
 const saving = ref(false)
-const bannerImages = ref<string[]>([])
+/** 组件态 = `{ url }` 对象数组（ImageUpload 契约）；保存时取首图映射回 `imageUrl` */
+const bannerImages = ref<ImageItem[]>([])
 
 const title = computed(() => (editing.value ? '编辑 Banner' : '新建 Banner'))
 
@@ -45,12 +46,13 @@ function openCreate(): void {
 
 function openEdit(row: BannerAdminVO): void {
   editing.value = row
-  bannerImages.value = row.imageUrl ? [row.imageUrl] : []
+  // 编辑回显：契约出参 `imageUrl` 映射为组件对象数组（单张，即封面）
+  bannerImages.value = row.imageUrl ? [{ url: row.imageUrl }] : []
   open.value = true
 }
 
 async function save(): Promise<void> {
-  const imageUrl = bannerImages.value[0] ?? ''
+  const imageUrl = bannerImages.value[0]?.url ?? ''
   if (!imageUrl) {
     ElMessage.warning('请上传 Banner 图片')
     return
@@ -71,14 +73,20 @@ async function save(): Promise<void> {
 }
 
 /* ==================== 启停 / 删除 ==================== */
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function toggle(row: BannerAdminVO): Promise<void> {
   const next = row.status === 'on' ? 'off' : 'on'
+  busyId.value = row.id
   try {
     await updateBannerStatus(row.id, next)
     ElMessage.success(next === 'on' ? '已启用' : '已停用')
     await load()
   } catch (e) {
     fail(e)
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -88,12 +96,15 @@ async function remove(row: BannerAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteBanner(row.id)
     ElMessage.success('已删除')
     await load()
   } catch (e) {
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -124,23 +135,31 @@ onMounted(() => load())
         v-for="(row, index) in items"
         :key="row.id"
         class="card banner-card"
-        draggable="true"
-        @dragstart="onDragStart(index)"
         @dragover.prevent
         @drop="onDrop(index)"
       >
         <img :src="row.imageUrl" alt="" class="banner-img" />
         <div class="banner-meta">
           <div class="banner-row">
+            <DragHandle @dragstart="onDragStart(index)" />
             <StatusTag :status="row.status" kind="onoff" />
             <span class="muted">排序 {{ row.order }}</span>
           </div>
           <div class="banner-actions">
-            <button class="link" type="button" @click="openEdit(row)">编辑</button>
-            <button class="link" type="button" @click="toggle(row)">
+            <button class="link" type="button" :disabled="busyId === row.id" @click="openEdit(row)">
+              编辑
+            </button>
+            <button class="link" type="button" :disabled="busyId === row.id" @click="toggle(row)">
               {{ row.status === 'on' ? '停用' : '启用' }}
             </button>
-            <button class="link danger" type="button" @click="remove(row)">删除</button>
+            <button
+              class="link danger"
+              type="button"
+              :disabled="busyId === row.id"
+              @click="remove(row)"
+            >
+              删除
+            </button>
           </div>
         </div>
       </div>

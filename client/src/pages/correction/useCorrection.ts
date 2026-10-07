@@ -146,6 +146,14 @@ export function useCorrection() {
   })
 
   /**
+   * `CorrectionForm` 的 `update:model` 落点：子件以整值替换回抛，这里浅合并回 reactive 唯一真源
+   * （`attributes` 整组替换即编辑项数组；基线 / diff 均按值比对，不依赖对象同一性）。
+   */
+  function updateForm(next: CorrectionFormModel) {
+    Object.assign(form, next)
+  }
+
+  /**
    * `field` 型详情**是否已发起过**预填请求（唯一防抖锚点）。
    * 用户在两项类型间来回点按不会重复打接口；失败态由 `retryLoad` 显式重试。
    */
@@ -468,6 +476,8 @@ export function useCorrection() {
     loadFailed,
     retryLoad,
     form,
+    /** `CorrectionForm` 的 `update:model` 落点（子件整值替换 → 浅合并回真源） */
+    updateForm,
     fieldErrors,
     scrollIntoView,
     submitting,

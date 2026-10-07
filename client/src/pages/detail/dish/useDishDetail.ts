@@ -19,7 +19,7 @@ import type { Review } from '@/types/review'
 
 export function useDishDetail() {
   const currentDish = ref<DishDetail | null>(null)
-  /** 详情首屏/刷新是否失败（失败 ≠ 加载中 ≠ 不存在）：供页面区分「静默加载中」与「请求失败」 */
+  /** 详情首屏/刷新是否失败（失败 ≠ 加载中 ≠ 不存在）：供页面区分「在途（文字行）」与「请求失败」 */
   const detailError = ref(false)
   /** 菜品**不存在**（后端 4001）：与「请求失败」互斥，**不可重试** */
   const detailNotFound = ref(false)

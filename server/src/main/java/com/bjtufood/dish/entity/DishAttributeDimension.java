@@ -35,10 +35,9 @@ public class DishAttributeDimension {
     @Schema(description = "取值类型：single=单值 / multi=多值", example = "single")
     private String valueType;
 
-    /** MySQL 保留字列，列名显式加反引号（MyBatis-Plus 不自动转义保留字） */
-    @TableField("`order`")
+    /** 展示顺序（升序） */
     @Schema(description = "维度展示顺序（升序）", example = "1")
-    private Integer order;
+    private Integer sortOrder;
 
     /** 更新时间（管理端列表出参 `updatedAt`；2026-10-02 统一口径） */
     @TableField(fill = FieldFill.INSERT_UPDATE)

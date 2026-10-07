@@ -4,7 +4,7 @@
  */
 import { getImageUrl } from '@/utils/image'
 
-// @ts-ignore - 生成文件由 openapi-typescript 产出，随 openapi.json 一并入库
+// 生成文件由 openapi-typescript 产出，随 openapi.json 一并入库（`types/` 在 tsconfig include 内）
 import type { components } from '@/types/generated/api'
 
 /**

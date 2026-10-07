@@ -22,9 +22,9 @@ import java.util.Map;
 /**
  * 微信 access_token 获取与缓存实现（stable_token）。
  * <p>
- * 架构收口 P0-B：本类自 {@code content.security.impl.ContentSecurityServiceImpl}
- * <b>原样抽取</b> stable_token 相关职责（appid/secret 读取、拉取、进程内缓存、失效清理）。
- * 抽取时<b>刻意保持逐字一致</b>的细节（这些是踩过坑的语义，改动即行为变更）：
+ * 职责（架构收口 P0-B）：本类唯一承担 stable_token 的读取、拉取、进程内缓存与失效清理。
+ * <p>
+ * 下列细节是踩过坑的语义<b>红线</b>，改动即行为变更：
  * <ul>
  *   <li>errcode 必须判（{@code errcode != 0} 即 fail-closed 500），不可只看 {@code access_token} 是否存在；</li>
  *   <li>{@code expires_in} 缺失 / ≤0 时按 <b>7200s</b> 兜底（微信文档上限）；</li>
@@ -32,23 +32,17 @@ import java.util.Map;
  *       避免极端情况下缓存瞬时失效造成请求风暴；</li>
  *   <li>缓存载体存<b>绝对过期时刻</b>（{@code expireAtMillis}）而非相对 TTL，配合 volatile + 双重检查，
  *       保证并发下仅首个线程真正发起 HTTP；</li>
- *   <li>失效清理 {@code invalidate()} 在 {@code synchronized} 内置空（与原实现一致）。</li>
+ *   <li>失效清理 {@code invalidate()} 在 {@code synchronized} 内置空。</li>
  * </ul>
  * 超时口径：与 {@code WechatService}、{@code moderation} 一致取 5s，防止微信接口挂起拖垮调用方主链路。
  * <p>
- * <b>失败文案口径（2026-10-02 已收口）</b>：本类的失败一律返回「<b>微信服务暂不可用，请稍后重试</b>」，
- * <b>不再</b>沿用早先的「内容安全检测服务…」措辞。
- * <p>收口原因：本类是<b>微信平台凭据与 token 生命周期</b>能力，被 {@code moderation}（msgSecCheck /
- * imgSecCheck）、{@code upload}（云存储 batchdownloadfile）<b>三方共用</b>，而失败点实为
- * 「取 access_token / 调微信接口」失败，与「内容是否违规」毫无关系。旧措辞导致两个实际问题：
- * <ol>
- *   <li><b>上传场景张冠李戴</b>：用户上传图片看到「内容安全检测服务不可用」，实际是取 token 失败
- *       （凭据 / IP 白名单问题），排查方向被直接带偏；</li>
- *   <li><b>无法区分链路</b>：同一条文案在 6 个失败点重复出现，终端用户与一线排查都无法据此判断
- *       是哪条微信链路挂了。</li>
- * </ol>
- * 现按<b>调用方域</b>分流：内容安全检测的真实失败仍由 {@link com.bjtufood.moderation.service.impl.ContentSecurityServiceImpl}
- * 抛「内容安全检测服务暂不可用」，本类抛「微信服务暂不可用」—— 两者不再撞文案。
+ * <b>失败文案口径</b>：本类的失败一律返回「<b>微信服务暂不可用，请稍后重试</b>」。
+ * <p><b>为何不与其他域共用措辞</b>：本类是<b>微信平台凭据与 token 生命周期</b>能力，被 {@code moderation}
+ * （msgSecCheck / imgSecCheck）、{@code upload}（云存储 batchdownloadfile）<b>三方共用</b>，而失败点实为
+ * 「取 access_token / 调微信接口」失败，与「内容是否违规」毫无关系。共用「内容安全检测服务不可用」会让
+ * 上传场景的用户看到张冠李戴的提示（实际是取 token 失败——凭据 / IP 白名单问题），排查方向被带偏。
+ * 故按<b>调用方域</b>分流：内容安全检测的真实失败由 {@link com.bjtufood.moderation.service.impl.ContentSecurityServiceImpl}
+ * 抛「内容安全检测服务暂不可用」，本类抛「微信服务暂不可用」。
  * <p>⚠️ <b>文案仍不足以定位具体原因</b>：本类 6 个失败点共用同一句提示（含 errcode 非 0、响应缺
  * access_token、上游不可达、调用异常、响应为空、非 JSON）。定位必须读服务端日志里对应的
  * {@code log.error} 行——它们都带 {@code errcode} / {@code errmsg}。
@@ -80,10 +74,9 @@ public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider 
     /**
      * 微信开放平台配置（类型化绑定，单一真源）。
      * <p>
-     * 架构收口 P2：本类原以 {@code @Value} 自行绑定 {@code wechat.appid} /
-     * {@code wechat.secret}，与 {@code WechatService} 重复绑定同一份凭据，且「是否已配置」
-     * 在两处各写一份判空逻辑。现统一由 {@link WechatProperties} 承载，
-     * {@link #isConfigured()} 亦改为委托，杜绝判据分裂。
+     * 架构收口 P2：{@code wechat.appid} / {@code wechat.secret} 由 {@link WechatProperties} 统一承载，
+     * 本类与 {@code WechatService} 共用同一份凭据，<b>不</b>各自 {@code @Value} 绑定、<b>不</b>各写一份
+     * 「是否已配置」判空逻辑；{@link #isConfigured()} 委托到它，杜绝判据分裂。
      */
     private final WechatProperties wechatProperties;
 

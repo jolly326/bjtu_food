@@ -25,7 +25,7 @@ import java.util.List;
  * <b>自调用不过代理</b>；把「可缓存的目录数据」抽成独立 bean，由 service 注入调用，代理必然生效。
  *
  * <p><b>下发规则</b>（契约见 docs/schema/dish_filter_view.md 的「客户端可见性」）：
- * 只下发 `enabled = 1` 的视图，且**匹配数为 0 的不下发**（避免点进空列表），顺序 = `order` 升序。
+ * 只下发 `enabled = 1` 的视图，且**匹配数为 0 的不下发**（避免点进空列表），顺序 = `sort_order` 升序。
  * 无「默认视图」概念：空 `view` 取**首个启用视图**。
  *
  * <p><b>逻辑取自代码</b>：视图的筛选条件与排序口径不落库，按 `key` 从 {@link DishViewDefs} 取；
@@ -45,7 +45,7 @@ public class DishViewCatalog {
     private final CacheManager cacheManager;
 
     /**
-     * 全部视图（按 `order` 升序、`order` 相同按 id 稳定）。
+     * 全部视图（按 `sort_order` 升序、`sort_order` 相同按 id 稳定）。
      * <p>
      * <b>刻意不缓存</b>：它是「按键解析」与「管理端列表」的输入，二者都需要**最新**数据
      * （管理端改完立刻要看到自己改的行）；真正昂贵的是 {@link #visible()} 的逐视图计数，
@@ -53,12 +53,12 @@ public class DishViewCatalog {
      */
     public List<DishFilterView> all() {
         return List.copyOf(viewMapper.selectList(new LambdaQueryWrapper<DishFilterView>()
-                .orderByAsc(DishFilterView::getOrder)
+                .orderByAsc(DishFilterView::getSortOrder)
                 .orderByAsc(DishFilterView::getId)));
     }
 
     /**
-     * 按键解析视图：空 = **首个启用视图**（按 `order` 升序）；未登记 / 逻辑无定义 = {@code null}
+     * 按键解析视图：空 = **首个启用视图**（按 `sort_order` 升序）；未登记 / 逻辑无定义 = {@code null}
      * （由调用方按白名单非法值抛 `400`，不静默降级）。
      * <p>
      * 「逻辑无定义」指表行的 `key` 在 {@link DishViewDefs} 中不存在 —— 此时无筛选条件与排序口径可用。
@@ -78,7 +78,7 @@ public class DishViewCatalog {
     }
 
     /**
-     * 端上可见视图（`enabled` + 匹配数规则；`order` 升序）。
+     * 端上可见视图（`enabled` + 匹配数规则；`sort_order` 升序）。
      * <p>
      * <b>缓存的是本方法的结果</b>（而非原始行）：判定可见性需要**逐视图一次计数查询**，
      * 只缓存原始行会让「第二次进首页」依旧发 N 次计数 —— 那正是这次缓存要省掉的成本。

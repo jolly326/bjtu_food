@@ -47,8 +47,8 @@ public interface FeedbackService {
      * <p>
      * **真源 = `report_reason` 表**，由 {@code ReportReasonService#listEnabled()} 供给 —— 字典可维护、免发版、免客户端改动。
      * <p>
-     * 出参结构**不变**（客户端契约零改动）：恰 {@code value} + {@code label}、无分页；
-     * 变化只有两条 ——「**只下发启用项**」与「顺序来自表（拖拽后的 `order`）」。
+     * 出参结构：恰 {@code value} + {@code label}、无分页；**只下发启用项**，
+     * 顺序来自表（拖拽后的 {@code order}）。
      *
      * @return 举报原因字典项（value 机器值 + label 中文标签，按 `order` 升序，仅启用项）
      */
@@ -57,7 +57,7 @@ public interface FeedbackService {
     /**
      * 反馈列表（管理端，按状态/类型/用户过滤）
      * <p>
-     * 内容安全态筛选入参随 sec_state 取消人工复核删除。
+     * 筛选不含内容安全态（审核结果恰「放行 / 拒绝」二态，无待复核态，故无此筛选入参）。
      *
      * @param keyword 关键词（可选，对反馈内容 content 或管理员回复 reply 模糊匹配）
      */
@@ -77,11 +77,11 @@ public interface FeedbackService {
     /**
      * 处理反馈：标记 handled + 写 reply/处理结论/handled_at
      * <p>
-     * 决议：管理端「操作人身份」降级——单口令即单人，不再追究身份，
-     * 故不再取当前管理员 ID 写 handler_id（列保留在库中，登记为 retired）。
+     * 决议：管理端「操作人身份」降级——单口令即单人，不追究身份，
+     * 故不取当前管理员 ID 写 handler_id（列保留在库中，登记为 retired）。
      * <p>
-     * {@code reply} <b>必填</b>（trim 后非空白），落库并随回执通知发送，
-     * 缺失/纯空白抛 400；Service 层为 Controller {@code @NotBlank} 的兜底，两者文案一致。
+     * {@code reply} <b>可选</b>（≤600 字；{@code handled} 时缺省回执用固定文案）——
+     * 留空/纯空白归一为 null 落库；长度上限见 {@code FeedbackConst.REPLY_MAX_LENGTH}。
      * <p>
      * 支持处理结论——{@code outcome=handled}（通过/已处理，缺省）或
      * {@code outcome=rejected}（不采纳/退回）；结论为不采纳/退回时 {@code rejectReason} 必填

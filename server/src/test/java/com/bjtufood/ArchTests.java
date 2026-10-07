@@ -112,7 +112,7 @@ class ArchTests {
     /**
      * P0-B：任一域的 {@code service.impl} 包只允许被本域访问（跨域必须依赖接口契约）。
      * <p>
-     * 本条为 收口新增的回归护栏。收口前的真实违规：
+     * 本条为收口新增的回归护栏。收口前的真实违规：
      * {@code UploadServiceImpl} 直接 {@code import com.bjtufood.content.security.impl.ContentSecurityServiceImpl}，
      * 仅为读取 {@code MAX_IMAGE_BYTES} 常量——为一个常量跨越域边界依赖实现类，
      * 既破坏依赖倒置，也让该常量的真实归属（微信平台限制）被掩盖。
@@ -151,7 +151,7 @@ class ArchTests {
     /**
      * 【已撤销的规则 · 留档】域间无环检测（ArchUnit {@code SlicesRuleDefinition#beFreeOfCycles}）。
      * <p>
-     * <b>为何撤销而非保留</b>：本规则 上线即检出 <b>2 个真实包级环</b>：
+     * <b>为何撤销而非保留</b>：本规则上线即检出 <b>2 个真实包级环</b>：
      * <ol>
      *   <li>{@code dish -> review -> dish}：{@code RatingUpdateListener} 订阅
      *       {@code ReviewSubmittedEvent} 重算评分。语义单向（review 对该订阅毫不知情），
@@ -164,7 +164,7 @@ class ArchTests {
      * 与其留一条靠失效豁免「变绿」的假护栏，不如<b>撤下规则并如实登记待办</b>——
      * 假绿的护栏比没有护栏更危险。
      * <p>
-     * ：第 2 条（真实技术债）<b>已偿还</b>——档口均分原本由
+     * 第 2 条（真实技术债）<b>已偿还</b>——档口均分原本由
      * {@code StallServiceImpl} 注入 {@code ReviewQueryService} 拉取，现上移至
      * {@code CanteenAdminController#fillAvgRatings} 编排（均分是 review 按 dish 聚合的派生展示值，
      * 不属 canteen 自有知识；controller 在依赖图顶端，不产生新包级边），出参与口径不变。

@@ -52,7 +52,7 @@ body::-webkit-scrollbar,
 /* ============================================================
  * 按压即时反馈 scale(0.97)（§4.4）
  * 覆盖全站所有可点击元素：按钮、链接、标签、导航、卡片等。
- * 过渡 0.12s ease（Apple Design 即时响应）。
+ * 过渡走 `--duration-fast` / `--duration-base` + `--ease-out`（Apple Design 即时响应）。
  * v-press 指令已处理部分元素；此处作为 CSS 兜底，保证未加指令的
  * 裸 <button>/<a>/.tab/.link 等也具备一致按压反馈。
  * ============================================================ */
@@ -82,19 +82,19 @@ a,
 .nav-item,
 .tag-option {
   transition:
-    transform 0.12s ease,
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s ease;
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 /* 卡片类：按压 + hover 抬升都走 transform/box-shadow（§4.5 物理材质感） */
 .card,
 .stat-card {
   transition:
-    transform 0.2s cubic-bezier(0.33, 1, 0.68, 1),
-    box-shadow 0.2s cubic-bezier(0.33, 1, 0.68, 1),
-    border-color 0.2s ease;
+    transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
 }
 .btn-primary:active,
 .btn-success:active,
@@ -139,7 +139,7 @@ a:focus-visible,
   border-radius: var(--radius);
   box-shadow: var(--shadow-pop);
   transform: translateY(-160%);
-  transition: transform 0.15s var(--ease-out);
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 .skip-link:focus-visible {
   transform: translateY(0);
@@ -268,7 +268,7 @@ a:focus-visible,
   font-variant-numeric: tabular-nums;
 }
 .table tbody tr {
-  transition: background 0.15s ease;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 .table tbody tr:hover {
   background: var(--table-row-hover);
@@ -308,11 +308,19 @@ a:focus-visible,
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* 单行截断公共类（基线 §1.4）：只用于「短标识列（名称 / 编号 / 时间）」与
+   「纯入口型摘要」（如看板待办行摘要 —— 可点进对应处置页读全文）。
+   长文本（内容 / 回复列）SHALL NOT 用它，须走 `ClampText`（多行折叠 + 就地展开）。 */
 .ellipsis {
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 拖拽排序手柄列（各排序列视图共用：列宽 + 居中；手柄本体见 components/DragHandle.vue） */
+.drag-col {
+  width: 28px;
+  text-align: center;
 }
 .actions {
   white-space: nowrap;
@@ -348,7 +356,7 @@ a:focus-visible,
   color: var(--color-error);
 }
 
-/* 列表内容列「附有配图」角标：Picture 图标 + 张数（反馈/评价列表共用；原 FeedbackView scoped 上提） */
+/* 列表内容列「附有配图」角标：Picture 图标 + 张数（反馈 / 评价列表共用） */
 .img-flag {
   display: inline-flex;
   align-items: center;
@@ -400,10 +408,10 @@ a:focus-visible,
   white-space: nowrap;
   font-weight: var(--weight-medium);
   transition:
-    color 0.2s var(--ease-out),
-    border-color 0.2s var(--ease-out),
-    background 0.2s var(--ease-out),
-    transform 160ms var(--ease-out);
+    color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    background var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 .btn-secondary:hover,
 .btn-cancel:hover {
@@ -498,6 +506,10 @@ a:focus-visible,
 .link:hover {
   opacity: 0.8;
 }
+.link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .link.danger,
 .danger {
   color: var(--color-error) !important;
@@ -533,8 +545,8 @@ a:focus-visible,
   box-sizing: border-box;
   background: var(--bg-card);
   transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+    border-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 .field input:focus,
 .field textarea:focus,
@@ -569,8 +581,8 @@ a:focus-visible,
   box-sizing: border-box;
   background: var(--bg-card);
   transition:
-    border-color 0.2s var(--ease-out),
-    box-shadow 0.2s var(--ease-out);
+    border-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 .form-input {
   font-weight: var(--weight-medium);
@@ -627,11 +639,13 @@ a:focus-visible,
   .table tbody tr {
     transition: none !important;
   }
-  /* 弹层/抽屉缩放过渡的 transform 一并禁用（§4.7 交叉淡入，去弹性缩放） */
+  /* 弹层/抽屉缩放过渡的 transform 一并禁用（§4.7 交叉淡入，去弹性缩放）。
+     选择器 = 真实类名：弹窗面板 `.modal-box` + 遮罩 `.overlay`（BaseModal）、
+     抽屉面板 `.drawer` + 遮罩 `.drawer-overlay`（BaseDrawer）。 */
   .modal-box,
-  .modal-overlay,
-  .toast,
-  .topbar {
+  .overlay,
+  .drawer,
+  .drawer-overlay {
     transform: none !important;
     transition: opacity 0.18s ease !important;
   }
@@ -641,9 +655,17 @@ a:focus-visible,
  * 减弱透明度降级（§4.7）：半透面更实、去模糊
  * ============================================================ */
 @media (prefers-reduced-transparency: reduce) {
-  .toast,
-  .modal-overlay,
-  .topbar {
+  /* 真实类名：抽屉面板 `.drawer` 承担毛玻璃（BaseDrawer）；遮罩 `.overlay` / `.drawer-overlay`
+     一并在内，保证「浮层整体去模糊」的选择器集合与真实 DOM 一致。
+     Element Plus 浮层（遮罩 / 弹窗 / 消息框 / 下拉）同样声明了 `backdrop-filter`（见文末 EP 毛玻璃块），
+     此处必须一并关闭 —— 否则「减弱透明度」在 EP 浮层上不生效。 */
+  .overlay,
+  .drawer-overlay,
+  .drawer,
+  .el-overlay,
+  .el-dialog,
+  .el-message-box,
+  .el-popper.is-light {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }

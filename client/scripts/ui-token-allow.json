@@ -14,6 +14,7 @@
     "768px"
   ],
   "files": {
+    "src/components/AppButton.vue": ["28rpx"],
     "src/components/AppHeader.vue": ["180rpx"],
     "src/components/BaseSheet.vue": ["8rpx", "72rpx"],
     "src/components/ImagePicker.vue": ["44rpx", "56rpx", "180rpx", "240rpx"],

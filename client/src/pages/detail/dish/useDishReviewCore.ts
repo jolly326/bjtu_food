@@ -30,9 +30,9 @@ export function useDishReviewCore(opts: {
   const reviewFailed = computed(() => detail.reviewError.value)
 
   /**
-   * 非 append（重置式）评价请求在途计数：驱动评价区**在途期空白静默**。
+   * 非 append（重置式）评价请求在途计数：驱动评价区在途期不渲染列表与空态。
    * 覆盖首屏拉取 / 重试 / 提交后刷新 —— 先清空再拉取期间不得误闪「暂无评价」；
-   * 页面上不呈现任何骨架屏 / loading 指示（红线）。
+   * 在途只给文字行、不给骨架屏（禁的是伪内容与抖动，不是文字；页面级文字行由详情页承担）。
    * 用计数而非布尔：删除后重拉、提交后重拉可能并发，计数可正确收敛。
    */
   const reviewPendingCount = ref(0)

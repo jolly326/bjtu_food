@@ -28,6 +28,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -70,6 +72,8 @@ class AuthServiceImplTest {
     private final LocalSensitiveFilter localSensitiveFilter = mock(LocalSensitiveFilter.class);
     private final ContentSecurityService contentSecurityService = mock(ContentSecurityService.class);
     private final TokenBlacklist tokenBlacklist = mock(TokenBlacklist.class);
+    /** 真实实例（非 mock）：注销与管理员启停的互斥性只有真并发才可断言 */
+    private final UserStateWriteLock userStateWriteLock = new UserStateWriteLock();
 
     /**
      * 构造器参数顺序须与 {@code AuthServiceImpl} 的 final 字段声明顺序逐字一致。
@@ -80,7 +84,7 @@ class AuthServiceImplTest {
      * 用真实 Persister 包裹 mock mapper 才能让断言原样落在 mock 上（事务边界是代理行为，单测中不生效）。
      */
     private AuthServiceImpl service() {
-        return service(new VerifyCodeAttemptGuard());
+        return service(new VerifyCodeAttemptGuard(), userStateWriteLock);
     }
 
     /**
@@ -88,10 +92,15 @@ class AuthServiceImplTest {
      * 否则每次 {@code new} 都从零开始，封禁永远测不出来。
      */
     private AuthServiceImpl service(VerifyCodeAttemptGuard guard) {
+        return service(guard, userStateWriteLock);
+    }
+
+    /** 指定临界区组件：验证「注销与管理员启停共用同一把 userId 锁」的用例需自建实例并与持锁线程共用 */
+    private AuthServiceImpl service(VerifyCodeAttemptGuard guard, UserStateWriteLock lock) {
         return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper),
                 new VerifyCodePersister(codeMapper, userMapper, passwordEncoder, eventPublisher),
                 codeMapper, emailCodeService, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
-                localSensitiveFilter, contentSecurityService, tokenBlacklist, guard);
+                localSensitiveFilter, contentSecurityService, tokenBlacklist, lock, guard);
     }
 
     /** 待校验的验证码记录（codeHash 为占位值：匹配与否由 PasswordEncoder mock 决定） */
@@ -342,6 +351,65 @@ class AuthServiceImplTest {
         // 部分更新走 update(wrapper)；若退化为 updateById 会覆盖 bind_email/status 造成 lost update
         verify(userMapper).update(any(com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class));
         verify(userMapper, never()).updateById(any());
+    }
+
+    // ==================== deleteAccount：与管理员启停共用同一 userId 临界区 ====================
+
+    /**
+     * D-1 的另一半入口：注销同样写「DB status + TokenBlacklist」。
+     * <p>
+     * 一条确定性口径：持锁线程未释放前，注销整体（读现状 → 匿名化写库 → 双维度拉黑）不得进入临界区 ——
+     * 「不得进入」用上界等待断言为假观测（未共用临界区时会微秒级完成即被检出）；释放后必须完成（防死锁）。
+     */
+    @Test
+    @DisplayName("deleteAccount：与管理员启停共用同一 userId 临界区（持锁期间不得进入）")
+    void deleteAccountRunsInsideSharedUserLock() throws Exception {
+        UserStateWriteLock lock = new UserStateWriteLock();
+        AuthServiceImpl svc = service(new VerifyCodeAttemptGuard(), lock);
+        CountDownLatch holdEntered = new CountDownLatch(1);
+        CountDownLatch holdRelease = new CountDownLatch(1);
+        CountDownLatch deleteReturned = new CountDownLatch(1);
+
+        Thread holder = new Thread(() -> lock.run(1L, () -> {
+            holdEntered.countDown();
+            awaitQuietly(holdRelease);
+        }));
+        holder.start();
+        assertThat(holdEntered.await(2, TimeUnit.SECONDS)).isTrue();
+        when(userMapper.selectById(1L)).thenReturn(user(1L, "active"));
+
+        Thread deleter = new Thread(() -> {
+            try {
+                svc.deleteAccount(1L, "tk-abc");
+            } catch (Exception ignored) {
+                // 本用例只断言临界区互斥，不关心注销本身是否成功
+            } finally {
+                deleteReturned.countDown();
+            }
+        });
+        deleter.start();
+        assertThat(deleteReturned.await(150, TimeUnit.MILLISECONDS))
+                .as("持有同一 userId 锁期间，注销必须被挡在临界区外")
+                .isFalse();
+
+        holdRelease.countDown();
+        assertThat(deleteReturned.await(2, TimeUnit.SECONDS))
+                .as("锁释放后注销必须完成（不得死锁）")
+                .isTrue();
+        deleter.join(2000);
+        holder.join(2000);
+
+        verify(userMapper).update(any(), any());
+        verify(tokenBlacklist).revokeUser(1L);
+    }
+
+    /** 等待闩锁（中断时恢复中断位后返回，交由后续断言判定） */
+    private static void awaitQuietly(CountDownLatch latch) {
+        try {
+            latch.await(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
 

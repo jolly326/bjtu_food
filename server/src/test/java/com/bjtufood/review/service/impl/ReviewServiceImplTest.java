@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
+import com.bjtufood.auth.dto.UserBriefVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -11,6 +12,7 @@ import com.bjtufood.dish.service.DishService;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.notification.service.NotificationService;
+import com.bjtufood.review.dto.ReviewAdminVO;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
 import com.bjtufood.review.mapper.ReviewMapper;
@@ -21,6 +23,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -197,6 +203,34 @@ class ReviewServiceImplTest {
         inOrder.verify(reviewMapper).update(any(), any());
         // 迁移不改评分，故不重算聚合
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    // ==================== 管理端列表：作者头像联表带出 ====================
+
+    @Test
+    @DisplayName("listAllForAdmin：头像经 auth 域契约带出 —— 有头像 → 绝对 URL；无头像 / 用户不在图 → null")
+    void listAllForAdminBringsAuthorAvatarThrough() {
+        Page<Review> page = new Page<>(1, 10);
+        page.setRecords(List.of(
+                review(1L, 1L, 10L, 5),
+                review(2L, 2L, 10L, 4),
+                review(3L, 3L, 10L, 3)));
+        doReturn(page).when(reviewMapper).selectPage(any(), any());
+        when(userService.mapBriefByIds(any())).thenReturn(Map.of(
+                1L, new UserBriefVO(1L, "小明", "http://host/api/v1/images/a.jpg"),
+                // 用户 2 存在但无头像（游客 / 未设置 / 已注销）：VO 头像必须为 null，走前端占位
+                2L, new UserBriefVO(2L, "小红", null)));
+        when(dishService.mapNameByIds(any())).thenReturn(Map.of(10L, "番茄炒蛋"));
+
+        List<ReviewAdminVO> vos = service().listAllForAdmin(1, 10, null, null, null, null).getRecords();
+
+        assertThat(vos).hasSize(3);
+        assertThat(vos.get(0).getUserAvatar()).isEqualTo("http://host/api/v1/images/a.jpg");
+        assertThat(vos.get(0).getUserNickname()).isEqualTo("小明");
+        assertThat(vos.get(1).getUserAvatar()).isNull();
+        // 用户不在契约返回图中（用户已注销被剔除等）：头像同样为 null，不得抛 NPE
+        assertThat(vos.get(2).getUserAvatar()).isNull();
+        assertThat(vos.get(2).getUserNickname()).isNull();
     }
 
     // ==================== deleteByDishId：级联清理 ====================

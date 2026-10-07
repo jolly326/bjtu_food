@@ -11,8 +11,8 @@ package com.bjtufood.dish.event;
  * （Spring Boot 3 默认禁止循环引用，直接启动失败）。写侧跨域动作一律以领域事件解耦，
  * 与既有 {@code ReviewSubmittedEvent → RatingUpdateListener}（review → dish 反向补分）同构。
  * <p>
- * <b>事务语义与原实现一致</b>：无 {@code @TransactionalEventListener} → 监听器在发布者事务内同步执行，
- * 级联删除失败仍整体回滚（保持「删除菜品 + 清评价」原子性，行为零变化）。
+ * <b>事务语义</b>：无 {@code @TransactionalEventListener} → 监听器在发布者事务内同步执行，
+ * 级联删除失败仍整体回滚（「删除菜品 + 清评价」保持原子性）。
  */
 public record DishDeletedEvent(Long dishId) {
 }

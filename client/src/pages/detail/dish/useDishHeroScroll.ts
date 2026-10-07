@@ -1,7 +1,7 @@
 /**
  * 顶部大图滚动模型（dish-hero-scroll-model）：hero 卡几何 + 菜名随滚动淡入。
  *
- * 与首页 §11 **同构**（四周 12px + 圆角卡 + 16:10；hero 移出屏幕后菜名淡入）。
+ * 与首页 §11 **同构**（四周一个页面 gutter + 圆角卡 + 16:10；hero 移出屏幕后菜名淡入）。
  * 纯派生状态 + 一个 `onMounted`，无跨模块可变状态 ⇒ 可独立成文件，不牵动评价编排。
  * 由 `useDishPage` 同步调用，生命周期仍在详情页组件上下文中注册。
  */
@@ -10,9 +10,10 @@ import type { ComputedRef } from 'vue'
 import { getWindowInfo } from '@/utils/device'
 import type { DishDetail } from '@/types/dish'
 
-/** hero 卡左右留白（px）：与首页 Banner 同口径（四周 12px + 圆角卡） */
-const HERO_GUTTER_PX = 12
-/** hero 卡高度（px）：可用宽按 16:10 —— 与首页 Banner 同口径 */
+/** 页面级 gutter（rpx）：与 `theme/design-tokens.css` 的 `--page-gutter` 同源（与首页 Banner 同口径） */
+const PAGE_GUTTER_RPX = 32
+/** rpx → px（750rpx = 窗宽，与 WXSS 同口径）：随屏宽缩放，避免与卡片宽度错位 */
+const rpxToPx = (rpx: number, windowPx: number): number => Math.round((rpx * windowPx) / 750)
 const TITLE_FADE_START_PX = 16
 /** 菜名淡入起点缓冲（px）：hero 滚出标题带下沿后再留这么多才开始淡入 */
 const TITLE_FADE_SPAN = 96
@@ -21,7 +22,8 @@ export function useDishHeroScroll(dish: ComputedRef<DishDetail | null | undefine
   const scrollTop = ref(0)
   const windowWidth = ref(375)
 
-  const heroHeightPx = computed(() => Math.round(((windowWidth.value - HERO_GUTTER_PX * 2) * 10) / 16))
+  /** hero 卡高度（px）：可用宽（窗宽 − 两侧 gutter）按 16:10 —— 与首页 Banner 同口径 */
+  const heroHeightPx = computed(() => Math.round(((windowWidth.value - rpxToPx(PAGE_GUTTER_RPX, windowWidth.value) * 2) * 10) / 16))
 
   /** 菜名渐显（口径 c，R16）：hero 卡完全滚出后再淡入，避免与信息卡菜名同屏重复 */
   const navOpacity = computed(() => {

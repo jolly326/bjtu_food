@@ -59,8 +59,12 @@ async function submitRename(): Promise<void> {
 }
 
 /* ==================== 启停（`enabled` 翻转，`label` 原样回传） ==================== */
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function toggle(row: DishViewAdminVO): Promise<void> {
   const next = !row.enabled
+  busyId.value = row.id
   try {
     await updateView(row.id, { label: row.label, enabled: next })
     ElMessage.success(next ? '已启用' : '已停用')
@@ -68,6 +72,8 @@ async function toggle(row: DishViewAdminVO): Promise<void> {
   } catch (e) {
     // 停用「最后一个启用的视图」→ 400 原文透出，状态不变
     fail(e)
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -106,15 +112,8 @@ onMounted(() => load())
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="(row, index) in items"
-            :key="row.id"
-            draggable="true"
-            @dragstart="onDragStart(index)"
-            @dragover.prevent
-            @drop="onDrop(index)"
-          >
-            <td class="drag-col" title="拖拽排序">⠿</td>
+          <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
+            <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
             <td>{{ row.label }}</td>
             <td>
               <code class="view-key">{{ row.key }}</code>
@@ -126,8 +125,15 @@ onMounted(() => load())
             <td><StatusTag :status="row.enabled ? 'on' : 'off'" kind="onoff" /></td>
             <td class="muted">{{ row.updatedAt }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="openRename(row)">改名</button>
-              <button class="link" type="button" @click="toggle(row)">
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openRename(row)"
+              >
+                改名
+              </button>
+              <button class="link" type="button" :disabled="busyId === row.id" @click="toggle(row)">
                 {{ row.enabled ? '停用' : '启用' }}
               </button>
             </td>
@@ -164,12 +170,6 @@ onMounted(() => load())
 </template>
 
 <style scoped>
-.drag-col {
-  width: 28px;
-  color: var(--text-muted);
-  cursor: grab;
-  text-align: center;
-}
 .view-key {
   color: var(--text-muted);
   font-family: var(--font-numeric);

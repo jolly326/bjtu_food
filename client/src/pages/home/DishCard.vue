@@ -92,8 +92,9 @@ function handleClick() {
   -webkit-tap-highlight-color: transparent;
 }
 /* 按压反馈（统一按压语言：小程序端「透明度微降」，与 mt-tab / 搜索卡同族；
-   不用 transform: scale，避免与卡片内图片淡入的合成层叠加抖动） */
-.dish-card-pressed { opacity: 0.88; }
+   不用 transform: scale，避免与卡片内图片淡入的合成层叠加抖动）。
+   卡片属「整块」档 ⇒ 取全局兜底档位 0.7。 */
+.dish-card-pressed { opacity: 0.7; }
 .card-image {
   position: relative;
   width: 100%;
@@ -150,6 +151,9 @@ function handleClick() {
   letter-spacing: var(--tracking-h3);
   color: var(--text-title);
   min-width: 0;
+  /* 断行口径（全站唯一写法）：两行折叠下超长无空格串（长英文 / 长数字串）也换行，
+     不让尾部在折叠处无省略号静默消失 */
+  overflow-wrap: anywhere;
 }
 /* 第三段：食堂 | 档口（辅助档 #7F6A55 纯文字，无图标；超长单行省略，§6.2 第 3 段）
    组内间距：与菜名同属「文字组」→ 紧（--spacing-xs 4px） */

@@ -108,7 +108,7 @@ class DishReadPathBenchmarkTest {
         v.setId(1L);
         v.setKey("recommend");
         v.setLabel("为你推荐");
-        v.setOrder(1);
+        v.setSortOrder(1);
         v.setEnabled(true);
         return v;
     }
@@ -127,7 +127,7 @@ class DishReadPathBenchmarkTest {
         v.setId(id);
         v.setDimensionId(dimensionId);
         v.setLabel(label);
-        v.setOrder(order);
+        v.setSortOrder(order);
         return v;
     }
 
@@ -298,7 +298,7 @@ class DishReadPathBenchmarkTest {
         dim.setFieldKey(fieldKey);
         dim.setName(name);
         dim.setValueType(valueType);
-        dim.setOrder(order);
+        dim.setSortOrder(order);
         return dim;
     }
 

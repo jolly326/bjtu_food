@@ -87,7 +87,7 @@ onMounted(() => load())
             <li v-for="item in data.todo.recent" :key="`${item.kind}-${item.id}`">
               <button class="recent-item" type="button" @click="go(KIND_META[item.kind].to)">
                 <span class="tag recent-kind">{{ KIND_META[item.kind].label }}</span>
-                <span class="recent-text">{{ item.title }}</span>
+                <span class="ellipsis recent-text" :title="item.title">{{ item.title }}</span>
                 <span class="recent-time">{{ item.submittedAt }}</span>
               </button>
             </li>
@@ -171,8 +171,8 @@ onMounted(() => load())
   gap: var(--space-2);
 }
 .stat-value {
-  font-size: 28px;
-  font-weight: var(--weight-bold, 700);
+  font-size: var(--font-3xl);
+  font-weight: var(--weight-bold);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -218,12 +218,15 @@ onMounted(() => load())
   border-radius: var(--radius-pill);
   font-size: var(--font-xs);
 }
+/* 待办摘要 = 纯入口型摘要（基线 §1.4）⇒ 单行截断由公共 `.ellipsis` 承担
+   （本类不私写 overflow / text-overflow / white-space）。
+   `max-width` 由本行按需放开为「随行填满」：`.ellipsis` 的 200px 上限适配表格列，
+   而行内布局要求摘要填满、提交时间贴行尾（运营看板.md §二）。 */
 .recent-text {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .recent-time {
   flex: none;

@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 /**
  * UGC 内容审核服务实现（msgSecCheck v2 / imgSecCheck）。
  * <p>
- * 判定口径（红线，全部<b>逐字沿用原实现</b>）：
+ * 判定口径（红线，固定如下）：
  * <ul>
  *   <li>文本以 {@code result.suggest} 判定，不得只看 errcode（errcode=0 仅代表调用成功）；
  *       用户拍板「取消人工复核」后归一为二态：pass/review → 放行，risky → 拒绝
@@ -38,15 +38,14 @@ import java.util.function.Supplier;
  *   <li>openid 为空（历史学号账号边界）跳过检测放行（报告已备案）。</li>
  * </ul>
  * <p>
- * 架构收口 P0-B / P1-A：
+ * 职责边界（架构收口 P0-B / P1-A）：
  * <ul>
- *   <li>stable_token 的获取 / 缓存 / 失效清理已剥离至
- *       {@link WechatAccessTokenProvider}（微信平台凭据能力），本类只消费其 {@code get()}；</li>
- *   <li>appid / secret 不再由本类持有，改由凭据提供方持有并决定「是否已配置」；</li>
- *   <li>端点与 1MB 图片硬限制改引 {@link WechatApiConst}（平台常量归位，不再是本实现类的内部常量）；</li>
- *   <li>包自 {@code content.security.impl} 迁至 {@code moderation.service.impl}。</li>
+ *   <li>stable_token 的获取 / 缓存 / 失效清理由 {@link WechatAccessTokenProvider}
+ *       （微信平台凭据能力）承担，本类只消费其 {@code get()}；</li>
+ *   <li>appid / secret 由凭据提供方持有并决定「是否已配置」，本类不持有；</li>
+ *   <li>端点与 1MB 图片硬限制取自 {@link WechatApiConst}（平台常量，非本实现类的内部常量）。</li>
  * </ul>
- * BE-06 的「token 失效清缓存 + 重试一次」重试包装保留在本类（它包裹的是<b>审核调用整体</b>，
+ * BE-06 的「token 失效清缓存 + 重试一次」重试包装在本类（它包裹的是<b>审核调用整体</b>，
  * 而非 token 获取本身）；清缓存动作委托给 {@code tokenProvider.invalidate()}。
  */
 @Slf4j
@@ -64,7 +63,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
 
     private final RestTemplate restTemplate;
 
-    /** 微信 access_token 凭据提供方（P0-B 剥离：凭据生命周期不再由本类持有） */
+    /** 微信 access_token 凭据提供方（P0-B：凭据生命周期由它持有，本类只消费 {@code get()}） */
     private final WechatAccessTokenProvider tokenProvider;
 
     /**

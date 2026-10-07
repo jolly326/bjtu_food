@@ -47,7 +47,7 @@ import {
 } from '@/theme/tokens'
 
 defineProps<{
-  /** Banner 总高（px）：由页面按 `max((min(屏宽, 720) − 左右各 12px) × 10/16, 最小高度兜底)` 推导下发
+  /** Banner 总高（px）：由页面按 `max((min(屏宽, 720) − 左右各一 gutter) × 10/16, 最小高度兜底)` 推导下发
    *  （`720` = 与 `App.vue` 宽屏限宽**同源**，§3.3），与吸顶阈值 / 纱区间同源——本组件只消费，不自算（§11.2 常量 H_b）。 */
   heightPx: number
 }>()
@@ -89,11 +89,11 @@ onMounted(() => {
 
 <style scoped>
 /* Banner = **四周留白的圆角图片卡**：
-   左右各 12px 页面级边距（--spacing-md）+ 四角 --radius-card；图片 aspectFill 铺满整卡。
+   左右各一页面 gutter（--page-gutter，16pt）+ 四角 --radius-card；图片 aspectFill 铺满整卡。
    上间距（与固定标题带之间）由页面滚动内容的顶部占位承担；下方与搜索区相隔 16px（吸顶容器 padding-top）。 */
 .home-banner {
   position: relative;
-  margin: 0 var(--spacing-md);
+  margin: 0 var(--page-gutter);
   overflow: hidden;
   background: var(--bg-soft);
   border-radius: var(--radius-card);

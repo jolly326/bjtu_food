@@ -69,7 +69,7 @@ public class DishViewAdminServiceImpl implements DishViewAdminService {
         for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
             DishFilterView update = new DishFilterView();
             update.setId(e.getKey());
-            update.setOrder(e.getValue());
+            update.setSortOrder(e.getValue());
             viewMapper.updateById(update);
         }
         viewCatalog.invalidateViews();
@@ -101,7 +101,7 @@ public class DishViewAdminServiceImpl implements DishViewAdminService {
         vo.setId(entity.getId());
         vo.setKey(entity.getKey());
         vo.setLabel(entity.getLabel());
-        vo.setOrder(entity.getOrder());
+        vo.setOrder(entity.getSortOrder());
         vo.setEnabled(entity.getEnabled());
         vo.setMatchedCount(viewCatalog.matchedCount(entity));
         vo.setUpdatedAt(entity.getUpdatedAt());

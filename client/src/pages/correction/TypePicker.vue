@@ -60,7 +60,7 @@ function onPick(value: DishProblemType) {
 </script>
 
 <style scoped>
-.type-picker { padding: 0 var(--spacing-md); }
+.type-picker { padding: 0 var(--page-gutter); }
 
 .tip {
   display: block;

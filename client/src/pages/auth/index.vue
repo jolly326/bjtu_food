@@ -42,26 +42,29 @@
             @focus="focusField = 'code'"
             @blur="focusField = ''"
           />
-          <text
+          <!-- 按压反馈：`<text>` 不支持 `hover-class` ⇒ 胶囊本体改用 `<view>` 承载（视觉与热区不变） -->
+          <view
             class="code-action"
             :class="{ disabled: !codeActionEnabled }"
             role="button"
             :aria-label="codeActionLabel"
             :aria-disabled="codeActionEnabled ? 'false' : 'true'"
             :aria-busy="sendingCode ? 'true' : 'false'"
-            hover-class="code-action--pressed"
-            hover-stay-time="80"
+            hover-class="pressed"
             @tap="sendCode"
-          >{{ codeButtonText }}</text>
+          >
+            <text class="code-action-text">{{ codeButtonText }}</text>
+          </view>
         </view>
 
-        <!-- 表单错误行：`role=alert` 即时播报；**无红色底块**，仅浅红文字 + alert 图标；点击即清 -->
-        <view v-if="formError" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
+        <!-- 表单错误行：`role=alert` 即时播报；**无红色底块**，仅浅红文字 + alert 图标；点击即清。
+             限频退避时本行实时走秒展示「发送太频繁，N 秒后再试」。 -->
+        <view v-if="formErrorText" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
           <IconSvg name="alert" :size="24" :color="COLOR_MAP.error" class="form-error-icon" />
-          <text class="form-error-text">{{ formError }}</text>
+          <text class="form-error-text">{{ formErrorText }}</text>
         </view>
 
-        <!-- 认证主按钮：全站统一 `AppButton`（16rpx 圆角 / 主色实底 / 禁用置灰）。
+        <!-- 认证主按钮：全站统一 `AppButton`（24rpx 圆角 / 主色实底 / 禁用置灰）。
              外层包裹只承担上间距 —— `AppButton` 自带内联 `margin: 0`，会盖掉 class 上的 margin。 -->
         <view class="action-wrap">
           <AppButton
@@ -103,6 +106,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
 import { errorMessage, toastInfo, toastSuccess } from '@/utils/error'
+import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import { backToHome } from '@/utils/back'
 import { COLOR_MAP } from '@/theme/tokens'
 import { isValidStudentNo } from '@/utils/validate'
@@ -112,11 +116,21 @@ const userStore = useUserStore()
 // 冷却必须用 storeToRefs 保持响应性（跨页面持有，重进页面续接剩余秒数）
 const { codeCooldown } = storeToRefs(authStore)
 
+// 发码限频退避（P2-7）：被后端限频时不再当作不可恢复失败 ——
+// 发码钮进禁用档（退避秒数走秒），倒计时文案复用 `.form-error` 行实时展示，结束自动恢复
+const { cooldownSeconds: rateLimitSeconds, cooling: rateLimited, handleError: handleRateLimit } =
+  useRateLimitCooldown()
+
 // ---- 认证表单状态 ----
 const form = ref({ username: '', code: '' })
 const formError = ref('')
 function setError(msg: string) { formError.value = msg }
 function clearError() { formError.value = '' }
+
+/** 错误行展示文案：限频退避优先（倒计时实时走秒，结束自动消失），其余用已置错误文案 */
+const formErrorText = computed(() =>
+  rateLimited() ? `发送太频繁，${rateLimitSeconds.value} 秒后再试` : formError.value,
+)
 
 /** 当前聚焦字段（驱动底线高亮）：空串 = 无聚焦 */
 const focusField = ref('')
@@ -127,18 +141,23 @@ const NOTE_PRIVACY = '仅用于核验本校校园身份，认证后将与当前�
 
 /** 学号弱校验口径：去除首尾空白后须为非空纯数字（不限定位数） */
 const usernameValid = computed(() => isValidStudentNo(form.value.username))
-/** 发码钮可用性：学号合法 && 非冷却 && 无发送在途 */
-const codeActionEnabled = computed(() => usernameValid.value && codeCooldown.value === 0 && !sendingCode.value)
+/** 发码钮可用性：学号合法 && 非冷却 && 非限频退避 && 无发送在途 */
+const codeActionEnabled = computed(
+  () => usernameValid.value && codeCooldown.value === 0 && !rateLimited() && !sendingCode.value,
+)
 /** 认证钮可用性：学号合法非空 && 验证码非空 && 无请求在途 */
 const submitEnabled = computed(() => usernameValid.value && form.value.code.trim() !== '' && !isBusy.value)
 
 const isBusy = ref(false)
 const sendingCode = ref(false)
 const primaryText = computed(() => (isBusy.value ? '认证中…' : '认证'))
-/** 发码钮文案：发送在途 / 倒计时 / 常态三分支 */
-const codeButtonText = computed(() =>
-  sendingCode.value ? '发送中…' : codeCooldown.value > 0 ? `${codeCooldown.value}s后重发` : '获取验证码',
-)
+/** 发码钮文案：发送在途 / 冷却倒计时 / 限频退避 / 常态四分支 */
+const codeButtonText = computed(() => {
+  if (sendingCode.value) return '发送中…'
+  if (codeCooldown.value > 0) return `${codeCooldown.value}s后重发`
+  if (rateLimited()) return `${rateLimitSeconds.value}s后重发`
+  return '获取验证码'
+})
 const codeActionLabel = computed(() =>
   sendingCode.value ? '发送中' : codeCooldown.value > 0 ? `${codeCooldown.value}s后重发验证码` : '获取验证码',
 )
@@ -174,7 +193,10 @@ async function sendCode() {
     await sendEmailCode(username)
     toastSuccess('验证码已发送')
     authStore.startCooldown()
-  } catch (e) { setError(errorMessage(e, '验证码发送失败')) } finally { sendingCode.value = false }
+  } catch (e) {
+    // 限频：进倒计时退避，倒计时文案复用 `.form-error` 行实时走秒；其余错误给通用文案
+    if (!handleRateLimit(e)) setError(errorMessage(e, '验证码发送失败'))
+  } finally { sendingCode.value = false }
 }
 
 /** 认证成功标记：区分「完成认证返回」与「中途放弃」（决定 onUnload 是否清待办） */
@@ -214,13 +236,15 @@ onUnload(() => {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg)); box-sizing: border-box; }
+/* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：表单卡是滚动区最后一块，
+   无安全区时会被 Home Indicator 压住（同 `my-reviews` 的 `.scroll-wrap` 写法） */
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
-/* ===== 表单卡：纯白 + 16rpx 圆角 + 轻阴影，承载全部表单内容 ===== */
+/* ===== 表单卡：纯白 + 24rpx 圆角 + 轻阴影，承载全部表单内容 ===== */
 .form-card {
   padding: var(--spacing-lg) var(--spacing-md);
   background: var(--bg-card);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }
@@ -257,11 +281,11 @@ onUnload(() => {
   border: 1rpx solid var(--color-primary-text);
   border-radius: var(--radius-pill);
   color: var(--color-primary-text);
-  font-size: var(--font-small);
-  font-weight: var(--weight-medium);
   white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
+/* 胶囊文案：字号 / 字重挂在本节点上（颜色随胶囊状态继承） */
+.code-action-text { font-size: var(--font-small); font-weight: var(--weight-medium); }
 /* 命中区经 ::after **仅纵向**扩至 ≥88rpx（a11y 44pt 下限；视觉尺寸不变） */
 .code-action::after {
   content: '';
@@ -272,8 +296,8 @@ onUnload(() => {
   height: var(--tap-target-size);
   transform: translateY(-50%);
 }
-.code-action.disabled { color: var(--text-tertiary); border-color: var(--border-color); }
-.code-action--pressed { opacity: 0.6; }
+/* 禁用档（描边 / 文字类）：中性描边 + 文字三阶末档 + 禁点（**不降透明**，opacity 只表在途 busy） */
+.code-action.disabled { color: var(--text-tertiary); border-color: var(--border-color); pointer-events: none; }
 
 /* ===== 表单错误行：**无红色底块**，仅浅红文字 + alert 图标 ===== */
 .form-error { display: flex; align-items: center; gap: var(--spacing-2xs); margin-top: var(--spacing-xs); }

@@ -14,6 +14,7 @@
         <IssueForm
           ref="issueFormRef"
           :model="form"
+          @update:model="updateForm"
           :errors="fieldErrors"
           :submitting="submitting"
           :placeholder="typePlaceholder"
@@ -69,6 +70,7 @@ import { IMAGE_PICK_ACTIONS, isPickSource, type PickSource } from '@/components/
 const {
   goBack,
   form,
+  updateForm,
   typePlaceholder,
   onPickType,
   fieldErrors,
@@ -111,11 +113,11 @@ function onPickImageSource(key: string) {
 /* ===== 表单外层 Q 卡（大圆角 + 标准卡阴影，内部模块靠间距分层）=====
    卡片阴影一律 `shadow-card`；`shadow-warm` 仅保留给**选中 / 强调**态。 */
 .q-card {
-  margin: var(--spacing-md) var(--spacing-md) 0;
+  margin: var(--spacing-md) var(--page-gutter) 0;
   padding: var(--spacing-lg);
   background: var(--bg-card);
-  /* 大卡片圆角 = 16rpx（用户口径 v3；走既有圆角档 `--radius-btn` = 16rpx，不新立 token） */
-  border-radius: var(--radius-btn);
+  /* 卡片面圆角归档到全站卡片档 `--radius-card` */
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 

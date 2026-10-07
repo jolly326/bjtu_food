@@ -50,9 +50,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     /**
      * CORS 受信任源，与 {@code CorsConfig} <b>共用同一份配置与同一段解析</b>。
      * <p>
-     * 这里的 Origin 校验是 CSRF 兜底，判据必须与浏览器侧 CORS 放行口径逐字一致：历史实现两处各自
-     * {@code @Value} 绑定，且对「未配置白名单」的处理相反（CorsConfig 放行 {@code Origin: null}，
-     * 本类拒绝），会出现「预检放行、实际请求 403」这类自相矛盾的行为。现统一为一处。
+     * 这里的 Origin 校验是 CSRF 兜底，判据必须与浏览器侧 CORS 放行口径逐字一致：
+     * <b>不</b>各自 {@code @Value} 绑定、<b>不</b>两处分别处理「未配置白名单」
+     * （CorsConfig 放行 {@code Origin: null}，本类拒绝，两处相反会出现「预检放行、实际请求 403」
+     * 这类自相矛盾的行为）。判据只此一处。
      */
     private final CorsProperties corsProperties;
 
@@ -97,7 +98,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // 2. 校验并解析 Token（单次解析，避免重复验签）
             Claims claims = jwtUtil.parseAndValidate(token);
             if (claims != null) {
-                // 3. 解析用户信息（复用本次解析结果；role 不再下发，user.role 列已移除）
+                // 3. 解析用户信息（复用本次解析结果；JWT 不下发 role，user 表无 role 列）
                 Long userId = claims.get("userId", Long.class);
 
                 // 用户维度失效校验：账号被禁用 / 注销后，其所有已签发 token 立即失效
@@ -110,7 +111,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
 
                 if (userId != null) {
-                    // 4. 构建认证信息：固定学生态 authorities（JWT 不再携带 role；
+                    // 4. 构建认证信息：固定学生态 authorities（JWT 不携带 role；
                     //    学生接口鉴权实际依赖 @RequireVerified + userId，不依赖角色，
                     //    此处固定授予 ROLE_STUDENT 以兼容既有 @PreAuthorize("hasRole('STUDENT')")）
                     UsernamePasswordAuthenticationToken authentication =
@@ -164,8 +165,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     /**
      * 统一的错误响应写出（与 {@code AdminAuthFilter} / {@code SecurityConfig} 同口径）。
      * <p>
-     * 不再手写 JSON 字符串：本类曾重复三份同样结构的响应块，契约字段（code / message / data）
-     * 一改就要改三处，漏一处即与全局响应壳不一致。
+     * 不手写 JSON 字符串：同样结构的响应块若在多处重复，契约字段（code / message / data）
+     * 一改就要改多处，漏一处即与全局响应壳不一致。
      */
     private static void writeError(HttpServletResponse response, int httpStatus, Result<?> body) throws IOException {
         response.setStatus(httpStatus);

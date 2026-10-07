@@ -25,9 +25,8 @@ public interface DishConst {
     /**
      * 零评价时**出参兜底**的均分值（冷启动展示口径，见 docs/api/client/dishes.md「零评价展示口径」）。
      * <p>
-     * 🔴 **只在出参层生效**：`dish.avg_rating` 零评价仍为 NULL（不落库），排序侧
-     * {@code heatScoreExpr} 用 {@code COALESCE(avg_rating,0)} 计 0 分 —— 若把兜底值落库或送进
-     * 排序公式，零评价菜品将白得 {@code 5.0×20=100} 分热度而虚高置顶。
+     * 🔴 **只在出参层生效**：`dish.avg_rating` 零评价仍为 NULL（不落库）—— 若把兜底值落库，
+     * 评分排序分支（{@code ORDER BY COALESCE(d.avg_rating, 0)}）会让零评价菜品虚高置顶。
      */
     java.math.BigDecimal ZERO_RATING_FALLBACK = new java.math.BigDecimal("5.0");
 }

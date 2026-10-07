@@ -41,7 +41,7 @@
         <!-- ===== Banner：滚动区首块，**四周留白的圆角图片卡**（§3.1）=====
              实现已抽入 `pages/home/HomeBanner.vue`（§12 组件拆分）：`GET /banners` 数据加载 /
              多张自动轮播 + 指示点 / 空与单张失败「灰底 + 中性 empty」空态。
-             左右 12px 边距与四角圆角在组件内；上间距（标题带下沿 → Banner 上缘 12px）
+             左右一个页面 gutter 的边距与四角圆角在组件内；上间距（标题带下沿 → Banner 上缘 12px）
              由 `.home-scroll-body` 的 padding-top 承担；块高由本页下发（16:10，§3.3）。 -->
         <!-- Banner：有图才占 16:10 槽位；全停用 / 加载失败时**整块收起**。 -->
         <HomeBanner v-if="showBanner" :height-px="bannerHeightPx" @ready="onBannerReady" />
@@ -119,8 +119,10 @@ const dishStore = useDishStore()
 
 /** Banner 宽高比锁定 **16:10**：素材必须同比例出图，混比例会导致切换时块高抖动、吸顶阈值漂移 */
 const BANNER_ASPECT_RATIO = 10 / 16
-/** Banner 与屏幕**左右缘**的间距（px）：与页面级 gutter `--spacing-md` 同值（§3.1 四周留白） */
-const BANNER_GUTTER_PX = 12
+/** 页面级 gutter（rpx）：与 `theme/design-tokens.css` 的 `--page-gutter` 同源（32rpx = 16pt，§3.1 四周留白） */
+const PAGE_GUTTER_RPX = 32
+/** rpx → px（750rpx = 窗宽，与 WXSS 的 rpx 换算同口径）：gutter 随屏宽缩放，避免大屏下与卡片错位 */
+const rpxToPx = (rpx: number, windowPx: number): number => Math.round((rpx * windowPx) / 750)
 /** Banner 最小高度兜底（px）：窄屏下不至于压成一条；**不再叠加标题带高**（Banner 已是独立图片卡，§3.3） */
 const BANNER_MIN_HEIGHT_PX = 160
 /**
@@ -160,15 +162,17 @@ onMounted(() => {
 
 /** 内容实际可用宽（px）= `min(屏宽, 宽屏限宽)`——Banner 卡宽与定高都基于它（≥768px 窗口下即 720） */
 const contentWidthPx = computed(() => Math.min(windowWidthPx.value, CONTENT_MAX_WIDTH_PX))
-/** Banner **卡片宽**（px）= 内容可用宽 − 左右各 12px（§3.1 四周留白） */
-const bannerWidthPx = computed(() => contentWidthPx.value - BANNER_GUTTER_PX * 2)
+/** 页面级 gutter 实宽（px，按窗宽换算；宽屏下 rpx 仍以整屏为基准，与 WXSS 一致） */
+const pageGutterPx = computed(() => rpxToPx(PAGE_GUTTER_RPX, windowWidthPx.value))
+/** Banner **卡片宽**（px）= 内容可用宽 − 左右各一 gutter（§3.1 四周留白） */
+const bannerWidthPx = computed(() => contentWidthPx.value - pageGutterPx.value * 2)
 
 /**
- * Banner 总高（px）= `max(卡片宽 × 10/16, 最小高度兜底)`，**卡片宽 = min(屏宽, 720) − 左右各 12px**（§3.1 四周留白）。
+ * Banner 总高（px）= `max(卡片宽 × 10/16, 最小高度兜底)`，**卡片宽 = min(屏宽, 720) − 左右各一 gutter**（§3.1 四周留白）。
  * ⚠️ 兜底项**不再**叠加「标题带高 + 运营最小可视高」：Banner 已是**独立图片卡**、不在标题带背后，
  * 标题带不占用它的高度；若继续相加，主流机型会从 16:10 被顶到 ≈1.4:1，**按 16:10 出的素材会被裁两侧**。
- * 375 宽：卡片宽 351 → max(219, 160) = **219**（正是 16:10）；仅窄屏（如 320：卡片宽 296 → 185）才由兜底接管。
- * ≥768 宽：卡片宽被 CSS 限宽夹到 **696** → max(435, 160) = **435**（仍是 16:10，不再随窗口继续拉高）。
+ * 375 宽：卡片宽 343 → max(214, 160) = **214**（正是 16:10）；仅窄屏（如 320）才由兜底接管。
+ * ≥768 宽：内容被 CSS 限宽到 720，减去两侧 gutter 后仍按 16:10 定高（不再随窗口继续拉高）。
  */
 const bannerHeightPx = computed(() => Math.max(
   Math.round(bannerWidthPx.value * BANNER_ASPECT_RATIO),
@@ -268,9 +272,14 @@ function goToSearch() {
   uni.navigateTo({ url: PATH.find })
 }
 
-/** 列表失败重试：走与首屏同一条重拉路径 */
-async function retryWaterfall() {
-  await dishStore.fetchHomeDishes(true)
+/**
+ * 列表失败重试（HomeContent 上抛）：走既有重拉路径。
+ * · 默认（首屏失败且列表为空，`RetryBlock`）：清列表重拉首屏；
+ * · `keepList=true`（切视图失败行）：走 `fetchHomeDishes(true, true)` 同一条切视图路径 ——
+ *   旧列表保留在屏，在途由列表末尾「正在切换…」承担，不塌空。
+ */
+async function retryWaterfall(keepList = false) {
+  await dishStore.fetchHomeDishes(true, keepList)
 }
 
 function onScrollToLower() {

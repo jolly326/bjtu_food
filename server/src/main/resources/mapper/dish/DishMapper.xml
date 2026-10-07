@@ -49,12 +49,11 @@
     </resultMap>
 
     <!--
-    🔴 **无热度排序表达式**（2026-10-05 全量下线，原评审决议四项式作废）：
-    MVP 期 7 个视图**全部走 random / random**（见 DishViewDefs），不存在「热度排序」这个需求；
-    且原 `view_count*1 + rating_count*5*20 + COALESCE(avg_rating,0)*20` 中 **view_count 无上限**，
-    0 评价菜刷 5000 浏览即可霸榜（可低成本操纵排序）。
-    浏览量**已改为 30 天滚动窗口明细**（dish_view_log），本期仅供管理端展示，不参与排序。
-    ⇒ 后期若重新引入热度，须重新拍板公式（**必须含浏览量封顶**，并同时处理去重，见 schema/dish_view_log.md §2.2）。
+    🔴 **本文件不含热度排序表达式**：7 个视图全部走 random 排序（见 DishViewDefs），
+    「热度排序」不是现存需求。
+    浏览量（`dish_view_log` 30 天滚动窗口明细）**仅供管理端展示，不参与任何排序**——
+    浏览量无上限，参与排序即可被低成本刷量霸榜。
+    ⇒ 若后期引入热度排序，须重新拍板公式（**必须含浏览量封顶**，并同时处理去重，见 schema/dish_view_log.md §2.2）。
     如需稳定的翻页全序，各排序分支一律以 `d.id` 作决胜键。
     -->
 
@@ -217,8 +216,7 @@
             <when test="q.sortKind.name() == 'NEWEST'">
                 ORDER BY d.created_at DESC, d.id DESC
             </when>
-            <!-- 🔴 兜底：原为 heatScoreExpr DESC（热度排序），2026-10-05 全量下线。
-                 现按 id 升序 —— 语义中性且全序稳定。热度若后期重启，须重新拍板公式 -->
+            <!-- 🔴 兜底分支：按 `d.id` 升序 —— 语义中性且全序稳定（本文件无热度排序，见文件头说明） -->
             <otherwise>
                 ORDER BY d.id
             </otherwise>
@@ -339,7 +337,7 @@
     <!--
         评分对账的候选菜品（D3）：只取「缓存列 rating_count > 0」的行。
         零评价菜品按口径本就恒为 avg_rating=NULL / rating_count=0，无需参与对账，
-        该条件把扫描面收敛到「真正发生过评分事件」的菜品（可用 idx_dish_heat 的 rating_count 定位）。
+        该条件把扫描面收敛到「真正发生过评分事件」的菜品，避免全表扫描。
         游标分页（id > lastId ORDER BY id LIMIT n）而非 OFFSET：对账期间菜品可能增删，
         OFFSET 会因行位移漏行/重复行，游标法不受影响。
     -->
@@ -372,5 +370,25 @@
                                 AND r.is_hidden = 0)
         WHERE d.id = #{dishId}
     </update>
+
+    <!--
+        批量：多个档口下的菜品数（管理端档口列表 GET /admin/stalls 的 dishCount）。
+        一次 COUNT(*) GROUP BY stall_id 取回「档口 → 菜品数」映射，替代逐档口查询的 N+1。
+        口径与逐档口计数（DishService#countByStallId 走 selectCount）一致：只按 stall_id 过滤，
+        **不筛在售状态** —— 该计数回答的是「档口下还有没有菜」，下架菜同样不能随档口一起消失。
+        🔴 映射到 POJO（DishMapper$StallDishCountRow）而非 java.util.Map：项目开了
+        map-underscore-to-camel-case，resultType=Map 的键名映射行为不确定（实测取不到值）；
+        @MapKey + resultMap 的值又是整行 HashMap，泛型声明 Map<Long,Long> 会 ClassCastException。
+        🔴 IN 列表由调用方传入且非空；无菜品的档口不出现在结果中，由调用方补 0。
+    -->
+    <select id="countByStallIds" resultType="com.bjtufood.dish.mapper.DishMapper$StallDishCountRow">
+        SELECT stall_id AS stallId, COUNT(*) AS dishCount
+        FROM dish
+        WHERE stall_id IN
+        <foreach collection="stallIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+        GROUP BY stall_id
+    </select>
 
 </mapper>

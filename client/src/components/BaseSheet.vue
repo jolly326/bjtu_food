@@ -28,7 +28,7 @@
         <view class="bs-head-left">
           <text v-if="title" class="bs-title">{{ title }}</text>
         </view>
-        <view v-if="closable" class="bs-close" role="button" aria-label="关闭" @tap.stop="emitClose">
+        <view v-if="closable" class="bs-close" role="button" aria-label="关闭" hover-class="pressed" @tap.stop="emitClose">
           <IconSvg name="close" :size="36" :color="COLOR_MAP['text-tertiary']" />
         </view>
       </view>
@@ -227,11 +227,12 @@ function onTouchEnd() {
 .bs-grabber { width: 72rpx; height: 8rpx; border-radius: var(--radius-pill); background: var(--overlay-dark-soft); margin: var(--spacing-sm) auto 0; flex-shrink: 0; }
 
 /* 可选头部：标题左（如有）+ 关闭钮右 */
-.bs-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border-bottom: 2rpx solid var(--border-color); flex-shrink: 0; }
+.bs-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1rpx solid var(--border-color); flex-shrink: 0; }
 .bs-head-left { display: flex; align-items: center; gap: var(--spacing-2xs); flex: 1; min-width: 0; }
 .bs-title { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-close { padding: 0 var(--spacing-xs); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
-.bs-close:active { opacity: 0.5; }
+/* 按压反馈：关闭钮属「小件」档（图标钮）⇒ 0.6 */
+.bs-close.pressed { opacity: 0.6; }
 
 /* 内容区：普通容器（默认无额外横留白，由各调用方内容决定）或滚动容器（横留白对齐身份认证弹层口径） */
 .bs-body { flex: 1; min-height: 0; }

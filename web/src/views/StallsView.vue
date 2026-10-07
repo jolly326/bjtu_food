@@ -61,8 +61,16 @@ async function save(): Promise<void> {
   }
   saving.value = true
   try {
-    if (editing.value) await updateStall(editing.value.id, form.value)
-    else await createStall(form.value)
+    // 「楼层」未填 ⇒ 不下发该字段（契约：`floor` 空白串 → 400；缺省 = 保持原值 / 新建不设置）
+    // 「窗口号」保留 `''` 语义（契约：PUT 传 `''` = 清空）
+    const payload: StallSaveReq = {
+      canteenId: form.value.canteenId,
+      name: form.value.name.trim(),
+      windowNo: form.value.windowNo,
+    }
+    if (form.value.floor) payload.floor = form.value.floor
+    if (editing.value) await updateStall(editing.value.id, payload)
+    else await createStall(payload)
     ElMessage.success(editing.value ? '已保存' : '已新建')
     open.value = false
     await load()
@@ -74,6 +82,9 @@ async function save(): Promise<void> {
   }
 }
 
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function remove(row: StallAdminVO): Promise<void> {
   const dishHint = row.dishCount > 0 ? `该档口下有 ${row.dishCount} 个菜品，删除前请先处理。` : ''
   try {
@@ -81,6 +92,7 @@ async function remove(row: StallAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteStall(row.id)
     ElMessage.success('已删除')
@@ -88,6 +100,8 @@ async function remove(row: StallAdminVO): Promise<void> {
   } catch (e) {
     // 其下仍有菜品 / 档口不存在 → 后端原文（400 / 4001）
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -156,8 +170,22 @@ onMounted(async () => {
             <td>{{ row.windowNo || '—' }}</td>
             <td>{{ row.dishCount }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="openEdit(row)">编辑</button>
-              <button class="link danger" type="button" @click="remove(row)">删除</button>
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openEdit(row)"
+              >
+                编辑
+              </button>
+              <button
+                class="link danger"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="remove(row)"
+              >
+                删除
+              </button>
             </td>
           </tr>
         </tbody>

@@ -35,10 +35,9 @@ public class DishAttributeValue {
     @Schema(description = "取值中文名（展示用；可改，改名免费）", example = "半荤")
     private String label;
 
-    /** MySQL 保留字列，列名显式加反引号（MyBatis-Plus 不自动转义保留字） */
-    @TableField("`order`")
+    /** 组内展示顺序（升序） */
     @Schema(description = "组内展示顺序（升序）", example = "1")
-    private Integer order;
+    private Integer sortOrder;
 
     /** 更新时间（管理端列表出参；本表**无 created_at**，2026-10-02 统一口径） */
     @TableField(fill = FieldFill.INSERT_UPDATE)

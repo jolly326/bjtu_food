@@ -22,7 +22,7 @@ class DishViewDefsTest {
         v.setId(1L);
         v.setKey(key);
         v.setLabel(key);
-        v.setOrder(1);
+        v.setSortOrder(1);
         v.setEnabled(true);
         return v;
     }

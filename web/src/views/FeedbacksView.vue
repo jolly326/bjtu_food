@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Picture } from '@element-plus/icons-vue'
 import { fail } from '@/utils/error'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
 import type { FeedbackAdminVO, FeedbackListParams, FeedbackStatus } from '@/types/common'
@@ -173,17 +174,27 @@ onMounted(() => reloadFirstPage())
             <td>{{ typeLabel(row.type) }}</td>
             <!-- 匿名提交 userId = 0 → 服务端回落「游客」 -->
             <td>{{ row.userNickname || '游客' }}</td>
-            <td class="ellipsis">{{ row.content }}</td>
+            <td>
+              <!-- 内容摘要 + 配图角标（「该行有图」为审核高频判据，图标 + 张数） -->
+              <ClampText :text="row.content" />
+              <span v-if="row.images?.length" class="img-flag">
+                <el-icon><Picture /></el-icon>{{ row.images.length }}
+              </span>
+            </td>
             <td>
               <div class="thumbs">
                 <img v-for="(img, i) in row.images" :key="i" :src="img" alt="" />
               </div>
             </td>
             <td><StatusTag :status="row.status" kind="feedback" /></td>
-            <td class="ellipsis">
-              <span v-if="row.reply">{{ row.reply }}</span>
-              <span v-else class="muted">—</span>
-              <div v-if="row.rejectReason" class="muted">原因：{{ row.rejectReason }}</div>
+            <td>
+              <ClampText :text="row.reply" />
+              <!-- 拒绝原因同属长文本（基线 §1.4）⇒ 走 ClampText，不用单行截断 -->
+              <ClampText
+                v-if="row.rejectReason"
+                class="muted"
+                :text="`原因：${row.rejectReason}`"
+              />
             </td>
             <td class="muted">{{ row.createdAt }}</td>
             <td class="actions">
@@ -329,6 +340,7 @@ onMounted(() => reloadFirstPage())
 }
 .ctx-body {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--text-primary);
 }
 .tag-options {

@@ -9,9 +9,10 @@
          （承接条已移除）。 -->
     <AppTitleBand back :title="dp.dishName" :title-opacity="dp.navOpacity" @back="dp.backToHome" />
 
-    <!-- 详情拉取失败 / 菜品不存在 / 缺少 ID：明确文案 + 恢复路径，不得只留纯空白页。
-         加载期间（!dish && 未失败）保持空白静默，不新增骨架屏 / loading 指示。
-         缺 ID 无重试意义，仅给「返回」。 -->
+    <!-- 三态判断序固定 **失败 > 在途 > 内容**：
+         ① 失败 / 不存在 / 缺少 ID：明确文案 + 恢复路径，不得只留纯空白页（缺 ID 无重试意义，仅给「返回」）；
+         ② 在途（!dish 且未失败）：只给文字行（全局 `.list-foot`），不给骨架屏
+            （禁的是伪内容与抖动，不是文字；静默 = 慢网白屏）。 -->
     <view
       v-if="!dp.dish && (dp.detailFailed || dp.detailNotFound || dp.missingDishId)"
       class="detail-fail-host"
@@ -19,8 +20,8 @@
       <!-- 统一失败块：**双 CTA 形态**，取代原自绘 `.detail-fail` 按钮组。
            文案分流（R8）：不存在（4001）/ 缺 ID ⇒ 不可重试、只给「返回」；网络故障 ⇒ 「重新加载 + 返回」。
            文案与图标（`name="report"`，唯一近似语义键、非举报语义）由 `RetryBlock` 统一承载。
-           在途（点击后）显示旋转环 +「正在重新加载…」并忽略重复点击 —— 属**用户主动重试**的在途反馈，
-           不是页面级 loading 指示（口径已按裁决调整）。 -->
+           在途（点击后）显示旋转环 +「正在重新加载…」并忽略重复点击 —— 属**用户主动重试**的在途反馈
+           （页面级在途另给文字行，见下方 `.list-foot`）。 -->
       <RetryBlock
         strong
         :title="dp.detailNotFound ? '这道菜已不在了' : '这道菜暂时打不开'"
@@ -31,6 +32,11 @@
         @retry="onRetryDetailClick"
         @secondary="dp.backToHome"
       />
+    </view>
+
+    <!-- 在途（首屏拉取中，未失败且尚无数据）：文字行随标题带下沿出现，替代整屏空白 -->
+    <view v-else-if="!dp.dish" class="list-foot">
+      <text class="list-foot-text">加载中…</text>
     </view>
 
     <!-- ===== 滚动区（与首页 §11 同构）=====
@@ -44,7 +50,7 @@
       @scroll="dp.onScroll"
       @scrolltolower="dp.onReviewsReachBottom"
     >
-      <!-- hero 卡（滚动区首块）：四周留白 12px + 圆角 + 16:10 —— 与首页 Banner **同语言**；
+      <!-- hero 卡（滚动区首块）：四周留白一个页面 gutter + 圆角 + 16:10 —— 与首页 Banner **同语言**；
            随滚动 1:1 上移、在标题带下沿被**裁掉**（"移出屏幕"，与首页 Banner 逐字一致）。
            大图关闭自动轮播（autoplay=false），仅手动滑动、保留指示点。 -->
       <view class="hero-card" :style="{ height: `${dp.heroHeightPx}px` }">
@@ -144,7 +150,7 @@ import { ref } from 'vue'
 const { titleBandPx } = useNavMetrics()
 
 /** 详情重拉在途：驱动 `RetryBlock` 的旋转环。
- *  属「用户主动点击重试」的在途反馈，**不是**页面级 loading 指示（口径已按裁决调整）。
+ *  属「用户主动点击重试」的在途反馈（页面级首屏在途另给文字行）。
  *  声明在 `useDishPage()` 解构之前是安全的：函数体在**点击时**才解析 `dp.onRetryDetail`（闭包调用期解析）。 */
 const detailReloading = ref(false)
 async function onRetryDetailClick() {
@@ -175,24 +181,28 @@ const dp = useDishPage()
   /* 底部让位**精确等于**固定操作栏高度（token 已按「8 + 44 + 8 = 60px」定档）——
      不再叠加 `--spacing-lg`（那会在滚动区下沿与操作栏之间留出一条可见空档）。
      内容末端的呼吸感由卡片自身 margin 提供，不靠这里补。 */
-  /* 底部**无固定操作栏**：不再预留 `--action-bar-height`，
-     仅保留常规底部呼吸位；`env(safe-area-inset-bottom)` 由页面滚动末端自然兜底。 */
+  /* 底部**无固定操作栏**：页根只保留常规呼吸位 `--spacing-md`；
+     Home Indicator 避让由滚动区 `.dish-scroll` 的底部留白承担（基线 §1.1「滚动区底部安全区恒需要」）。 */
   padding-bottom: var(--spacing-md);
 }
 
 /* ===== 滚动区（与首页 §11 同构）=====
    `flex: 1` ⇒ 顶边 = 标题带下沿（页面 `padding-top` 让出）、底边 = 底部操作栏上沿。
-   内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。 */
+   内容被裁在滚动区内 ⇒ **不会从标题带背后经过**（零切片 / 零实底切换 / 零承接条）。
+   底部安全区（**恒需要**，基线 §1.1）：`--spacing-md` 呼吸位 + `env(safe-area-inset-bottom)` ——
+   全屏手势机型上末条评价的正文与三点菜单不再压在 Home Indicator 下。 */
 .dish-scroll {
   flex: 1;
   min-height: 0;
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
 /* ===== hero 卡（滚动区首块）=====
-   与首页 Banner **同语言**：四周留白 `--spacing-md`(12px) + `--radius-card` 圆角 + 16:10 定高（高由内联下发）；
+   与首页 Banner **同语言**：四周留白 `--page-gutter` + `--radius-card` 圆角 + 16:10 定高（高由内联下发）；
    随滚动 1:1 上移、在标题带下沿被**裁掉**（"移出屏幕"）。 */
 .hero-card {
-  margin: var(--spacing-md);
+  margin: var(--page-gutter);
   border-radius: var(--radius-card);
   overflow: hidden;
   line-height: 0;

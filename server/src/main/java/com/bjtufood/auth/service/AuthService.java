@@ -27,8 +27,8 @@ public interface AuthService {
      * 微信静默登录（task-01 1.1）。
      * <p>
      * 后端 code2Session 换 openid → 按 user.openid 取号：
-     * 存在则返回原账号；不存在则自动建号（游客态 = bind_email 为 NULL）。
-     * （unionid 已不在表中，不再回写/补全。）
+     * 存在则返回该账号；不存在则自动建号（游客态 = bind_email 为 NULL）。
+     * （user 表不含 unionid，不回写 / 补全。）
      *
      * @param code 微信 wx.login 临时凭证
      * @return LoginVO{token, userInfo}

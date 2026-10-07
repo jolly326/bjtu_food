@@ -9,10 +9,11 @@ import type { AttributeEditor, CorrectionFormModel } from '../pages/correction/u
 /**
  * `CorrectionForm` 渲染回归测试。
  *
- * <p>该组件的 script 只做「渲染 + 就地写回」，**测试重点在写回契约**：
+ * <p>该组件的 script 只做「渲染 + update:model 回抛」，**测试重点在回抛契约**：
  * ① 预填未就绪时**不渲染半截表单**（避免误改 / 误提交）；
  * ② 任何用户动作都必须回抛 `clear`（撤下上一次的失败提示）——漏一处就会留过期橙字；
- * ③ 字段值**就地写回 props.model**（父级 reactive 为唯一真源），组件不持有副本。
+ * ③ 字段变化经 `update:model` **整值替换回抛**，组件不就地改 prop 对象
+ *    （测试侧以父级视角浅合并回 reactive 模型，与 `useCorrection.updateForm` 同口径）。
  */
 
 /** 造一份维度编辑项 */
@@ -24,7 +25,7 @@ function attr(
   return { fieldKey, name: fieldKey, valueType, candidates: ['辣', '麻'], selected }
 }
 
-/** 造表单模型（父级持有，测试直接断言其被写回） */
+/** 造表单模型（父级持有，经 update:model 落点合并后测试直接断言其被写回） */
 function makeModel(over: Partial<CorrectionFormModel> = {}) {
   return reactive<CorrectionFormModel>({
     name: '红烧肉',
@@ -38,11 +39,13 @@ function makeModel(over: Partial<CorrectionFormModel> = {}) {
   })
 }
 
-/** 挂载（子组件用 stub 隔离：本次只验本组件的渲染与写回契约） */
+/** 挂载（子组件用 stub 隔离：本次只验本组件的渲染与回抛契约） */
 function mountForm(over: Record<string, unknown> = {}, model = makeModel()) {
   const wrapper = mount(CorrectionForm, {
     props: {
       model,
+      // 父级视角承接 update:model：整值回抛浅合并回 reactive 真源（与 useCorrection.updateForm 同口径）
+      'onUpdate:model': (next: CorrectionFormModel) => Object.assign(model, next),
       dishName: '红烧肉',
       dishLocation: '一食堂 · 二层 · 窗口1',
       detailLoading: false,
@@ -115,7 +118,7 @@ describe('CorrectionForm · 预填未就绪', () => {
   })
 })
 
-describe('CorrectionForm · 字段就地写回', () => {
+describe('CorrectionForm · 字段回抛（update:model）', () => {
   it('输入菜名写回 model 并回抛 clear', async () => {
     const { wrapper, model } = mountForm()
     await wrapper.findAll('input')[0].trigger('input', inputEvent('梅菜扣肉'))

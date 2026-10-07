@@ -7,7 +7,7 @@
     <scroll-view class="scroll-wrap" scroll-y>
       <view class="info-card">
         <!-- 头像 -->
-        <view class="info-row info-tappable" @tap="changeAvatar">
+        <view class="info-row info-tappable" hover-class="pressed" @tap="changeAvatar">
           <text class="info-label">头像</text>
           <view class="avatar-wrap">
             <image v-if="avatar" :src="getThumbImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
@@ -164,9 +164,9 @@ async function save() {
    滚动由组件内部实现，外挂 CSS 只会在 H5 叠出第二根滚动条。 */
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
 /* 信息卡：inset 分组卡（Apple 列表分组风格）
-   UI 统一 Loop Round 14（裁决 5A）：圆角归档到**全站卡片档** `--radius-card`(16rpx)。 */
+   圆角归档到**全站卡片档** `--radius-card`(24rpx)。 */
 .info-card {
-  margin: 0 var(--spacing-md);
+  margin: 0 var(--page-gutter);
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -182,14 +182,14 @@ async function save() {
 .info-row:last-child { border-bottom: none; }
 /* 可改行（昵称）：全站表单**下划线语言** —— 本行 1rpx 底线即输入项底线，聚焦转主色 */
 .info-row--field.is-focused { border-bottom-color: var(--color-primary); }
-/* 可点行（头像）按压反馈 */
-.info-row.info-tappable:active { background-color: var(--bg-soft); }
+/* 可点行（头像）按压反馈：走 hover-class="pressed"，底色语言同「我的」页列表行 */
+.info-row.info-tappable.pressed { background-color: var(--bg-soft); opacity: 1; }
 .info-label { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); flex-shrink: 0; }
 .avatar-wrap { display: flex; align-items: center; gap: var(--spacing-sm); }
 /* 大头像（104rpx）圆角正方形：与「我的」页 hero 头像**同语言**（尺寸按各自区块定：本页 104rpx /
    「我的」页 120rpx）；`overflow: hidden` 用于把头像占位（`ImagePlaceholder`）裁到圆角内 */
 .avatar { width: var(--avatar-size-md); height: var(--avatar-size-md); border-radius: var(--radius-icon); overflow: hidden; background: var(--bg-page); transition: opacity var(--duration-fast) var(--ease-out); }
-.avatar.uploading { opacity: 0.55; }
+.avatar.uploading { opacity: 0.6; }
 .row-arrow { flex-shrink: 0; }
 /* 昵称输入：无可改行的浅底容器，取全站表单**下划线语言**（透明底、无边框、右对齐；
    底线由所在行的行分隔线承担，聚焦转主色见 `.info-row--field.is-focused`） */
@@ -204,7 +204,7 @@ async function save() {
   padding: var(--spacing-md);
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
   background: var(--bg-card);
-  border-top: 2rpx solid var(--border-color);
+  border-top: 1rpx solid var(--border-color);
   box-shadow: var(--shadow-bar-soft);
 }
 </style>

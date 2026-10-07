@@ -78,23 +78,25 @@ public interface UserService {
     User getByBindEmail(String bindEmail);
 
     /**
-     * 启用/禁用用户账号
+     * 启用/禁用用户账号（{@code PUT /admin/users/{id}/status}）。
      * <p>
-     * disabled 状态的用户无法登录
+     * 只改 {@code status}（字符串枚举，取值域仅 {@code active} / {@code disabled}）；禁用时拉黑该用户
+     * 已签发的全部 token（立即失效），恢复 {@code active} 时解除拉黑。
      *
      * @param id     用户ID
      * @param status 目标状态（active/disabled）
-     * @throws com.bjtufood.common.exception.BusinessException 用户不存在或已为当前状态
+     * @throws com.bjtufood.common.exception.BusinessException code=400 状态非法；
+     *         code=4001 用户不存在
      */
     void updateStatus(Long id, String status);
 
-    // ==================== 跨域只读契约（P0-1 分层修复） ====================
+    // ==================== 跨域只读契约（P0-1 分层约束） ====================
 
     /**
      * UGC 准入判定（供 {@code auth.aspect.RequireVerifiedAspect} 消费）。
      * <p>
-     * 判据与错误码逐字沿用切面原实现（401 未登录 / 403 账号非 active / 4031 未认证），
-     * 使「切面拦截」与「提交评价时的前置校验」保持同码同语义；判定逻辑收敛到 auth 一处。
+     * 判据与错误码固定为（401 未登录 / 403 账号非 active / 4031 未认证），
+     * 使「切面拦截」与「提交评价时的前置校验」保持同码同语义；判定逻辑收敛到 auth 域本方法一处。
      *
      * @param userId 当前登录用户ID（可空：未登录直接 401）
      * @throws com.bjtufood.common.exception.BusinessException 401 / 403 / 4031

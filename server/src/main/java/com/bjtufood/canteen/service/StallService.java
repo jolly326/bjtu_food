@@ -2,7 +2,7 @@ package com.bjtufood.canteen.service;
 
 import com.bjtufood.canteen.dto.StallAdminVO;
 import com.bjtufood.canteen.dto.StallBriefVO;
-import com.bjtufood.canteen.entity.Stall;
+import com.bjtufood.canteen.dto.StallSaveReq;
 
 import java.util.List;
 
@@ -30,11 +30,16 @@ public interface StallService {
 
     /**
      * 新增档口（{@code POST /admin/stalls}）。
+     * <p>
+     * 入参是 DTO 而非实体：档口的 {@code images} / {@code location} / {@code description} /
+     * {@code sort_order} 是保留列、{@code created_at} / {@code updated_at} 是时间列，
+     * 均不属写入面（口径见 docs/api/web/stalls.md）。
      *
+     * @param req 档口表单（仅可编辑字段，见 {@link StallSaveReq}）
      * @return 新建的 VO
-     * @throws com.bjtufood.common.exception.BusinessException code=400 食堂缺失/不存在、名称为空/超长/同食堂重名、楼层不在字典
+     * @throws com.bjtufood.common.exception.BusinessException code=400 食堂缺失/不存在、名称为空/超长/同食堂重名、楼层空串或不在字典
      */
-    StallAdminVO createStall(Stall stall);
+    StallAdminVO createStall(StallSaveReq req);
 
     /**
      * 删除档口（{@code DELETE /admin/stalls/{id}}）。
@@ -53,20 +58,28 @@ public interface StallService {
     long countWithoutDish();
 
     /**
-     * 编辑档口
+     * 编辑档口（{@code PUT /admin/stalls/{id}}）：必填字段（canteenId / name）整体替换，
+     * floor 缺省/null = 保持原值（不支持清空），windowNo 给值即覆盖（`""` = 清空）。
+     * <p>
+     * 入参是 DTO 而非实体：保留列（{@code images} / {@code location} / {@code description} /
+     * {@code sort_order}）与时间列不属写入面，改档口不会放大成一次整行覆盖
+     * （口径见 docs/api/web/stalls.md 的「逐字段空值语义」）。
      *
-     * @param stall 档口信息（含ID）
+     * @param id  目标档口 ID（路径参数）
+     * @param req 档口表单（仅可编辑字段，见 {@link StallSaveReq}）
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 档口不存在；
+     *         code=400 食堂缺失/不存在、名称为空/同食堂重名、楼层空串或不在字典
      */
-    void update(Stall stall);
+    void update(Long id, StallSaveReq req);
 
     /**
      * 写回档口楼层（**跨域写契约：correction → canteen**，楼层纠错新增）。
      * <p>
-     * <b>为何是独立入口而不是复用 {@link #update(Stall)}</b>：
+     * <b>为何是独立入口而不是复用 {@link #update(Long, StallSaveReq)}</b>：
      * <ol>
-     *   <li>{@code update} 的契约是「管理端提交整份档口表单」（含 canteenId 校验、全字段覆盖语义），
+     *   <li>{@code update} 的契约是「管理端提交整份档口表单」（含 canteenId 校验、必填字段整体替换语义），
      *       而纠错采纳只需要写<b>一个列</b>；复用会把「楼层纠错」耦合进后台编辑口径，</li>
-     *   <li>{@code update} 在 {@code updateById} 影响 0 行时抛「Stall not found」——
+     *   <li>{@code update} 在 {@code updateById} 影响 0 行时抛 4001「档口不存在」——
      *       该实现依赖 MyBatis-Plus 的 NOT_NULL 跳过策略，语义是「整行整存」；本入口的语义是
      *       「按 id 定点写 floor 列」，两者不该共用同一段防御逻辑。</li>
      * </ol>
@@ -80,7 +93,7 @@ public interface StallService {
      * @param floor   楼层（受控字典值·值即汉字；调用方保证非空白、命中 {@code FloorDict}，
      *                且长度 ≤ {@code CorrectionConst.FLOOR_MAX_LENGTH}）
      * @throws com.bjtufood.common.exception.BusinessException 楼层为空白（400「楼层不能为空」）、
-     *         楼层不在字典内（400「楼层不在预设范围内」）或目标档口不存在（400「档口不存在」，含并发删除兜底）
+     *         楼层不在字典内（400「楼层不在预设范围内」）或目标档口不存在（4001「档口不存在」，含并发删除兜底）
      */
     void updateFloor(Long stallId, String floor);
 

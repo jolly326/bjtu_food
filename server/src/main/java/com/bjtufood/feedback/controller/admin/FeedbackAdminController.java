@@ -41,7 +41,7 @@ public class FeedbackAdminController {
             @Parameter(description = "关键词（可选，对反馈内容 / 管理员回复模糊匹配）")
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "20") int pageSize) {
         return Result.success(AdminPageResult.of(
                 feedbackService.listForAdmin(category, status, type, userId, keyword, page, pageSize)));
     }

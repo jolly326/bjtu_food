@@ -85,7 +85,9 @@ defineProps<{
   min-height: 0;
   /* 去掉 `overflow-y: auto` —— 本容器是 `scroll-view`（滚动由组件实现），
      外挂 CSS 在 H5 会叠出第二根滚动条。 */
-  padding: 0 var(--spacing-md) calc(var(--spacing-md) + var(--spacing-lg));
+  /* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：文档白卡是滚动区唯一一块，
+     无安全区时正文末行会被 Home Indicator 压住（同 `my-reviews` 的 `.scroll-wrap` 写法） */
+  padding: 0 var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 

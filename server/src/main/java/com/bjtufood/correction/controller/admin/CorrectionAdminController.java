@@ -44,7 +44,7 @@ public class CorrectionAdminController {
             @Parameter(description = "按目标菜品筛选（从菜品视角看反馈）", example = "12")
             @RequestParam(required = false) Long dishId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "20") int pageSize) {
         return Result.success(
                 AdminPageResult.of(correctionService.listForAdmin(status, type, dishId, page, pageSize)));
     }

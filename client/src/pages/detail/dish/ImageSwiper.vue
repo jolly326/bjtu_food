@@ -12,18 +12,28 @@
     :aria-label="label"
   >
     <swiper-item v-for="(img, idx) in displayImages" :key="idx">
-      <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize） -->
-      <image v-if="img" :src="getImageUrl(img)" mode="aspectFill" class="image-swiper-img" :class="{ 'img-loaded': loadedSet.has(idx) }" @load="onImgLoad(idx)" />
-      <!-- 无图 / 空位：走**全站统一占位**（灰底 + 图片破损图标）。 -->
+      <!-- onload 淡入：图片加载完成前保持占位底色，加载后按 --duration-slow 淡入（Apple §12 materialize）。
+           破图按张记录：单张加载失败只降级该张为占位，其余张照常轮播（禁整组隐藏）。 -->
+      <image
+        v-if="img && !broken.has(idx)"
+        :src="getImageUrl(img)"
+        mode="aspectFill"
+        class="image-swiper-img"
+        :class="{ 'img-loaded': loadedSet.has(idx) }"
+        @load="onImgLoad(idx)"
+        @error="markBroken(idx)"
+      />
+      <!-- 无图 / 空位 / 破图：走**全站统一占位**（灰底 + 图片破损图标）。 -->
       <ImagePlaceholder v-else :size="placeholderSize" />
     </swiper-item>
   </swiper>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getImageUrl } from '@/utils/image'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
+import { useBrokenImages } from '@/composables/useBrokenImages'
 // 微信原生 <swiper> 的 indicator-active-color / indicator-color 不接受 var()，此处为已知的原生属性限制例外（见 theme/tokens.ts 注释），必须用真实色值
 import { SWIPER_INDICATOR_ACTIVE_COLOR, SWIPER_INDICATOR_COLOR } from '@/theme/tokens'
 
@@ -57,6 +67,13 @@ function onImgLoad(idx: number) {
     loadedSet.value = new Set(loadedSet.value).add(idx)
   }
 }
+
+/** 破图下标集合：`@error` 后仅该张切统一占位（逐张独立）—— 破图集合走公共 composable */
+const { broken, markBroken, clear: clearBroken } = useBrokenImages()
+/** 图集重设（换菜 / 重拉）时复位破图态：下标按当前图集重建，避免旧下标残留误判新图 */
+watch(() => props.images, () => {
+  clearBroken()
+})
 </script>
 
 <style scoped>

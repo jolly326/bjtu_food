@@ -51,7 +51,7 @@ class DishViewCatalogTest {
         v.setId(id);
         v.setKey(key);
         v.setLabel(label);
-        v.setOrder(order);
+        v.setSortOrder(order);
         v.setEnabled(true);
         return v;
     }

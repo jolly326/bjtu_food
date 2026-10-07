@@ -5,7 +5,8 @@
     结构（自上而下，UI 稿「卡片结构」六段；卡片内**不使用分割横线**，靠间距 / 分组区分）：
       ① 菜品锚定行（纯文本、只读，无点击无箭头，**页首无提示条**）→ ② 基础信息（下划线轻量输入）
       → ③ 属性编辑区（`AttributeGroup` ×N）→ ④ 图片（≤3）→ ⑤ 提交说明 → ⑥ 提交按钮。
-    表单值由父级 `useCorrection` 持有（唯一真源），本组件只做渲染与就地写回（**不改结构、不换算金额**）。
+    表单值由父级 `useCorrection` 持有（唯一真源），本组件只做渲染与字段级回抛
+    （`update:model` 整值上抛，父级合并回真源；**不改结构、不换算金额**）。
   -->
   <view class="q-card">
     <!-- ① 菜品锚定行（纯文本 · 只读）：无标题、无底色、无卡片背景；预填未就绪时仅显示载入文案。
@@ -217,7 +218,7 @@
  * CorrectionForm —— 菜品问题反馈页「信息有误」型的表单区（渲染 + 校验错误呈现 + 提交触发）
  *
  * 职责边界：本组件**不持有业务状态**（表单值 / 校验 / patch 组装 / 提交全在 `useCorrection`），
- * 只负责「六段结构」的渲染与字段级写回（`props.model` 就地写回，父级 reactive 为唯一真源）。
+ * 只负责「六段结构」的渲染与字段级回抛（`update:model` 整值上抛，父级 reactive 为唯一真源）。
  * 图标走 `IconSvg`、图片占位走 `ImagePlaceholder`（经 `ImagePicker` 间接消费）、
  * 事件统一 `@tap`、按压用 hover-class 透明度微降（禁 `transform: scale`）、颜色全语义 token。
  */
@@ -244,8 +245,6 @@ import type { PickSource } from '@/components/imagePickSource'
 type FieldKey = 'name' | 'price' | 'canteenName' | 'stallName'
 
 const props = defineProps<{
-  /** 表单值（预填详情；用户只改动其中的错误项）——父级 reactive 持有唯一真源 */
-  model: CorrectionFormModel
   /** 锚定菜品名（只读展示） */
   dishName: string
   /** 锚定位置「食堂 · 楼层 · 档口」（只读展示） */
@@ -263,6 +262,13 @@ const props = defineProps<{
   /** 提交失败原因（页面底部橙字；空 = 无） */
   submitError: string
 }>()
+
+/**
+ * 表单值（`v-model` 双向；父级 reactive 为唯一真源）。
+ * 本组件**不改 prop 对象本身**：任何字段变化都以整值替换 `{ ...model, ...patch }`
+ * 经 `update:model` 回抛，由父级 `useCorrection.updateForm` 浅合并回 reactive 真源。
+ */
+const model = defineModel<CorrectionFormModel>('model', { required: true })
 
 const emit = defineEmits<{
   /** 字段变化：清掉该字段的行内错误（并撤下过期的失败提示） */
@@ -295,7 +301,15 @@ const floorPickerOpen = ref(false)
 /**
  * 楼层单元格展示文案：`form.floor` 即**汉字**（值即显示值）；空串 ⇒ 占位「请选择楼层」。
  */
-const floorLabel = computed(() => props.model.floor || '请选择楼层')
+const floorLabel = computed(() => model.value.floor || '请选择楼层')
+
+/**
+ * 表单局部更新：以整值替换构造新模型并经 `update:model` 回抛（**禁就地改 prop 对象**）。
+ * 未涉及的字段沿用原引用（浅拷贝），属性数组在维度变化时另行不可变替换。
+ */
+function patchModel(patch: Partial<CorrectionFormModel>) {
+  model.value = { ...model.value, ...patch }
+}
 
 /** 打开楼层字典弹层（提交中禁开，避免与提交态交互打架） */
 function openFloorPicker() {
@@ -308,7 +322,7 @@ function openFloorPicker() {
  * 与文本字段口径一致 —— 用户一动内容就撤下上一次提交失败提示。
  */
 function onFloorSelect(value: string) {
-  props.model.floor = value
+  patchModel({ floor: value })
   floorPickerOpen.value = false
   emit('clear', 'form.floor')
 }
@@ -318,24 +332,27 @@ function onFloorSelect(value: string) {
  */
 function onFieldInput(key: FieldKey, e: Event) {
   const detail = (e as unknown as { detail?: { value?: string } })?.detail
-  props.model[key] = detail?.value ?? ''
+  patchModel({ [key]: detail?.value ?? '' })
   emit('clear', `form.${key}`)
 }
 
 /**
- * 属性维度选区变化：父级模型就地写回（patch 组装由 `useCorrection` 与基线比对完成）。
+ * 属性维度选区变化：以不可变替换回抛该维度的编辑项（patch 组装由 `useCorrection` 与基线比对完成）。
  * 同时回抛 `clear`（键取 `form.attributes.<fieldKey>`）——**与文本字段口径一致**：用户一动内容就
  * 撤下上一次的提交失败橙字（属性区无字段级错误，故该键在 `fieldErrors` 中恒为空、仅起撤提示作用）。
  */
 function onAttributeChange(fieldKey: string, selected: string[]) {
-  const ed = props.model.attributes.find((x) => x.fieldKey === fieldKey)
-  if (ed) ed.selected = selected
+  patchModel({
+    attributes: model.value.attributes.map((x) =>
+      x.fieldKey === fieldKey ? { ...x, selected } : x,
+    ),
+  })
   emit('clear', `form.attributes.${fieldKey}`)
 }
 
-/** 图片增删：同上，就地写回 + 回抛 `clear`（撤下过期的失败提示） */
+/** 图片增删：整值替换回抛 + 回抛 `clear`（撤下过期的失败提示） */
 function onImagesChange(urls: string[]) {
-  props.model.images = urls
+  patchModel({ images: urls })
   emit('clear', 'form.images')
 }
 
@@ -352,13 +369,13 @@ function onSubmitTap() {
 <style scoped lang="scss">
 /* 下划线字段行样式来自共享 partial（本包内同源） */
 @use './field-shared' as field;
-/* ===== 主卡片（圆角 16rpx + 浅暖米色细描边 + 柔和卡阴影；一枚大卡承载全部表单） ===== */
+/* ===== 主卡片（圆角 24rpx + 浅暖米色细描边 + 柔和卡阴影；一枚大卡承载全部表单） ===== */
 .q-card {
-  margin: var(--spacing-md) var(--spacing-md) 0;
+  margin: var(--spacing-md) var(--page-gutter) 0;
   padding: var(--spacing-lg);
   background: var(--bg-card);
-  border: 2rpx solid var(--border-color);
-  border-radius: var(--radius-btn);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   box-sizing: border-box;
 }

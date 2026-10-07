@@ -22,6 +22,7 @@ import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.auth.aspect.RequireVerifiedAspect;
 import com.bjtufood.auth.service.impl.UserServiceImpl;
+import com.bjtufood.auth.service.impl.UserStateWriteLock;
 import com.bjtufood.common.config.CorsProperties;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.exception.GlobalExceptionHandler;
@@ -165,6 +166,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // auth 域真实实现：切面经 UserService.requireUgcAuthorized 判定准入（判据与错误码收敛在 auth），
         // 同时供 FeedbackServiceImpl（昵称投影 / 回执认证判据）消费；其 UserMapper 仍打桩，故不查库
         UserServiceImpl.class,
+        // UserServiceImpl 的「DB status 写 + 黑名单写」临界区组件（无外部依赖，切片内用真实实例即可）
+        UserStateWriteLock.class,
         // 反馈 / 举报入参校验（type 白名单）的真实实现
         FeedbackServiceImpl.class,
         // 举报原因字典（A7 表驱动）：FeedbackServiceImpl 依赖其 isSubmittable 做提交白名单

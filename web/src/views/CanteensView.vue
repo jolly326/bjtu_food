@@ -57,6 +57,9 @@ async function save(): Promise<void> {
   }
 }
 
+/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
+const busyId = ref<number | null>(null)
+
 async function remove(row: CanteenAdminVO): Promise<void> {
   const stallHint =
     row.stallCount > 0 ? `该食堂下有 ${row.stallCount} 个档口，删除前请先处理。` : ''
@@ -65,6 +68,7 @@ async function remove(row: CanteenAdminVO): Promise<void> {
   } catch {
     return
   }
+  busyId.value = row.id
   try {
     await deleteCanteen(row.id)
     ElMessage.success('已删除')
@@ -72,6 +76,8 @@ async function remove(row: CanteenAdminVO): Promise<void> {
   } catch (e) {
     // 其下仍有档口 / 食堂不存在 → 后端原文（400 / 4001）
     fail(e, '删除失败')
+  } finally {
+    busyId.value = null
   }
 }
 
@@ -110,8 +116,22 @@ onMounted(() => load())
             <td>{{ row.stallCount }}</td>
             <td class="muted">{{ row.updatedAt }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="openEdit(row)">编辑</button>
-              <button class="link danger" type="button" @click="remove(row)">删除</button>
+              <button
+                class="link"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="openEdit(row)"
+              >
+                编辑
+              </button>
+              <button
+                class="link danger"
+                type="button"
+                :disabled="busyId === row.id"
+                @click="remove(row)"
+              >
+                删除
+              </button>
             </td>
           </tr>
         </tbody>

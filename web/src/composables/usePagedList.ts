@@ -40,9 +40,18 @@ export function usePagedList<T>(
     }
   }
 
-  /** 重新加载**当前页**（保存 / 删除 / 启停 / 处置后调用：保持筛选与页码） */
-  function reload(): Promise<void> {
-    return load(page.value)
+  /**
+   * 重新加载**当前页**（保存 / 删除 / 启停 / 处置后调用：保持筛选与页码）。
+   * <p>
+   * 🔴 **末页删空自动回退**：删除会令 `total` 变小，若当前页已越界，接口会返回空记录
+   * ⇒ 列表误显「暂无数据」且用户被卡在越界页。这里在首次加载后按**刷新过的** `pageCount`
+   * 判断，越界则再加载最后一页（仅边界场景多发一次请求）。
+   */
+  async function reload(): Promise<void> {
+    await load(page.value)
+    if (page.value > pageCount.value) {
+      await load(pageCount.value)
+    }
   }
 
   /** 回到**第 1 页并加载**（筛选变更 / 重置后调用） */

@@ -13,9 +13,9 @@ import com.bjtufood.upload.service.UploadService;
 import com.bjtufood.upload.support.ImageDimensionChecker;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -40,7 +40,6 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class UploadServiceImpl implements UploadService {
 
     private static final Logger log = LoggerFactory.getLogger(UploadServiceImpl.class);
@@ -75,7 +74,7 @@ public class UploadServiceImpl implements UploadService {
     private final WechatAccessTokenProvider tokenProvider;
 
     /** 云存储图片下载专用 RestTemplate（实例化一次复用；仅 batchdownloadfile / 临时链接下载两个出网点） */
-    private final RestTemplate cloudRestTemplate = newCloudRestTemplate();
+    private final RestTemplate cloudRestTemplate;
 
     /**
      * 本地存储配置（根目录 + URL 前缀），与 {@code WebMvcConfig} 的静态资源映射**共用同一份**——
@@ -89,6 +88,41 @@ public class UploadServiceImpl implements UploadService {
      * 归 {@code wechat} 域的 {@code WechatProperties}：同一键只此一处绑定（不留第二处真源）。
      */
     private final WechatProperties wechatProperties;
+
+    /**
+     * Spring 装配入口：云存储下载用的 RestTemplate 走 {@link #newCloudRestTemplate()} 默认超时配置。
+     */
+    @Autowired
+    public UploadServiceImpl(ImageUrlUtil imageUrlUtil,
+                             ContentSecurityService contentSecurityService,
+                             CosStorageService cosStorageService,
+                             WechatAccessTokenProvider tokenProvider,
+                             UploadProperties uploadProperties,
+                             WechatProperties wechatProperties) {
+        this(imageUrlUtil, contentSecurityService, cosStorageService, tokenProvider,
+                newCloudRestTemplate(), uploadProperties, wechatProperties);
+    }
+
+    /**
+     * 测试可注入构造：允许传入由 {@code MockRestServiceServer} 绑定的 RestTemplate，脚本化出网响应。
+     * 生产装配走 {@link #UploadServiceImpl(ImageUrlUtil, ContentSecurityService, CosStorageService,
+     * WechatAccessTokenProvider, UploadProperties, WechatProperties)}。
+     */
+    public UploadServiceImpl(ImageUrlUtil imageUrlUtil,
+                             ContentSecurityService contentSecurityService,
+                             CosStorageService cosStorageService,
+                             WechatAccessTokenProvider tokenProvider,
+                             RestTemplate cloudRestTemplate,
+                             UploadProperties uploadProperties,
+                             WechatProperties wechatProperties) {
+        this.imageUrlUtil = imageUrlUtil;
+        this.contentSecurityService = contentSecurityService;
+        this.cosStorageService = cosStorageService;
+        this.tokenProvider = tokenProvider;
+        this.cloudRestTemplate = cloudRestTemplate;
+        this.uploadProperties = uploadProperties;
+        this.wechatProperties = wechatProperties;
+    }
 
     // ==================== 链路一：multipart 直传（保留，H5/独立服务器场景） ====================
 
@@ -181,21 +215,17 @@ public class UploadServiceImpl implements UploadService {
         // 1. batchdownloadfile 用 fileID 换取临时下载链接
         String downloadUrl = fetchCloudDownloadUrl(fileId);
 
-        // 2. 下载图片二进制
+        // 2. 下载图片二进制 —— 大小兜底即在此完成：readCapped 边读边截断，
+        // 超过 1MB（imgSecCheck 硬限制）直接抛 400，返回字节恒 ≤1MB（全链路唯一 1MB 兜底点）
         byte[] data = downloadImage(downloadUrl);
 
-        // 3. 大小兜底校验（imgSecCheck 硬限制 1MB；≤750×1334 尺寸由前端压缩保证）
-        if (data.length > WechatApiConst.MAX_IMAGE_SEC_CHECK_BYTES) {
-            throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
-        }
-
-        // 4. magic number 格式兜底（jpg/png/webp），扩展名按真实内容推断
+        // 3. magic number 格式兜底（jpg/png/webp），扩展名按真实内容推断
         String ext = detectImageExt(data);
 
-        // 5. imgSecCheck 内容安全检测（87014 → 400「图片包含违规内容，无法上传」）
+        // 4. imgSecCheck 内容安全检测（87014 → 400「图片包含违规内容，无法上传」）
         contentSecurityService.checkImage(data);
 
-        // 6. 转存 COS（key: ugc/{yyyyMMdd}/{uuid}.{ext}），返回绝对 URL
+        // 5. 转存 COS（key: ugc/{yyyyMMdd}/{uuid}.{ext}），返回绝对 URL
         String url = cosStorageService.upload(data, ext);
         return new UploadResultVO(url, null);
     }
@@ -315,9 +345,9 @@ public class UploadServiceImpl implements UploadService {
     /**
      * 流式下载云存储图片（BE-05）。
      * <p>
-     * 原实现 {@code getForObject(byte[].class)} 会把整个响应体全量缓冲进堆内存，且体积上限在
+     * 以 {@code ResponseExtractor} 直接消费响应流，边读边累计，超过 1MB 立即中断并抛 400。
+     * <b>不用</b> {@code getForObject(byte[].class)}：它会把整个响应体全量缓冲进堆内存，且体积上限在
      * 「下载完成之后」才判定——攻击者只需给出一个几百 MB 的临时链接即可单请求打爆堆（OOM 面）。
-     * 改为以 {@code ResponseExtractor} 直接消费响应流，边读边累计，超过 1MB 立即中断并抛 400。
      *
      * @return 图片字节（已保证非空且 ≤ {@link WechatApiConst#MAX_IMAGE_SEC_CHECK_BYTES}）
      */
@@ -341,8 +371,8 @@ public class UploadServiceImpl implements UploadService {
     }
 
     /**
-     * 边读边截断：累计字节数一旦超过 {@code limit} 立即抛出 400 并停止读取，
-     * 不再把剩余字节读进内存（缓冲区仅 8KB 常驻）。
+     * 边读边截断（云存储链路 <b>唯一的 1MB 兜底点</b>）：累计字节数一旦超过 {@code limit}
+     * 立即抛出 400 并停止读取，不把剩余字节读进内存（缓冲区仅 8KB 常驻）。
      */
     private static byte[] readCapped(InputStream in, long limit) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
