@@ -16,13 +16,13 @@ import type { AttributeEditor, CorrectionFormModel } from '../pages/correction/u
  *    （测试侧以父级视角浅合并回 reactive 模型，与 `useCorrection.updateForm` 同口径）。
  */
 
-/** 造一份维度编辑项 */
+/** 造一份维度编辑项（键 = 维度 ID） */
 function attr(
-  fieldKey: string,
+  dimensionId: number,
   selected: string[] = [],
   valueType: 'single' | 'multi' = 'multi',
 ): AttributeEditor {
-  return { fieldKey, name: fieldKey, valueType, candidates: ['辣', '麻'], selected }
+  return { dimensionId, name: `维度${dimensionId}`, valueType, candidates: ['辣', '麻'], selected }
 }
 
 /** 造表单模型（父级持有，经 update:model 落点合并后测试直接断言其被写回） */
@@ -67,14 +67,14 @@ function mountForm(over: Record<string, unknown> = {}, model = makeModel()) {
             '<view class="img-picker-stub" @click="$emit(\'update:modelValue\', [\'a.jpg\', \'b.jpg\'])" />',
         },
         AttributeGroup: {
-          // ⚠️ 真实组件接收**扁平 props**（field-key / name / value-type / selected …），
-          // 不是单个 editor 对象 —— 写错 prop 名会让 `editor.fieldKey` 读 undefined。
-          props: ['fieldKey', 'name', 'valueType', 'selected', 'candidates', 'first'],
+          // ⚠️ 真实组件接收**扁平 props**（dimension-id / name / value-type / selected …），
+          // 不是单个 editor 对象 —— 写错 prop 名会让 `editor.dimensionId` 读 undefined。
+          props: ['dimensionId', 'name', 'valueType', 'selected', 'candidates', 'first'],
           emits: ['change'],
-          // ⚠️ 真实契约是 **两个实参** `emit('change', fieldKey, selected)`，
-          // 不是传一个数组 —— 父级按 `fieldKey` 反查编辑项，传数组会查不到。
+          // ⚠️ 真实契约是 **两个实参** `emit('change', dimensionId, selected)`，
+          // 不是传一个数组 —— 父级按 `dimensionId` 反查编辑项，传数组会查不到。
           template:
-            '<view class="attr-group-stub" :data-key="fieldKey" @click="$emit(\'change\', fieldKey, [\'甜\'])" />',
+            '<view class="attr-group-stub" :data-key="dimensionId" @click="$emit(\'change\', dimensionId, [\'甜\'])" />',
         },
         FloorPickerSheet: {
           // 具名 stub：`findComponent({ name })` 才能定位到它（无 name 时无法按名查询）
@@ -141,19 +141,19 @@ describe('CorrectionForm · 字段回抛（update:model）', () => {
   })
 
   it('属性维度变化写回对应编辑项的 selected', async () => {
-    const model = makeModel({ attributes: [attr('taste', ['辣'])] })
+    const model = makeModel({ attributes: [attr(3, ['辣'])] })
     const { wrapper } = mountForm({}, model)
     const group = wrapper.find('.attr-group-stub')
-    expect(group.attributes('data-key')).toBe('taste')
+    expect(group.attributes('data-key')).toBe('3')
     await group.trigger('click')
     expect(model.attributes[0].selected).toEqual(['甜'])
   })
 
-  it('属性变化回抛 clear 的键带维度名', async () => {
-    const model = makeModel({ attributes: [attr('taste', ['辣'])] })
+  it('属性变化回抛 clear 的键带维度 ID', async () => {
+    const model = makeModel({ attributes: [attr(3, ['辣'])] })
     const { wrapper } = mountForm({}, model)
     await wrapper.find('.attr-group-stub').trigger('click')
-    expect(wrapper.emitted('clear')?.[0]).toEqual(['form.attributes.taste'])
+    expect(wrapper.emitted('clear')?.[0]).toEqual(['form.attributes.3'])
   })
 
   it('属性区无维度时不渲染（`v-if="model.attributes.length"` 守卫）', () => {

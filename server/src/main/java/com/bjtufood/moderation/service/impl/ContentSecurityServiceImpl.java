@@ -293,16 +293,19 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
             // token 获取失败等业务异常原样传播，不在此处二次包装
             throw e;
         } catch (HttpStatusCodeException e) {
-            // 微信 WAF 对「云托管公网 HTTPS 调用」与「multipart + 空 UA」统一拦 412：把排查要素打进日志
+            // 微信 WAF 对「云托管公网 HTTPS 调用」与「multipart + 空 UA」统一拦 412：排查要素透出到提示（上线调试期）
             log.error("imgSecCheck 调用失败 url={} internal={} status={} respBody={}", url,
                     wechatProperties.isInternalCall(), e.getStatusCode(), e.getResponseBodyAsString(), e);
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "内容安全检测服务暂不可用（HTTP " + e.getStatusCode().value()
+                    + "，internal=" + wechatProperties.isInternalCall() + "），请稍后重试");
         } catch (ResourceAccessException e) {
             log.error("imgSecCheck 上游不可达 url={} internal={}", url, wechatProperties.isInternalCall(), e);
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "内容安全检测服务暂不可用（网络不可达，internal="
+                    + wechatProperties.isInternalCall() + "），请稍后重试");
         } catch (Exception e) {
             log.error("imgSecCheck 调用失败 url={} internal={}", url, wechatProperties.isInternalCall(), e);
-            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
+            throw new BusinessException(500, "内容安全检测服务暂不可用（" + e.getClass().getSimpleName()
+                    + "，internal=" + wechatProperties.isInternalCall() + "），请稍后重试");
         }
         Map<String, Object> resp = parseJson(respBody, "img_sec_check");
 

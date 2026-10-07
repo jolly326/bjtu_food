@@ -13,7 +13,7 @@
 
     职责边界：
     · **只做选择，不做提交**：确认 / 清空 / 单选点项 → `emit('update', next)` 回抛**新数组**，
-      由 `AttributeGroup` 转发 `change(fieldKey, next)`，表单值真源恒在 `useCorrection`；
+      由 `AttributeGroup` 转发 `change(dimensionId, next)`，表单值真源恒在 `useCorrection`；
     · **草稿态（多选）**：勾选只写本地 `draft`，点【确认】才回抛；关闭 / 遮罩 / 下滑 ⇒ **草稿丢弃**；
     · **单选无确认按钮**：点候选 / 添加自定义 = 选中并立即回抛 + 关闭；清空走底部「不填该项」；
     · **搜索仅本地过滤**：候选由编辑端点一次性下发（全库已用值去重），**禁**在弹层内再发请求。

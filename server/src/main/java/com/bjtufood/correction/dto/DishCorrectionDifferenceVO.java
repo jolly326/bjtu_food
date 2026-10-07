@@ -18,7 +18,7 @@ import lombok.Data;
 @Schema(description = "纠错差异对照项")
 public class DishCorrectionDifferenceVO {
 
-    @Schema(description = "差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<fieldKey>",
+    @Schema(description = "差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<维度ID>",
             example = "name")
     private String field;
 

@@ -90,10 +90,10 @@ class DishReadPathBenchmarkTest {
 
     /** 维度字典（4 维：与 dish_attribute_dimension 生产数据同构） */
     private static final List<DishAttributeDimension> DIMENSIONS = List.of(
-            dimension(1L, "dietType", "饮食属性", "single", 1),
-            dimension(2L, "spiceLevel", "辣度", "single", 2),
-            dimension(3L, "flavorTags", "口味", "multi", 3),
-            dimension(4L, "serveTemp", "出餐温度", "single", 4));
+            dimension(1L, "饮食属性", "single", 1),
+            dimension(2L, "辣度", "single", 2),
+            dimension(3L, "口味", "multi", 3),
+            dimension(4L, "出餐温度", "single", 4));
 
     private DishMapper dishMapper;
     private DishViewLogMapper dishViewLogMapper;
@@ -253,16 +253,16 @@ class DishReadPathBenchmarkTest {
 
         DishDetailVO detail = sampleDetail();
         detail.setAttributes(List.of(
-                new DishAttributeItem("dietType", "饮食属性", "荤菜"),
-                new DishAttributeItem("spiceLevel", "辣度", "中辣"),
-                new DishAttributeItem("flavorTags", "口味", List.of("咸鲜", "香辣"))));
+                new DishAttributeItem(1L, "饮食属性", "荤菜"),
+                new DishAttributeItem(4L, "辣度", "中辣"),
+                new DishAttributeItem(3L, "口味", List.of("咸鲜", "香辣"))));
         PerfMetrics.emit("server.payload_bytes.dish_detail", bytesOf(AS_IS, detail), "B", "公开 11 字段");
         PerfMetrics.emit("server.payload_bytes.dish_detail_non_null", bytesOf(NON_NULL, detail), "B",
                 "对照：null 字段不下发时的体积");
 
         List<DishAttributeEditVO> edit = new ArrayList<>();
         for (DishAttributeDimension dim : DIMENSIONS) {
-            edit.add(new DishAttributeEditVO(dim.getFieldKey(), dim.getValueType(), candidateOptions(20)));
+            edit.add(new DishAttributeEditVO(dim.getId(), dim.getValueType(), candidateOptions(20)));
         }
         PerfMetrics.emit("server.payload_bytes.dish_attributes_edit", bytesOf(AS_IS, edit), "B",
                 "4 维 × 每维 20 个参考候选（编辑弹层一次拉全）");
@@ -292,10 +292,9 @@ class DishReadPathBenchmarkTest {
         return objectMapper.writeValueAsString(value).getBytes(StandardCharsets.UTF_8).length;
     }
 
-    private static DishAttributeDimension dimension(long id, String fieldKey, String name, String valueType, int order) {
+    private static DishAttributeDimension dimension(long id, String name, String valueType, int order) {
         DishAttributeDimension dim = new DishAttributeDimension();
         dim.setId(id);
-        dim.setFieldKey(fieldKey);
         dim.setName(name);
         dim.setValueType(valueType);
         dim.setSortOrder(order);
@@ -313,8 +312,8 @@ class DishReadPathBenchmarkTest {
 
     private static String sampleAttributesJson(int index) {
         int v = index % 40;
-        return "{\"dietType\":\"" + dietType(v) + "\",\"spiceLevel\":\"辣度" + v
-                + "\",\"flavorTags\":[\"口味" + v + "\",\"口味" + ((v + 7) % 40) + "\"],\"serveTemp\":\"温度"
+        return "{\"1\":\"" + dietType(v) + "\",\"2\":\"辣度" + v
+                + "\",\"3\":[\"口味" + v + "\",\"口味" + ((v + 7) % 40) + "\"],\"4\":\"温度"
                 + ((v + 3) % 40) + "\"}";
     }
 

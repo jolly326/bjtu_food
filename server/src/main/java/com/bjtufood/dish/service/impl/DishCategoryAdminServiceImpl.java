@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +23,8 @@ import java.util.regex.Pattern;
 /**
  * A6 分类值字典管理实现。
  * <p>
- * 分类值由**自由输入产生**（A3 菜品录入），后台只保留**重命名**；
- * 数据锚在 `key`（`dish.meal_type` 存的就是它）⇒ 改名免费、零菜品迁移。
+ * 数据锚在 `id`（`dish.meal_type` 存的就是它）⇒ 改名免费、零菜品迁移；
+ * `key` 只服务**代码**（内置视图常量按 `key` 引用分类），新建时选填、缺省自动生成（`cat-` + 8 位小写十六进制）。
  */
 @Service
 @RequiredArgsConstructor
@@ -31,8 +32,10 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
     private static final Pattern KEY_PATTERN = Pattern.compile("^[a-z0-9-]{1,20}$");
     private static final int LABEL_MAX = 32;
-    /** 自动登记（A3 自由输入）时新分类的默认排序：排在种子项之后 */
-    private static final int AUTO_REGISTER_ORDER = 99;
+    /** 自动生成的分类键前缀（与手填的语义键形态区分，一眼可辨） */
+    private static final String GENERATED_KEY_PREFIX = "cat-";
+    private static final int GENERATED_KEY_RANDOM_LEN = 8;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final DishCategoryValueMapper categoryMapper;
     private final DishMapper dishMapper;
@@ -41,19 +44,19 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
     @Override
     public List<DishCategoryAdminVO> listAll() {
-        Map<String, Long> countByKey = dishCountByKey();
+        Map<Long, Long> countById = dishCountById();
         return categoryMapper.selectList(new LambdaQueryWrapper<DishCategoryValue>()
                         .orderByAsc(DishCategoryValue::getSortOrder)
                         .orderByAsc(DishCategoryValue::getId))
                 .stream()
-                .map(c -> toVO(c, countByKey))
+                .map(c -> toVO(c, countById))
                 .toList();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DishCategoryAdminVO create(String key, String label) {
-        String normalizedKey = normalizeKey(key);
+        String normalizedKey = StringUtils.hasText(key) ? normalizeKey(key) : generateKey();
         String normalizedLabel = normalizeLabel(label);
         if (existsByKey(normalizedKey)) {
             throw new BusinessException("分类键已存在");
@@ -64,7 +67,7 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         entity.setLabel(normalizedLabel);
         entity.setSortOrder(nextOrder());
         categoryMapper.insert(entity);
-        return toVO(categoryMapper.selectById(entity.getId()), dishCountByKey());
+        return toVO(categoryMapper.selectById(entity.getId()), dishCountById());
     }
 
     @Override
@@ -76,24 +79,15 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         DishCategoryValue update = new DishCategoryValue();
         update.setId(id);
         update.setLabel(normalizedLabel);
-        // 改名免费：dish.meal_type 存的是 key，零菜品迁移
+        // 改名免费：dish.meal_type 存的是 id，零菜品迁移
         categoryMapper.updateById(update);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public String resolveOrRegister(String key) {
-        String normalizedKey = normalizeKey(key);
-        if (existsByKey(normalizedKey)) {
-            return normalizedKey;
+    public void requireExists(Long categoryId) {
+        if (categoryId == null || categoryMapper.selectById(categoryId) == null) {
+            throw new BusinessException("分类值不存在：" + categoryId);
         }
-        // 自由输入产生的新分类：以键为初名登记（管理员可改名）
-        DishCategoryValue entity = new DishCategoryValue();
-        entity.setKey(normalizedKey);
-        entity.setLabel(normalizedKey);
-        entity.setSortOrder(AUTO_REGISTER_ORDER);
-        categoryMapper.insert(entity);
-        return normalizedKey;
     }
 
     // ==================== 内部工具 ====================
@@ -103,10 +97,22 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
                 .eq(DishCategoryValue::getKey, key)) > 0;
     }
 
-    private void requireExists(Long id) {
-        if (id == null || categoryMapper.selectById(id) == null) {
-            throw new BusinessException(4001, "分类值不存在");
+    /**
+     * 自动生成唯一分类键：`cat-` + 8 位小写十六进制。
+     * 唯一索引（`uk_category_key`）兜底，生成侧仍先查重（16^8 空间内碰撞概率可忽略，循环仅为防御）。
+     */
+    private String generateKey() {
+        for (int attempt = 0; attempt < 8; attempt++) {
+            StringBuilder sb = new StringBuilder(GENERATED_KEY_PREFIX);
+            for (int i = 0; i < GENERATED_KEY_RANDOM_LEN; i++) {
+                sb.append(Integer.toHexString(RANDOM.nextInt(0x10)));
+            }
+            String candidate = sb.toString();
+            if (!existsByKey(candidate)) {
+                return candidate;
+            }
         }
+        throw new BusinessException("分类键生成失败，请重试或手动指定分类键");
     }
 
     private void requireLabelUnique(String label, Long excludeId) {
@@ -119,15 +125,15 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
     }
 
     /**
-     * 各分类的引用菜品数。
+     * 各分类的引用菜品数（按 `meal_type` = 分类 ID 统计）。
      * <p>
-     * 一次按 `meal_type` 分组统计的实现代价高于「取全部非空 meal_type 后内存归并」（分类值量级极小、
-     * 菜品量级百至千），故沿用与 A4/A7 一致的「一次拉回后在内存聚合」口径，避免为每个分类单发 COUNT。
+     * 「取全部非空 meal_type 后内存归并」（分类值量级极小、菜品量级百至千），
+     * 沿用与 A4/A7 一致的「一次拉回后在内存聚合」口径，避免为每个分类单发 COUNT。
      */
-    private Map<String, Long> dishCountByKey() {
-        Map<String, Long> counts = new HashMap<>();
+    private Map<Long, Long> dishCountById() {
+        Map<Long, Long> counts = new HashMap<>();
         for (Dish dish : dishMapper.selectList(new LambdaQueryWrapper<Dish>().select(Dish::getId, Dish::getMealType))) {
-            if (StringUtils.hasText(dish.getMealType())) {
+            if (dish.getMealType() != null) {
                 counts.merge(dish.getMealType(), 1L, Long::sum);
             }
         }
@@ -159,13 +165,13 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         return v;
     }
 
-    private DishCategoryAdminVO toVO(DishCategoryValue entity, Map<String, Long> countByKey) {
+    private DishCategoryAdminVO toVO(DishCategoryValue entity, Map<Long, Long> countById) {
         DishCategoryAdminVO vo = new DishCategoryAdminVO();
         vo.setId(entity.getId());
         vo.setKey(entity.getKey());
         vo.setLabel(entity.getLabel());
         vo.setOrder(entity.getSortOrder());
-        vo.setDishCount(countByKey.getOrDefault(entity.getKey(), 0L));
+        vo.setDishCount(countById.getOrDefault(entity.getId(), 0L));
         vo.setUpdatedAt(entity.getUpdatedAt());
         return vo;
     }

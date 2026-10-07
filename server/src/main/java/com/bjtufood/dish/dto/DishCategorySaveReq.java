@@ -9,15 +9,14 @@ import lombok.Data;
 /**
  * A6 分类值登记请求（`POST /admin/dish-categories`）。
  *
- * <p>这是「**自动登记**」的最终落点：A3 菜品保存 / A6 视图条件保存时输入的新分类，
- * 最终都会走到本端点（或同事务等价逻辑）。
+ * <p>`key` 是**代码锚点**（内置视图常量按 `key` 引用分类）：**选填**，缺省由后端自动生成
+ * （`cat-` + 8 位小写十六进制）；填了则校验格式与唯一性。
  */
 @Data
 @Schema(description = "分类值登记请求")
 public class DishCategorySaveReq {
 
-    @Schema(description = "分类键（小写字母 / 数字 / -，1~20；全站唯一；在用后不可改）", example = "noodle")
-    @NotBlank(message = "分类键不能为空")
+    @Schema(description = "分类键（选填；小写字母 / 数字 / -，1~20；全站唯一；缺省自动生成）", example = "noodle")
     @Size(max = 20, message = "分类键不能超过 20 字符")
     @Pattern(regexp = "^[a-z0-9-]+$", message = "分类键只能包含小写字母、数字与 -")
     private String key;

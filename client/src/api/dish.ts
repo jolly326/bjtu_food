@@ -41,7 +41,7 @@ function toDishListItem(raw: DishListItemVO): DishListItem {
 function toDishAttribute(raw: DishAttributeItem): DishAttribute {
   const value = raw.value
   return {
-    fieldKey: String(raw.fieldKey || ''),
+    dimensionId: Number(raw.dimensionId ?? 0),
     name: String(raw.name || ''),
     value: typeof value === 'string' || Array.isArray(value) ? (value as string | string[]) : '',
   }
@@ -129,11 +129,11 @@ export async function listDishViews(): Promise<DishView[]> {
  * —— 维度名与当前值在 `GET /dishes/{id}` 里已有，本端点**不重复下发**。
  */
 interface DishEditAttribute {
-  /** 维度键（camelCase），与详情 `attributes[].fieldKey` 对齐 */
-  fieldKey: string
+  /** 维度 ID，与详情 `attributes[].dimensionId` 对齐（提交时即 `attributes` 的键） */
+  dimensionId: number
   /** 取值类型：`single`（单值）｜ `multi`（多值，值取数组） */
   valueType: 'single' | 'multi'
-  /** 该维度参考候选值（中文文本，按频次倒序）；端上按序渲染 chips，亦可自由输入新值 */
+  /** 该维度参考候选值（中文文本，按字典序）；端上按序渲染 chips，亦可自由输入新值 */
   options: string[]
 }
 
@@ -144,7 +144,7 @@ interface DishEditAttribute {
 export async function listDishEditAttributes(dishId: number): Promise<DishEditAttribute[]> {
   const raw = await get<DishAttributeEditVO[]>(`/dishes/${dishId}/attributes`)
   return (raw || []).map((item) => ({
-    fieldKey: String(item.fieldKey || ''),
+    dimensionId: Number(item.dimensionId ?? 0),
     valueType: item.valueType === 'multi' ? 'multi' : 'single',
     options: Array.isArray(item.options)
       ? (item.options as unknown[]).map((o) => String(o ?? '')).filter(Boolean)

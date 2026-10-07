@@ -2,8 +2,8 @@
 /**
  * A7 举报原因管理（页面规格见 [A7-举报原因管理](../../../docs/func/web/A-主数据维护/A7-举报原因管理.md)）。
  *
- * <p>要点：维护举报弹层的「原因」单选字典（**可维护、免发版**）；数据锚在 `value`（历史举报按它落库）
- * ⇒ **没有「改机器值」入口**（要改就停用旧值、新建一个）；改名免费；**删除受引用约束**（下线一律用停用）；
+ * <p>要点：维护举报弹层的「原因」单选字典（**可维护、免发版**）；数据锚在原因 ID（历史举报按它落库）
+ * ⇒ 新建只填中文标签、**没有「改 ID」入口**；改名免费；**删除受引用约束**（下线一律用停用）；
  * 三条不变量由服务端强制（至少 1 条启用 / 启用 ≤8 / 引用禁删），前端只负责把错误原文透出。
  */
 import { onMounted, ref } from 'vue'
@@ -28,31 +28,29 @@ import StatusTag from '@/components/StatusTag.vue'
 const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
   useSimpleList<ReportReasonAdminVO>(() => listReportReasons())
 
-/* ==================== 新建（机器值 + 文案，2 控件 ⇒ 弹窗） ==================== */
+/* ==================== 新建（文案，1 控件 ⇒ 弹窗） ==================== */
 const createOpen = ref(false)
-const newValue = ref('')
 const newLabel = ref('')
 const saving = ref(false)
 
 function openCreate(): void {
-  newValue.value = ''
   newLabel.value = ''
   createOpen.value = true
 }
 
 async function submitCreate(): Promise<void> {
-  if (!newValue.value.trim() || !newLabel.value.trim()) {
-    ElMessage.warning('请填写机器值与中文标签')
+  if (!newLabel.value.trim()) {
+    ElMessage.warning('请填写中文标签')
     return
   }
   saving.value = true
   try {
-    await createReportReason({ value: newValue.value.trim(), label: newLabel.value.trim() })
+    await createReportReason({ label: newLabel.value.trim() })
     ElMessage.success('已新建')
     createOpen.value = false
     await load()
   } catch (e) {
-    // 机器值格式非法 / 重名 / 启用数已达上限 8 → 后端原文（400）
+    // 标签重名 / 启用数已达上限 8 → 后端原文（400）
     fail(e, '新建失败')
   } finally {
     saving.value = false
@@ -171,7 +169,6 @@ onMounted(() => load())
           <tr>
             <th class="drag-col"></th>
             <th>原因</th>
-            <th>机器值</th>
             <th>引用举报</th>
             <th>状态</th>
             <th>更新时间</th>
@@ -182,9 +179,6 @@ onMounted(() => load())
           <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
             <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
             <td>{{ row.label }}</td>
-            <td>
-              <code>{{ row.value }}</code>
-            </td>
             <td class="num">{{ row.feedbackCount }}</td>
             <td><StatusTag :status="row.status" kind="onoff" /></td>
             <td class="muted">{{ row.updatedAt }}</td>
@@ -213,22 +207,12 @@ onMounted(() => load())
         </tbody>
       </table>
       <p class="foot-note">
-        机器值是历史举报的数据锚点，在用后不可修改（要改就停用旧值、新建一个）；下线一律用「停用」。
+        原因 ID 是历史举报的数据锚点（由后端生成，不可修改）；下线一律用「停用」。
       </p>
     </div>
 
-    <!-- 新建：机器值 + 中文标签（2 控件） -->
+    <!-- 新建：中文标签（1 控件） -->
     <BaseModal title="新建举报原因" :open="createOpen" @close="createOpen = false">
-      <div class="field">
-        <label for="rr-new-value">机器值</label>
-        <input
-          id="rr-new-value"
-          class="form-input"
-          v-model="newValue"
-          placeholder="小写字母 / 数字 / -（如 spam）"
-        />
-        <div class="hint">全站唯一，在用后不可修改</div>
-      </div>
       <div class="field">
         <label for="rr-new-label">中文标签</label>
         <input
@@ -257,7 +241,7 @@ onMounted(() => load())
           @keyup.enter="submitRename"
         />
       </div>
-      <p class="hint">改名免费：历史举报的「原因」会同步显示新文案（数据锚在机器值）。</p>
+      <p class="hint">改名免费：历史举报的「原因」会同步显示新文案（数据锚在原因 ID）。</p>
       <template #actions>
         <button class="btn-secondary" type="button" @click="renameOpen = false">取消</button>
         <button class="btn-primary" type="button" :disabled="saving" v-press @click="submitRename">

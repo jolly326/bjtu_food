@@ -548,7 +548,7 @@ public class CorrectionServiceImpl implements CorrectionService {
     private static final String FIELD_STALL_NAME = "stallName";
     private static final String FIELD_FLOOR = "floor";
     private static final String FIELD_IMAGES = "images";
-    /** 属性维度项的键前缀（`attributes.<fieldKey>`） */
+    /** 属性维度项的键前缀（`attributes.<维度ID>`） */
     private static final String FIELD_ATTR_PREFIX = "attributes.";
 
     @Override
@@ -635,21 +635,21 @@ public class CorrectionServiceImpl implements CorrectionService {
         }
         addDiff(diffs, FIELD_IMAGES, "菜品图片", live.getImages(),
                 c.getImages() == null || c.getImages().isEmpty() ? null : c.getImages(), false);
-        // 描述属性：按**维度**拆项（键 = attributes.<fieldKey>，可直接进 acceptedFields）
-        Map<String, String> dimensionNames = dimensionNameByFieldKey();
-        JsonMapUtil.parseObject(c.getAttributes()).forEach((fieldKey, submitted) -> {
-            Object liveValue = live.getAttributes() == null ? null : live.getAttributes().get(fieldKey);
-            String label = dimensionNames.getOrDefault(fieldKey, "描述属性");
-            addDiff(diffs, FIELD_ATTR_PREFIX + fieldKey, label, liveValue, submitted, false);
+        // 描述属性：按**维度**拆项（键 = attributes.<维度ID>，可直接进 acceptedFields）
+        Map<String, String> dimensionNames = dimensionNameById();
+        JsonMapUtil.parseObject(c.getAttributes()).forEach((dimensionKey, submitted) -> {
+            Object liveValue = live.getAttributes() == null ? null : live.getAttributes().get(dimensionKey);
+            String label = dimensionNames.getOrDefault(dimensionKey, "描述属性");
+            addDiff(diffs, FIELD_ATTR_PREFIX + dimensionKey, label, liveValue, submitted, false);
         });
         return diffs;
     }
 
-    /** 维度中文名映射（fieldKey → name）；字典读失败不阻塞详情（退化为通用文案） */
-    private Map<String, String> dimensionNameByFieldKey() {
+    /** 维度中文名映射（维度 ID 字符串 → name）；字典读失败不阻塞详情（退化为通用文案） */
+    private Map<String, String> dimensionNameById() {
         Map<String, String> names = new LinkedHashMap<>();
         for (DishDimensionAdminVO dim : attributeAdminService.listDimensions()) {
-            names.put(dim.getFieldKey(), dim.getName());
+            names.put(String.valueOf(dim.getId()), dim.getName());
         }
         return names;
     }
@@ -689,9 +689,9 @@ public class CorrectionServiceImpl implements CorrectionService {
     /** 逐项采纳：把 `acceptedFields` 里的属性维度项取出（只带选中维度，dish 域按维度合并） */
     private static Map<String, Object> acceptedAttributes(DishCorrection correction, Set<String> accepted) {
         Map<String, Object> picked = new LinkedHashMap<>();
-        JsonMapUtil.parseObject(correction.getAttributes()).forEach((fieldKey, value) -> {
-            if (accepted.contains(FIELD_ATTR_PREFIX + fieldKey)) {
-                picked.put(fieldKey, value);
+        JsonMapUtil.parseObject(correction.getAttributes()).forEach((dimensionKey, value) -> {
+            if (accepted.contains(FIELD_ATTR_PREFIX + dimensionKey)) {
+                picked.put(dimensionKey, value);
             }
         });
         return picked;

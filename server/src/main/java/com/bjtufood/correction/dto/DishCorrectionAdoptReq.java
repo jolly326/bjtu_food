@@ -11,7 +11,7 @@ import java.util.List;
  * <p>
  * <b>逐项采纳</b>：管理员先调 {@code GET /admin/corrections/{id}} 拿到 `differences[]`，
  * 勾选后把**选中项的 `field`** 放进 {@link #acceptedFields}。取值必须是该清单里的键
- * （`name` / `price` / `canteenName` / `stallName` / `floor` / `images` / `attributes.<fieldKey>`）。
+ * （`name` / `price` / `canteenName` / `stallName` / `floor` / `images` / `attributes.<维度ID>`）。
  * <ul>
  *   <li><b>必填且非空</b>：空数组 → `400`（「什么都不采纳」不是采纳，是**拒绝**，有独立动作与必填原因）；</li>
  *   <li><b>只写回选中项</b>：管理员的判断粒度是「逐项取舍」，而非「全采纳 / 全拒绝」；</li>

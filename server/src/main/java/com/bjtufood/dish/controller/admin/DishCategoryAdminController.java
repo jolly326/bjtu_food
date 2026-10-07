@@ -26,11 +26,11 @@ import java.util.List;
  *
  * <p>契约真源：docs/api/web/categories.md 的「分类值」端点表。
  *
- * <p>分类值由**自由输入自动登记**产生（A3 菜品录入），本控制器是它的**最终落点与维护入口**
- * （列表 / 登记 / 重命名）。数据锚在 `key` ⇒ **改名免费**。
+ * <p>数据锚在 `id`（`dish.meal_type` 存的就是它）⇒ **改名免费**；`key` 只服务代码
+ * （内置视图常量按 `key` 引用分类），登记时**选填**、缺省由后端自动生成。
  */
 @Tag(name = "07. 后台分类值管理", description = "管理员维护菜品分类值字典（`dish.meal_type` 的取值域）：列表 / 登记 / 重命名。"
-        + "自由输入自动登记；改名免费。需要管理员 token。")
+        + "数据锚在分类 ID，改名免费。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/dish-categories")
 @RequiredArgsConstructor
@@ -45,8 +45,8 @@ public class DishCategoryAdminController {
         return Result.success(service.listAll());
     }
 
-    @Operation(summary = "登记分类值", description = "用途：登记新分类值（A3 菜品保存的「自动登记」最终落到本端点）。"
-            + "键 1~20 小写字母/数字/-、全站唯一；名 1~32 字、应用层唯一。")
+    @Operation(summary = "登记分类值", description = "用途：登记新分类值。`key` 选填（缺省由后端自动生成；填了则须为 1~20 小写字母/数字/- 且唯一）；"
+            + "名 1~32 字、应用层唯一。")
     @PostMapping
     public Result<DishCategoryAdminVO> create(@Valid @RequestBody DishCategorySaveReq req) {
         return Result.success(service.create(req.getKey(), req.getLabel()));

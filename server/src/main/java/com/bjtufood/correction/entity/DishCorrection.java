@@ -80,11 +80,11 @@ public class DishCorrection {
 
     /**
      * 提交的描述属性（**改动项快照**：仅含用户改动的维度，未改动维度留 NULL）。
-     * JSON 对象：键 = 维度 {@code fieldKey}，值 = <b>中文文本 / 数组</b>
+     * JSON 对象：键 = 维度 {@code id}（字符串形态），值 = <b>中文文本 / 数组</b>
      * （采纳时由服务端按「维度 + 中文」解析为取值 ID 后写回 {@code dish.attributes}）。
      */
-    @Schema(description = "提交的描述属性（JSON：键=维度 fieldKey，值=中文/数组；仅改动维度，可空）",
-            example = "{\"dietType\":\"素\",\"flavorTags\":[\"辣\",\"酸\"]}")
+    @Schema(description = "提交的描述属性（JSON：键=维度 ID，值=中文/数组；仅改动维度，可空）",
+            example = "{\"1\":\"素\",\"3\":[\"辣\",\"酸\"]}")
     private String attributes;
 
     /**

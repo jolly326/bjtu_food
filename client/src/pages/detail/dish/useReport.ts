@@ -13,8 +13,8 @@ interface UseReportReturn {
   reportSubmitting: Ref<boolean>
   /** 打开举报弹窗（游客可直达，无需认证）；targetId = 被举报的评价 ID */
   openReport: (targetId: number) => void
-  /** 提交举报：reasonValue = 弹层单选的举报原因机器值（字典下发项） */
-  submitReport: (reasonValue: string) => Promise<void>
+  /** 提交举报：reasonId = 弹层单选的举报原因 ID（字典下发项） */
+  submitReport: (reasonId: number) => Promise<void>
 }
 
 export function useReport(): UseReportReturn {
@@ -27,16 +27,16 @@ export function useReport(): UseReportReturn {
     reportOpen.value = true
   }
 
-  async function submitReport(reasonValue: string) {
+  async function submitReport(reasonId: number) {
     const targetId = reportTargetId.value
     if (targetId == null) return
-    if (!reasonValue) {
+    if (!reasonId) {
       toastInfo('请选择举报原因')
       return
     }
     reportSubmitting.value = true
     try {
-      await reportReview(targetId, { reason: reasonValue })
+      await reportReview(targetId, { reasonId })
       toastSuccess('举报已提交')
       reportOpen.value = false
     } catch (e) {

@@ -19,7 +19,7 @@ export async function createFeedback(payload: FeedbackSubmit): Promise<void> {
 
 /**
  * 提交评价举报（举报对象在路径中）。
- * 公开可提交（游客允许）；`reason` 必选（字典 `GET /report-reasons` 下发项）；
+ * 公开可提交（游客允许）；`reasonId` 必选（字典 `GET /report-reasons` 下发项的 `id`）；
  * 补充文本可空（填写则过安检）；被举报评价不存在 / 不可见 → 4001。
  */
 export async function reportReview(reviewId: number, payload: ReportPayload): Promise<void> {
@@ -47,10 +47,10 @@ type ReportReasonVO = SharedReportReasonVO
 
 /**
  * 端上展示模型：**必填**（契约字段可空，在此一次性兜底，避免 UI 模板处处判空）。
- * 字典项由后端静态常量构造、必带 value/label，契约的 `?` 只是 OpenAPI 对 record 分量的保守表达。
+ * 字典项必带 id/label，契约的 `?` 只是 OpenAPI 对 record 分量的保守表达。
  */
 export interface ReportReason {
-  value: string
+  id: number
   label: string
 }
 
@@ -62,6 +62,6 @@ export async function listReportReasons(): Promise<ReportReason[]> {
   const rows = await get<ReportReasonVO[]>('/report-reasons')
   if (!Array.isArray(rows)) return []
   return rows
-    .map((r) => ({ value: String(r.value ?? ''), label: String(r.label ?? '') }))
-    .filter((r) => r.value && r.label)
+    .map((r) => ({ id: Number(r.id ?? 0), label: String(r.label ?? '') }))
+    .filter((r) => r.id && r.label)
 }

@@ -119,8 +119,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
         // 举报原因必选，值域 = **report_reason 表**（存在且启用；停用的原因不能再被提交，
         // 但历史记录仍能翻译出中文 —— 见 docs/func/web/A-主数据维护/A7-举报原因管理.md）
-        String reason = req.getReason() == null ? null : req.getReason().trim();
-        if (!reportReasonService.isSubmittable(reason)) {
+        Long reasonId = req.getReasonId();
+        if (!reportReasonService.isSubmittable(reasonId)) {
             throw new BusinessException("举报原因非法");
         }
         // 去重：同一登录用户对同一评价的重复举报不新增（游客 userId=null 无身份标识，不去重）
@@ -140,7 +140,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
         feedback.setType(FeedbackConst.TYPE_REPORT);
-        feedback.setSub(reason);
+        feedback.setSubReasonId(reasonId);
+        feedback.setSub(null);
         feedback.setContent(content);
         feedback.setRelatedType(FeedbackConst.RELATED_REVIEW);
         feedback.setRelatedId(reviewId);
@@ -188,11 +189,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         // 口径：不过滤 status/上架态——信息纠错的对象可能已被下架，管理端仍需看到菜品名回看纠错内容；
         //       菜品已物理删除时不在结果集，VO 保持 null（前端按「菜品已删除」缺省展示）。
         Map<Long, String> dishNameMap = batchRelatedDishNames(p.getRecords());
-        // B3：举报原因中文名（`report_reason` 字典；量级 ≤8 条，逐页取一次即可，反馈行不消费）
-        Map<String, String> reasonLabelMap = new java.util.HashMap<>();
-        for (ReportReasonVO reason : reportReasonService.listEnabled()) {
-            reasonLabelMap.put(reason.getValue(), reason.getLabel());
-        }
+        // B3：举报原因中文名（`report_reason` 字典全量，含停用项 —— 历史举报仍要能翻译出中文；逐页取一次）
+        Map<Long, String> reasonLabelMap = reportReasonService.labelByIdAll();
         // B3：被举报评价摘要 —— **只收集 report 行的 relatedId 后批量取**（反馈行不参与，避免白取）
         java.util.Set<Long> reportReviewIds = new java.util.HashSet<>();
         for (Feedback f : p.getRecords()) {
@@ -258,7 +256,7 @@ public class FeedbackServiceImpl implements FeedbackService {
      * **举报行**另补原因中文名与被举报评价 ID（B3）；内容安全态已取消人工复核。
      */
     private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap, Map<Long, String> dishNameMap,
-                                      Map<String, String> reasonLabelMap,
+                                      Map<Long, String> reasonLabelMap,
                                       java.util.Map<Long, ReviewRelatedBriefVO> reviewBriefs) {
         FeedbackAdminVO vo = new FeedbackAdminVO();
         vo.setId(f.getId());
@@ -298,9 +296,9 @@ public class FeedbackServiceImpl implements FeedbackService {
         vo.setUpdatedAt(f.getUpdatedAt());
         // B3 举报私有字段：仅 type=report 填充（反馈行保持 null，避免端上误读成「有举报原因」）
         if (FeedbackConst.TYPE_REPORT.equals(f.getType())) {
-            vo.setReason(f.getSub());
-            // 字典缺失（历史机器值已停用）时回退机器值本身：宁可显示原始值，也不要空白
-            vo.setReasonLabel(reasonLabelMap.getOrDefault(f.getSub(), f.getSub()));
+            vo.setSubReasonId(f.getSubReasonId());
+            // 字典缺失（原因已被物理删除的极端情况）时回退 null：由前端按「—」呈现
+            vo.setReasonLabel(f.getSubReasonId() == null ? null : reasonLabelMap.get(f.getSubReasonId()));
             vo.setReviewId(f.getRelatedId());
             // 内嵌「被举报内容」摘要：管理员不跳页即可看到被举报了什么，并据 hidden 决定
             // 「同时隐藏」复选是否置灰（评价已隐藏时置灰，避免重复处置）

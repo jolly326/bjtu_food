@@ -15,12 +15,12 @@ export function listDimensions(): Promise<DishDimensionAdminVO[]> {
   return get<DishDimensionAdminVO[]>('/admin/dish-dimensions')
 }
 
-/** A4 新增维度（默认排最后；`fieldKey` 唯一） */
+/** A4 新增维度（默认排最后；维度 ID 由后端生成） */
 export function createDimension(req: DishDimensionSaveReq): Promise<DishDimensionAdminVO> {
   return post<DishDimensionAdminVO>('/admin/dish-dimensions', req)
 }
 
-/** A4 修改维度（`fieldKey` 在用后不可改；`valueType` 切换会自动迁移数据） */
+/** A4 修改维度（维度 ID 不可改；`valueType` 切换会自动迁移数据） */
 export function updateDimension(id: number, req: DishDimensionSaveReq): Promise<null> {
   return put<null>(`/admin/dish-dimensions/${id}`, req)
 }

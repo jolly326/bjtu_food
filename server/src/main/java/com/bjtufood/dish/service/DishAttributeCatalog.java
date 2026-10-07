@@ -59,7 +59,7 @@ public class DishAttributeCatalog {
     }
 
     /**
-     * 编辑候选值（**取值字典驱动**，A4 落地 2026-10-03）：按维度 {@code fieldKey} 汇总
+     * 编辑候选值（**取值字典驱动**，A4 落地 2026-10-03）：按维度 {@code id} 汇总
      * 该维度下**取值字典**的 `label`，按字典 `sort_order` 升序。
      * <p>
      * 候选值只从取值字典直读，<b>不</b>扫全库菜品 {@code attributes} 聚合：{@code attributes} 存的是
@@ -69,18 +69,15 @@ public class DishAttributeCatalog {
      * {@link #invalidateCandidates()} 显式失效（管理端 A4 写入口调用）。
      */
     @Cacheable(CacheConfig.ATTRIBUTE_CANDIDATES)
-    public Map<String, List<String>> candidateValuesByFieldKey() {
-        Map<Long, String> fieldKeyById = dimensions().stream()
-                .collect(Collectors.toMap(DishAttributeDimension::getId, DishAttributeDimension::getFieldKey));
-        Map<String, List<String>> result = new HashMap<>();
+    public Map<Long, List<String>> candidateValuesByDimensionId() {
+        Map<Long, List<String>> result = new HashMap<>();
         for (DishAttributeValue value : valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
                 .orderByAsc(DishAttributeValue::getSortOrder))) {
-            String fieldKey = fieldKeyById.get(value.getDimensionId());
-            if (fieldKey != null && StringUtils.hasText(value.getLabel())) {
-                result.computeIfAbsent(fieldKey, k -> new ArrayList<>()).add(value.getLabel());
+            if (StringUtils.hasText(value.getLabel())) {
+                result.computeIfAbsent(value.getDimensionId(), k -> new ArrayList<>()).add(value.getLabel());
             }
         }
-        Map<String, List<String>> immutable = new HashMap<>(result.size());
+        Map<Long, List<String>> immutable = new HashMap<>(result.size());
         result.forEach((key, labels) -> immutable.put(key, Collections.unmodifiableList(labels)));
         return Collections.unmodifiableMap(immutable);
     }

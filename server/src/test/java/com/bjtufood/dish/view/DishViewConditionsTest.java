@@ -92,7 +92,7 @@ class DishViewConditionsTest {
     }
 
     @Test
-    @DisplayName("翻译：mealType 等值 / in、canteenId 走子查询，且取值走参数占位符")
+    @DisplayName("翻译：mealType 经分类值字典子查询（key 过白名单正则）、canteenId 走子查询、其余取值走参数占位符")
     void translate_toParameterizedWrapper() {
         DishViewCondition in = new DishViewCondition();
         in.setField("mealType");
@@ -104,10 +104,13 @@ class DishViewConditionsTest {
                         condition("canteenId", "=", "2"), condition("avgRating", ">=", "4"))), true);
 
         String sql = wrapper.getSqlSegment();
-        // 取值以 #{ew.paramNameValuePairs.MPGENVAL*} 占位（**不拼接进 SQL 文本**）
-        assertThat(sql).contains("meal_type").contains("IN").contains("avg_rating");
+        // meal_type 条件值 = 分类 key（代码锚点）⇒ 经 dish_category_value 子查询翻译为分类 ID；
+        // key 先过白名单正则再入 SQL（字符集不含引号 ⇒ 无注入面）；其余取值以占位符绑定
+        assertThat(sql).contains("meal_type")
+                .contains("SELECT id FROM dish_category_value WHERE `key` = 'noodle'")
+                .contains("SELECT id FROM dish_category_value WHERE `key` IN ('noodle','snack')")
+                .contains("avg_rating");
         assertThat(sql).contains("SELECT id FROM stall WHERE canteen_id = 2");
-        assertThat(sql).doesNotContain("'noodle'").doesNotContain("noodle,");
     }
 
     @Test

@@ -11,14 +11,13 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 菜品分类值字典（表 {@code dish_category_value}；A6 落地 2026-10-03）。
+ * 菜品分类值字典（表 {@code dish_category_value}；A6 落地）。
  * <p>
- * `dish.meal_type` 的**取值域**：列定义不变（VARCHAR(20) 存 `key`），本表把值域从代码常量
- * （原视图常量的 mealType 取值）搬进库。
+ * `dish.meal_type` 的**取值域**（存本表 `id`）。
  * <ul>
- *   <li>{@code key}：数据锚点（`dish.meal_type` 存的就是它）⇒ **在用后不可改**；</li>
- *   <li>{@code label}：中文名，**改名免费**（改一行、全站生效）；</li>
- *   <li>删除约束：被菜品引用时禁止删除（`dishCount > 0`）；清理同义值走**合并**。</li>
+ *   <li>{@code id}：数据锚点（`dish.meal_type` 存的就是它）⇒ 改 `label` 免费；</li>
+ *   <li>{@code key}：**代码锚点**（内置视图常量按 `key` 引用分类；新建时选填、缺省由后端自动生成）；</li>
+ *   <li>删除约束：被菜品引用时禁止删除（`dishCount > 0`）。</li>
  * </ul>
  * 口径真源：docs/schema/dish_category_value.md 与 docs/api/web/categories.md。
  */
@@ -28,11 +27,11 @@ import java.time.LocalDateTime;
 public class DishCategoryValue {
 
     @TableId(type = IdType.AUTO)
-    @Schema(description = "分类ID")
+    @Schema(description = "分类ID（dish.meal_type 存的就是它）")
     private Long id;
 
     @TableField("`key`")
-    @Schema(description = "分类键（dish.meal_type 存的就是它；在用后不可改）", example = "noodle")
+    @Schema(description = "分类键（代码锚点，视图条件引用它；新建时选填、缺省由后端自动生成；在用后不可改）", example = "noodle")
     private String key;
 
     @Schema(description = "分类中文名（可改，改名免费）", example = "面食粉类")

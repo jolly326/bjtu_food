@@ -3,7 +3,7 @@
  * A4 菜品属性维度与取值（页面规格见 [属性维度与取值.md](../../../docs/ui/web/属性维度与取值.md)）。
  *
  * <p>要点：维度列表**不分页**（按 `order` 升序）+ **拖拽排序**（提交**全量行**，非法提交 → `400`）；
- * 编辑维度 = **弹窗**（字段键 / 名称 / 取值类型）；**取值管理 = 抽屉**（`.table--compact` 紧凑表格）；
+ * 编辑维度 = **弹窗**（名称 / 取值类型；维度 ID 由后端生成）；**取值管理 = 抽屉**（`.table--compact` 紧凑表格）；
  * 删除确认**必须含影响面**（其下 N 个取值、M 个菜品）。
  */
 import { computed, onMounted, ref } from 'vue'
@@ -40,25 +40,25 @@ const busyId = ref<number | null>(null)
 const dimOpen = ref(false)
 const editing = ref<DishDimensionAdminVO | null>(null)
 const saving = ref(false)
-const form = ref<DishDimensionSaveReq>({ fieldKey: '', name: '', valueType: 'single' })
+const form = ref<DishDimensionSaveReq>({ name: '', valueType: 'single' })
 
 const dimTitle = computed(() => (editing.value ? '编辑维度' : '新建维度'))
 
 function openCreate(): void {
   editing.value = null
-  form.value = { fieldKey: '', name: '', valueType: 'single' }
+  form.value = { name: '', valueType: 'single' }
   dimOpen.value = true
 }
 
 function openEdit(row: DishDimensionAdminVO): void {
   editing.value = row
-  form.value = { fieldKey: row.fieldKey, name: row.name, valueType: row.valueType }
+  form.value = { name: row.name, valueType: row.valueType }
   dimOpen.value = true
 }
 
 async function saveDimension(): Promise<void> {
-  if (!form.value.fieldKey.trim() || !form.value.name.trim()) {
-    ElMessage.warning('请填写字段键与名称')
+  if (!form.value.name.trim()) {
+    ElMessage.warning('请填写维度名称')
     return
   }
   saving.value = true
@@ -238,7 +238,6 @@ onMounted(() => load())
           <tr>
             <th class="drag-col"></th>
             <th>维度</th>
-            <th>字段键</th>
             <th>取值类型</th>
             <th>取值数</th>
             <th>关联菜品</th>
@@ -249,9 +248,6 @@ onMounted(() => load())
           <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
             <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
             <td>{{ row.name }}</td>
-            <td>
-              <code>{{ row.fieldKey }}</code>
-            </td>
             <td>{{ row.valueType === 'single' ? '单选' : '多选' }}</td>
             <td class="num">{{ row.valueCount }}</td>
             <td class="num">{{ row.dishCount }}</td>
@@ -286,22 +282,11 @@ onMounted(() => load())
       </table>
     </div>
 
-    <!-- 维度编辑：3 个简单控件 → 弹窗 -->
+    <!-- 维度编辑：2 个简单控件 → 弹窗 -->
     <BaseModal :title="dimTitle" :open="dimOpen" @close="dimOpen = false">
       <div class="field">
         <label for="dim-name">维度名称</label>
         <input id="dim-name" class="form-input" v-model="form.name" placeholder="如 口味 / 食材" />
-      </div>
-      <div class="field">
-        <label for="dim-field-key">字段键</label>
-        <input
-          id="dim-field-key"
-          class="form-input"
-          v-model="form.fieldKey"
-          :disabled="!!editing"
-          placeholder="如 flavor / ingredient"
-        />
-        <div class="hint">后端索引键，创建后不可修改</div>
       </div>
       <div class="field">
         <label for="dim-value-type">取值类型</label>

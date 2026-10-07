@@ -49,17 +49,16 @@ public class DishAdminReq {
     private List<String> images;
 
     /**
-     * 描述属性（动态属性模型）：键 = 维度 {@code fieldKey}（camelCase），
-     * 值 = **中文文本**（{@code single} 维度为字符串 / {@code multi} 维度为字符串数组）。
-     * 取值为自由文本，候选仅作提示（无独立取值字典表）。
+     * 描述属性（动态属性模型）：键 = 维度 {@code id}（字符串形态），
+     * 值 = **取值 ID 或中文名**（{@code single} 维度为标量 / {@code multi} 维度数组）。
+     * 中文名在同维度内未命中即自动登记为新取值。
      */
-    @Schema(description = "描述属性（键=维度 fieldKey，值=中文文本/数组；可空）",
-            example = "{\"dietType\":\"半荤\",\"ingredients\":[\"蛋\"],\"flavorTags\":[\"酸\",\"甜\"],\"serveTemp\":\"热食\"}")
+    @Schema(description = "描述属性（键=维度 ID，值=取值 ID 或中文文本/数组；可空）",
+            example = "{\"1\":2,\"2\":[\"蛋\"],\"3\":[\"酸\",\"甜\"],\"4\":\"热食\"}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品分类键（值域 = 分类值字典 /admin/dish-categories；**可填新值，保存时自动登记**；"
-            + "空 / 超 20 字 / 非法字符 → 400；不传 = 不修改）", example = "noodle")
-    private String mealType;
+    @Schema(description = "菜品分类 ID（值域 = 分类值字典 /admin/dish-categories；必须存在，否则 400；不传 = 不修改）", example = "3")
+    private Long mealTypeId;
 
     @Schema(description = "状态：on=上架，off=下架", example = "on")
     private String status;

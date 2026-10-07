@@ -32,8 +32,8 @@ export interface DishListItem {
 
 /** 详情描述属性项（值即中文，端上直渲 `value`）：仅含该菜品实际拥有的维度、按后端顺序排列 */
 export interface DishAttribute {
-  /** 维度键（camelCase；编辑态提交时即 `attributes` 的键） */
-  fieldKey: string
+  /** 维度 ID（编辑态提交时即 `attributes` 的键） */
+  dimensionId: number
   /** 维度中文名（如「饮食属性」） */
   name: string
   /** 中文值：single → 字符串；multi → 字符串数组 */

@@ -56,8 +56,8 @@ public class DishAdminListItemVO {
     @Schema(description = "封面图绝对 URL（首图派生；无图为空串）")
     private String coverImage;
 
-    @Schema(description = "分类键", example = "noodle")
-    private String mealType;
+    @Schema(description = "分类值 ID（值域 = 分类值字典 /admin/dish-categories）", example = "3")
+    private Long mealTypeId;
 
     @Schema(description = "分类中文名（A6 分类值字典派生，端上零硬编码）", example = "面食粉类")
     private String mealTypeLabel;

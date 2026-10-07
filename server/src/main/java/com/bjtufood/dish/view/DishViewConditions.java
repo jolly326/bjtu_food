@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 视图筛选条件引擎 —— **字段 / 操作符 / 值 三层白名单**的唯一真源。
@@ -141,7 +142,17 @@ public final class DishViewConditions {
         }
         for (DishViewCondition c : conditions) {
             switch (c.getField()) {
-                case "mealType" -> applyInOrEq(wrapper, "meal_type", c, false);
+                // mealType 条件值 = 分类 `key`（代码锚点）；`dish.meal_type` 存分类 ID ⇒
+                // 经字典表子查询翻译（key 先过白名单正则再入 SQL，无注入面）
+                case "mealType" -> {
+                    if ("in".equals(c.getOp())) {
+                        wrapper.inSql("meal_type", "SELECT id FROM dish_category_value WHERE `key` IN ("
+                                + joinCategoryKeys(c.getValues()) + ")");
+                    } else {
+                        wrapper.inSql("meal_type", "SELECT id FROM dish_category_value WHERE `key` = "
+                                + quoteCategoryKey(c.getValue()));
+                    }
+                }
                 case "stallId" -> applyInOrEq(wrapper, "stall_id", c, true);
                 case "canteenId" -> {
                     if ("in".equals(c.getOp())) {
@@ -182,6 +193,27 @@ public final class DishViewConditions {
         } else {
             wrapper.eq(column, c.getValue());
         }
+    }
+
+    /** 分类键白名单（与 `dish_category_value.key` 的写入校验同口径）：小写字母 / 数字 / `-`，1~20 字 */
+    private static final Pattern CATEGORY_KEY = Pattern.compile("^[a-z0-9-]{1,20}$");
+
+    /** 分类键入 SQL 前的正则校验 + 单引号包裹（字符集不含引号 ⇒ 无注入面） */
+    private static String quoteCategoryKey(String key) {
+        String v = key == null ? "" : key.trim();
+        if (!CATEGORY_KEY.matcher(v).matches()) {
+            throw new BusinessException("分类键非法：" + key);
+        }
+        return "'" + v + "'";
+    }
+
+    /** 分类键列表 → `('a','b')` 形态（逐个过 {@link #quoteCategoryKey}） */
+    private static String joinCategoryKeys(List<String> values) {
+        List<String> parts = new ArrayList<>(values.size());
+        for (String v : values) {
+            parts.add(quoteCategoryKey(v));
+        }
+        return String.join(",", parts);
     }
 
     /** `in` / `between` 的取值个数与形态校验（其余在 translate 时按字段类型再校验一次）。 */

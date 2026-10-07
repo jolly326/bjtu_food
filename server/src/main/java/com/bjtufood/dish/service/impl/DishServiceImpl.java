@@ -179,13 +179,13 @@ public class DishServiceImpl implements DishService {
         }
         // 目录数据（维度字典 + 候选值聚合）由独立 bean 提供：直接调用即可命中其上的 @Cacheable，
         // 缓存口径与失效时机见 DishAttributeCatalog 的类注释。
-        Map<String, List<String>> candidates = attributeCatalog.candidateValuesByFieldKey();
+        Map<Long, List<String>> candidates = attributeCatalog.candidateValuesByDimensionId();
         return attributeCatalog.dimensions().stream()
-                .filter(dim -> raw.containsKey(dim.getFieldKey()))
+                .filter(dim -> raw.containsKey(String.valueOf(dim.getId())))
                 .map(dim -> new DishAttributeEditVO(
-                        dim.getFieldKey(),
+                        dim.getId(),
                         dim.getValueType(),
-                        candidates.getOrDefault(dim.getFieldKey(), List.of())))
+                        candidates.getOrDefault(dim.getId(), List.of())))
                 .toList();
     }
 
@@ -203,14 +203,14 @@ public class DishServiceImpl implements DishService {
         }
         List<DishAttributeItem> items = new ArrayList<>();
         for (DishAttributeDimension dim : dimensions) {
-            if (!raw.containsKey(dim.getFieldKey())) {
+            if (!raw.containsKey(String.valueOf(dim.getId()))) {
                 continue;
             }
-            Object value = raw.get(dim.getFieldKey());
+            Object value = raw.get(String.valueOf(dim.getId()));
             if (value == null) {
                 continue;
             }
-            items.add(new DishAttributeItem(dim.getFieldKey(), dim.getName(), value));
+            items.add(new DishAttributeItem(dim.getId(), dim.getName(), value));
         }
         return items;
     }
@@ -316,15 +316,15 @@ public class DishServiceImpl implements DishService {
         DishAdminListQuery effective = new DishAdminListQuery(
                 query == null ? null : query.stallId(),
                 query == null ? null : query.canteenId(),
-                query == null ? null : query.mealType(),
+                query == null ? null : query.mealTypeId(),
                 query == null ? null
                         : ParamValidator.optionalInWhitelist(query.status(), DishConst.QUERY_STATUSES, "上架状态"),
                 query == null || !StringUtils.hasText(query.keyword()) ? null : query.keyword().trim());
         // A3：列表走**瘦身列表 VO**（不含 description / attributes / 全量 images）
         IPage<DishAdminListItemVO> result = dishMapper.selectAdminListPage(new Page<>(page, pageSize), effective);
         // 分类中文名（A6 分类值字典）：列表直接可读，端上零硬编码；字典量级极小，逐页取一次
-        Map<String, String> mealTypeLabels = categoryAdminService.listAll().stream()
-                .collect(Collectors.toMap(DishCategoryAdminVO::getKey, DishCategoryAdminVO::getLabel,
+        Map<Long, String> mealTypeLabels = categoryAdminService.listAll().stream()
+                .collect(Collectors.toMap(DishCategoryAdminVO::getId, DishCategoryAdminVO::getLabel,
                         (a, b) -> a));
         // 近 30 天浏览量：一次性按当前页 dish_id 批量聚合（BE 惯用法，避免 N+1）；
         // 🔴 走 dish_view_log 滚动窗口而非 dish.view_count（后者已停写且是历史累计，语义不同）
@@ -332,7 +332,7 @@ public class DishServiceImpl implements DishService {
         return PageUtil.toVoPage(result, recs -> recs.stream()
                 .map(vo -> {
                     vo.setMealTypeLabel(mealTypeLabels.getOrDefault(
-                            vo.getMealType() == null ? "" : vo.getMealType(), ""));
+                            vo.getMealTypeId() == null ? 0L : vo.getMealTypeId(), ""));
                     vo.setCoverImage(toAbsoluteCover(vo.getCoverImage()));
                     // 无浏览记录的菜品不在聚合结果里 ⇒ 显式补 0（端上不渲染「—」）
                     vo.setRecentViewCount(recentViews.getOrDefault(vo.getId(), 0L));
@@ -428,7 +428,7 @@ public class DishServiceImpl implements DishService {
         vo.setWithoutStall(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                 .and(w -> w.isNull(Dish::getStallId).or().eq(Dish::getStallId, 0L))));
         vo.setWithoutCategory(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
-                .and(w -> w.isNull(Dish::getMealType).or().eq(Dish::getMealType, ""))));
+                .isNull(Dish::getMealType)));
         return vo;
     }
 
@@ -536,7 +536,7 @@ public class DishServiceImpl implements DishService {
         vo.setRatingCount(dish.getRatingCount());
         vo.setCreatedAt(dish.getCreatedAt());
         vo.setUpdatedAt(dish.getUpdatedAt());
-        vo.setMealType(dish.getMealType());
+        vo.setMealTypeId(dish.getMealType());
         // 出参翻译：库里存的是**取值 ID**（A4）⇒ 统一翻译为中文；找不到对应取值的原样保留
         vo.setAttributes(attributeAdminService.translateForRead(dish.getAttributes()));
         // 归属名称：档口名 + 所属食堂名（管理端编辑回填需要显示，避免再发一次列表请求）
@@ -558,7 +558,7 @@ public class DishServiceImpl implements DishService {
         // 且需额外补丁才能表达「清空」这一个语义。
         //
         // 「null 的语义」逐字段定死（避免误清空）：
-        //   · name / mealType：**必填**（空 → 400）—— 表单式编辑恒会提交；
+        //   · name / mealTypeId：**必填**（空 → 400）—— 表单式编辑恒会提交；
         //   · originalPrice：0 / null ⇒ **清空**（本次显式 set null）；
         //   · description：null ⇒ 空串（与详情出参「无为空串」同口径）；
         //   · images / attributes / stallId：null ⇒ **不修改**（不传即不动；要清空请传空数组 / 空对象）。
@@ -573,12 +573,12 @@ public class DishServiceImpl implements DishService {
         if (req.getPrice() == null || req.getPrice() <= 0) {
             throw new BusinessException("价格必须大于 0（单位：分）");
         }
-        if (req.getMealType() == null || !StringUtils.hasText(req.getMealType())) {
+        if (req.getMealTypeId() == null) {
             throw new BusinessException("请填写菜品分类");
         }
+        categoryAdminService.requireExists(req.getMealTypeId());
 
         Long stallId = resolveStallId(req);
-        String categoryKey = categoryAdminService.resolveOrRegister(req.getMealType().trim());
         String attributesJson = req.getAttributes() == null ? null
                 : toAttributesJson(attributeAdminService.resolveForWrite(req.getAttributes()));
 
@@ -588,7 +588,7 @@ public class DishServiceImpl implements DishService {
                 .set(Dish::getPrice, req.getPrice())
                 .set(Dish::getOriginalPrice, normalizeDiscount(req.getOriginalPrice(), "原价"))
                 .set(Dish::getDescription, req.getDescription() == null ? "" : req.getDescription())
-                .set(Dish::getMealType, categoryKey);
+                .set(Dish::getMealType, req.getMealTypeId());
         if (stallId != null) {
             wrapper.set(Dish::getStallId, stallId);
         }
@@ -599,7 +599,7 @@ public class DishServiceImpl implements DishService {
             wrapper.set(Dish::getAttributes, attributesJson);
         }
         dishMapper.update(null, wrapper);
-        // 同 addDish：属性写入可能改变候选值集合（详见 DishAttributeCatalog#candidateValuesByFieldKey）
+        // 同 addDish：属性写入可能改变候选值集合（详见 DishAttributeCatalog#candidateValuesByDimensionId）
         attributeCatalog.invalidateCandidates();
     }
 
@@ -724,7 +724,7 @@ public class DishServiceImpl implements DishService {
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
 
-        // 描述属性（动态属性模型）：JSON 对象，键 = 维度 fieldKey。
+        // 描述属性（动态属性模型）：JSON 对象，键 = 维度 ID。
         // **值 = 取值 ID**（A4 落地）：入参允许「取值 ID」或「中文名」，中文名同维度内未命中即**自动登记**
         // 为新取值后返回其 ID；未传 = 不修改（NOT_NULL 策略跳过），空对象 = 清空整列。
         if (req.getAttributes() == null) {
@@ -734,15 +734,14 @@ public class DishServiceImpl implements DishService {
             dish.setAttributes(resolved.isEmpty() ? null : JsonMapUtil.toJson(resolved));
         }
 
-        // 菜品分类（入库字段；A6 落地后值域 = `dish_category_value` 表）：
-        // **输入新分类 → 自动登记**（自由输入产生值域，免发版、免改代码）；仅「空 / 超 20 字 / 非法字符」才 400。
-        // null = 不修改（编辑路径 MyBatis-Plus NOT_NULL 策略跳过，行内部分更新不会误清分类）。
-        if (req.getMealType() == null) {
+        // 菜品分类（入库字段；A6 落地后值域 = `dish_category_value` 表的 id）：
+        // 必须存在于分类值字典（不存在 → 400）；null = 不修改
+        // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过，行内部分更新不会误清分类）。
+        if (req.getMealTypeId() == null) {
             dish.setMealType(null);
-        } else if (!StringUtils.hasText(req.getMealType())) {
-            throw new BusinessException("菜品分类不能为空");
         } else {
-            dish.setMealType(categoryAdminService.resolveOrRegister(req.getMealType().trim()));
+            categoryAdminService.requireExists(req.getMealTypeId());
+            dish.setMealType(req.getMealTypeId());
         }
 
         dish.setStatus(req.getStatus());
@@ -881,7 +880,7 @@ public class DishServiceImpl implements DishService {
      * 纠错采纳的属性合并：<b>以菜品现有 attributes 为基线</b>，只覆盖本次采纳的维度。
      *
      * @param existingJson 菜品当前属性 JSON（可为 null）
-     * @param patch        本次采纳的维度补丁（键 = 维度 fieldKey）
+     * @param patch        本次采纳的维度补丁（键 = 维度 ID 字符串）
      * @return 合并后的属性 JSON 入参对象
      */
     private Map<String, Object> mergeAttributes(String existingJson, Map<String, Object> patch) {

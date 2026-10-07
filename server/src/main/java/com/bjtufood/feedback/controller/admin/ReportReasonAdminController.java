@@ -28,11 +28,11 @@ import java.util.List;
  * A7 举报原因管理（管理端）。
  *
  * <p>契约真源：docs/api/web/report-reasons.md。
- * <p><b>没有「改机器值」的端点</b> —— `value` 是历史举报的数据锚点，在用后不可改；要改就停用旧值、新建一个。
+ * <p><b>数据锚在原因 ID</b>（后端生成、历史举报按它落库）—— 没有「改 ID」的端点；改 `label` 免费。
  * <p>公开只读端点仍是 {@code GET /report-reasons}（`FeedbackController`），出参结构不变（只下发启用项）。
  */
 @Tag(name = "12. 后台举报原因管理", description = "管理员维护举报弹层的原因字典：列表（含已停用）/ 新增 / 改名 / 启停 / 排序 / 删除。"
-        + "不变量：删除受引用约束、至少保留 1 条启用、启用 ≤8 条。需要管理员 token。")
+        + "数据锚在原因 ID；不变量：删除受引用约束、至少保留 1 条启用、启用 ≤8 条。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/report-reasons")
 @RequiredArgsConstructor
@@ -47,10 +47,10 @@ public class ReportReasonAdminController {
         return Result.success(reportReasonService.listAllForAdmin());
     }
 
-    @Operation(summary = "新增举报原因", description = "用途：新增（默认**启用**、排最后）。机器值 1~32、小写字母/数字/-、全站唯一；启用数上限 8。")
+    @Operation(summary = "新增举报原因", description = "用途：新增（默认**启用**、排最后）。只填中文标签（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。")
     @PostMapping
     public Result<ReportReasonAdminVO> create(@Valid @RequestBody ReportReasonSaveReq req) {
-        return Result.success(reportReasonService.create(req.getValue(), req.getLabel()));
+        return Result.success(reportReasonService.create(req.getLabel()));
     }
 
     @Operation(summary = "举报原因改名", description = "用途：**只改 label**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。")

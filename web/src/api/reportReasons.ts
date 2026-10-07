@@ -6,8 +6,8 @@ import type { OnOffStatus, ReportReasonAdminVO, SortItemsReq } from '@/types/com
  * A7 举报原因管理（`/admin/report-reasons`，6 个端点）。
  *
  * <p>契约真源：[A7-举报原因管理](../../../docs/api/web/report-reasons.md)。
- * <p><b>没有「改机器值」的端点</b> —— `value` 是历史举报的数据锚点（落库列 `user_feedback.sub`），
- * 在用后不可改；要改就停用旧值、新建一个。
+ * <p><b>数据锚在原因 ID</b>（落库列 `user_feedback.sub_reason_id`，由后端生成）——
+ * 没有「改 ID」的端点；改 `label` 免费。
  */
 
 /** 原因列表（按 `order` 升序；**含已停用**；带 `feedbackCount`） */
@@ -15,11 +15,8 @@ export function listReportReasons(): Promise<ReportReasonAdminVO[]> {
   return get<ReportReasonAdminVO[]>('/admin/report-reasons')
 }
 
-/** 新增（默认**启用**、排最后；机器值 1~32 小写字母/数字/`-`、全站唯一；启用数上限 8） */
-export function createReportReason(req: {
-  value: string
-  label: string
-}): Promise<ReportReasonAdminVO> {
+/** 新增（默认**启用**、排最后；只填中文标签，原因 ID 由后端生成；启用数上限 8） */
+export function createReportReason(req: { label: string }): Promise<ReportReasonAdminVO> {
   return post<ReportReasonAdminVO>('/admin/report-reasons', req)
 }
 

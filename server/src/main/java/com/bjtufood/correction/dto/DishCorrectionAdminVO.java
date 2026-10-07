@@ -60,8 +60,8 @@ public class DishCorrectionAdminVO {
     @Schema(description = "提交的楼层（受控字典值·值即汉字，归属档口 stall.floor；未改动为 null）", example = "二层")
     private String floor;
 
-    @Schema(description = "提交的描述属性（键=维度 fieldKey，值=中文/数组；仅改动维度）",
-            example = "{\"dietType\":\"素\",\"flavorTags\":[\"辣\",\"酸\"]}")
+    @Schema(description = "提交的描述属性（键=维度 ID，值=中文/数组；仅改动维度）",
+            example = "{\"1\":\"素\",\"3\":[\"辣\",\"酸\"]}")
     private Map<String, Object> attributes;
 
     @Schema(description = "提交的菜品图片 URL 列表（field=改动后的完整数组≤5张 / gone=选填补充≤3张）")

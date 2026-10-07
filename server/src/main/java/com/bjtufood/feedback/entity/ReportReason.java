@@ -11,11 +11,11 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 举报原因字典实体（A7 落地，2026-10-03）。
+ * 举报原因字典实体（A7 落地）。
  * <p>
  * 对应表 `report_reason` —— 举报弹层「原因」单选的**可维护字典**。
  * <ul>
- *   <li>{@code value}：机器值，**数据锚点**（历史举报按它落库到 `user_feedback.sub`）⇒ **在用后不可改**；</li>
+ *   <li>{@code id}：**数据锚点**（历史举报按它落库到 `user_feedback.sub_reason_id`）；</li>
  *   <li>{@code label}：中文标签，**改名免费**（历史举报的中文翻译随表实时生效）；</li>
  *   <li>{@code status}：`on` / `off` —— 公开端点只下发启用项，提交白名单同样只认启用项；</li>
  *   <li>删除受引用约束：被任一举报引用即 `400`（下线一律用停用）。</li>
@@ -30,10 +30,6 @@ public class ReportReason {
     @TableId(type = IdType.AUTO)
     @Schema(description = "原因ID")
     private Long id;
-
-    /** 机器值（小写字母 / 数字 / `-`；举报记录按它落库；**在用后不可改**） */
-    @Schema(description = "机器值（在用后不可改）", example = "spam")
-    private String value;
 
     /** 中文标签（可改，改名免费） */
     @Schema(description = "中文标签", example = "垃圾广告 / 营销刷屏")

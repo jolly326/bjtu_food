@@ -24,11 +24,9 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A4 属性维度与取值管理实现（含属性值读写口径转换）。
@@ -67,11 +65,10 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         return dimensions.stream().map(d -> {
             DishDimensionAdminVO vo = new DishDimensionAdminVO();
             vo.setId(d.getId());
-            vo.setFieldKey(d.getFieldKey());
             vo.setName(d.getName());
             vo.setValueType(d.getValueType());
             vo.setOrder(d.getSortOrder());
-            vo.setDishCount(usage.dishCountByFieldKey.getOrDefault(d.getFieldKey(), 0L));
+            vo.setDishCount(usage.dishCountByDimensionId.getOrDefault(d.getId(), 0L));
             vo.setValueCount(usage.valueCountByDimensionId.getOrDefault(d.getId(), 0L));
             vo.setUpdatedAt(d.getUpdatedAt());
             return vo;
@@ -80,14 +77,10 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public DishDimensionAdminVO createDimension(String fieldKey, String name, String valueType) {
-        String key = requireFieldKey(fieldKey);
+    public DishDimensionAdminVO createDimension(String name, String valueType) {
         String dimensionName = requireText(name, "维度名", LABEL_MAX);
         String type = requireValueType(valueType);
-        DuplicateGuard.assertUnique(dimensionMapper, new LambdaQueryWrapper<DishAttributeDimension>()
-                .eq(DishAttributeDimension::getFieldKey, key), "维度键已存在");
         DishAttributeDimension entity = new DishAttributeDimension();
-        entity.setFieldKey(key);
         entity.setName(dimensionName);
         entity.setValueType(type);
         entity.setSortOrder(nextDimensionOrder());
@@ -95,7 +88,6 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         DishAttributeDimension saved = dimensionMapper.selectById(entity.getId());
         DishDimensionAdminVO vo = new DishDimensionAdminVO();
         vo.setId(saved.getId());
-        vo.setFieldKey(saved.getFieldKey());
         vo.setName(saved.getName());
         vo.setValueType(saved.getValueType());
         vo.setOrder(saved.getSortOrder());
@@ -114,7 +106,6 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         }
         String dimensionName = requireText(name, "维度名", LABEL_MAX);
         String type = requireValueType(valueType);
-        // 字段键不可改：入参里的 fieldKey 一律忽略（契约无「改键」入口）
         DishAttributeDimension update = new DishAttributeDimension();
         update.setId(id);
         update.setName(dimensionName);
@@ -122,7 +113,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         dimensionMapper.updateById(update);
         // 单/多选切换：同事务内迁移该维度下菜品的数据形状（标量 ↔ 数组）
         if (!type.equals(current.getValueType())) {
-            migrateShape(current.getFieldKey(), type);
+            migrateShape(current.getId(), type);
         }
     }
 
@@ -134,7 +125,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
             throw new BusinessException(4001, "维度不存在");
         }
         Usage usage = scanUsage();
-        long used = usage.dishCountByFieldKey.getOrDefault(current.getFieldKey(), 0L);
+        long used = usage.dishCountByDimensionId.getOrDefault(current.getId(), 0L);
         if (used > 0) {
             throw new BusinessException("仍有 " + used + " 个菜品使用该维度，不能删除（请先改菜品）");
         }
@@ -234,13 +225,13 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (raw == null || raw.isEmpty()) {
             return result;
         }
-        Map<String, DishAttributeDimension> byFieldKey = dimensionsByFieldKey();
-        raw.forEach((fieldKey, value) -> {
-            DishAttributeDimension dimension = byFieldKey.get(fieldKey);
+        raw.forEach((key, value) -> {
+            DishAttributeDimension dimension = dimensionById(key);
             if (dimension == null) {
-                // 维度键不在白名单（= 维度表）→ 400
-                throw new BusinessException("未知的属性维度：" + fieldKey);
+                // 维度 ID 不在白名单（= 维度表）→ 400
+                throw new BusinessException("未知的属性维度：" + key);
             }
+            String dimensionKey = String.valueOf(dimension.getId());
             boolean multi = TYPE_MULTI.equals(dimension.getValueType());
             if (value == null) {
                 return; // null ⇒ 不落该维度（清空语义）
@@ -252,19 +243,31 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
                 if (!multi) {
                     // 单值维度收到数组：取首项（宽容），避免前端形态差异导致 400
                     Object first = items.iterator().next();
-                    result.put(fieldKey, resolveSingle(dimension, first));
+                    result.put(dimensionKey, resolveSingle(dimension, first));
                     return;
                 }
                 List<Object> ids = new ArrayList<>(items.size());
                 for (Object item : items) {
                     ids.add(resolveSingle(dimension, item));
                 }
-                result.put(fieldKey, ids);
+                result.put(dimensionKey, ids);
                 return;
             }
-            result.put(fieldKey, multi ? List.of(resolveSingle(dimension, value)) : resolveSingle(dimension, value));
+            result.put(dimensionKey, multi ? List.of(resolveSingle(dimension, value)) : resolveSingle(dimension, value));
         });
         return result;
+    }
+
+    /** 键（字符串形态的维度 ID）→ 维度；非数字或维度不存在返回 null */
+    private DishAttributeDimension dimensionById(Object key) {
+        if (key == null) {
+            return null;
+        }
+        String text = String.valueOf(key).trim();
+        if (!text.matches("\\d+")) {
+            return null;
+        }
+        return dimensionMapper.selectById(Long.valueOf(text));
     }
 
     /** 单个值解析：数字 ⇒ 校验 ID 存在；文本 ⇒ 查字典，未命中自动登记 */
@@ -316,21 +319,21 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
             labelById.put(v.getId(), v.getLabel());
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        parsed.forEach((fieldKey, value) -> {
+        parsed.forEach((dimensionKey, value) -> {
             if (value instanceof Collection<?> items) {
                 List<String> labels = new ArrayList<>(items.size());
                 for (Object item : items) {
                     labels.add(toLabel(labelById, item));
                 }
-                out.put(fieldKey, labels);
+                out.put(dimensionKey, labels);
             } else {
-                out.put(fieldKey, toLabel(labelById, value));
+                out.put(dimensionKey, toLabel(labelById, value));
             }
         });
         return out;
     }
 
-    /** ID → 中文；非 ID（过渡期历史中文值 / 悬空 ID）原样保留，不丢数据 */
+    /** 取值 ID → 中文；悬空 ID 原样保留，不丢数据 */
     private static String toLabel(Map<Long, String> labelById, Object value) {
         if (value == null) {
             return null;
@@ -359,21 +362,22 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
      * 单/多选切换时的数据形状迁移：`single` ⇄ `multi`（标量 ↔ 单元素数组）。
      * 逐行读取 + 回写（仅影响该维度键），规模可控且**幂等**（已是目标形状则跳过）。
      */
-    private void migrateShape(String fieldKey, String targetType) {
+    private void migrateShape(Long dimensionId, String targetType) {
+        String key = String.valueOf(dimensionId);
         List<Dish> dishes = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
                 .select(Dish::getId, Dish::getAttributes)
                 .isNotNull(Dish::getAttributes));
         boolean toMulti = TYPE_MULTI.equals(targetType);
         for (Dish dish : dishes) {
             Map<String, Object> parsed = JsonMapUtil.parseObject(dish.getAttributes());
-            if (!parsed.containsKey(fieldKey)) {
+            if (!parsed.containsKey(key)) {
                 continue;
             }
-            Object current = parsed.get(fieldKey);
+            Object current = parsed.get(key);
             if (toMulti && !(current instanceof Collection<?>)) {
-                parsed.put(fieldKey, current == null ? List.of() : List.of(current));
+                parsed.put(key, current == null ? List.of() : List.of(current));
             } else if (!toMulti && current instanceof Collection<?> items) {
-                parsed.put(fieldKey, items.isEmpty() ? null : items.iterator().next());
+                parsed.put(key, items.isEmpty() ? null : items.iterator().next());
             } else {
                 continue;
             }
@@ -394,11 +398,13 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
                 .select(Dish::getId, Dish::getAttributes));
         for (Dish dish : dishes) {
             Map<String, Object> parsed = JsonMapUtil.parseObject(dish.getAttributes());
-            parsed.forEach((fieldKey, value) -> {
+            parsed.forEach((dimensionKey, value) -> {
                 if (value == null || (value instanceof Collection<?> c && c.isEmpty())) {
                     return;
                 }
-                usage.dishCountByFieldKey.merge(fieldKey, 1L, Long::sum);
+                if (dimensionKey != null && dimensionKey.matches("\\d+")) {
+                    usage.dishCountByDimensionId.merge(Long.valueOf(dimensionKey), 1L, Long::sum);
+                }
                 for (Object item : flatten(value)) {
                     String text = item == null ? null : String.valueOf(item).trim();
                     if (text != null && text.matches("\\d+")) {
@@ -419,17 +425,9 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
 
     /** 聚合结果容器（内部） */
     private static final class Usage {
-        final Map<String, Long> dishCountByFieldKey = new HashMap<>();
+        final Map<Long, Long> dishCountByDimensionId = new HashMap<>();
         final Map<Long, Long> dishCountByValueId = new HashMap<>();
         final Map<Long, Long> valueCountByDimensionId = new HashMap<>();
-    }
-
-    private Map<String, DishAttributeDimension> dimensionsByFieldKey() {
-        Map<String, DishAttributeDimension> map = new LinkedHashMap<>();
-        for (DishAttributeDimension d : dimensionMapper.selectList(null)) {
-            map.put(d.getFieldKey(), d);
-        }
-        return map;
     }
 
     private DishAttributeDimension requireDimension(Long id) {
@@ -483,14 +481,6 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
     }
 
-    private static String requireFieldKey(String fieldKey) {
-        String key = fieldKey == null ? null : fieldKey.trim();
-        if (key == null || !key.matches("^[a-z][a-zA-Z0-9]{0,31}$")) {
-            throw new BusinessException("维度键须为 camelCase（小写字母开头，仅字母与数字，≤32）");
-        }
-        return key;
-    }
-
     private static String requireText(String text, String what, int max) {
         String v = text == null ? null : text.trim();
         if (!StringUtils.hasText(v)) {
@@ -508,12 +498,5 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
             throw new BusinessException("取值类型非法（仅 single / multi）");
         }
         return type;
-    }
-
-    /** 供其它 Bean 复用的「已使用维度键集合」（避免重复实现白名单校验） */
-    public Set<String> knownFieldKeys() {
-        Set<String> keys = new HashSet<>();
-        dimensionMapper.selectList(null).forEach(d -> keys.add(d.getFieldKey()));
-        return keys;
     }
 }

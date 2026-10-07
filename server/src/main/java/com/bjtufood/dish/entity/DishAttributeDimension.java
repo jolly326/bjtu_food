@@ -11,9 +11,10 @@ import lombok.Data;
 /**
  * 菜品描述属性维度（动态属性模型两表之一，表 {@code dish_attribute_dimension}）。
  * <p>
- * 维度键 {@code fieldKey} 恒等于菜品 {@code dish.attributes} JSON 的键（camelCase：
- * {@code dietType} / {@code ingredients} / {@code flavorTags} / {@code serveTemp}）——
- * 后端据此拼装详情展示项与编辑候选值，消费方 SHALL NOT 另建映射。
+ * 维度 ID 是唯一锚点：菜品 {@code dish.attributes} JSON 的键 = 维度 {@code id}
+ * （JSON 内为字符串形态的十进制 ID）—— 后端据此拼装详情展示项与编辑候选值，
+ * 消费方 SHALL NOT 另建映射。
+ * 维度 {@code name} 只是展示文案，改名只改一行、全站生效。
  * 新增维度 = 插一行，**免 ALTER、免发版**。
  */
 @Data
@@ -22,11 +23,8 @@ import lombok.Data;
 public class DishAttributeDimension {
 
     @TableId(type = IdType.AUTO)
-    @Schema(description = "维度ID")
+    @Schema(description = "维度ID（= 菜品 attributes 的键）")
     private Long id;
-
-    @Schema(description = "维度键（= 菜品 attributes 的键，camelCase）", example = "dietType")
-    private String fieldKey;
 
     @Schema(description = "维度中文名（饮食属性 / 食材 / 口味 / 冷热）", example = "饮食属性")
     private String name;
@@ -39,7 +37,7 @@ public class DishAttributeDimension {
     @Schema(description = "维度展示顺序（升序）", example = "1")
     private Integer sortOrder;
 
-    /** 更新时间（管理端列表出参 `updatedAt`；2026-10-02 统一口径） */
+    /** 更新时间（管理端列表出参 `updatedAt`） */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @Schema(description = "更新时间")
     private java.time.LocalDateTime updatedAt;

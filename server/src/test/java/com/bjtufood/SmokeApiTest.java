@@ -328,8 +328,8 @@ class SmokeApiTest {
         vo.setName("牛肉拉面");
         vo.setPrice(1200);
         vo.setAvgRating(new BigDecimal("4.5"));
-        // 描述属性（动态属性模型）：值即中文，端上零翻译
-        vo.setAttributes(List.of(new DishAttributeItem("flavorTags", "口味",
+        // 描述属性（动态属性模型）：值即中文，端上零翻译；dimensionId = 维度 ID
+        vo.setAttributes(List.of(new DishAttributeItem(3L, "口味",
                 List.of("辣", "酸"))));
         when(dishService.getDishDetail(eq(1L))).thenReturn(vo);
 
@@ -342,7 +342,7 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.price").value(1200))
                 // 契约回归：ratingCount 已从详情出参删除（零消费），不得回流
                 .andExpect(jsonPath("$.data.ratingCount").doesNotExist())
-                .andExpect(jsonPath("$.data.attributes[0].fieldKey").value("flavorTags"))
+                .andExpect(jsonPath("$.data.attributes[0].dimensionId").value(3))
                 .andExpect(jsonPath("$.data.attributes[0].value[0]").value("辣"));
     }
 
@@ -521,13 +521,13 @@ class SmokeApiTest {
      */
     @Test
     void reportReview_withReason_persistsSubAndEmptyContent() throws Exception {
-        // 举报为独立子资源端点（方案 B）：POST /reviews/{id}/report，reason = 结构化原因
+        // 举报为独立子资源端点（方案 B）：POST /reviews/{id}/report，reasonId = 结构化原因 ID
         when(reviewService.existsVisibleById(3L)).thenReturn(true);
-        // 举报原因白名单改为查表（A7）：「spam」存在且启用 ⇒ selectCount > 0
+        // 举报原因白名单查表（A7）：原因 ID 1 存在且启用 ⇒ selectCount > 0
         when(reportReasonMapper.selectCount(any())).thenReturn(1L);
         mockMvc.perform(post("/reviews/3/report")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"spam\"}"))
+                        .content("{\"reasonId\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
@@ -535,7 +535,7 @@ class SmokeApiTest {
         verify(feedbackMapper).insert(captor.capture());
         Feedback saved = captor.getValue();
         Assertions.assertEquals("report", saved.getType());
-        Assertions.assertEquals("spam", saved.getSub());
+        Assertions.assertEquals(1L, saved.getSubReasonId());
         Assertions.assertEquals("", saved.getContent());
         Assertions.assertEquals("review", saved.getRelatedType());
         Assertions.assertEquals(3L, saved.getRelatedId());
@@ -553,11 +553,11 @@ class SmokeApiTest {
 
     @Test
     void reportReview_illegalReason_returns400() throws Exception {
-        // 原因值不在字典白名单 → 400（PR-06：非法入参必须报错，杜绝脏值入库）
+        // 原因 ID 不在字典白名单 → 400（PR-06：非法入参必须报错，杜绝脏值入库）
         when(reviewService.existsVisibleById(3L)).thenReturn(true);
         mockMvc.perform(post("/reviews/3/report")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"hacking\"}"))
+                        .content("{\"reasonId\":999}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message", containsString("举报原因")));
@@ -569,7 +569,7 @@ class SmokeApiTest {
         when(reviewService.existsVisibleById(3L)).thenReturn(false);
         mockMvc.perform(post("/reviews/3/report")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"spam\"}"))
+                        .content("{\"reasonId\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(4001));
     }
