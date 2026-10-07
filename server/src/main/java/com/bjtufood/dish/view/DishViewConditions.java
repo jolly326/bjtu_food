@@ -195,8 +195,8 @@ public final class DishViewConditions {
         }
     }
 
-    /** 分类键白名单（与 `dish_category_value.key` 的写入校验同口径）：小写字母 / 数字 / `-`，1~20 字 */
-    private static final Pattern CATEGORY_KEY = Pattern.compile("^[a-z0-9-]{1,20}$");
+    /** 分类键白名单（与 `dish_category_value.key` 的写入校验同口径）：小写字母 / 数字 / `-` / `_`，1~20 字（种子键 `set_meal` 含下划线） */
+    private static final Pattern CATEGORY_KEY = Pattern.compile("^[a-z0-9_-]{1,20}$");
 
     /** 分类键入 SQL 前的正则校验 + 单引号包裹（字符集不含引号 ⇒ 无注入面） */
     private static String quoteCategoryKey(String key) {

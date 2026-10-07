@@ -34,7 +34,7 @@ public class DishCorrectionCmd {
     /** 采纳后挂靠的档口ID（stall.id，由 correction 侧解析得出） */
     private Long stallId;
 
-    /** 描述属性（键=维度 fieldKey，值=中文文本/数组；null 或空 Map=不覆盖） */
+    /** 描述属性（键=维度 ID 字符串，值=中文文本/数组；null 或空 Map=不覆盖） */
     private Map<String, Object> attributes;
 
     /** 配图相对路径（null 或空列表=不覆盖；实现侧负责 JSON 序列化） */
