@@ -11,6 +11,7 @@
     :hover-class="disabled || loading ? 'none' : 'pressed'"
     @tap="handleTap"
   >
+    <view v-if="loading" class="btn-spinner" aria-hidden="true" />
     <text class="btn-text">{{ text }}</text>
   </view>
 </template>
@@ -79,6 +80,21 @@ function handleTap() {
 .app-btn.loading {
   opacity: 0.6;
   pointer-events: none;
+}
+/* 在途旋转环：文字左侧 28rpx（环样式与 0.8s 节奏复用 RetryBlock 的环语言）。
+   环底 = --text-white-edge（主色实底上的半透白描边档）；顶弧 = --text-white（实底白字同源）；
+   reduced-motion 降级由 App.vue 全局块覆盖。 */
+.btn-spinner {
+  flex: none;
+  width: 28rpx;
+  height: 28rpx;
+  border: 3rpx solid var(--text-white-edge);
+  border-top-color: var(--text-white);
+  border-radius: var(--radius-circle);
+  animation: btn-spin 0.8s linear infinite;
+}
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
 }
 /* 按压反馈：主色实底 CTA 档 ⇒ 0.85（与 EmptyState / RetryBlock 双 CTA / SearchBar 搜索钮同档） */
 .app-btn.pressed {

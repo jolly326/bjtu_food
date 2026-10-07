@@ -71,6 +71,12 @@
   /* ===== 材质 ===== */
   --blur-material: blur(20px) saturate(180%);
 
+  /* ===== 遮罩（两态同值，不随主题变化） ===== */
+  /* 弹层 / 抽屉遮罩（BaseModal / BaseDrawer；与 --el-mask-color 深色档同值） */
+  --overlay-scrim: rgba(0, 0, 0, 0.45);
+  /* 图片浮层暗底（ImageUpload 拖拽手柄 / 删除钮；对齐 client --badge-dark-bg 语义） */
+  --overlay-dark: rgba(0, 0, 0, 0.55);
+
   /* ===== 动效 ===== */
   --duration-fast: 120ms;
   --duration-base: 200ms;

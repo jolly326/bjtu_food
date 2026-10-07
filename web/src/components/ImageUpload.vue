@@ -163,14 +163,14 @@ function onDropThumb(target: number): void {
   -webkit-user-drag: none;
   user-select: none;
 }
-/* DragHandle（子组件根）落位与可见性：半透黑底同删除钮（图片上的浮层底，设计变量未设该档，
-   非结构尺寸，不硬造 token）；双类选择器确保覆盖组件内 `--text-muted` 缺省色 */
+/* DragHandle（子组件根）落位与可见性：半透黑底同删除钮（`--overlay-dark` 图片浮层暗底档）；
+   双类选择器确保覆盖组件内 `--text-muted` 缺省色 */
 .thumb .thumb-handle {
   position: absolute;
   top: 0;
   left: 0;
   color: var(--text-white);
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--overlay-dark);
   border-radius: 0 0 var(--radius) 0;
 }
 .thumb-cover {
@@ -215,8 +215,8 @@ function onDropThumb(target: number): void {
   height: 20px;
   border: none;
   border-radius: 50%;
-  /* 半透黑遮罩为**图片上的浮层底**，设计变量未设该档（非结构尺寸，不硬造 token） */
-  background: rgba(0, 0, 0, 0.55);
+  /* 半透黑底 = `--overlay-dark`（图片浮层暗底档） */
+  background: var(--overlay-dark);
   /* 半透黑底上的图标 = 实底上的文字（设计变量.md §2.3 `--text-white`） */
   color: var(--text-white);
   cursor: pointer;

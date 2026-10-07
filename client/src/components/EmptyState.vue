@@ -6,7 +6,7 @@
        本组件 = **空态**（无数据但一切正常，通常不可点，仅在传 `actionText` 时提供 CTA）。
        无障碍：CTA 为 role="button" + aria-label；纯展示态不带交互语义。 -->
   <view class="empty-state" :class="{ 'is-card': card }">
-    <IconSvg v-if="icon" :name="icon" :size="iconSize" :color="COLOR_MAP['text-tertiary']" />
+    <IconSvg v-if="icon" :name="icon" :size="iconSize" :color="COLOR_MAP[iconColor]" />
     <text v-if="title" class="es-title">{{ title }}</text>
     <text v-if="desc" class="es-desc">{{ desc }}</text>
     <view
@@ -33,7 +33,8 @@
  * - pages/my-reviews/index.vue（游客态 / 删空后的提示；card 变体）
  * - pages/home/HomeContent.vue（首页零菜品；无底色）
  * - pages/find/index.vue（搜索无结果引导；card 变体）
- * - pages/detail/dish/DishReviewSection.vue（评价区零评价 / 筛选无结果；无底色、无图标）
+ * - pages/detail/dish/DishReviewSection.vue（评价区零评价 / 筛选无结果；无底色；零评价态带
+ *   `star-filled` 图标，`iconColor` 取 `star` = `--color-star` 同源实色）
  *
  * 仅承载展示与 CTA 上抛；数据获取、空/失败判定与重拉路径由各消费方持有。
  */
@@ -49,6 +50,11 @@ withDefaults(defineProps<{
   icon?: string
   /** 图标尺寸（rpx） */
   iconSize?: number
+  /**
+   * 图标语义色键（COLOR_MAP 键名；默认三阶末档灰）。
+   * IconSvg 的 color 不解析 var()（data-uri 内为字面量），故传键名经 COLOR_MAP 取实色。
+   */
+  iconColor?: keyof typeof COLOR_MAP
   /** CTA 文案（可选；传了才渲染主色胶囊按钮） */
   actionText?: string
   /**
@@ -58,6 +64,7 @@ withDefaults(defineProps<{
   card?: boolean
 }>(), {
   iconSize: 44,
+  iconColor: 'text-tertiary',
   card: false,
 })
 

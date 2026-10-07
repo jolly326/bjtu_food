@@ -46,7 +46,7 @@
 
       <!-- ④ 有数据（含在途期保留旧列表）/ ⑤ 零评价 -->
       <template v-else>
-        <!-- 星级筛选条：`全部` + ⭐5~⭐1 共 6 项**静态枚举**（免服务端字典）。
+        <!-- 星级筛选条：`全部` + 5星~1星 共 6 项**纯文字枚举**（免服务端字典）。
              🔴 渲染条件 = 「有评价 **或** 已选筛选」（hasAnyReview）——
              筛选后命中 0 条时列表虽空，但筛选条必须保留，否则用户**无法切回「全部」**（死路）。 -->
         <scroll-view v-if="hasAnyReview" class="rating-filter" scroll-x :show-scrollbar="false">
@@ -83,14 +83,26 @@
         </view>
 
         <!-- 空态二态（语义不同，勿混；在途期不渲染，避免误闪空态）：
-             ① **零评价**（ratingFilter == null）—— 信息卡评分位恒显「⭐ 5.0」兜底，
-                若此处写「暂无评价」会与之矛盾 ⇒ 改为**冷启动号召**「快来抢首评 ⭐ 5.0」；
+             ① **零评价**（ratingFilter == null）—— 信息卡评分位恒显「star-filled 图标 + 5.0」兜底，
+                若此处写「暂无评价」会与之矛盾 ⇒ 改为**冷启动号召**
+                「star-filled 图标 + 快来抢首评 + 数字 5.0」（图形 + 纯文案组合，禁 emoji 字符；
+                数字 tabular-nums、--font-h3 同价格档，非可点件）；
              ② **筛选无结果**（ratingFilter != null）—— 纯文案「暂无 X 星评价」，
                 🔴 此时上方筛选条仍渲染（hasAnyReview），保证可切回「全部」。 -->
-        <EmptyState
-          v-else-if="!pending"
-          :title="ratingFilter == null ? '快来抢首评 ⭐ 5.0' : `暂无 ${ratingFilter} 星评价`"
-        />
+        <template v-else-if="!pending">
+          <!-- ① 零评价：star-filled 图标 + 快来抢首评 + 数字 5.0（冷启动号召，非可点件） -->
+          <EmptyState
+            v-if="ratingFilter == null"
+            icon="star-filled"
+            icon-color="star"
+            :icon-size="36"
+            title="快来抢首评"
+          >
+            <text class="zero-rating-num">5.0</text>
+          </EmptyState>
+          <!-- ② 筛选无结果：纯文案（不显示「暂无评价」—— 那是零评价态的文案，语义不同） -->
+          <EmptyState v-else :title="`暂无 ${ratingFilter} 星评价`" />
+        </template>
 
         <!-- 重置式在途且列表非空：旧列表保留，列表末尾追加在途行（不整块清空） -->
         <view v-if="pending && reviews.length > 0" class="list-foot">
@@ -114,14 +126,15 @@ import { COLOR_MAP } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
 import { useVirtualList } from '@/composables/usePagedList'
 
-/** 评价列表项（静态枚举，值域固定 1~5 ⇒ **无服务端字典**；`null` = 全部） */
+/** 评价列表项（静态枚举，值域固定 1~5 ⇒ **无服务端字典**；`null` = 全部）。
+ *  label = chip 纯文字（「N星」，SHALL NOT 用 emoji 星「⭐」—— 小尺寸 chip 内图标 + 数字过挤） */
 const RATING_FILTERS: ReadonlyArray<{ value: number | null; label: string }> = [
   { value: null, label: '全部' },
-  { value: 5, label: '⭐5' },
-  { value: 4, label: '⭐4' },
-  { value: 3, label: '⭐3' },
-  { value: 2, label: '⭐2' },
-  { value: 1, label: '⭐1' },
+  { value: 5, label: '5星' },
+  { value: 4, label: '4星' },
+  { value: 3, label: '3星' },
+  { value: 2, label: '2星' },
+  { value: 1, label: '1星' },
 ]
 
 const props = withDefaults(defineProps<{
@@ -231,7 +244,7 @@ const emit = defineEmits<{
 }
 .write-entry--pressed { opacity: 0.6; }
 
-/* ===== 星级筛选条（`全部` + ⭐5~⭐1）=====
+/* ===== 星级筛选条（`全部` + 5星~1星，chip 纯文字）=====
     横向 scroll-x 单行不换行；chip 为独立可点件（min-height ≥88rpx 触达基线）。
     圆角 = `--radius-pill`（基线 §1.2「标签两档」：可点胶囊 chip → pill；消费方已登记）。
     选中态 = --color-primary-soft 底 + --color-primary 描边（形态基线 §二 TagChip）。
@@ -266,6 +279,15 @@ const emit = defineEmits<{
   line-height: 1.2;
 }
 .filter-chip--active .filter-chip-text { color: var(--color-primary-text); font-weight: var(--weight-medium); }
+
+/* ===== 零评价空态的兜底评分数字：--font-h3 同价格档 + tabular-nums（与信息卡评分数字同语言） ===== */
+.zero-rating-num {
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
 
 /* ===== 失败态：视觉由公共 RetryBlock 承担，此处仅补卡内上下呼吸 ===== */
 .review-section :deep(.retry-block) { margin: var(--spacing-sm) 0; }

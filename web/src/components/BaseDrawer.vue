@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay-scrim);
   z-index: 1000;
   display: flex;
   justify-content: flex-end;

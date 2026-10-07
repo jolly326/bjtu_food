@@ -12,6 +12,7 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Picture } from '@element-plus/icons-vue'
 import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
 import { deleteReview, listReviews, setReviewHidden } from '@/api/reviews'
@@ -257,8 +258,24 @@ onMounted(() => reloadFirstPage())
                 <span>{{ row.userNickname || '游客' }}</span>
               </div>
             </td>
-            <td class="num">{{ row.rating }}★</td>
-            <td><ClampText :text="row.content" /></td>
+            <!-- 评分格：内联 SVG 星形图标（--color-star）在数字前（SHALL NOT 用文本「★」拼贴；
+                 数字沿用 .num 等宽列） -->
+            <td class="num">
+              <span class="rating-cell">
+                <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                  /></svg
+                >{{ row.rating }}
+              </span>
+            </td>
+            <td>
+              <!-- 内容摘要 + 配图角标（「该行有图」为审核高频判据，图标 + 张数） -->
+              <ClampText :text="row.content" />
+              <span v-if="row.images?.length" class="img-flag">
+                <el-icon><Picture /></el-icon>{{ row.images.length }}
+              </span>
+            </td>
             <td>
               <div class="thumbs">
                 <!-- 缩略图即入口：点击直接看大图，审核不必进详情 -->
@@ -366,7 +383,15 @@ onMounted(() => reloadFirstPage())
         </div>
         <div class="meta-row">
           <span class="meta-key">评分</span>
-          <span class="meta-val num">{{ current?.rating }}★</span>
+          <span class="meta-val num">
+            <span class="rating-cell">
+              <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                /></svg
+              >{{ current?.rating }}
+            </span>
+          </span>
         </div>
         <div class="meta-row">
           <span class="meta-key">状态</span>
@@ -481,6 +506,19 @@ onMounted(() => reloadFirstPage())
 .thumbs {
   display: flex;
   gap: var(--space-1);
+}
+/* 评分展示：内联 SVG 星形图标（--color-star，独立语义色）在数字前，数字保持 .num 等宽
+   （表格评分格与抽屉评分位共用同一段展示结构） */
+.rating-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.rating-star {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: var(--color-star);
 }
 .thumbs img {
   width: 56px;
