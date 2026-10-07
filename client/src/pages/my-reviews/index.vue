@@ -10,7 +10,7 @@
            游客态副行 = 「未完成校园认证」且**不渲染动作位**（编辑身份信息是认证态才具备的能力）。
            ⚠️ 块间距**必须**落在页面自己的节点上 —— mp-weixin 下给自定义组件传的 class 落进**组件宿主节点**
            （宿主非块级盒 ⇒ `margin` 被静默忽略）；故由外层 `.strip-section` 承担块间距，
-           卡壳内距归零经 `:deep(.card-section)` 打到根节点（同 `find/index.vue` 的 `discover-card` 落地方式）。 -->
+           卡壳内距归零经 `:deep(.card-section)` 打到根节点。 -->
       <view class="strip-section">
         <CardSection flush>
           <!-- 身份版面（条纹 / 头像 / 主副行 / 「编辑个人信息」胶囊）全部由公共组件承担 -->
@@ -27,9 +27,9 @@
 
       <!-- 评价区：区块标题「我的评价」与列表卡**仅在列表有数据时渲染**（空榜不渲染标题） -->
       <SectionTitle v-if="list.length" title="我的评价" />
-      <!-- 评价列表：单张白卡收纳全部评价行，行间 1rpx 分隔线（最上 / 最下无线）。
+      <!-- 评价列表：单张模块收纳全部评价行，行间 1rpx 分隔线（最上 / 最下无线）。
            虚拟列表：仅渲染可视窗口条目，首尾占位撑起整段高度（列表在身份卡之下的滚动内容中 ⇒ 动态量偏移）。 -->
-      <view v-if="list.length" class="review-card">
+      <CardSection v-if="list.length" bare flush class="review-card">
         <view :style="{ height: topPad + 'px' }" />
         <ReviewItem
           v-for="r in visible"
@@ -38,16 +38,18 @@
           :review="r"
           mine
           flat
+          row-padding="lg"
+          divided
           :dish-name="r.dishName"
           @more="onMore(r)"
         />
         <view :style="{ height: bottomPad + 'px' }" />
-      </view>
+      </CardSection>
 
       <!-- 三态判断序固定 **失败 > 在途 > 空**（有错不显示空）：
            ① 失败 —— 首屏请求失败 ≠ 无评价，先于在途与空态渲染，避免网络失败被误读为「暂无评价」；
            ② 在途 —— 只给文字行（全局 `.list-foot`），不给骨架屏（禁的是伪内容与抖动，不是文字）；
-           ③ 空 —— 零数据**必须显式**（禁静默）：白卡内垂直居中（`comment` 图标 64rpx + 两级文案 + CTA）。
+           ③ 空 —— 零数据**必须显式**（禁静默）：模块内垂直居中（`comment` 图标 64rpx + 两级文案 + CTA）。
               游客 = 认证引导（CTA「去认证」）；认证态 = 写评价引导（CTA「去找一道菜」→ 切首页 tab）。
               两分支共用同一空态件，CTAs 均走既有路径常量。 -->
       <RetryBlock v-if="loadFailed && !loading" @retry="onRetryLoad" />
@@ -110,7 +112,7 @@ import { PATH } from '@/utils/routes'
 import { usePagedList, useVirtualList } from '@/composables/usePagedList'
 import { MAX_LIST_PAGES } from '@/constants/paging'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
-// 图标色须传实色（IconSvg 的 color 不解析 var()）
+// 图标色须传实色（AppIcon 的 color 不解析 var()）
 import { COLOR_MAP, MODAL_CONFIRM_DANGER_COLOR } from '@/theme/tokens'
 import { CONFIRM_DELETE_REVIEW, REVIEW_GONE_TEXT, TOAST_REVIEW_DELETED } from '@/constants/copy'
 
@@ -157,7 +159,7 @@ const { list, loading, loadFailed, finished, load, loadMore } = usePagedList<MyR
 const { onScroll, visible, topPad, bottomPad } = useVirtualList<MyReview>({
   items: list,
   estimateHeight: 220,
-  offsetSelector: '.review-card',
+  offsetSelector: '.card-section',
 })
 
 /** 重试块 @tap：从第 1 页重拉（与首屏同一条重拉路径）（MP-012） */
@@ -178,7 +180,7 @@ function onMore(r: Review | MyReview) {
 
 /**
  * 动作项：本人恒为「删除评价」（危险红；本页列表全部为本人评价，无举报项）。
- * ⚠️ `iconColor` 必须传实色 `COLOR_MAP['error']`（ActionSheet 契约：IconSvg 不解析 var()）；
+ * ⚠️ `iconColor` 必须传实色 `COLOR_MAP['error']`（ActionSheet 契约：AppIcon 不解析 var()）；
  * `textColor` 走 CSS 绑定、`var()` 合法。
  */
 const moreItems = [
@@ -202,12 +204,18 @@ function removeLocal(id: number) {
  * **4001（评价不存在）**：该评价已在别处删除 ⇒ 重试无意义，按「已不存在」收尾
  * （本地移除 + 提示），不落到通用「删除失败」误导用户重试。
  */
+/** 删除在途锁（不可逆操作防重复）：非 null 时表示正在删除的评价 id */
+const deletingId = ref<number | null>(null)
+
 function onDelete(r: MyReview) {
   uni.showModal({
     ...CONFIRM_DELETE_REVIEW,
     confirmColor: MODAL_CONFIRM_DANGER_COLOR,
     success: async (res) => {
       if (!res.confirm) return
+      // 删除不可逆：加并发锁，避免连续点两条时两个确认弹窗回调交错、重复发请求
+      if (deletingId.value !== null) return
+      deletingId.value = r.id
       try {
         await deleteReview(r.id)
         removeLocal(r.id)
@@ -219,6 +227,8 @@ function onDelete(r: MyReview) {
           return
         }
         toastError(e, '删除失败')
+      } finally {
+        deletingId.value = null
       }
     },
   })
@@ -240,18 +250,15 @@ useOnShowRefresh(load)
    结构化收口：页面 = 顶栏 + `scroll-view` 滚动区（`flex: 1`）——
    内容被裁在滚动区内，**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则，零表面）。 */
 .my-reviews-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.my-reviews-page { min-height: 0; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口）通常 **大于** `100dvh`（当前视口）；二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
-/* 评价列表：单张白卡收纳全部评价行（与系统通知页同语言）；行间 1rpx 浅分隔线，最上 / 最下无线 */
-.review-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
-/* 行内距 + 分隔线（经 :deep 穿透到公共 ReviewItem 根；覆写其 flat 的 padding:0） */
-.review-card :deep(.review-item) { padding: var(--spacing-lg); }
-.review-card :deep(.review-item + .review-item) { border-top: 1rpx solid var(--border-color); }
+/* 评价列表：单张壳收纳全部评价行（壳 = 公共 `CardSection` bare+flush，与系统通知页同语言）；
+   底色 / 圆角 / 阴影 / 裁切由壳承担，行内距与分隔线由 `ReviewItem` 的 `row-padding` / `divided` prop 自持 */
 
 /* 区块标题（公共 `SectionTitle`）：边距按 UI 稿取 `--spacing-md`（覆盖其默认 `--spacing-sm`）；
    前缀页面根抬高特异度，不动公共组件 */

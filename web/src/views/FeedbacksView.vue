@@ -3,12 +3,16 @@
  * B2 意见反馈管理（页面规格见 [反馈与举报.md](../../../docs/ui/web/反馈与举报.md) §B2）。
  *
  * <p>要点：列表走**同一端点** `GET /admin/feedbacks?category=feedback`（B3 举报为 `category=report`）；
- * 处置载体 = **抽屉**（只读内容区 + 结论 + 回复 + 不采纳原因 ⇒ ≥5 控件）；
- * 类型只列**当前白名单**（`suggestion` / `add` / `error`；存量 `bug`/`other` 仅作展示回落）。
+ * 表格**只放基础列**（类型 / 提交人 / 状态 / 提交时间）—— 正文、配图、回复与**处置**都在
+ * **处置抽屉**内（同一抽屉两态：`pending` = 处置表单 / 已处理 = 只读详情）。
+ *
+ * <p>类型只列**当前写入白名单**（`bug` / `suggestion` / `other`，真源
+ * `FeedbackConst.WRITABLE_TYPES`）：筛选下拉与白名单同源。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture } from '@element-plus/icons-vue'
+
+import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
 import type { FeedbackAdminVO, FeedbackListParams, FeedbackStatus } from '@/types/common'
@@ -16,20 +20,26 @@ import { usePagedList } from '@/composables/usePagedList'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { resolveImageUrl } from '@/utils/image'
+import DetailMetaRow from '@/components/DetailMetaRow.vue'
 import BaseDrawer from '@/components/BaseDrawer.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const fStatus = ref<FeedbackStatus | ''>('')
 const fType = ref('')
 const fKeyword = ref('')
 
-/** 类型文案（白名单 3 项 + 存量回落的 2 项） */
+/**
+ * 类型文案 = **当前提交白名单**（`FeedbackConst.WRITABLE_TYPES`：bug / suggestion / other）。
+ *
+ * <p>只列可写类型；万一命中未知类型，回落显示原始机器值 ——
+ * 静默丢弃会让「这一行是什么」不可解释。
+ */
 const TYPE_LABELS: Record<string, string> = {
-  suggestion: '建议',
-  add: '新增菜品',
-  error: '信息有误',
-  // 存量数据（不再允许新提交）
-  bug: '缺陷（存量）',
-  other: '其他（存量）',
+  bug: '程序功能 Bug',
+  suggestion: '产品功能建议',
+  other: '其他相关问题',
 }
 const typeLabel = (t: string): string => TYPE_LABELS[t] ?? t
 
@@ -60,7 +70,7 @@ const {
   listFeedbacks({ page: pageNo, pageSize, ...params() }),
 )
 
-/* ===== 处置（抽屉） ===== */
+/* ===== 处置 / 详情（抽屉） ===== */
 const open = ref(false)
 const current = ref<FeedbackAdminVO | null>(null)
 const reply = ref('')
@@ -68,9 +78,19 @@ const outcome = ref<'handled' | 'rejected'>('handled')
 const rejectReason = ref('')
 const submitting = ref(false)
 
+/** 待处理 → 处置表单；已处理 → 只读详情（再处置服务端会以 400 拒绝） */
+const isPending = computed(() => current.value?.status === 'pending')
+
 const canSubmit = computed(() => {
   if (outcome.value === 'rejected') return rejectReason.value.trim().length > 0
   return true
+})
+
+/** 结论文案（表无物理列，按 `status` + `rejectReason` 派生） */
+const outcomeLabel = computed(() => {
+  const row = current.value
+  if (!row || row.status === 'pending') return '待处理'
+  return row.outcome === 'rejected' ? '不采纳 / 退回' : '通过 / 已处理'
 })
 
 function openHandle(row: FeedbackAdminVO): void {
@@ -110,6 +130,18 @@ async function submitHandle(): Promise<void> {
   }
 }
 
+/* ===== 配图大图预览（表格角标 / 抽屉配图共用入口） ===== */
+const previewOpen = ref(false)
+const previewImages = ref<string[]>([])
+const previewIndex = ref(0)
+
+function openPreview(images: string[], index: number): void {
+  if (!images || images.length === 0) return
+  previewImages.value = images
+  previewIndex.value = index
+  previewOpen.value = true
+}
+
 function reset(): void {
   fStatus.value = ''
   fType.value = ''
@@ -132,9 +164,9 @@ onMounted(() => reloadFirstPage())
       </select>
       <select class="form-input" v-model="fType" @change="reloadFirstPage">
         <option value="">全部类型</option>
-        <option value="suggestion">建议</option>
-        <option value="add">新增菜品</option>
-        <option value="error">信息有误</option>
+        <option value="bug">程序功能 Bug</option>
+        <option value="suggestion">产品功能建议</option>
+        <option value="other">其他相关问题</option>
       </select>
       <input
         class="form-input"
@@ -161,52 +193,28 @@ onMounted(() => reloadFirstPage())
           <tr>
             <th>类型</th>
             <th>提交人</th>
-            <th>内容</th>
-            <th>配图</th>
             <th>状态</th>
-            <th>回复 / 原因</th>
             <th>提交时间</th>
             <th class="actions">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in items" :key="row.id">
-            <td>{{ typeLabel(row.type) }}</td>
-            <!-- 匿名提交 userId = 0 → 服务端回落「游客」 -->
-            <td>{{ row.userNickname || '游客' }}</td>
             <td>
-              <!-- 内容摘要 + 配图角标（「该行有图」为审核高频判据，图标 + 张数） -->
-              <ClampText :text="row.content" />
+              {{ typeLabel(row.type) }}
+              <!-- 「该行有配图」为审核高频判据 ⇒ 以角标保留在基础列内 -->
               <span v-if="row.images?.length" class="img-flag">
-                <el-icon><Picture /></el-icon>{{ row.images.length }}
+                <AppIcon name="image" :size="12" />{{ row.images.length }}
               </span>
             </td>
-            <td>
-              <div class="thumbs">
-                <img v-for="(img, i) in row.images" :key="i" :src="img" alt="" />
-              </div>
-            </td>
+            <!-- 匿名提交 userId = 0 → 服务端回落「游客」 -->
+            <td>{{ row.userNickname || '游客' }}</td>
             <td><StatusTag :status="row.status" kind="feedback" /></td>
-            <td>
-              <ClampText :text="row.reply" />
-              <!-- 拒绝原因同属长文本（基线 §1.4）⇒ 走 ClampText，不用单行截断 -->
-              <ClampText
-                v-if="row.rejectReason"
-                class="muted"
-                :text="`原因：${row.rejectReason}`"
-              />
-            </td>
-            <td class="muted">{{ row.createdAt }}</td>
+            <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
-              <button
-                v-if="row.status === 'pending'"
-                class="link"
-                type="button"
-                @click="openHandle(row)"
-              >
-                处理
+              <button class="link" type="button" @click="openHandle(row)">
+                {{ row.status === 'pending' ? '处理' : '详情' }}
               </button>
-              <span v-else class="muted">已处理</span>
             </td>
           </tr>
         </tbody>
@@ -221,75 +229,121 @@ onMounted(() => reloadFirstPage())
       />
     </div>
 
-    <!-- 处置抽屉：只读内容区 + 结论 + 回复 + 不采纳原因 -->
-    <BaseDrawer title="处理反馈" :open="open" @close="open = false">
+    <!-- 处置 / 详情抽屉 -->
+    <BaseDrawer :title="isPending ? '处理反馈' : '反馈详情'" :open="open" @close="open = false">
+      <!-- 只读内容区：正文全文（不截断）+ 配图（点击看大图） -->
       <div class="ctx">
         <div class="ctx-label">
           {{ typeLabel(current?.type ?? '') }} · {{ current?.userNickname || '游客' }}
+          <StatusTag :status="current?.status ?? 'pending'" kind="feedback" />
         </div>
-        <div class="ctx-body">{{ current?.content }}</div>
-        <div v-if="current?.images?.length" class="thumbs ctx-thumbs">
-          <img v-for="(img, i) in current.images" :key="i" :src="img" alt="" />
-        </div>
-      </div>
-
-      <div class="field">
-        <label id="fb-outcome-label">处理结论</label>
-        <div class="tag-options" role="radiogroup" aria-labelledby="fb-outcome-label">
+        <div class="ctx-body">{{ current?.content || '（无内容）' }}</div>
+        <div v-if="current?.images?.length" class="ctx-thumbs" role="group" aria-label="反馈配图">
           <button
-            class="tag-option"
+            v-for="(img, i) in current.images"
+            :key="i"
+            class="thumb"
             type="button"
-            role="radio"
-            :aria-checked="outcome === 'handled'"
-            :class="{ active: outcome === 'handled' }"
-            @click="outcome = 'handled'"
+            :aria-label="`查看第 ${i + 1} 张反馈配图`"
+            @click="openPreview(current.images, i)"
           >
-            通过 / 已处理
-          </button>
-          <button
-            class="tag-option"
-            type="button"
-            role="radio"
-            :aria-checked="outcome === 'rejected'"
-            :class="{ active: outcome === 'rejected' }"
-            @click="outcome = 'rejected'"
-          >
-            不采纳 / 退回
+            <img :src="resolveImageUrl(img)" alt="" />
           </button>
         </div>
       </div>
 
-      <div class="field" v-if="outcome === 'rejected'">
-        <label for="fb-reject-reason">不采纳原因（必填，≤200 字）</label>
-        <input id="fb-reject-reason" class="form-input" v-model="rejectReason" maxlength="200" />
+      <!-- 已处理 → 只读结论与回复 -->
+      <div v-if="!isPending" class="detail-meta">
+        <DetailMetaRow k="反馈 ID" num>#{{ current?.id }}</DetailMetaRow>
+        <div class="meta-row">
+          <span class="meta-key">提交人</span>
+          <span class="meta-val">
+            {{ current?.userNickname || '游客' }}
+            <span class="muted"> #{{ current?.userId }}</span>
+          </span>
+        </div>
+        <DetailMetaRow k="处理结论">{{ outcomeLabel }}</DetailMetaRow>
+        <DetailMetaRow k="处理回复">{{ current?.reply || '—' }}</DetailMetaRow>
+        <div class="meta-row" v-if="current?.rejectReason">
+          <DetailMetaRow k="不采纳原因">{{ current.rejectReason }}</DetailMetaRow>
+        </div>
+        <DetailMetaRow k="提交时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
+        <DetailMetaRow k="处理时间">{{ formatDateTime(current?.handledAt) }}</DetailMetaRow>
       </div>
 
-      <div class="field">
-        <label for="fb-reply">处理回复（可选，≤600 字）</label>
-        <textarea
-          id="fb-reply"
-          class="form-textarea"
-          v-model="reply"
-          rows="4"
-          maxlength="600"
-          placeholder="将随站内回执下发给提交人；留空则回执用固定文案"
-        />
-        <div class="hint">{{ reply.length }} / 600</div>
-      </div>
+      <!-- 待处理 → 处置表单 -->
+      <template v-else>
+        <div class="field">
+          <label id="fb-outcome-label">处理结论</label>
+          <div class="tag-options" role="radiogroup" aria-labelledby="fb-outcome-label">
+            <button
+              class="tag-option"
+              type="button"
+              role="radio"
+              :aria-checked="outcome === 'handled'"
+              :class="{ active: outcome === 'handled' }"
+              @click="outcome = 'handled'"
+            >
+              通过 / 已处理
+            </button>
+            <button
+              class="tag-option"
+              type="button"
+              role="radio"
+              :aria-checked="outcome === 'rejected'"
+              :class="{ active: outcome === 'rejected' }"
+              @click="outcome = 'rejected'"
+            >
+              不采纳 / 退回
+            </button>
+          </div>
+        </div>
+
+        <div class="field" v-if="outcome === 'rejected'">
+          <label for="fb-reject-reason">不采纳原因（必填，≤200 字）</label>
+          <input id="fb-reject-reason" class="form-input" v-model="rejectReason" maxlength="200" />
+        </div>
+
+        <div class="field">
+          <label for="fb-reply">处理回复（可选，≤600 字）</label>
+          <textarea
+            id="fb-reply"
+            class="form-textarea"
+            v-model="reply"
+            rows="4"
+            maxlength="600"
+            placeholder="将随站内回执下发给提交人；留空则回执用固定文案"
+          />
+          <div class="hint">{{ reply.length }} / 600</div>
+        </div>
+      </template>
 
       <template #actions>
-        <button class="btn-secondary" type="button" @click="open = false">取消</button>
-        <button
-          class="btn-primary"
-          type="button"
-          :disabled="submitting"
-          v-press
-          @click="submitHandle"
-        >
-          {{ submitting ? '提交中…' : '提交处置' }}
-        </button>
+        <template v-if="isPending">
+          <button class="btn-secondary" type="button" @click="open = false">取消</button>
+          <button
+            class="btn-primary"
+            type="button"
+            :disabled="submitting"
+            v-press
+            @click="submitHandle"
+          >
+            {{ submitting ? '提交中…' : '提交处置' }}
+          </button>
+        </template>
+        <template v-else>
+          <button class="btn-secondary" type="button" @click="open = false">关闭</button>
+        </template>
       </template>
     </BaseDrawer>
+
+    <!-- 配图大图预览：挂载即打开 -->
+    <ImagePreview
+      v-if="previewOpen"
+      :images="previewImages"
+      :index="previewIndex"
+      @close="previewOpen = false"
+    />
   </div>
 </template>
 
@@ -304,47 +358,16 @@ onMounted(() => reloadFirstPage())
 .filters .form-input {
   width: 160px;
 }
-.thumbs {
-  display: flex;
-  gap: var(--space-1);
-}
-.thumbs img {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
+/* 抽屉内配图：与表格缩略图同档尺寸，点击即看大图 */
 .ctx-thumbs {
-  margin-top: var(--space-2);
-}
-.muted {
-  color: var(--text-muted);
-  font-size: var(--font-sm);
-}
-.hint {
-  margin-top: var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  text-align: right;
-}
-.ctx {
-  background: var(--bg-soft);
-  border-radius: var(--radius);
-  padding: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-.ctx-label {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  margin-bottom: var(--space-1);
-}
-.ctx-body {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: var(--text-primary);
-}
-.tag-options {
   display: flex;
   gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.ctx-thumbs img {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
 }
 </style>

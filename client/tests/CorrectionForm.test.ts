@@ -2,9 +2,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { reactive } from 'vue'
-import CorrectionForm from '../pages/correction/CorrectionForm.vue'
+import CorrectionForm from '@/pages/correction/CorrectionForm.vue'
 import { installUni, inputEvent, uniCalls } from './stubs'
-import type { AttributeEditor, CorrectionFormModel } from '../pages/correction/useCorrection'
+import type { AttributeEditor, CorrectionFormModel } from '@/pages/correction/useCorrection'
 
 /**
  * `CorrectionForm` 渲染回归测试。
@@ -59,7 +59,7 @@ function mountForm(over: Record<string, unknown> = {}, model = makeModel()) {
     global: {
       stubs: {
         AppButton: { template: '<view class="app-btn-stub" @click="$emit(\'press\')" />' },
-        IconSvg: true,
+        AppIcon: true,
         ImagePicker: {
           props: ['modelValue'],
           emits: ['update:modelValue'],

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, watch } from 'vue'
+import { toRef } from 'vue'
+import { useOverlayLayer } from '@/composables/useOverlayLayer'
 
 /**
  * 通用弹窗（[UI 基线 §2.1 / §1.10](../../../docs/ui/web/公共组件与形态基线.md)）。
@@ -12,28 +13,8 @@ import { onBeforeUnmount, watch } from 'vue'
 const props = defineProps<{ title: string; open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Escape') emit('close')
-}
-
-watch(
-  () => props.open,
-  (open) => {
-    if (open) {
-      window.addEventListener('keydown', onKeydown)
-      document.body.style.overflow = 'hidden'
-    } else {
-      window.removeEventListener('keydown', onKeydown)
-      document.body.style.overflow = ''
-    }
-  },
-  { immediate: true },
-)
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
-  document.body.style.overflow = ''
-})
+// 浮层层级 + 背景滚动锁 + ESC 只关栈顶（浮层可叠加，见 composables/useOverlayLayer）
+useOverlayLayer('modal', toRef(props, 'open'), () => emit('close'))
 </script>
 
 <template>

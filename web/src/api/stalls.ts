@@ -11,7 +11,12 @@ export function createStall(req: StallSaveReq): Promise<StallAdminVO> {
   return post<StallAdminVO>('/admin/stalls', req)
 }
 
-/** A2 修改（可编辑字段整体替换：`canteenId` / `name` / `floor` / `windowNo`） */
+/**
+ * A2 修改。
+ *
+ * <p>`canteenId` / `name` 必填整体替换；`floor` / `windowNo` / `location` / `description` /
+ * `images` / `sortOrder` 缺省 = 保持原值（空串 / 空数组 = 清空）。
+ */
 export function updateStall(id: number, req: StallSaveReq): Promise<null> {
   return put<null>(`/admin/stalls/${id}`, req)
 }

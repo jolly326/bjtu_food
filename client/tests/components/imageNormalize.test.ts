@@ -9,7 +9,7 @@ import {
   normalizeImage,
   assertSizeWithinLimit,
   type ImageNormalizeAdapters,
-} from './imageNormalize'
+} from '@/components/imageNormalize'
 
 /**
  * 图片规格收敛回归测试 —— 即「用户选的图能不能传上去」的唯一判据。

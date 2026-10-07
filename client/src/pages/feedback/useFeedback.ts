@@ -15,6 +15,7 @@ import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import { backToHome } from '@/utils/back'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
+import { submitUgcImages, type UgcImageItem } from '@/components/ugcImage'
 
 /** 描述字数上限（用户口径 600 字；服务端上限 1000，端上更严） */
 export const CONTENT_MAX = 600
@@ -27,8 +28,8 @@ export interface FeedbackFormModel {
   type: FeedbackType | ''
   /** 具体描述（必填，≤600 字） */
   content: string
-  /** 截图（选填，≤3 张 COS URL） */
-  images: string[]
+  /** 截图（选填，≤3 张；两段式：选图落云存储 → 提交时逐张机审转 COS） */
+  images: UgcImageItem[]
 }
 
 export function useFeedback() {
@@ -126,7 +127,7 @@ export function useFeedback() {
     keys.forEach((k) => { fieldErrors[k] = errs[k] })
     // 「类型」无独立滚动锚点（表单首屏可见），只登记文案不定位
     scrollIntoView.value = ''
-    if (keys[0] === 'form.content') setTimeout(() => { scrollIntoView.value = 'f-form-content' }, 50)
+    if (keys[0] === 'form.content') anchorTimer = setTimeout(() => { scrollIntoView.value = 'f-form-content' }, 50)
   }
 
   // ---- ⑤ 提交（防重复；成功 Toast「已提交，感谢反馈」+ 2 秒自动返回） ----
@@ -157,7 +158,8 @@ export function useFeedback() {
         toastInfo(`内容不能超过${CONTENT_MAX}字`)
         return
       }
-      const images = form.images.filter(Boolean)
+      // 两段式提交：先把已选截图逐张送机审转 COS（失败文案带「第 N 张图片」），再随表单上送正式 URL
+      const images = await submitUgcImages(form.images)
       await createFeedback({
         type: form.type as FeedbackType,
         content,
@@ -177,11 +179,13 @@ export function useFeedback() {
       submitting.value = false
     }
   }
-
   // ---- ⑥ 成功态自动返回（用户 2 秒内无输入则 navigateBack） ----
   let backTimer: ReturnType<typeof setTimeout> | null = null
+  /** 字段级错误锚点滚动定时器句柄（同 backTimer 口径登记，卸载时统一清理） */
+  let anchorTimer: ReturnType<typeof setTimeout> | null = null
   onUnload(() => {
     if (backTimer) clearTimeout(backTimer)
+    if (anchorTimer) clearTimeout(anchorTimer)
   })
 
   function scheduleAutoBack() {

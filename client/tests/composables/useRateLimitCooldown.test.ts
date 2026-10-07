@@ -18,7 +18,7 @@ vi.mock('vue', async (orig) => {
 })
 
 // isRateLimited 需构造「限频异常」，用后端 message 作为判据（见 api/http）
-const { useRateLimitCooldown } = await import('./useRateLimitCooldown')
+const { useRateLimitCooldown } = await import('@/composables/useRateLimitCooldown')
 
 
 /**

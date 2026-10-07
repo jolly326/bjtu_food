@@ -3,7 +3,7 @@
        横向可滑动 + 单选 + 橙色短下划线高亮。
        ⚠️ **标签集合与文案 100% 由后端下发直出**（`GET /dishes/views`）——
        含「为你推荐」这类**聚合视图**，端上**零文案、零拼接、零兜底项**：
-       改文案 / 加视图（如「折扣」）只在服务端 `DishViewConst` + `listDishViews()` 出口处装配，端上无需发版。
+       改文案 / 加视图（如「折扣」）都在后台视图表内完成（`listDishViews()` 出口直出），端上无需发版。
        字典未加载 / 失败 ⇒ 判空**整体不渲染**（不留空栏、不占位）；列表仍按首个启用视图加载。 -->
   <view v-if="tabs.length > 0" class="mt-bar">
     <scroll-view
@@ -15,19 +15,19 @@
       <view class="mt-track">
         <view
           v-for="tab in tabs"
-          :key="tab.key"
-          :id="idOf(tab.key)"
+          :key="tab.id"
+          :id="idOf(tab.id)"
           class="mt-tab"
-          :class="{ active: tab.key === activeKey }"
+          :class="{ active: tab.id === activeId }"
           role="button"
           :aria-label="`筛选：${tab.label}`"
           hover-class="mt-tab-pressed"
-          @tap="onSelect(tab.key)"
+          @tap="onSelect(tab.id)"
         >
           <text class="mt-label">{{ tab.label }}</text>
           <!-- 选中态橙色短下划线：常驻节点 + opacity 切换（避免显隐引起行高跳动）；
                纯装饰（选中语义已由 .active 字重与 aria-label 表达），对读屏隐藏 -->
-          <view class="mt-underline" :class="{ show: tab.key === activeKey }" aria-hidden="true" />
+          <view class="mt-underline" :class="{ show: tab.id === activeId }" aria-hidden="true" />
         </view>
       </view>
     </scroll-view>
@@ -38,21 +38,21 @@
 import { computed } from 'vue'
 import type { DishView } from '@/types/dish'
 
-/** 标签项：`key` 原样回传（无 null 特例：首个启用视图「为你推荐」也是普通 key）；文案一律来自服务端 */
+/** 标签项：`id` 原样回传（无 null 特例：首个启用视图「为你推荐」也是普通视图）；文案一律来自服务端 */
 interface ViewTab {
-  key: string
+  id: number
   label: string
 }
 
 const props = defineProps<{
-  /** 筛选视图字典（`store.viewList`）——**后端已含「为你推荐」等聚合视图及大类视图**，端上原样渲染 */
+  /** 筛选视图字典（`store.viewList`）——**后端已含「为你推荐」等聚合视图及种类视图**，端上原样渲染 */
   items: DishView[]
-  /** 当前选中视图键（`null` = 字典尚未加载） */
-  activeKey: string | null
+  /** 当前选中视图 ID（`null` = 字典尚未加载） */
+  activeId: number | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'select', key: string): void
+  (e: 'select', id: number): void
 }>()
 
 /**
@@ -61,21 +61,21 @@ const emit = defineEmits<{
  * 这样「「为你推荐」文案」「将来新增的视图」全部是服务端资产，端上零文案。
  */
 const tabs = computed<ViewTab[]>(() =>
-  (props.items ?? []).map((item) => ({ key: item.key, label: item.label })),
+  (props.items ?? []).map((item) => ({ id: item.id, label: item.label })),
 )
 
 /** 选中项滚动入视口（横向标签超过一屏时，切换后仍能看到高亮项） */
-const scrollIntoId = computed(() => (props.activeKey ? idOf(props.activeKey) : ''))
+const scrollIntoId = computed(() => (props.activeId != null ? idOf(props.activeId) : ''))
 
 /** 稳定 id：小程序 `scroll-into-view` 要求 id 以字母开头、且不含特殊字符 */
-function idOf(key: string): string {
-  return `mt-tab-${key}`
+function idOf(id: number): string {
+  return `mt-tab-${id}`
 }
 
-function onSelect(key: string) {
+function onSelect(id: number) {
   // 点击已选中项不重复发请求（避免无谓的列表重置与闪烁）
-  if (key === props.activeKey) return
-  emit('select', key)
+  if (id === props.activeId) return
+  emit('select', id)
 }
 </script>
 

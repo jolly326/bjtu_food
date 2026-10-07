@@ -1,5 +1,6 @@
 import { computed, ref, shallowRef } from 'vue'
 import { createListState } from './listState'
+import { createSeqGuard } from '@/utils/seq-guard'
 import type { AdminPage } from '@/types/common'
 
 /**
@@ -17,6 +18,8 @@ export function usePagedList<T>(
   const total = ref(0)
   const page = ref(1)
   const state = createListState(items)
+  /** 并发守卫：取号后按新旧裁决，过期响应一律丢弃（快速切筛选 / 切页时不覆盖新结果） */
+  const seq = createSeqGuard()
 
   /** 总页数（`total = 0` 时返回 1，调用方以 `total === 0` 判定是否渲染分页条） */
   const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
@@ -26,14 +29,17 @@ export function usePagedList<T>(
    * @param targetPage 目标页（默认当前页；筛选 / 重置请显式传 `1`）
    */
   async function load(targetPage: number = page.value): Promise<void> {
-    if (state.loading.value) return
+    const my = seq.begin()
     state.begin()
     try {
       const res = await fetcher(Math.max(1, targetPage), pageSize)
+      // 已被更新的请求淘汰 ⇒ 丢弃本次结果（不写状态、不弹错误）
+      if (!seq.isCurrent(my)) return
       items.value = [...res.records]
       total.value = res.total
       page.value = Math.max(1, targetPage)
     } catch (e) {
+      if (!seq.isCurrent(my)) return
       state.fail(e)
     } finally {
       state.settle()

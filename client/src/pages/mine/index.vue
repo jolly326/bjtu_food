@@ -7,14 +7,15 @@
     <Header title="我的" :show-back="false" />
 
     <scroll-view class="mine-scroll" scroll-y>
-      <!-- ===== 双卡片分组（UI 稿「双卡片定稿版」）：卡片 A（个人信息 + 快捷功能）→ 卡片 B（账号设置）
-         分组依据 = Apple HIG 语义分组：身份信息与快捷操作同组；账号协议/注销属独立设置组。
-         原「用户卡 + 3 张宫格小卡 + 设置列表卡」共 5 张独立白卡已合并为 2 张语义卡。
-         **仅容器结构与视觉** —— 业务逻辑 / 跳转 / 弹窗 / 角标 / 无障碍全部沿用原稿。 ===== -->
-      <!-- 卡片 A：个人信息 + 快捷功能 -->
-      <view class="mine-card">
-        <!-- 用户信息模块（卡片 A 内第 1 段）：认证态 = 昵称 + 校园邮箱；游客态 = 昵称 +「未完成校园认证」。
-             内容与排版真源见 docs/ui/client/README.md §身份卡。
+      <!-- ===== 极简无卡片：两块独立 `.module-wrap` = ① 个人信息 + 快捷功能 → ② 账号设置 =====
+           分组依据 = Apple HIG 语义分组：身份信息与快捷操作同组；账号协议/注销属独立设置组。
+           两块之间**只靠页面留白分组**（容器 flex gap；小程序 WXSS 不支持 `+` 兄弟选择器），模块内不设分割线。
+           **仅容器结构与视觉** —— 业务逻辑 / 跳转 / 弹窗 / 角标 / 无障碍不变。 -->
+      <view class="mine-modules">
+        <!-- 模块 A：个人信息 + 快捷功能 -->
+        <view class="module-wrap mine-card">
+        <!-- 用户信息模块（模块 A 内第 1 段）：认证态 = 昵称 + 校园邮箱；游客态 = 昵称 +「未完成校园认证」。
+             内容与排版真源见 docs/ui/client/公共组件与形态基线.md §三。
              整段点击进入「我的主页」（游客与认证态同达，无认证拦截）；
              认证动作的单一入口为宫格「身份认证」格，本段不放「去认证」按钮 -->
         <IdentityCard
@@ -26,14 +27,9 @@
           @tap="onUserCardTap"
         />
 
-        <!-- 卡内段间浅分隔线（用户信息 ↔ 功能宫格）；**仅此一处** ——
-             宫格 ↔「其他」列表原有一条分隔线，现随「其他」独立成卡片 B 而移除（两卡靠留白分隔，不靠线） -->
-        <view class="card-divider" />
-
-        <!-- 功能宫格模块（卡片 A 内第 2 段 · 本段为卡片 A 最后一块内容，**底部不加分隔线**）：
-             一行 3 格（意见反馈 / 系统通知 / 身份认证），每格整格热区；
-             本稿**移除每格独立白卡外壳**（无边框 / 圆角 / 阴影），仅保留图标外层圆形浅底；
-             个人信息编辑已并入「我的主页」页（用户信息模块点击直接进入，无认证拦截） -->
+        <!-- 功能宫格（模块 A 内第 2 段）：一行 3 格（意见反馈 / 系统通知 / 身份认证），每格整格热区；
+             每格无独立外壳（无边框 / 圆角 / 阴影），仅保留图标外层圆形浅底；
+             个人信息编辑在「我的主页」页（用户信息模块点击直接进入，无认证拦截） -->
         <view class="grid">
           <view
             v-for="cell in gridCells"
@@ -45,7 +41,7 @@
             @tap="cell.action"
           >
             <view class="grid-cell-icon">
-              <IconSvg :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
+              <AppIcon :name="cell.icon" :size="44" :color="COLOR_MAP['primary']" />
               <!-- 系统通知：存在未读时右上角标（无未读不显示）。
                    角标唯一语义 = 「有未读/待处理」；未读统一用橙（红仅留错误与危险）。
                    无障碍：角标承载信息，故给 aria-label 而非 aria-hidden。
@@ -60,12 +56,12 @@
             <text class="grid-cell-label">{{ cell.label }}</text>
           </view>
         </view>
-      </view>
+        </view>
 
-      <!-- 卡片 B：账号设置（独立第二张白卡，与卡片 A 同款 Token；上外边距 --spacing-lg） -->
-      <view class="more-group">
+        <!-- 模块 B：账号设置（独立第二块，底部不加分隔线） -->
+        <view class="module-wrap more-group">
         <!-- 三行独立入口（用户协议 / 隐私政策 / 注销账号），行间细分隔线；
-             每行整行热区（role="button"），注销行为危险弱化色；**底部不加分隔线**（卡片 B 内最后一块） -->
+             每行整行热区（role="button"），注销行为危险弱化色 -->
         <view class="more-card">
           <view
             v-for="row in moreRows"
@@ -78,12 +74,13 @@
             @tap="row.action"
           >
             <text class="more-row-text">{{ row.label }}</text>
-            <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="more-row-arrow" />
+            <AppIcon name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="more-row-arrow" />
           </view>
+        </view>
         </view>
       </view>
 
-      <!-- 版本行：纯展示（aria-hidden），**位于大卡之外**、居中 -->
+      <!-- 版本行：纯展示（aria-hidden），**位于模块之外**、居中 -->
       <view class="app-footer" aria-hidden="true">
         <text class="app-footer-line">知行食记 v{{ appVersion }}</text>
         <text class="app-footer-line">北京交通大学 · 校园美食分享圈</text>
@@ -102,7 +99,7 @@ import { useRouteStore } from '@/stores/route'
 const routeStore = useRouteStore()
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import IdentityCard from '@/components/IdentityCard.vue'
 import TabBar from '@/components/TabBar.vue'
 import { useUserStore } from '@/stores/user'
@@ -179,21 +176,22 @@ function onAccountDelete() {
       if (!res.confirm) return
       try {
         await deleteAccount()
+        // 仅在服务端确认注销成功后才清本地态：失败时保留登录态与资料，
+        // 否则用户会看到「注销失败」的提示却已被登出、资料被清空，且无恢复入口
+        userStore.forceLogout()
         toastSuccess('账号已注销')
       } catch (e) {
         // 失败文案走统一出口 utils/error（e 为 null 时不会崩）
         toastError(e, '注销失败，请稍后重试')
-      } finally {
-        userStore.forceLogout()
       }
     },
   })
 }
 
 const gridCells: GridCell[] = [
-  { key: 'feedback', icon: 'lightbulb-fill', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
+  { key: 'feedback', icon: 'lightbulb', label: '意见反馈', action: () => uni.navigateTo({ url: PATH.feedback }) },
   { key: 'notify', icon: 'bell', label: '系统通知', action: () => uni.navigateTo({ url: PATH.notifications }) },
-  { key: 'cert', icon: 'badge-check', label: '身份认证', action: onCertTap },
+  { key: 'cert', icon: 'certificate', label: '身份认证', action: onCertTap },
 ]
 
 /** 「其他」分组列表（三行固定：合规两行 + 账号危险操作一行；注销为 danger 弱化） */
@@ -205,41 +203,42 @@ const moreRows = [
 </script>
 
 <style scoped lang="scss">
-/* mine 属静态短内容页，内容可放下时不再设置常驻 scroll-view；
-   页面以自然文档滚动承载超高内容（超大字体/小屏），并保留底部 TabBar 避让留白 */
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层。
-   结构化收口：`min-height` → `height`，内容换成 `scroll-view`（`.mine-scroll`）
-   —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页 §11 同一结构性原则）。 */
+   结构：页根固定高（`height: 100vh / 100dvh`）+ 内部 `scroll-view`（`.mine-scroll`）
+   —— 滚动区 `flex: 1` 自带裁剪，内容**不会**从透明的标题带背后经过（与首页同一结构性原则）。 */
 .mine-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口，含地址栏）通常 **大于** `100dvh`（当前视口）。二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
+.mine-page { min-height: 0; }
 .mine-scroll { flex: 1; min-height: 0; }
 /* 本页不再额外加容器级 tabbar 留白 —— 页脚（`.app-footer`，滚动区最后一块）已自带
    `calc(--tabbar-height + safe + --spacing-md)` 底部避让；若再叠加会多出 ≈100rpx 死空白，
    且短内容会被这层 padding 顶出滚动条（"空白滚动区域"根因之一）。 */
 
-/* ===== 双卡片外壳（UI 稿「双卡片定稿版」）=====
-   卡片 A（个人信息 + 快捷功能）与卡片 B（账号设置）**共用同一套全局 Token**，视觉完全一致：
-   `--bg-card` + `--shadow-card` + `--radius-card`（与菜品详情页卡片完全一致）；横向外边距 `--page-gutter`。
-   两卡之间留 `--spacing-lg` **留白分隔**（非分隔线 —— 卡片本身已是完整边界，再加线会形成双重边界噪声）。 */
+/* ===== 两块模块（`.module-wrap`）+ 容器留白 =====
+   极简无卡片：模块底色 / 圆角 / 阴影 / 内距全部由全局 `.module-wrap` 承担，
+   本页只负责「模块之间的页面留白（flex gap）+ 左右 gutter + 圆角裁切」。 */
+.mine-modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) var(--page-gutter) 0;
+}
 .mine-card,
 .more-group {
-  margin: var(--spacing-md) var(--page-gutter) 0;
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  box-sizing: border-box;
+  /* 两块都是「内距由内容自持」的模块变体（`padding: 0`）：
+     身份卡顶部 6rpx 条纹通栏贴顶 —— 要求内容通栏，不能再叠一层模块内距；列表行内距由行自身承担。
+     `.mine-card` 同时承担条纹的圆角裁切。 */
+  padding: 0;
   overflow: hidden;
 }
-/* 卡片 B 上外边距 = 卡间距 `--spacing-lg`（卡片 A 纵向 margin 为 0，两者叠加 = lg） */
-.more-group { margin-top: var(--spacing-lg); }
-/* 卡内段间浅分隔线（`--border-color` 浅淡线条，**不用深色粗线**）：**仅一处** ——
-   用户信息 ↔ 功能宫格。宫格 ↔「其他」列表原有一条分隔线，现随「其他」独立成卡片 B 而移除。 */
-.card-divider { border-top: 1rpx solid var(--border-color); }
 
-/* 用户信息模块（卡内第 1 段）**已抽为公共组件 `IdentityCard`**（与「我的主页」同源，基线 §三）：
-   条纹 / 头像 / 主副行 / 间距 / 按压反馈全部由组件自持，本页不再维护这组规则。 */
+/* 用户信息模块（模块 A 内第 1 段）**由公共组件 `IdentityCard`**（与「我的主页」同源，基线 §三）承载：
+   条纹 / 头像 / 主副行 / 间距 / 按压反馈全部由组件自持。 */
 
-/* 功能宫格模块（卡内第 2 段）：**一行三列内联布局**，**每格去掉独立白卡外壳**
-   （无 background / border-radius 白卡 / box-shadow；本稿修订 2026-09-30）；每格整格热区，
+/* 功能宫格（模块 A 内第 2 段）：一行三列内联布局，每格无独立外壳，整格热区，
    按压反馈 = `--bg-soft` 底色（保留 `--radius-btn` 小圆角，使按压底色不露直角）。 */
 .grid { display: flex; flex-wrap: wrap; gap: var(--spacing-md); padding: var(--spacing-lg); }
 .grid-cell { flex: 0 0 calc((100% - 2 * var(--spacing-md)) / 3); min-width: 0;
@@ -287,21 +286,19 @@ const moreRows = [
 /* 未读角标：14rpx 圆点。未读态**统一用橙**（与系统通知未读竖条同色），红仅留错误与危险 */
 .badge-dot { width: 14rpx; height: 14rpx; border-radius: var(--radius-circle); background: var(--color-primary-amber); }
 
-/* 「其他」列表 = **卡片 B 的内部列表容器**（`.more-group` 自身即卡片 B 外壳，白卡 Token 已在上面统一定义）：
-   三行独立列表项，行间细分隔线（`.more-row` 的 `border-bottom`）；**底部不加分隔线**（卡片 B 内最后一块）。 */
+/* 「其他」列表 = 模块 B 的内部列表容器（`.more-card` 只承担圆角裁切）：
+   三行独立列表项，**行间不设分割线**，靠上下内距留白区分（极简无卡片口径）。 */
 .more-card { overflow: hidden; }
 .more-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: var(--tap-target-size);
-  padding: 0 var(--page-gutter);
-  border-bottom: 1rpx solid var(--border-color);
+  padding: var(--spacing-sm) var(--page-gutter);
   -webkit-tap-highlight-color: transparent;
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 .more-row.pressed { background-color: var(--bg-soft); }
-.more-row:last-child { border-bottom: none; }
 .more-row-text { font-size: var(--font-body); color: var(--text-body); }
 .more-row--danger .more-row-text { color: var(--color-error); }
 .more-row-arrow { flex-shrink: 0; }

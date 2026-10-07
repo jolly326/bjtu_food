@@ -6,10 +6,10 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * A6 分类值重命名请求（**只改 `label`**，改名免费 —— 数据锚在 `key`）。
+ * A6 菜品种类取值重命名请求（**只改 `label`**，改名免费 —— 数据锚在取值 `id`）。
  */
 @Data
-@Schema(description = "分类值重命名请求")
+@Schema(description = "菜品种类取值重命名请求")
 public class DishCategoryRenameReq {
 
     @Schema(description = "分类中文名（1~32 字；分类名唯一）", example = "面食粉类")

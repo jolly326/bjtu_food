@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <CardSection>
     <!-- 菜品信息卡：
          ① **名称行**（菜名 ≤2 行 + **「菜品有问题?」入口** + 价格组）→ ② 评分（左）/ 位置（右）同行
@@ -23,7 +23,7 @@
           hover-stay-time="80"
           @tap="emit('correct')"
         >
-          <IconSvg name="alert" :size="24" :color="COLOR_MAP['text-tertiary']" class="correct-icon" />
+          <AppIcon name="alert" :size="24" :color="COLOR_MAP['text-tertiary']" class="correct-icon" />
           <text class="correct-text">菜品有问题?</text>
         </view>
         <view class="price-group">
@@ -37,12 +37,12 @@
        故端上不再有「有无评分」分支；只显示均分、**不显示评价条数**（保持简洁）。 -->
       <view class="meta-row">
         <view class="rating-group" role="img" :aria-label="`评分 ${ratingText} 分`">
-          <!-- 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑 -->
-          <IconSvg name="star-filled" :size="30" :color="COLOR_MAP['star']" class="rating-star" />
+          <!-- 星色须传**实色**：AppIcon 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑 -->
+          <AppIcon name="star-filled" :size="30" :color="COLOR_MAP['star']" class="rating-star" />
           <text class="rating-num">{{ ratingText }}</text>
         </view>
         <view class="loc-group" role="group" :aria-label="`位置：${locationText}`">
-          <IconSvg name="location" :size="26" :color="COLOR_MAP['primary']" class="loc-icon" />
+          <AppIcon name="location" :size="28" :color="COLOR_MAP['primary']" class="loc-icon" />
           <text class="loc-text">{{ locationText }}</text>
         </view>
       </view>
@@ -73,8 +73,8 @@
 import { computed } from 'vue'
 import type { DishDetail } from '@/types/dish'
 import CardSection from '@/components/CardSection.vue'
-import IconSvg from '@/components/IconSvg.vue'
-// 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
+import AppIcon from '@/components/AppIcon.vue'
+// 图标色须传**实色**（AppIcon 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 import { formatPrice } from '@/utils/money'
 import { hasDiscount, formatRating } from '@/utils/dish'
@@ -176,7 +176,7 @@ const dims = computed(() => {
 /* ② 评分（左）/ 位置（右）同行：左评分靠左、右位置靠右，单行不折 */
 .meta-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
 .rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
-/* 星图标宿主（<icon-svg> 自定义组件）显式定为 30rpx 方形 flex 盒 ⇒ 与数字精确同行居中
+/* 星图标宿主（<AppIcon> 自定义组件）显式定为 30rpx 方形 flex 盒 ⇒ 与数字精确同行居中
    （同 Round 20b / 21d 的方案；否则星会随继承字体度量上下错位） */
 .rating-star {
   flex: none;

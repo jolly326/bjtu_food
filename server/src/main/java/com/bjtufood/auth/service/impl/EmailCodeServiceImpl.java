@@ -132,7 +132,7 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         // 文案口径（2026-10-03）：
         //   ⚠️ 品牌名：收件人是学生，**必须用学生端品牌「知行食记」**，副标题逐字对齐端上已裁决口径
         //      「北京交通大学 · 校园美食分享圈」（见 client/src/pages/mine/index.vue）。
-        //      不可用管理后台品牌「食在交大」（web/src/layouts/AdminLayout.vue），也不可用后端技术名
+        //      不可用管理后台品牌「知行食记」（web/src/layouts/AdminLayout.vue），也不可用后端技术名
         //      「校园食堂信息系统」（application.yml / SwaggerConfig）——学生不认识它们，
         //      写在认证邮件里反而像陌生来源的钓鱼邮件（2026-10-03 曾发生此误，勿回退）。
         //   · 首行标明来源：收件人（校园邮箱）先看到「谁发的」，提升可信度、降低被判垃圾邮件概率；

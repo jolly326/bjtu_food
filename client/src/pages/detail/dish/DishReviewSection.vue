@@ -25,7 +25,7 @@
             hover-stay-time="80"
             @tap="emit('write')"
           >
-            <IconSvg name="edit" :size="26" :color="COLOR_MAP['primary-text']" class="write-entry-icon" />
+            <AppIcon name="edit" :size="28" :color="COLOR_MAP['primary-text']" class="write-entry-icon" />
             <text class="write-entry-text">写评价</text>
           </view>
         </template>
@@ -77,6 +77,8 @@
             class="v-item"
             :review="rv"
             flat
+            row-padding="edge"
+            divided
             @more="emit('more', $event)"
           />
           <view :style="{ height: bottomPad + 'px' }" />
@@ -120,8 +122,8 @@ import SectionTitle from '@/components/SectionTitle.vue'
 import CardSection from '@/components/CardSection.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import IconSvg from '@/components/IconSvg.vue'
-// 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
+import AppIcon from '@/components/AppIcon.vue'
+// 图标色须传**实色**（AppIcon 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 import type { Review, MyReview } from '@/types/review'
 import { useVirtualList } from '@/composables/usePagedList'
@@ -197,13 +199,8 @@ const emit = defineEmits<{
     */
 .review-section { margin: var(--spacing-md) var(--page-gutter) 0; }
 /* 条目之间 1rpx 浅分隔线（与系统通知页 / 我的评价页同语言）；
-   行内距由条目自身承担，最上 / 最下无线；负 margin 抵消 CardSection 内距使分隔线撑满卡宽 */
+   行内距与「负 margin 抵消使分隔线通宽」全部由 `ReviewItem` 的 `row-padding="edge"` + `divided` 自持 */
 .review-list { display: flex; flex-direction: column; }
-.review-list :deep(.review-item) {
-  padding: var(--spacing-md) var(--spacing-md);
-  margin: 0 calc(-1 * var(--spacing-md));
-}
-.review-list :deep(.review-item + .review-item) { border-top: 1rpx solid var(--border-color); }
 
 /* ===== 标题行右位：「写评价」轻量入口（**文字 + 图标，非按钮形态**）=====
    评价数已并入标题块（SectionTitle 的 `count`），右位只放写评价入口。

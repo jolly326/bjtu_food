@@ -1,7 +1,7 @@
 /* =========================================================================
  * design-tokens.css —— 非颜色设计变量唯一真源（圆角 / 间距 / 字号 / 字重 / 字距 / 动效 / 高度 / 层级）
  *
- * 真源归属（2026-10-01 UI 规范统一）：
+ * 真源归属：
  *   · 颜色取值 → src/theme/tokens.ts（COLOR_MAP / CSS_VARS）→ src/theme/generated-colors.css
  *   · 非颜色取值 → **本文件**
  * 对照表（文档侧）→ docs/ui/client/设计变量.md
@@ -20,8 +20,8 @@ page {
   --radius-none: 0;
   --radius-xs: 24rpx;
   --radius-tag: 24rpx;
-  --radius-card: 40rpx;
-  --radius-modal: 56rpx;
+  --radius-card: 20rpx;
+  --radius-modal: 24rpx;
   --radius-btn: 32rpx;
   --radius-icon: 32rpx;
   /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签），统一全圆角 */
@@ -36,6 +36,8 @@ page {
   --spacing-sm: 16rpx;
   --spacing-md: 24rpx;
   --spacing-lg: 32rpx;
+  /* 模块（module-wrap）之间的垂直间距：团队规范固定 35rpx */
+  --spacing-module: 35rpx;
   --spacing-xl: 48rpx;
   /* 空态容器上留白 */
   --spacing-2xl: 64rpx;

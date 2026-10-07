@@ -18,7 +18,7 @@
       :hover-class="mode === 'entry' ? 'search-bar-pressed' : 'none'"
       @tap="onBarTap"
     >
-      <IconSvg name="search" :size="40" :color="COLOR_MAP['text-placeholder']" class="search-bar-icon" />
+      <AppIcon name="search" :size="40" :color="COLOR_MAP['text-placeholder']" class="search-bar-icon" />
       <input
         v-if="mode === 'input'"
         class="search-bar-input"
@@ -42,7 +42,7 @@
         hover-stop-propagation
         @tap.stop="emit('clear')"
       >
-        <IconSvg name="close" :size="30" :color="COLOR_MAP['text-placeholder']" />
+        <AppIcon name="close" :size="28" :color="COLOR_MAP['text-placeholder']" />
       </view>
       <!-- 内嵌提交按钮：`@tap.stop` 必须保留 —— 否则 entry 模式下按钮与整条胶囊会各发一次 tap（双跳） -->
       <view
@@ -61,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import IconSvg from './IconSvg.vue'
+import AppIcon from './AppIcon.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
@@ -145,8 +145,8 @@ function onInput(e: Event) {
 }
 .search-bar-pressed { background: var(--bg-soft); }
 
-/* ① 放大镜：宿主节点（<icon-svg> 自定义组件）显式定为 40rpx 方形 flex 盒 ⇒ 内部图标精确居中
-   （组件未开 virtualHost —— 当前 uni-app 不支持，详见 IconSvg 头注释；UI 统一 Loop Round 20c） */
+/* ① 放大镜：宿主节点（<AppIcon> 自定义组件）显式定为 40rpx 方形 flex 盒 ⇒ 内部图标精确居中
+   （组件未开 virtualHost —— 当前 uni-app 不支持，详见 AppIcon 头注释；UI 统一 Loop Round 20c） */
 .search-bar-icon {
   flex: none;
   width: 40rpx;
@@ -162,7 +162,7 @@ function onInput(e: Event) {
   flex: 1;
   min-width: 0;
   font-size: var(--font-body);
-  color: var(--text-placeholder);
+  color: var(--text-subtitle);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -172,6 +172,7 @@ function onInput(e: Event) {
 
 /* ③ 清除：56rpx 命中盒 + 圆形按压反馈（视觉 30rpx 图标） */
 .search-bar-clear {
+  position: relative;
   flex: none;
   display: flex;
   align-items: center;
@@ -180,6 +181,16 @@ function onInput(e: Event) {
   height: 56rpx;
   border-radius: var(--radius-circle);
   -webkit-tap-highlight-color: transparent;
+}
+/* 命中区扩到全站触达基线 88rpx（44pt）：视觉尺寸保持 56rpx 不变 */
+.search-bar-clear::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
+  transform: translate(-50%, -50%);
 }
 /* 按压反馈：清除钮属「小件」档（行内图标钮）⇒ 0.6 */
 .search-bar-clear.pressed { opacity: 0.6; }

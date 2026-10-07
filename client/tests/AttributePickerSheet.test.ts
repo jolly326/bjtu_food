@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import AttributePickerSheet from '../pages/correction/AttributePickerSheet.vue'
+import AttributePickerSheet from '@/pages/correction/AttributePickerSheet.vue'
 import { installUni, inputEvent } from './stubs'
 
 /**
@@ -39,7 +39,7 @@ function mountSheet(over: Record<string, unknown> = {}) {
           emits: ['close'],
           template: '<view class="base-sheet-stub"><slot /></view>',
         },
-        IconSvg: true,
+        AppIcon: true,
         TagChip: {
           // ⚠️ 真实事件名是 `pick`（不是 `tap`）：模板里是 `@pick="onPick(v)"`。
           // 写成 `tap` 则 emit 无人监听，表现为「点了没反应」而组件本身无错。

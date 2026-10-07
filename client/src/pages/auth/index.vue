@@ -5,9 +5,12 @@
     <Header title="身份认证" @back="leaveWithoutVerify" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <!-- 单张白色表单卡：承载**全部**表单内容
-           （学号 → 动态邮箱提示 → 验证码 → 错误行 → 认证按钮 → 两行说明） -->
-      <view class="form-card">
+      <!-- 极简无卡片：**不设白色大表单卡**，表单区与说明区各自一块 `.module-wrap`，
+           区块之间只靠页面留白（容器 flex gap）分组，不靠分割线。
+           表单区 =（学号 → 动态邮箱提示 → 验证码 → 错误行 → 认证按钮）；
+           说明区 =（功能说明 → 隐私锁说明）。 -->
+      <view class="auth-modules">
+        <view class="module-wrap">
         <!-- 学号：透明底 + 仅底部 1rpx 细线（与意见反馈页同款）；聚焦 → 底线切主色 -->
         <view class="input-field" :class="{ 'input-field--focus': focusField === 'username' }">
           <input
@@ -60,7 +63,7 @@
         <!-- 表单错误行：`role=alert` 即时播报；**无红色底块**，仅浅红文字 + alert 图标；点击即清。
              限频退避时本行实时走秒展示「发送太频繁，N 秒后再试」。 -->
         <view v-if="formErrorText" class="form-error" role="alert" aria-live="assertive" @tap="clearError">
-          <IconSvg name="alert" :size="24" :color="COLOR_MAP.error" class="form-error-icon" />
+          <AppIcon name="alert" :size="24" :color="COLOR_MAP.error" class="form-error-icon" />
           <text class="form-error-text">{{ formErrorText }}</text>
         </view>
 
@@ -75,12 +78,15 @@
             @press="submit"
           />
         </view>
+        </view>
 
-        <!-- 两行说明（卡片内、按钮下方）：功能说明 → 隐私锁说明 -->
-        <view class="form-note">{{ NOTE_SUBTITLE }}</view>
-        <view class="bottom-note">
-          <IconSvg name="lock" :size="24" :color="COLOR_MAP['text-tertiary']" />
-          <text class="note-text">{{ NOTE_PRIVACY }}</text>
+        <!-- 两行说明（**独立第二块模块**，与表单区同级）：功能说明 → 隐私锁说明 -->
+        <view class="module-wrap">
+          <view class="form-note">{{ NOTE_SUBTITLE }}</view>
+          <view class="bottom-note">
+            <AppIcon name="lock" :size="24" :color="COLOR_MAP['text-tertiary']" />
+            <text class="note-text">{{ NOTE_PRIVACY }}</text>
+          </view>
         </view>
       </view>
     </scroll-view>
@@ -101,7 +107,7 @@ import { storeToRefs } from 'pinia'
 import Header from '@/components/AppHeader.vue'
 import AppButton from '@/components/AppButton.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { sendEmailCode, deriveCampusEmail } from '@/api/user'
@@ -236,31 +242,39 @@ onUnload(() => {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .auth-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.auth-page { min-height: 0; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口）通常 **大于** `100dvh`（当前视口）；二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
 /* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：表单卡是滚动区最后一块，
    无安全区时会被 Home Indicator 压住（同 `my-reviews` 的 `.scroll-wrap` 写法） */
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
-/* ===== 表单卡：纯白 + 24rpx 圆角 + 轻阴影，承载全部表单内容 ===== */
-.form-card {
-  padding: var(--spacing-lg) var(--spacing-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  box-sizing: border-box;
+/* ===== 极简无卡片：表单区 / 说明区各一块 `.module-wrap`（暖奶米半透底 + 圆角 + 极淡暖棕阴影，
+       规格由全局类承担），模块之间只靠页面留白分组 ===== */
+.auth-modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
-/* ===== 输入项：透明底 + 仅底部 1rpx 细线（对齐全站表单语言）；聚焦 → 底线切主色 ===== */
+/* ===== 输入项：浅白半透底 + 圆角，**无边框无线**（团队规范 §3.2 表单输入语言；
+       聚焦 → 底色加深一档，替代原先的「底线切主色」（底色是模块内唯一的输入边界线索，
+       低对比度底线 1.18:1 对低视力不可辨）===== */
 .input-field {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   min-height: var(--tap-target-size);
-  background: transparent;
+  padding: 0 var(--spacing-md);
+  background: var(--module-input-bg);
   border: none;
-  border-bottom: 1rpx solid var(--border-color);
+  border-radius: var(--radius-icon);
   box-sizing: border-box;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
-.input-field--focus { border-bottom-color: var(--color-primary); }
+.input-field--focus { background: var(--bg-soft); }
 .input-control { flex: 1; min-width: 0; height: var(--tap-target-size); font-size: var(--font-body); color: var(--text-primary); }
 .input-placeholder { color: var(--text-tertiary); }
 /* 验证码行：与上一输入项（或动态提示）拉开一组间距 */

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, watch } from 'vue'
+import { toRef } from 'vue'
 import { ElMessageBox } from 'element-plus'
+import { useOverlayLayer } from '@/composables/useOverlayLayer'
 
 /**
  * 处置 / 编辑抽屉（[UI 基线 §2.5](../../../docs/ui/web/公共组件与形态基线.md)）。
@@ -42,29 +43,8 @@ async function requestClose() {
   emit('close')
 }
 
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') void requestClose()
-}
-
-watch(
-  () => props.open,
-  (open) => {
-    if (open) {
-      window.addEventListener('keydown', onKeydown)
-      // 与弹窗口径一致（基线 §2.1）：打开期间锁背景滚动
-      document.body.style.overflow = 'hidden'
-    } else {
-      window.removeEventListener('keydown', onKeydown)
-      document.body.style.overflow = ''
-    }
-  },
-  { immediate: true },
-)
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
-  document.body.style.overflow = ''
-})
+// 浮层层级 + 背景滚动锁 + ESC 只关栈顶（浮层可叠加，见 composables/useOverlayLayer）
+useOverlayLayer('drawer', toRef(props, 'open'), () => void requestClose())
 </script>
 
 <template>
@@ -142,7 +122,8 @@ onBeforeUnmount(() => {
   flex: 1;
   overflow: auto;
   padding: var(--space-5);
-  /* 正文超长串（URL / 无空格长词）可断行，不撑破抽屉 */
+  /* 抽屉疏密度整改（基线 §1.15）：正文区统一舒展行距；长文本（URL / 无空格长词）断行不撑破抽屉 */
+  line-height: var(--line-height-relaxed);
   overflow-wrap: anywhere;
 }
 .drawer-actions {

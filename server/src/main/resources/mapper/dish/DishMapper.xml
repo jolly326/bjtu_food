@@ -49,7 +49,7 @@
     </resultMap>
 
     <!--
-    🔴 **本文件不含热度排序表达式**：7 个视图全部走 random 排序（见 DishViewDefs），
+    🔴 **本文件不含热度排序表达式**：种子里 7 个视图全部走 random 排序（排序口径存 dish_filter_view.sort_kind），
     「热度排序」不是现存需求。
     浏览量（`dish_view_log` 30 天滚动窗口明细）**仅供管理端展示，不参与任何排序**——
     浏览量无上限，参与排序即可被低成本刷量霸榜。
@@ -110,7 +110,7 @@
         d.created_at,
         d.updated_at,
         d.attributes,
-        d.meal_type,
+        d.meal_type_id,
         COALESCE(s.name, '') AS stall_name,
         COALESCE(c.name, '') AS canteen_name
     </sql>
@@ -139,17 +139,15 @@
              与 DishViewConditions#toWrapper（计数 / 预览 / 抽样用）保持**同一套口径**。 -->
         <foreach collection="q.conditions" item="c">
             <choose>
-                <when test="c.field == 'mealType'">
-                    <!-- mealType 条件值 = 分类 `key`（代码锚点，DishViewDefs 常量）；
-                         经字典表翻译为 `dish.meal_type` 存储的分类 ID（子查询，防注入靠白名单正则校验 +
-                         #{} 预编译参数） -->
+                <when test="c.field == 'mealTypeId'">
+                    <!-- mealTypeId 条件值 = 种类取值 ID（系统维度「菜品种类」下的取值行）；
+                         直接匹配 dish.meal_type_id（走 idx_dish_meal_type），取值经 #{} 预编译参数绑定 -->
                     <choose>
                         <when test="c.op == 'in'">
-                            AND d.meal_type IN
-                            (SELECT id FROM dish_category_value WHERE `key` IN
-                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>)
+                            AND d.meal_type_id IN
+                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
                         </when>
-                        <otherwise>AND d.meal_type = (SELECT id FROM dish_category_value WHERE `key` = #{c.value})</otherwise>
+                        <otherwise>AND d.meal_type_id = #{c.value}</otherwise>
                     </choose>
                 </when>
                 <when test="c.field == 'discount'">
@@ -202,9 +200,9 @@
             <when test="q.sortKind.name() == 'SEED_RANDOM'">
                 ORDER BY CRC32(CONCAT(#{q.seed}, '-', d.id)), d.id
             </when>
-            <!-- A6 预留的四种显式排序（白名单见 DishViewConditions.SORT_KINDS）：
-                 MVP 期 7 个视图均未使用（见 DishViewDefs），保留供后期视图配置启用。
-                 🔴 均以 d.id 作决胜键（不再用热度）—— 保证同值行序稳定、翻页不重不漏 -->
+            <!-- A6 的显式排序口径（白名单见 DishViewConditions.SORT_KINDS）：
+                 种子里 7 个视图均未使用，保留供后台为视图配置时启用。
+                 🔴 均以 d.id 作决胜键（不用热度）—— 保证同值行序稳定、翻页不重不漏 -->
             <when test="q.sortKind.name() == 'DISCOUNT_DESC'">
                 ORDER BY (d.original_price - d.price) / d.original_price DESC, d.id DESC
             </when>
@@ -247,7 +245,7 @@
         <result property="stallId" column="stall_id"/>
         <result property="name" column="name"/>
         <result property="originalPrice" column="original_price"/>
-        <result property="mealTypeId" column="meal_type"/>
+        <result property="mealTypeId" column="meal_type_id"/>
     </resultMap>
 
     <!-- 管理端列表行（A3「列表 / 详情 VO 分离」，2026-10-03）：
@@ -264,7 +262,7 @@
         d.avg_rating,
         d.rating_count,
         d.updated_at,
-        d.meal_type,
+        d.meal_type_id,
         COALESCE(s.name, '') AS stall_name,
         COALESCE(c.name, '') AS canteen_name
     </sql>
@@ -274,7 +272,7 @@
         <!-- 仅声明下划线列名与属性名不同者，其余按 mapUnderscoreToCamelCase 自动映射 -->
         <result property="originalPrice" column="original_price"/>
         <result property="coverImage" column="cover_image"/>
-        <result property="mealTypeId" column="meal_type"/>
+        <result property="mealTypeId" column="meal_type_id"/>
         <result property="stallName" column="stall_name"/>
         <result property="canteenName" column="canteen_name"/>
     </resultMap>
@@ -291,7 +289,7 @@
                 AND s.canteen_id = #{q.canteenId}
             </if>
             <if test="q.mealTypeId != null">
-                AND d.meal_type = #{q.mealTypeId}
+                AND d.meal_type_id = #{q.mealTypeId}
             </if>
             <if test="q.status != null and q.status != ''">
                 AND d.status = #{q.status}

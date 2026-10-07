@@ -19,16 +19,15 @@ const UPLOAD_TIMEOUT_MS = 15000
 
 /**
  * 上传本地图片至微信云存储，返回 `cloud://` 文件 ID。
- * - cloud:// 无需 uploadFile 合法域名白名单，`<image>` 原生支持直接显示；后端原样存储该 ID，
- *   展示链路经 getImageUrl 透传（见 utils/image.ts）。
- * - 其他端（H5 等）无可用上传链路（管理端 `/admin/upload/image` 不接受学生 JWT）→ 显式失败，
- *   避免发出必然 403 的请求。
+ * - cloud:// 无需 uploadFile 合法域名白名单，`<image>` 原生支持直接显示；
+ * - **UGC 配图两段式链路的第一步**：只落微信云存储（fileID 供提交时送后端机审 + 转存 COS），
+ *   用户取消提交时不会在 COS 留下孤儿对象；未提交的 fileID 由云存储 `ugc/` 前缀的生命周期规则过期清理。
  */
-function uploadFile(tempFilePath: string): Promise<{ url: string }> {
-  let result!: Promise<{ url: string }>
+export function uploadToCloud(tempFilePath: string): Promise<{ fileId: string }> {
+  let result!: Promise<{ fileId: string }>
 
   // #ifdef MP-WEIXIN
-  result = new Promise<{ url: string }>((resolve, reject) => {
+  result = new Promise<{ fileId: string }>((resolve, reject) => {
     const wxApi = getWxApi()
     if (!wxApi || !wxApi.cloud) {
       reject(new Error('当前环境不支持 wx.cloud'))
@@ -49,17 +48,18 @@ function uploadFile(tempFilePath: string): Promise<{ url: string }> {
       })
     }, UPLOAD_TIMEOUT_MS)
     const clearTimer = () => { clearTimeout(timeoutTimer) }
-    // cloudPath：images/YYYY-MM-DD/<时间戳>-<随机数><原扩展名>，避免同名覆盖
+    // cloudPath：`ugc/YYYY-MM-DD/<时间戳>-<随机数><原扩展名>`，避免同名覆盖。
+    // 前缀 `ugc/` 与云存储控制台的生命周期规则同源（未提交即取消的中间产物由该规则过期清理）。
     const ext = (tempFilePath.match(/\.\w+$/) || ['.jpg'])[0]
     const stamp = Date.now()
     const rand = Math.random().toString(36).slice(2, 8)
-    const cloudPath = `images/${new Date().toISOString().slice(0, 10)}/${stamp}-${rand}${ext}`
+    const cloudPath = `ugc/${new Date().toISOString().slice(0, 10)}/${stamp}-${rand}${ext}`
     const task = wxApi.cloud.uploadFile({
       config: { env: WX_CLOUD_ENV },
       cloudPath,
       filePath: tempFilePath,
       // 平台例外：微信回调透传，仅取其 fileID
-      success: (r: WxCloudUploadResult) => { clearTimer(); done(() => resolve({ url: r.fileID ?? '' })) },
+      success: (r: WxCloudUploadResult) => { clearTimer(); done(() => resolve({ fileId: r.fileID ?? '' })) },
       fail: (err: WxCloudCallError) => { clearTimer(); done(() => reject(new Error(err.errMsg || '上传失败，请重试'))) },
     })
   })
@@ -73,27 +73,34 @@ function uploadFile(tempFilePath: string): Promise<{ url: string }> {
 }
 
 /**
- * UGC 配图上传（评价 / 反馈共用）。
+ * UGC 配图两段式链路的**第二步**：微信云存储 fileID → 后端内容安检（机审）→ 转存 COS → 返回正式 URL。
  *
- * 流程：① `wx.cloud.uploadFile` 传至微信云存储取 fileID；② `POST /upload/cloud-image`
- * 由后端做内容安检并转存 COS，返回正式 URL；③ 违规图后端返回 400，由调用方 toast 透出。
- *
- * @param tempFilePath 本地临时文件路径（chooseMedia / compressImage 产物）
- * @returns 后端 COS 正式 URL（提交时随 `images` 数组上送）
+ * <p>端点只接受微信云存储 fileID，故选图时必须先落云存储（本步不可省）；但**提交前不调本端点**，
+ * 避免用户取消提交时在 COS 产生孤儿对象。
  */
-export function uploadUgcImage(tempFilePath: string): Promise<UploadedImage> {
+export function uploadCloudImage(fileId: string): Promise<UploadedImage> {
+  return post<UploadResultVO>('/upload/cloud-image', { fileId })
+}
+
+/**
+ * 头像上传（个人信息编辑页，选完即传的单张链路）。
+ *
+ * <p>与 UGC 配图的差别：头像是**账号资料**、无「多张 + 逐张机审」语义，也不存在「取消表单提交」的中间态
+ * （选图后只落本地态、点保存才写库），故保持「选图 → 云存储 → 后端机审转存 COS」一次完成。
+ */
+export function uploadAvatarImage(tempFilePath: string): Promise<UploadedImage> {
   let result!: Promise<UploadedImage>
 
   // #ifdef MP-WEIXIN
   result = (async () => {
-    const { url: fileId } = await uploadFile(tempFilePath)
+    const { fileId } = await uploadToCloud(tempFilePath)
     if (!fileId) throw new Error('上传失败，请重试')
-    return post<UploadResultVO>('/upload/cloud-image', { fileId })
+    return uploadCloudImage(fileId)
   })()
   // #endif
 
   // #ifndef MP-WEIXIN
-  result = uploadFile(tempFilePath)
+  result = uploadToCloud(tempFilePath).then(({ fileId }) => ({ url: fileId }))
   // #endif
 
   return result

@@ -173,6 +173,7 @@ const dp = useDishPage()
 /* QA-04 修复：底部避让由裸 160rpx 改为 token 组合（与 me/profile 同源写法） */
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .dish-page {
+  min-height: 0;
   display: flex;
   flex-direction: column;
   height: 100vh;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fenToYuan, yuanToFen, formatPrice } from './money'
+import { fenToYuan, yuanToFen, formatPrice } from '@/utils/money'
 
 /**
  * 金额换算回归测试。

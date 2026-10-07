@@ -8,21 +8,20 @@
 
     <!-- 页面无页签：两种形态由**进入方式**决定，页面上不暴露切换入口 -->
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
-      <view class="q-card">
-        <!-- 单表单（「我的」页宫格进入）：反馈类型 3 选 1 + 具体描述 + 截图（≤3 张）+ 本地草稿；
-             submitting 下传：表单内 ImagePicker 提交中禁选（评审 m1 口径沿用） -->
-        <IssueForm
-          ref="issueFormRef"
-          :model="form"
-          @update:model="updateForm"
-          :errors="fieldErrors"
-          :submitting="submitting"
-          :placeholder="typePlaceholder"
-          @clear="clearError"
-          @pick="onPickType"
-          @pick-image="pickSheetOpen = true"
-        />
-      </view>
+      <!-- 单表单（「我的」页宫格进入）：反馈类型 3 选 1 + 具体描述 + 截图（≤3 张）+ 本地草稿；
+           submitting 下传：表单内 ImagePicker 提交中禁选。
+           极简无卡片：**不设外层大白卡**，三个区块各自一块 `.module-wrap`，提交按钮独立在模块之外。 -->
+      <IssueForm
+        ref="issueFormRef"
+        :model="form"
+        @update:model="updateForm"
+        :errors="fieldErrors"
+        :submitting="submitting"
+        :placeholder="typePlaceholder"
+        @clear="clearError"
+        @pick="onPickType"
+        @pick-image="pickSheetOpen = true"
+      />
 
       <!-- 提交反馈（表单最下方，随内容滚动）：
            外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast -->
@@ -100,6 +99,11 @@ function onPickImageSource(key: string) {
 /* 页面底不再声明私有底色：壁纸层（`<PageWallpaper fixed />`）铺满视口，
    底色回退到全局 `.page { background: var(--bg-page) }` */
 .feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.feedback-page { min-height: 0; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口）通常 **大于** `100dvh`（当前视口）；二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
 
 /* 主滚动区：底部 safe-area 避让（提交区随内容滚动，无固定底栏） */
 .scroll-wrap {
@@ -110,21 +114,13 @@ function onPickImageSource(key: string) {
   box-sizing: border-box;
 }
 
-/* ===== 表单外层 Q 卡（大圆角 + 标准卡阴影，内部模块靠间距分层）=====
-   卡片阴影一律 `shadow-card`；`shadow-warm` 仅保留给**选中 / 强调**态。 */
-.q-card {
-  margin: var(--spacing-md) var(--page-gutter) 0;
-  padding: var(--spacing-lg);
-  background: var(--bg-card);
-  /* 卡片面圆角归档到全站卡片档 `--radius-card` */
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
+/* ===== 表单容器（极简无卡片）=====
+   不再有大白卡把三段内容框在一起：区块自身是 `.module-wrap`，区块之间靠页面留白分组
+   （`.fb-form` 的上下留白与左右 gutter 见 `IssueForm.vue`；模块间距由本表单容器的 flex gap 承担）。 */
 
-/* ===== 提交反馈（表单最下方、卡片外部，随内容滚动，非固定） ===== */
+/* ===== 提交反馈（**不放进任何模块容器**，直接位于页面底部） ===== */
 .submit-area {
-  /* 左右留白与卡片边线同轴（--spacing-md），按钮撑满卡片宽度；
-     顶部 --spacing-xl 大留白把按钮与表单在视觉上分开，上下其余 --spacing-lg 呼吸 */
-  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
+  /* 顶部大留白把按钮与表单模块在视觉上分开；左右 --page-gutter 与模块边线同轴 */
+  padding: var(--spacing-xl) var(--page-gutter) var(--spacing-lg);
 }
 </style>

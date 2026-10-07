@@ -13,7 +13,7 @@
         hover-class="pressed"
         @tap="pick(item)"
       >
-        <IconSvg v-if="item.icon" :name="item.icon" :size="34" :color="iconColor(item)" class="as-item-icon" />
+        <AppIcon v-if="item.icon" :name="item.icon" :size="32" :color="iconColor(item)" class="as-item-icon" />
         <text class="as-item-text">{{ item.label }}</text>
       </view>
     </view>
@@ -22,11 +22,11 @@
 
 <script setup lang="ts">
 import BaseSheet from '@/components/BaseSheet.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 /** 动作项：颜色可用 iconColor/textColor 显式指定（默认次级浅灰；
- *  ⚠️ iconColor 喂给 IconSvg 的 :color → SVG data-uri 解析不了 var()，必须是真源实色；
+ *  ⚠️ iconColor 喂给 AppIcon 的 :color → SVG data-uri 解析不了 var()，必须是真源实色；
  *     textColor 落 CSS color，仍用 var() 语义 token） */
 interface ActionSheetItem {
   key: string
@@ -34,7 +34,7 @@ interface ActionSheetItem {
   icon?: string
   /**
    * 图标色：类型收紧为 **`COLOR_MAP` 的色值联合**（实色）。
-   * IconSvg 走 SVG data-uri、解析不了 CSS 变量 `var()`，故限定为实色联合，
+   * AppIcon 走 SVG data-uri、解析不了 CSS 变量 `var()`，故限定为实色联合，
    * 传 `var(...)` 直接编译报错，以编译器兜住回归。
    */
   iconColor?: (typeof COLOR_MAP)[keyof typeof COLOR_MAP]
@@ -53,7 +53,7 @@ const emit = defineEmits<{
 }>()
 
 function iconColor(item: ActionSheetItem): string {
-  // D1：IconSvg 的取色不吃 var()（data-uri 内解析不到 CSS 变量），默认值必须是真源实色
+  // D1：AppIcon 的取色不吃 var()（data-uri 内解析不到 CSS 变量），默认值必须是真源实色
   return item.iconColor || COLOR_MAP['text-secondary']
 }
 function rowStyle(item: ActionSheetItem) {

@@ -53,7 +53,7 @@ page {
      口径为「壁纸纯底色 #FDEFDB × `--page-wash`（按当时的 α 合成）」。 */
 
   /* 圆角 / 间距 / 字号 / 字重 / 字距 / 动效 / 高度 / 层级 token 已**集中到**
-     theme/design-tokens.css（2026-10-01 UI 规范统一：非颜色变量唯一真源，本文件仅 @import）。 */
+     theme/design-tokens.css（非颜色变量唯一真源，本文件仅 @import）。 */
 
 }
 
@@ -89,7 +89,25 @@ page, view, scroll-view, text, image { box-sizing: border-box; }
   min-height: 0;
 }
 
-/* ========== 按压反馈（仅 opacity / bg-soft，禁 transform scale） ==========
+/* ========== 极简无卡片 · 页面模块容器（`.module-wrap` 全站唯一实现）==========
+   不用「一整块大白卡框住全部内容」，改为**每个功能区块各自成一小块模块**，
+   区块之间靠**页面留白**分组（不靠分割线）。
+     · 底色：暖奶米半透 `--module-bg`（α 唯一旋钮 0.65；发糊机型改用 `--module-bg-strong` 0.75）；
+     · 圆角：`--radius-card`（40rpx = 20px，模块圆角唯一档）；
+     · 阴影：`--module-shadow`（极淡暖棕）；
+     · 内距：`--spacing-lg`（32rpx）。
+   ⚠️ **弹窗不在此列**：模态浮层保留卡片形态，底色取 `--overlay-panel-bg`。 */
+.module-wrap {
+  background: var(--module-bg);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-lg);
+  box-shadow: var(--module-shadow);
+  box-sizing: border-box;
+}
+/* 模块之间的页面留白由**消费方容器的 flex gap**承担（小程序 WXSS 不支持 `+` 兄弟选择器，
+   故不在此处用相邻兄弟规则统一外边距）。 */
+
+/* ========== 按压反馈（仅 opacity / bg-soft，禁transform scale） ==========
    hover-class="pressed" 的全局兜底反馈（TabBar / 反馈表单 / 列表行等引用，UX-004 空引用修复）；
    取值 0.7 对齐既有按压 opacity 语言（DishInfoCard .correct-link.pressed）。
    页面可再以局部 `.xxx.pressed` 覆盖为 bg-soft 底色语言（scoped 选择器特异性更高）。 */

@@ -1,116 +1,130 @@
 package com.bjtufood.dish.service.impl;
 
-import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.dish.entity.Dish;
-import com.bjtufood.dish.entity.DishCategoryValue;
-import com.bjtufood.dish.mapper.DishCategoryValueMapper;
-import com.bjtufood.dish.mapper.DishMapper;
-import org.apache.ibatis.builder.MapperBuilderAssistant;
-import org.junit.jupiter.api.BeforeAll;
+import com.bjtufood.dish.dto.DishValueAdminVO;
+import com.bjtufood.dish.service.DishAttributeAdminService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * A6 分类值字典的契约单测（口径见
- * docs/api/web/categories.md 与 docs/schema/dish_category_value.md）：
+ * A6 菜品种类字典（**系统维度取值的别名面**）的契约单测（口径见
+ * docs/api/web/categories.md 与 docs/schema/dish_attribute_value.md）：
  * <ol>
- *   <li><b>登记</b>：`key` 选填（缺省自动生成）、填了则校验格式与唯一性；`label` 必填且唯一；</li>
- *   <li><b>存在性校验</b>：`requireExists` 供 A3 菜品保存校验 `mealTypeId`；</li>
- *   <li><b>列表</b>：按 order 升序返回并带 dishCount（按分类 ID 统计）。</li>
+ *   <li><b>别名面</b>：一切读写都转发到 {@code DishAttributeAdminService} 的取值能力，且维度恒为系统维度；</li>
+ *   <li><b>字段收敛</b>：出参只保留 id / label / order / dishCount / updatedAt（无机器键）；</li>
+ *   <li><b>存在性校验</b>：`requireExists` 只认「属于系统维度」的取值 ID。</li>
  * </ol>
  */
 class DishCategoryAdminServiceImplTest {
 
-    /** MyBatis-Plus 的 lambda 缓存需显式初始化，否则构造 LambdaQueryWrapper 会抛异常 */
-    @BeforeAll
-    static void initMybatisLambdaCache() {
-        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(),
-                DishCategoryAdminServiceImplTest.class.getName());
-        TableInfoHelper.initTableInfo(assistant, DishCategoryValue.class);
-        TableInfoHelper.initTableInfo(assistant, Dish.class);
-    }
+    private static final long SYSTEM_DIMENSION_ID = 5L;
 
-    private final DishCategoryValueMapper categoryMapper = mock(DishCategoryValueMapper.class);
-    private final DishMapper dishMapper = mock(DishMapper.class);
+    private final DishAttributeAdminService attributeAdminService = mock(DishAttributeAdminService.class);
 
     private DishCategoryAdminServiceImpl service() {
-        return new DishCategoryAdminServiceImpl(categoryMapper, dishMapper);
+        when(attributeAdminService.systemDimensionId()).thenReturn(SYSTEM_DIMENSION_ID);
+        return new DishCategoryAdminServiceImpl(attributeAdminService);
     }
 
-    private static DishCategoryValue category(Long id, String key, String label, int order) {
-        DishCategoryValue c = new DishCategoryValue();
-        c.setId(id);
-        c.setKey(key);
-        c.setLabel(label);
-        c.setSortOrder(order);
-        return c;
-    }
-
-    @Test
-    @DisplayName("create：键重名 → 400")
-    void create_duplicateKey_rejected400() {
-        when(categoryMapper.selectCount(any())).thenReturn(1L);
-
-        assertThatThrownBy(() -> service().create("noodle", "面食粉类"))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(categoryMapper, never()).insert(any());
+    private static DishValueAdminVO value(Long id, String label, int order, long dishCount) {
+        DishValueAdminVO vo = new DishValueAdminVO();
+        vo.setId(id);
+        vo.setDimensionId(SYSTEM_DIMENSION_ID);
+        vo.setLabel(label);
+        vo.setOrder(order);
+        vo.setDishCount(dishCount);
+        return vo;
     }
 
     @Test
-    @DisplayName("create：不填 key → 自动生成唯一键（cat- 前缀）后落库")
-    void create_blankKey_autoGenerates() {
-        when(categoryMapper.selectCount(any())).thenReturn(0L);
-        when(categoryMapper.selectById(any())).thenReturn(category(9L, "cat-0a1b2c3d", "新品类", 9));
+    @DisplayName("create：转发到系统维度下的取值登记，并把出参收敛为种类字段")
+    void create_delegatesToSystemDimension() {
+        when(attributeAdminService.createValue(eq(SYSTEM_DIMENSION_ID), eq("面食粉类")))
+                .thenReturn(value(9L, "面食粉类", 7, 0L));
 
-        var vo = service().create("  ", "新品类");
+        var vo = service().create("面食粉类");
 
-        verify(categoryMapper).insert(any());
-        assertThat(vo.getKey()).startsWith("cat-");
-        assertThat(vo.getKey().length()).isEqualTo("cat-".length() + 8);
+        verify(attributeAdminService).createValue(SYSTEM_DIMENSION_ID, "面食粉类");
+        assertThat(vo.getId()).isEqualTo(9L);
+        assertThat(vo.getLabel()).isEqualTo("面食粉类");
+        assertThat(vo.getDishCount()).isZero();
     }
 
     @Test
-    @DisplayName("requireExists：分类不存在 → 400（A3 菜品保存的 mealTypeId 白名单校验）")
-    void requireExists_missing_rejected400() {
-        when(categoryMapper.selectById(404L)).thenReturn(null);
+    @DisplayName("rename：转发到系统维度下的取值改名（改名免费，零菜品迁移）")
+    void rename_delegatesToSystemDimension() {
+        service().rename(3L, "面食粉面类");
+
+        verify(attributeAdminService).updateValue(SYSTEM_DIMENSION_ID, 3L, "面食粉面类");
+    }
+
+    @Test
+    @DisplayName("sort：转发到系统维度下的取值排序（全量行提交）")
+    void sort_delegatesToSystemDimension() {
+        List<SortItem> items = List.of(sortItem(3L, 1), sortItem(4L, 2));
+
+        service().sort(items);
+
+        verify(attributeAdminService).sortValues(SYSTEM_DIMENSION_ID, items);
+    }
+
+    private static SortItem sortItem(Long id, int order) {
+        SortItem item = new SortItem();
+        item.setId(id);
+        item.setOrder(order);
+        return item;
+    }
+
+    @Test
+    @DisplayName("requireExists：取值不属于系统维度 → 400（A3 菜品保存的 mealTypeId 校验）")
+    void requireExists_notInSystemDimension_rejected400() {
+        when(attributeAdminService.labelByIdForDimension(SYSTEM_DIMENSION_ID))
+                .thenReturn(Map.of(3L, "面食粉类"));
 
         assertThatThrownBy(() -> service().requireExists(404L))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+        // null 同款拦截，且不查字典
+        assertThatThrownBy(() -> service().requireExists(null))
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
-    @DisplayName("listAll：按 order 升序返回并带 dishCount（按分类 ID 统计）")
-    void listAll_carriesDishCount() {
-        when(categoryMapper.selectList(any())).thenReturn(List.of(
-                category(3L, "noodle", "面食粉类", 3),
-                category(1L, "set_meal", "套餐盖饭", 1)));
-        Dish d1 = new Dish();
-        d1.setId(1L);
-        d1.setMealType(3L);
-        Dish d2 = new Dish();
-        d2.setId(2L);
-        d2.setMealType(3L);
-        when(dishMapper.selectList(any())).thenReturn(List.of(d1, d2));
+    @DisplayName("requireExists：取值属于系统维度 → 通过")
+    void requireExists_inSystemDimension_passes() {
+        when(attributeAdminService.labelByIdForDimension(SYSTEM_DIMENSION_ID))
+                .thenReturn(Map.of(3L, "面食粉类"));
+
+        service().requireExists(3L);
+
+        // 只查该维度下的取值（轻量），不做任何写入
+        verify(attributeAdminService, never()).createValue(any(), any());
+    }
+
+    @Test
+    @DisplayName("listAll：按系统维度取值出参映射（无机器键字段）")
+    void listAll_mapsSystemDimensionValues() {
+        when(attributeAdminService.listValues(SYSTEM_DIMENSION_ID))
+                .thenReturn(List.of(value(3L, "面食粉类", 3, 2L), value(1L, "套餐盖饭", 1, 0L)));
 
         var list = service().listAll();
 
         assertThat(list).hasSize(2);
-        assertThat(list.get(0).getKey()).isEqualTo("noodle");
+        assertThat(list.get(0).getId()).isEqualTo(3L);
         assertThat(list.get(0).getDishCount()).isEqualTo(2L);
-        assertThat(list.get(1).getDishCount()).isZero();
+        assertThat(list.get(1).getLabel()).isEqualTo("套餐盖饭");
     }
 }

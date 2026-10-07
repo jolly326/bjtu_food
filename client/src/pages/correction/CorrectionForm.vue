@@ -8,7 +8,7 @@
     表单值由父级 `useCorrection` 持有（唯一真源），本组件只做渲染与字段级回抛
     （`update:model` 整值上抛，父级合并回真源；**不改结构、不换算金额**）。
   -->
-  <view class="q-card">
+  <view class="module-wrap q-card">
     <!-- ① 菜品锚定行（纯文本 · 只读）：无标题、无底色、无卡片背景；预填未就绪时仅显示载入文案。
          「正在纠错」标题与「菜品固定不可切换」小字已按 UI 稿移除（禁再补回）。 -->
     <view class="anchor">
@@ -43,6 +43,9 @@
                 class="row-input"
                 type="text"
                 :value="model.name"
+                aria-label="菜品名称"
+                :aria-required="true"
+                :aria-invalid="errors['form.name'] ? 'true' : 'false'"
                 placeholder="如：宫保鸡丁"
                 placeholder-class="row-ph"
                 :maxlength="64"
@@ -53,7 +56,7 @@
                 @blur="focused = ''"
               />
             </view>
-            <text v-if="errors['form.name']" class="row-error">{{ errors['form.name'] }}</text>
+            <text v-if="errors['form.name']" class="row-error" role="alert">{{ errors['form.name'] }}</text>
           </view>
         </view>
 <!-- 行 2（双列）：售价 ｜ 食堂名称 -->
@@ -126,7 +129,7 @@
               @tap="openFloorPicker"
             >
               <text class="row-picker-text" :class="{ 'row-picker-text--ph': !model.floor }">{{ floorLabel }}</text>
-              <IconSvg name="arrow-down" :size="24" :color="COLOR_MAP['text-tertiary']" />
+              <AppIcon name="arrow-down" :size="24" :color="COLOR_MAP['text-tertiary']" />
             </view>
             <text v-if="errors['form.floor']" class="row-error row-error--narrow">{{ errors['form.floor'] }}</text>
           </view>
@@ -208,7 +211,7 @@
         />
       </view>
       <!-- 失败原因（橙字）：页面底部提示，**已填内容完整保留** -->
-      <text v-if="submitError" class="submit-error">{{ submitError }}</text>
+      <text v-if="submitError" class="submit-error" role="alert">{{ submitError }}</text>
     </template>
   </view>
 </template>
@@ -219,12 +222,12 @@
  *
  * 职责边界：本组件**不持有业务状态**（表单值 / 校验 / patch 组装 / 提交全在 `useCorrection`），
  * 只负责「六段结构」的渲染与字段级回抛（`update:model` 整值上抛，父级 reactive 为唯一真源）。
- * 图标走 `IconSvg`、图片占位走 `ImagePlaceholder`（经 `ImagePicker` 间接消费）、
+ * 图标走 `AppIcon`、图片占位走 `ImagePlaceholder`（经 `ImagePicker` 间接消费）、
  * 事件统一 `@tap`、按压用 hover-class 透明度微降（禁 `transform: scale`）、颜色全语义 token。
  */
 import { ref, computed } from 'vue'
 import AppButton from '@/components/AppButton.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
 import AttributeGroup from './AttributeGroup.vue'
 import FloorPickerSheet from './FloorPickerSheet.vue'
@@ -234,6 +237,7 @@ import { toastInfo } from '@/utils/error'
 import { FLOOR_OPTIONS } from './useCorrection'
 import type { CorrectionFormModel } from './useCorrection'
 import type { PickSource } from '@/components/imagePickSource'
+import type { UgcImageItem } from '@/components/ugcImage'
 
 /**
  * 基础信息字段键（R40 起**逐字段显式渲染**，不再由 `FIELDS` 配置 `v-for` 驱动）。
@@ -351,8 +355,8 @@ function onAttributeChange(dimensionId: number, selected: string[]) {
 }
 
 /** 图片增删：整值替换回抛 + 回抛 `clear`（撤下过期的失败提示） */
-function onImagesChange(urls: string[]) {
-  patchModel({ images: urls })
+function onImagesChange(items: UgcImageItem[]) {
+  patchModel({ images: items })
   emit('clear', 'form.images')
 }
 
@@ -369,15 +373,9 @@ function onSubmitTap() {
 <style scoped lang="scss">
 /* 下划线字段行样式来自共享 partial（本包内同源） */
 @use './field-shared' as field;
-/* ===== 主卡片（圆角 24rpx + 浅暖米色细描边 + 柔和卡阴影；一枚大卡承载全部表单） ===== */
+/* ===== 主卡片：底色 / 圆角 / 阴影 / 内距由全局 `.module-wrap` 承担（**无描边**） ===== */
 .q-card {
   margin: var(--spacing-md) var(--page-gutter) 0;
-  padding: var(--spacing-lg);
-  background: var(--bg-card);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  box-sizing: border-box;
 }
 
 /* ===== ① 菜品锚定行（纯文本 · 只读：**无底色 / 无卡片背景 / 无标题与辅助小字**，无点击、无箭头）
@@ -421,9 +419,9 @@ function onSubmitTap() {
   @include field.underline;
 }
 /* 聚焦：底线切主色（主色 = 唯一强调色，不用描边框） */
-.row-field--focus { border-bottom-color: var(--color-primary); }
+.row-field--focus { background: var(--bg-soft); }
 /* 校验错误：底线切错误色（与行内错误小字同源；错误态规则置于聚焦之后 ⇒ 错误优先可见） */
-.row-field--error { border-bottom-color: var(--color-error); }
+.row-field--error { background: var(--bg-soft); }
 /* 楼层 picker 单元格（R40）：与同行 input 同高同底线形态，但**不可键入**（无 input、无焦点态）。
    下划线形态 + 整格可点 ⇒ 88rpx 同时满足视觉与触达（独立可点件，不适用属性 chip 的 67rpx 例外）。 */
 .row-field--picker {

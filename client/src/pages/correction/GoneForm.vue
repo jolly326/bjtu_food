@@ -1,6 +1,6 @@
 <template>
   <view class="gone-form">
-    <view class="card">
+    <view class="module-wrap card">
       <!-- ① 锚定卡（只读）：这道菜是谁 —— 避免用户「反馈错菜」 -->
       <view class="anchor">
         <text class="anchor-name">{{ dishName || '这道菜' }}</text>
@@ -22,9 +22,9 @@
 
       <!-- ③ 选填补充（**默认折叠**）：note + 图片，各自独立可选、都不必填 -->
       <view class="optional">
-        <view class="opt-row" @tap="toggle('note')">
+        <view class="opt-row" role="button" :aria-label="noteOpen ? '收起补充说明' : '展开补充说明'" :aria-expanded="noteOpen" @tap="toggle('note')">
           <text class="opt-label">补充说明{{ note ? '（已填）' : '' }}</text>
-          <IconSvg :name="noteOpen ? 'arrow-up' : 'arrow-down'" :size="28" />
+          <AppIcon :name="noteOpen ? 'arrow-up' : 'arrow-down'" :size="28" :color="COLOR_MAP['text-tertiary']" aria-hidden="true" />
         </view>
         <view v-if="noteOpen" class="opt-body">
           <textarea
@@ -39,9 +39,9 @@
           <text class="note-count">{{ note.length }}/{{ GONE_NOTE_MAX }}</text>
         </view>
 
-        <view class="opt-row" @tap="toggle('image')">
+        <view class="opt-row" role="button" :aria-label="imageOpen ? '收起图片区' : '展开图片区'" :aria-expanded="imageOpen" @tap="toggle('image')">
           <text class="opt-label">添加图片{{ images.length ? `（${images.length}）` : '' }}</text>
-          <IconSvg :name="imageOpen ? 'arrow-up' : 'arrow-down'" :size="28" />
+          <AppIcon :name="imageOpen ? 'arrow-up' : 'arrow-down'" :size="28" :color="COLOR_MAP['text-tertiary']" aria-hidden="true" />
         </view>
         <view v-if="imageOpen" class="opt-body">
           <ImagePicker
@@ -58,7 +58,7 @@
 
       <!-- 提交说明（不暗示提交即生效：系统不自动下架，由管理员人工判断） -->
       <text class="submit-note">提交不代表立即下架，管理员核实后会处理并回执</text>
-      <text v-if="submitError" class="submit-error">{{ submitError }}</text>
+      <text v-if="submitError" class="submit-error" role="alert">{{ submitError }}</text>
     </view>
   </view>
 </template>
@@ -78,10 +78,12 @@
  */
 import { ref } from 'vue'
 import AppButton from '@/components/AppButton.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
 import { GONE_IMAGE_MAX } from '@/constants/ugc'
 import type { PickSource } from '@/components/imagePickSource'
+import type { UgcImageItem } from '@/components/ugcImage'
+import { COLOR_MAP } from '@/theme/tokens'
 
 /** `note` 字数上限（与服务端 `CorrectionConst.NOTE_MAX_LENGTH` 同源） */
 const GONE_NOTE_MAX = 200
@@ -93,7 +95,7 @@ const props = withDefaults(
     /** 选填补充说明（≤200 字；v-model 双向） */
     note?: string
     /** 选填图片（≤3 张；v-model 双向） */
-    images?: string[]
+    images?: UgcImageItem[]
     submitting?: boolean
     submitError?: string
   }>(),
@@ -101,7 +103,7 @@ const props = withDefaults(
     dishName: '',
     dishLocation: '',
     note: '',
-    images: () => [] as string[],
+    images: () => [] as UgcImageItem[],
     submitting: false,
     submitError: '',
   },
@@ -109,7 +111,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'update:note', value: string): void
-  (e: 'update:images', value: string[]): void
+  (e: 'update:images', value: UgcImageItem[]): void
   (e: 'submit'): void
   /** 请求选择配图来源（页面根级弹层承接 —— 本组件在 scroll-view 内不能自带 fixed） */
   (e: 'pick-image'): void
@@ -130,8 +132,8 @@ function onNoteInput(e: Event) {
   emit('update:note', detail?.value ?? '')
 }
 
-function onImagesChange(urls: string[]) {
-  emit('update:images', urls)
+function onImagesChange(items: UgcImageItem[]) {
+  emit('update:images', items)
 }
 
 /**
@@ -156,10 +158,9 @@ defineExpose({ startPick })
 .gone-form { padding: 0 var(--page-gutter); }
 
 .card {
-  background: var(--bg-card);
-  border: 1rpx solid var(--border-color);
+  background: var(--module-bg);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--module-shadow);
   padding: var(--spacing-lg);
 }
 
@@ -193,8 +194,7 @@ defineExpose({ startPick })
   width: 100%;
   /* 两倍触达高（176rpx）⇒ 多行说明的起手可见区，不引用未登记裸尺寸 */
   min-height: calc(var(--tap-target-size) * 2);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--bg-input);
+  background: var(--module-input-bg);
   border-radius: var(--radius-btn);
   font-size: var(--font-body);
   color: var(--text-body);

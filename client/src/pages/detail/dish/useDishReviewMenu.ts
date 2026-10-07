@@ -3,7 +3,7 @@
  *
  * 仅持有菜单 UI 态 + 路由到具体动作（onDeleteReview / onReport），不持有删除/举报实现，
  * 由 `useDishPage` 注入（删除落在 `useDishReviewCore`，举报落在 `useReport`）。
- * ⚠️ `iconColor` 必须传**实色** `COLOR_MAP['error']`（ActionSheet 契约：IconSvg 的 color 不解析 var()）；
+ * ⚠️ `iconColor` 必须传**实色** `COLOR_MAP['error']`（ActionSheet 契约：AppIcon 的 color 不解析 var()）；
  * `textColor` 走 CSS 绑定、`var()` **合法**，故保持 `var(--color-error)` 以随主题。
  */
 import { ref, computed } from 'vue'

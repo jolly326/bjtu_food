@@ -139,11 +139,11 @@ class DishCacheBenchmarkTest {
         when(attributeAdminService.translateForRead(any()))
                 .thenAnswer(inv -> JsonMapUtil.parseObject(inv.getArgument(0)));
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        // A6：视图字典改表驱动 —— 「为你推荐」（条件空）+ 一个大类视图；可见性靠 enabled + 匹配数判定
+        // A6：视图 = 纯数据 —— 「为你推荐」（条件空）+ 一个种类视图；可见性靠 enabled + 匹配数判定
         viewMapper = mock(DishFilterViewMapper.class);
         when(viewMapper.selectList(any())).thenReturn(List.of(
-                view(1L, "recommend", "为你推荐", 1),
-                view(2L, "noodle", "面食粉类", 2)));
+                view(1L, "为你推荐", "[]", "random", 1),
+                view(2L, "面食粉类", "[{\"field\":\"mealTypeId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2)));
         // 匹配数 > 0 ⇒ 可见（匹配数 0 不下发）
         when(dishMapper.selectCount(any())).thenReturn(1L);
 
@@ -229,7 +229,7 @@ class DishCacheBenchmarkTest {
         double repeatCalls = countCalls() - afterFirst;
 
         PerfMetrics.emit("server.mapper_calls.dish_views_cached", repeatCalls, "次/请求",
-                "第二次进入首页的 Mapper 增量；基线=1（旧口径：每次查一次在售大类集合）");
+                "第二次进入首页的 Mapper 增量；基线=1（无缓存时：每次查一遍视图行 + 逐视图计数）");
         // 诊断/护栏：先确认「缓存里真有条目」，再谈增量——若此处为 0，说明 @Cacheable 根本没接上，
         // 后面的 0 增量断言就没有意义（避免把「装配错误」误读成「性能没提升」）。
         assertThat(cachedEntries(CacheConfig.DISH_VIEWS))
@@ -238,8 +238,9 @@ class DishCacheBenchmarkTest {
         // 若只缓存原始行，这里会是「视图数」次计数查询。
         assertThat(repeatCalls).isZero();
         assertThat(second).isEqualTo(first);
-        // 可见性靠 enabled + 匹配数判定，顺序按 order 升序
-        assertThat(first).extracting(DishViewVO::getKey).containsExactly("recommend", "noodle");
+        // 可见性靠 enabled + 匹配数判定，顺序按 order 升序；出参恰 id + label
+        assertThat(first).extracting(DishViewVO::getId).containsExactly(1L, 2L);
+        assertThat(first).extracting(DishViewVO::getLabel).containsExactly("为你推荐", "面食粉类");
 
         // 写后显式失效 ⇒ 保存即生效（不必等 TTL）
         viewCatalog.invalidateViews();
@@ -298,12 +299,13 @@ class DishCacheBenchmarkTest {
                 + mockingDetails(viewMapper).getInvocations().size();
     }
 
-    /** 视图行样本（A6）：表行只给展示态，逻辑（条件 / 排序）由 DishViewDefs 按 key 提供 */
-    private static DishFilterView view(Long id, String key, String label, int order) {
+    /** 视图行样本（A6）：条件与排序口径同表存储（除文案 / 顺序外全在行内） */
+    private static DishFilterView view(Long id, String label, String conditions, String sortKind, int order) {
         DishFilterView v = new DishFilterView();
         v.setId(id);
-        v.setKey(key);
         v.setLabel(label);
+        v.setConditions(conditions);
+        v.setSortKind(sortKind);
         v.setSortOrder(order);
         v.setEnabled(true);
         return v;

@@ -31,7 +31,7 @@ beforeEach(() => {
   }
 })
 
-const { useSearchHistory } = await import('./useSearchHistory')
+const { useSearchHistory } = await import('@/pages/find/useSearchHistory')
 
 describe('useSearchHistory · 置顶与去重', () => {
   it('新词置顶', () => {

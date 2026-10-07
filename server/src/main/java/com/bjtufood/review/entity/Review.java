@@ -58,9 +58,12 @@ public class Review {
     @Schema(description = "隐藏附注（≤200 字，随隐藏回执下发；未隐藏为 null）")
     private String hiddenNote;
 
-    @TableField(fill = FieldFill.INSERT)
+    /**
+     * 发表时间（**重复提交保留原值**，覆盖不刷新 ⇒ 评价位置固定）。
+     * <p>
+     * DB 时钟：仅 INSERT 由 `DEFAULT CURRENT_TIMESTAMP` 写入（应用层不写、不填充）；
+     * 本表<b>无 {@code updated_at}</b>，故 UPDATE 不会刷新本列。
+     */
     @Schema(description = "发表时间（**重复提交保留原值**，覆盖不刷新 ⇒ 评价位置固定）")
     private LocalDateTime createdAt;
-    // ⚠️ 不要据此删除 dish.updated_at —— 它有真实消费（DishFormDialog 的 Q-112「他人已修改」轻提示基线）。
-    // ⚠️ 不要据此删除 dish.updated_at —— 它有真实消费（DishFormDialog 的 Q-112「他人已修改」轻提示基线）。
 }

@@ -1,32 +1,35 @@
-﻿<template>
+<template>
   <!--
-    ImagePicker —— UGC 配图选择/压缩/上传/预览统一组件。
-    复用点（≥3 处，跨分包公用，按组件组织规范驻留 components/）：
-    写评价（ReviewComposer）/ 意见反馈（IssueForm，max=UGC_IMAGE_MAX，多图）。
+    ImagePicker —— UGC 配图选择 / 压缩 / 上传云存储 / 预览统一组件。
+    复用点（跨分包公用，按组件组织规范驻留 components/）：
+    写评价（ReviewComposer）/ 意见反馈（IssueForm）/ 菜品纠错（CorrectionForm、GoneForm）。
 
-    流程（微信端）：点加号 → **上抛 pick 事件**（来源由页面根级 ActionSheet 选：拍照 / 相册）
-    → startPick(source) 调 wx.chooseMedia(count, sourceType=单值) → 逐张 wx.compressImage(quality 80) 压缩
-    → wx.getImageInfo 校验最长边 ≤1334（超出按比例再压）→ 文件大小 ≤1MB（超限 toast 跳过该张）
-    → uploadUgcImage（云存储 fileID → POST /upload/cloud-image 后端安检转存 COS）→ 追加 COS URL 至 v-model。
-    违规图片后端 400「图片包含违规内容，无法上传」由 http 层抛 message，此处逐张 toast 透出。
+    **两段式上传**（详见 components/ugcImage.ts）：
+    · 选图时：wx.chooseMedia → wx.compressImage(quality 80) → wx.getImageInfo 校验最长边 ≤1334
+      → wx.getFileSystemManager 校验 ≤1MB（超限逐张 toast 跳过该张）
+      → **wx.cloud.uploadFile 只落微信云存储拿 fileID**，缩略图 / 预览走**本地临时路径**，
+      **不调任何后端端点**（避免用户取消提交时在 COS 留下孤儿对象）。
+    · 提交时：由调用方经 submitUgcImages 逐张调 `POST /upload/cloud-image`（机审 + 转存 COS），
+      报错文案带「第 N 张图片」定位；已成功张数保留，重试只传剩余。
+    ⇒ 组件对外契约 = `UgcImageItem[]`（preview / fileId / url），**不含任何后端 URL 语义**。
 
     ⚠️ 为何不自带来源弹层：ActionSheet → BaseSheet 内部是 position: fixed，而本组件在
     意见反馈 / 菜品问题反馈两处位于 <scroll-view> 之内（fixed 层级会被压扁/裁剪）。
     故与 ReviewItem 一致：弹层由页面根级持有，本组件只抛意图 + 经 ref 暴露 startPick。
 
     UI 红线：可点元素 @tap；按压反馈 opacity（禁 scale）；颜色全语义 token；
-    图标走 IconSvg（image=添加图片语义、close=删除）。
+    图标走 AppIcon（image=添加图片语义、close=删除）。
   -->
   <view class="ip-grid">
-    <!-- 已上传缩略图行：点击预览大图，右上角删除重选；
-         破图切 empty 中性占位（评审 m4，与展示侧 ReviewItem 同构） -->
-    <view v-for="(u, i) in urls" :key="u" class="ip-cell">
+    <!-- 已选缩略图行：点击预览大图，右上角删除；
+         破图切统一占位（评审 m4，与展示侧 ReviewItem 同构） -->
+    <view v-for="(u, i) in items" :key="u.preview + i" class="ip-cell">
       <!-- 按压反馈：`<image>` 不支持 `hover-class` ⇒ 由外层等比盒承载（视觉与热区不变） -->
       <view class="ip-box" hover-class="pressed">
         <image
           v-if="!brokenImages.has(i)"
           class="ip-thumb"
-          :src="u"
+          :src="u.preview"
           mode="aspectFill"
           @tap="onPreview(i)"
           @error="onImageError(i)"
@@ -43,13 +46,13 @@
           hover-stop-propagation
           @tap.stop="onRemove(i)"
         >
-          <IconSvg name="close" :size="22" :color="COLOR_MAP['text-white']" />
+          <AppIcon name="close" :size="22" :color="COLOR_MAP['text-white']" />
         </view>
       </view>
     </view>
 
     <!-- 添加格：未达上限时展示；上传中 loading 态（评审 m3）；提交中/禁用弱化（评审 m1）。 -->
-    <view v-if="urls.length < max" class="ip-cell">
+    <view v-if="items.length < max" class="ip-cell">
       <view
         class="ip-box ip-add"
         :class="{ uploading, disabled }"
@@ -59,14 +62,14 @@
         @tap="onAdd"
       >
         <view v-if="uploading" class="ip-loading" />
-        <IconSvg v-else name="image" :size="48" :color="COLOR_MAP['text-tertiary']" />
+        <AppIcon v-else name="image" :size="48" :color="COLOR_MAP['text-tertiary']" />
         <text class="ip-add-text">{{ uploading ? '上传中…' : '添加图片' }}</text>
       </view>
     </view>
     <!-- 满额计数格：轻量 n/n 占位（评审 m3，替代添加格直接消失，保留网格与已选感知）。 -->
     <view v-else class="ip-cell">
       <view class="ip-box ip-count" role="img" :aria-label="`已选满 ${max} 张图片`">
-        <text class="ip-count-text">{{ urls.length }}/{{ max }}</text>
+        <text class="ip-count-text">{{ items.length }}/{{ max }}</text>
       </view>
     </view>
   </view>
@@ -74,10 +77,10 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import IconSvg from './IconSvg.vue'
+import AppIcon from './AppIcon.vue'
 import ImagePlaceholder from './ImagePlaceholder.vue'
 import { useBrokenImages } from '@/composables/useBrokenImages'
-import { uploadUgcImage } from '@/api/upload'
+import { uploadToCloud } from '@/api/upload'
 import { toastError } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
 import { getWxApi } from '@/utils/device'
@@ -91,12 +94,13 @@ import {
  * 本组件只消费类型，具体弹层与动作项由页面根级持有（见 onAdd 注释）。
  */
 import type { PickSource } from './imagePickSource'
+import type { UgcImageItem } from './ugcImage'
 
 defineOptions({ name: 'ImagePicker' })
 
 const props = withDefaults(defineProps<{
-  /** 已上传图片 URL 列表（v-model：COS URL，≤max 张） */
-  modelValue: string[]
+  /** 已选配图（v-model：`UgcImageItem[]`，≤max 张；组件**不解释** `url` 语义，只做选择 / 预览 / 删除） */
+  modelValue: UgcImageItem[]
   /** 最多张数（评价/反馈契约 ≤3） */
   max?: number
   /** 禁用（如表单提交中） */
@@ -107,23 +111,23 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', urls: string[]): void
+  (e: 'update:modelValue', items: UgcImageItem[]): void
   /** 点加号：上抛「请求选择配图来源」意图，由页面根级弹层承接（见 onAdd 注释） */
   (e: 'pick'): void
 }>()
 
 /* 本地镜像为唯一写者：避免同一轮上传循环内多次 emit 时读到未刷新的 props 造成丢张 */
-const urls = ref<string[]>([...props.modelValue])
-/** 破图下标集合（评审 m4）：error 后切 empty 占位 + 预览过滤；urls 变化（外部重置/删增）时清空 */
+const items = ref<UgcImageItem[]>([...props.modelValue])
+/** 破图下标集合：`error` 后切统一占位 + 预览过滤；配图变化（外部重置/删增）时清空 */
 const { broken: brokenImages, markBroken: onImageError, clear, previewAt } = useBrokenImages()
 watch(
   () => props.modelValue,
   (v) => {
-    // 上传在途时不回灌：本轮追加写在本地镜像 `urls` 上，
+    // 上传在途时不回灌：本轮追加写在本地镜像 `items` 上，
     // 若此刻用外部值覆盖，可能丢掉「已上传完成、但尚未随父级值回来」的那几张。
     // 上传期间每次追加都会 emit，结束后父级值与本地镜像自然对齐。
     if (uploading.value) return
-    urls.value = [...(v || [])]
+    items.value = [...(v || [])]
     clear()
   },
 )
@@ -266,13 +270,13 @@ async function normalizeForPlatform(input: { path: string; size: number }): Prom
   return path
 }
 
-/* ===== 添加图片：来源由父页决定 → 逐张 校验→上传→追加；单张失败不中断其余 ===== */
+/* ===== 添加图片：来源由父页决定 → 逐张 规格收敛 → 落云存储 → 追加；单张失败不中断其余 ===== */
 const uploading = ref(false)
 
 /** 可否继续加图：未禁用、未在途、且未达张数上限 */
 function canAdd(): boolean {
   if (props.disabled || uploading.value) return false
-  return props.max - urls.value.length > 0
+  return props.max - items.value.length > 0
 }
 
 /**
@@ -288,24 +292,27 @@ function onAdd() {
 
 /**
  * 按父页给定的来源真正拉起选图（父页在 ActionSheet 选中项后调用）。
- * 内部为「拉起 → 逐张收敛 → 上传 → 追加」全流程；拍照一次仅回 1 张，由 {@link pick} 收口。
+ * 内部为「拉起 → 逐张规格收敛 → 落微信云存储 → 追加」全流程；拍照一次仅回 1 张，由 {@link pick} 收口。
+ *
+ * **不调后端**：内容安检与转存 COS 留到提交时（见 `submitUgcImages`），
+ * 用户此刻放弃提交就不会在 COS 产生孤儿对象。
  */
 async function startPick(source: PickSource) {
   if (!canAdd()) return
-  const remain = props.max - urls.value.length
+  const remain = props.max - items.value.length
   uploading.value = true
   try {
     const files = await pick(remain, source)
     for (const f of files) {
       try {
-        const path = await normalizeForPlatform(f)
-        const { url } = await uploadUgcImage(path)
-        if (url) {
-          urls.value = [...urls.value, url]
-          emit('update:modelValue', [...urls.value])
+        const preview = await normalizeForPlatform(f)
+        const { fileId } = await uploadToCloud(preview)
+        if (fileId) {
+          items.value = [...items.value, { preview, fileId, url: '' }]
+          emit('update:modelValue', [...items.value])
         }
       } catch (e) {
-        // 违规图片（后端 400「图片包含违规内容，无法上传」）/ 过大 / 网络失败：toast 透出，跳过该张
+        // 超大 / 云存储失败 / 网络失败：toast 透出，跳过该张（机审不在本阶段，故无「违规」文案）
         toastError(e, '图片上传失败')
       }
     }
@@ -319,16 +326,16 @@ async function startPick(source: PickSource) {
 /** 供父页经 ref 调用（来源弹层选完后落地） */
 defineExpose({ startPick })
 
-/** 删除已选（本地移除；后端不做回收，孤儿 COS 文件由后端定期清理策略兜底） */
+/** 删除已选（本地移除；已落云存储但未提交的中间产物由 `ugc/` 前缀生命周期规则过期清理） */
 function onRemove(i: number) {
   if (props.disabled || uploading.value) return
-  urls.value = urls.value.filter((_, idx) => idx !== i)
-  emit('update:modelValue', [...urls.value])
+  items.value = items.value.filter((_, idx) => idx !== i)
+  emit('update:modelValue', [...items.value])
 }
 
-/** 预览大图（仅未破图可进入，urls 过滤破图，current 定位到点击那张） */
+/** 预览大图（仅未破图可进入，破图项被过滤，current 定位到点击那张；预览地址 = `preview`） */
 function onPreview(i: number) {
-  previewAt(urls.value, i)
+  previewAt(items.value.map((it) => it.preview), i)
 }
 </script>
 
@@ -422,10 +429,10 @@ function onPreview(i: number) {
   to { transform: rotate(360deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ip-loading { animation-duration: 1.6s; }
+  .ip-loading { animation: none; }   /* 停止持续旋转（全局基线是保留静态环） */
 }
 /* 满额计数格（评审 m3）：浅底虚线 + 轻量 n/n（绝对定位居中，不依赖 0 高等比盒的 flex） */
-.ip-count { background: var(--bg-input); border: 2rpx dashed var(--border-color); box-sizing: border-box; }
+.ip-count { background: var(--module-input-bg); border: 2rpx dashed var(--border-color); box-sizing: border-box; }
 .ip-count-text {
   position: absolute;
   inset: 0;

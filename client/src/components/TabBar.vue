@@ -7,11 +7,13 @@
       class="tab-item"
       :class="{ active: item.key === routeStore.activeTab }"
       hover-class="pressed"
+      role="button"
       :aria-label="item.label"
+      :aria-current="item.key === routeStore.activeTab ? 'page' : undefined"
       @tap="onTap(item)"
     >
       <!-- 选中态：图标切换为填充变体（<name>-filled），图标与文字同步变主色 -->
-      <IconSvg
+      <AppIcon
         :name="item.key === routeStore.activeTab ? `${item.icon}-filled` : item.icon"
         :size="48"
         :color="item.key === routeStore.activeTab ? COLOR_MAP['primary-bright'] : COLOR_MAP['text-tertiary']"
@@ -22,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import IconSvg from './IconSvg.vue'
+import AppIcon from './AppIcon.vue'
 import { useRouteStore } from '@/stores/route'
 const routeStore = useRouteStore()
 import { TAB_HOME, TAB_PROFILE, TAB_URL_BY_KEY } from '@/utils/routes'

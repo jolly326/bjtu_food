@@ -1,24 +1,18 @@
 <template>
   <!-- 空态块（公共组件，UI 统一 Loop Round 2 上提）
-       视觉基线（与失败态 `RetryBlock` 同语言、但**更轻**）：**无底色**的居中极简列 ——
-       可选图标 + 主文案（次级文字色）+ 可选次文案（三级文字色）+ 可选 CTA（主色胶囊）。
-       ⚠️ 与 `RetryBlock` 的分工：RetryBlock = **失败态**（凹陷卡 + 整块可点 + 固定重试语义）；
-       本组件 = **空态**（无数据但一切正常，通常不可点，仅在传 `actionText` 时提供 CTA）。
-       无障碍：CTA 为 role="button" + aria-label；纯展示态不带交互语义。 -->
-  <view class="empty-state" :class="{ 'is-card': card }">
-    <IconSvg v-if="icon" :name="icon" :size="iconSize" :color="COLOR_MAP[iconColor]" />
+        视觉基线：**无底色**的居中极简列 —— 可选图标 + 主文案（次级文字色）+ 可选次文案（三级文字色）
+        + 可选 CTA（主色胶囊）。**空 / 加载态一律不给灰底或白色色块**，简约到「icon + 文本」即可。
+        ⚠️ 与 `RetryBlock` 的分工：RetryBlock = **失败态**（整块可点 + 固定重试语义）；
+        本组件 = **空态**（无数据但一切正常，通常不可点，仅在传 `actionText` 时提供 CTA）。
+        无障碍：CTA 为 role="button" + aria-label；纯展示态不带交互语义。
+        状态播报：根节点 `role="status"` + `aria-live="polite"` —— 空态是「数据到位了但没有内容」
+        这一状态变化，读屏用户需被动感知（否则页面在语义上静止，无法区分「加载中/已加载但为空」）。 -->
+        <view class="empty-state" :class="{ 'is-card': card }" role="status" aria-live="polite">
+    <AppIcon v-if="icon" :name="icon" :size="iconSize" :color="COLOR_MAP[iconColor]" />
     <text v-if="title" class="es-title">{{ title }}</text>
     <text v-if="desc" class="es-desc">{{ desc }}</text>
-    <view
-      v-if="actionText"
-      class="es-action"
-      role="button"
-      :aria-label="actionText"
-      hover-class="pressed"
-      @tap="emit('action')"
-    >
-      <text class="es-action-text">{{ actionText }}</text>
-    </view>
+    <!-- CTA 走公共 `ContentButton`（内容宽胶囊唯一实现，触达恒为 88rpx 基线） -->
+    <ContentButton v-if="actionText" class="es-action" :text="actionText" @press="emit('action')" />
     <!-- 额外内容（如自定义插画 / 补充说明）由消费方通过默认插槽提供 -->
     <slot />
   </view>
@@ -38,7 +32,8 @@
  *
  * 仅承载展示与 CTA 上抛；数据获取、空/失败判定与重拉路径由各消费方持有。
  */
-import IconSvg from './IconSvg.vue'
+import AppIcon from './AppIcon.vue'
+import ContentButton from './ContentButton.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 withDefaults(defineProps<{
@@ -52,14 +47,14 @@ withDefaults(defineProps<{
   iconSize?: number
   /**
    * 图标语义色键（COLOR_MAP 键名；默认三阶末档灰）。
-   * IconSvg 的 color 不解析 var()（data-uri 内为字面量），故传键名经 COLOR_MAP 取实色。
+   * AppIcon 的 color 不解析 var()（data-uri 内为字面量），故传键名经 COLOR_MAP 取实色。
    */
   iconColor?: keyof typeof COLOR_MAP
   /** CTA 文案（可选；传了才渲染主色胶囊按钮） */
   actionText?: string
   /**
-   * 卡片变体：白底 + 大圆角 + 柔和投影（与列表卡同表面语言）。
-   * 仅用于**整屏居中的主空态**（如搜索无结果）；区块内的小空态保持无底色的最简形态。
+   * 整屏居中的主空态：仅放宽内距（左右也留出呼吸位）。
+   * **不带底色** —— 空态是内容状态，不需要色块；区块内小空态用默认形态即可。
    */
   card?: boolean
 }>(), {
@@ -85,12 +80,10 @@ const emit = defineEmits<{
   padding: var(--spacing-xl) 0;
   box-sizing: border-box;
 }
-/* 卡片变体：整屏居中的主空态保留白卡表面（与列表卡同语言），区块内小空态不用 */
+/* `card` 变体：整屏居中的主空态只放宽内距，**不给底色 / 圆角 / 投影** ——
+   空态是「暂无数据」的内容状态，白卡 / 灰块会把页面切出一块与内容无关的色块。 */
 .empty-state.is-card {
   padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
 }
 .es-title {
   font-size: var(--font-body);
@@ -112,18 +105,6 @@ const emit = defineEmits<{
   /* 同 §1.8 断行口径：超长无空格串（URL / 长英文）不横向溢出卡壳 */
   overflow-wrap: anywhere;
 }
-/* CTA：主色胶囊（统一了原「搜索无结果 · 推荐这道菜」与「写第一条评价」两处按钮语言） */
-.es-action {
-  margin-top: var(--spacing-2xs);
-  padding: var(--spacing-2xs) var(--spacing-md);
-  border-radius: var(--radius-btn);
-  background: var(--color-primary);
-  -webkit-tap-highlight-color: transparent;
-}
-.es-action.pressed { opacity: 0.85; }
-.es-action-text {
-  font-size: var(--font-small);
-  color: var(--color-on-primary);
-  font-weight: var(--weight-semibold);
-}
+/* CTA 底色 / 圆角 / 触达 / 禁用档全部由公共 `ContentButton` 承担，此处只留上间距 */
+.es-action { margin-top: var(--spacing-2xs); }
 </style>

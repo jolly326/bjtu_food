@@ -54,6 +54,9 @@ export function useDishReviewCore(opts: {
    */
   const reviewRatingFilter = ref<number | null>(null)
 
+  /** 删除评价在途锁：删除不可逆，重复发请求会产生二次确认弹窗交错 */
+  const deleting = ref(false)
+
   /** 切换星级筛选：重置分页 + 从第 1 页重拉（与首屏同路径） */
   function onFilterRating(next: number | null) {
     // 提交中 / 在途时忽略点击：避免与重置请求竞态（reviewGuard 会丢弃过期响应，但语义上不应受理）
@@ -131,6 +134,10 @@ export function useDishReviewCore(opts: {
       confirmColor: MODAL_CONFIRM_DANGER_COLOR,
       success: async (res) => {
         if (!res.confirm) return
+        // 删除是唯一带不可逆后果的 UGC 操作：加并发锁，
+        // 避免「弹层关闭 → 立刻再点另一条」两个 showModal 回调交错、重复发请求
+        if (deleting.value) return
+        deleting.value = true
         try {
           await deleteReview(rv.id)
           toastSuccess(TOAST_REVIEW_DELETED)
@@ -145,6 +152,8 @@ export function useDishReviewCore(opts: {
             return
           }
           toastError(e, '删除失败')
+        } finally {
+          deleting.value = false
         }
       },
     })

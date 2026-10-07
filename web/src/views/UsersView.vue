@@ -7,21 +7,24 @@
  *
  * <p>要点：分页（`AdminPageResult`，**页码 + 共 N 条**）；筛选 = 关键词 + 状态；
  * **认证态不单独出字段** —— 按 `bindEmail` 是否为空派生（空串 = 未认证，管理端 VO 恒非空串）；
- * 状态列恒用 `StatusTag`（`kind="user"`）；行内文字动作 = `禁用 / 启用` → `解绑邮箱`（仅已认证行）→
- * `删除账号`（`.link.danger`，恒最后）——
- * **禁用 / 解绑 / 删除**均走二次确认（文案写明影响面），**启用**直接执行（无二次确认）；
- * 提交中该行动作置灰。
+ * 状态列恒用 `StatusTag`（`kind="user"`）。
+ *
+ * <p>**启停保留为行级快速动作**（高频、可逆）；「解绑邮箱」「删除账号」属编辑 / 删除类 ⇒ 一律进
+ * **详情抽屉**（🔴 管理端**不代改**昵称 / 头像等资料，故详情只读、无「编辑」）。
  */
-import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref } from 'vue'
 import { confirmDelete } from '@/utils/confirm'
-import { fail } from '@/utils/error'
+import { formatDateTime } from '@/utils/datetime'
 import { deleteUserAccount, listUsers, setUserStatus, unbindUserEmail } from '@/api/users'
 import type { UserAdminVO, UserListParams, UserStatus } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
+import BaseDrawer from '@/components/BaseDrawer.vue'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { resolveImageUrl } from '@/utils/image'
+import DetailMetaRow from '@/components/DetailMetaRow.vue'
+import { useRowAction } from '@/composables/useRowAction'
 
 const fKeyword = ref('')
 const fStatus = ref<UserStatus | ''>('')
@@ -51,25 +54,22 @@ const {
   listUsers({ page: pageNo, pageSize, ...params() }),
 )
 
-/** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
-const busyId = ref<number | null>(null)
+/* ===== 详情抽屉（只读 + 处置动作） ===== */
+const detailOpen = ref(false)
+const current = ref<UserAdminVO | null>(null)
 
-/** 行动作公共骨架：busyId 置灰 → 执行 → 成功提示 → `reload()`（留在当前页） */
-async function runRowAction(
-  row: UserAdminVO,
-  action: () => Promise<null>,
-  successMessage: string,
-): Promise<void> {
-  busyId.value = row.id
-  try {
-    await action()
-    ElMessage.success(successMessage)
-    await reload()
-  } catch (e) {
-    fail(e)
-  } finally {
-    busyId.value = null
-  }
+/** 行内动作并发保护：提交中该行按钮 :disabled（列表页模板 §1.3「并发保护」） */
+const { isBusy, runRowAction: runAction } = useRowAction()
+
+function openDetail(row: UserAdminVO): void {
+  current.value = row
+  detailOpen.value = true
+}
+
+/** 处置成功后按 id 回填最新行（列表已 reload），避免抽屉停在旧快照上 */
+function syncCurrent(id: number): void {
+  if (current.value?.id !== id) return
+  current.value = items.value.find((r) => r.id === id) ?? current.value
 }
 
 async function toggle(row: UserAdminVO): Promise<void> {
@@ -84,11 +84,13 @@ async function toggle(row: UserAdminVO): Promise<void> {
       return
     }
   }
-  await runRowAction(
-    row,
-    () => setUserStatus(row.id, { status: disabled ? 'disabled' : 'active' }),
-    disabled ? '已禁用' : '已启用',
-  )
+  await runAction({
+    id: row.id,
+    action: () => setUserStatus(row.id, { status: disabled ? 'disabled' : 'active' }),
+    successMessage: disabled ? '已禁用' : '已启用',
+    refresh: reload,
+    syncAfterRefresh: syncCurrent,
+  })
 }
 
 async function unbindEmail(row: UserAdminVO): Promise<void> {
@@ -100,7 +102,13 @@ async function unbindEmail(row: UserAdminVO): Promise<void> {
   } catch {
     return
   }
-  await runRowAction(row, () => unbindUserEmail(row.id), '已解绑')
+  await runAction({
+    id: row.id,
+    action: () => unbindUserEmail(row.id),
+    successMessage: '已解绑',
+    refresh: reload,
+    syncAfterRefresh: syncCurrent,
+  })
 }
 
 async function deleteAccount(row: UserAdminVO): Promise<void> {
@@ -112,8 +120,32 @@ async function deleteAccount(row: UserAdminVO): Promise<void> {
   } catch {
     return
   }
-  await runRowAction(row, () => deleteUserAccount(row.id), '已注销')
+  await runAction({
+    id: row.id,
+    action: () => deleteUserAccount(row.id),
+    successMessage: '已注销',
+    refresh: reload,
+    syncAfterRefresh: syncCurrent,
+  })
 }
+
+/** 详情抽屉底部动作：复用行内的启停 / 解绑 / 注销（确认文案与成功提示同源、逐字一致） */
+function detailToggle(): void {
+  const row = current.value
+  if (row) void toggle(row)
+}
+
+function detailUnbind(): void {
+  const row = current.value
+  if (row) void unbindEmail(row)
+}
+
+function detailDelete(): void {
+  const row = current.value
+  if (row) void deleteAccount(row)
+}
+
+const isDeleted = computed(() => current.value?.status === 'deleted')
 
 function reset(): void {
   fKeyword.value = ''
@@ -171,7 +203,7 @@ onMounted(() => reloadFirstPage())
           <tr v-for="row in items" :key="row.id">
             <td>
               <div class="user-cell">
-                <img v-if="row.avatar" :src="row.avatar" class="avatar" alt="" />
+                <img v-if="row.avatar" :src="resolveImageUrl(row.avatar)" class="avatar" alt="" />
                 <span v-else class="avatar avatar-placeholder">·</span>
                 <span>{{ row.nickname || '—' }}</span>
               </div>
@@ -183,39 +215,24 @@ onMounted(() => reloadFirstPage())
               <span v-else class="muted">未认证</span>
             </td>
             <td><StatusTag :status="row.status" kind="user" /></td>
-            <td class="muted">{{ row.createdAt }}</td>
-            <td class="muted">{{ row.updatedAt || '—' }}</td>
+            <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
+            <td class="muted">{{ formatDateTime(row.updatedAt) }}</td>
             <td class="actions">
               <template v-if="row.status !== 'deleted'">
-                <button
-                  class="link"
-                  type="button"
-                  :disabled="busyId === row.id"
-                  @click="toggle(row)"
-                >
+                <!-- 启停：行级快速动作（高频、可逆，见 §C2 差异节） -->
+                <button class="link" type="button" :disabled="isBusy(row.id)" @click="toggle(row)">
                   {{ row.status === 'disabled' ? '启用' : '禁用' }}
                 </button>
-                <!-- 解绑邮箱：仅已认证行（bindEmail 非空 = 认证态唯一判据） -->
                 <button
-                  v-if="row.bindEmail"
                   class="link"
                   type="button"
-                  :disabled="busyId === row.id"
-                  @click="unbindEmail(row)"
+                  :disabled="isBusy(row.id)"
+                  @click="openDetail(row)"
                 >
-                  解绑邮箱
-                </button>
-                <!-- 删除账号：不可逆终态，恒最后 -->
-                <button
-                  class="link danger"
-                  type="button"
-                  :disabled="busyId === row.id"
-                  @click="deleteAccount(row)"
-                >
-                  删除账号
+                  详情
                 </button>
               </template>
-              <span v-else class="muted">—</span>
+              <button v-else class="link" type="button" @click="openDetail(row)">详情</button>
             </td>
           </tr>
         </tbody>
@@ -229,6 +246,80 @@ onMounted(() => reloadFirstPage())
         @next="nextPage"
       />
     </div>
+
+    <!-- 详情抽屉：只读资料 + 解绑邮箱 / 注销账号（编辑 / 删除类动作一律在此） -->
+    <BaseDrawer title="用户详情" :open="detailOpen" @close="detailOpen = false">
+      <div class="field">
+        <label id="user-brief-label">身份</label>
+        <div class="user-cell" role="group" aria-labelledby="user-brief-label">
+          <img
+            v-if="current?.avatar"
+            :src="resolveImageUrl(current.avatar)"
+            class="avatar"
+            alt=""
+          />
+          <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
+          <span>{{ current?.nickname || '—' }}</span>
+        </div>
+      </div>
+
+      <div class="detail-meta">
+        <DetailMetaRow k="用户 ID" num>#{{ current?.id }}</DetailMetaRow>
+        <DetailMetaRow k="账号">{{ current?.username }}</DetailMetaRow>
+        <div class="meta-row">
+          <span class="meta-key">状态</span>
+          <span class="meta-val">
+            <StatusTag :status="current?.status ?? 'active'" kind="user" />
+          </span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">微信绑定</span>
+          <span class="meta-val">
+            {{ current?.wechatBound ? '已绑定' : '未绑定' }}
+            <span class="muted">（仅布尔标识，不回显 openid）</span>
+          </span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">认证邮箱</span>
+          <span class="meta-val">
+            <template v-if="current?.bindEmail">{{ current.bindEmail }}</template>
+            <span v-else class="muted">未认证</span>
+          </span>
+        </div>
+        <DetailMetaRow k="注册时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
+        <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
+      </div>
+
+      <p class="foot-note">
+        管理端不代改资料（昵称 / 头像由用户本人维护）；可在此禁用 / 启用、解绑认证邮箱或注销账号。
+      </p>
+
+      <template #actions>
+        <template v-if="!isDeleted">
+          <button class="link" type="button" :disabled="isBusy(current?.id)" @click="detailToggle">
+            {{ current?.status === 'disabled' ? '启用' : '禁用' }}
+          </button>
+          <button
+            v-if="current?.bindEmail"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="detailUnbind"
+          >
+            解绑邮箱
+          </button>
+          <button
+            class="link danger"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="detailDelete"
+          >
+            删除账号
+          </button>
+        </template>
+        <button v-else class="btn-secondary" type="button" @click="detailOpen = false">关闭</button>
+      </template>
+    </BaseDrawer>
   </div>
 </template>
 
@@ -242,31 +333,6 @@ onMounted(() => reloadFirstPage())
 }
 .filters .form-input {
   width: 180px;
-}
-/* 主标识列：头像 + 昵称合并为一个单元格（列表页模板 §C2） */
-.user-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-pill);
-  object-fit: cover;
-  display: block;
-  flex: none;
-}
-.avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-soft);
-  color: var(--text-muted);
-}
-.muted {
-  color: var(--text-muted);
-  font-size: var(--font-sm);
 }
 /* 认证列：已认证邮箱（`--font-sm`，颜色随正文默认档） */
 .email {

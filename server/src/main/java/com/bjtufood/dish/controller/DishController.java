@@ -59,7 +59,7 @@ public class DishController {
             description = """
                     用途：首页网格、搜索页。
                     测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-                    参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：全部 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
+                    参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：种子里 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
                     出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
                     """
     )
@@ -72,9 +72,9 @@ public class DishController {
             summary = "首页筛选视图字典",
             description = """
                     用途：首页横向筛选栏数据源。
-                    下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图字典表唯一定义，
-                    端上不得维护任何标签中文映射（端上只认 key + label，回传 view=<key>）。
-                    「按大类取数」的视图做空类自动隐藏（当前无在售菜品即不下发）。
+                    下发可见视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图表唯一定义，
+                    端上不得维护任何标签中文映射（端上只认 id + label，回传 view=<id>）。
+                    空视图自动隐藏（当前无在售菜品匹配即不下发）。
                     公开接口。测试示例：/dishes/views
                     """
     )

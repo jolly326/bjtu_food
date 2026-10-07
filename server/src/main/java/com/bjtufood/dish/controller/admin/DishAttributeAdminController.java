@@ -28,12 +28,14 @@ import java.util.List;
  * A4 菜品属性维度与取值管理（管理端）。
  *
  * <p>契约真源：docs/api/web/dimensions.md（10 个端点）。
- * <p>两条约束：维度 / 取值**被引用不可删**（`400`）；
- * `valueType` 切换自动迁移该维度下菜品的数据形状。
+ * <p>三条约束：维度 / 取值**被引用不可删**（`400`）；
+ * `valueType` 切换自动迁移该维度下菜品的数据形状；**系统维度**（`system = true`，菜品种类）
+ * 不可删、不可改 `valueType`（其取值经 `dish.meal_type_id` 引用）。
  * <p>维度 / 取值**改名免费**（数据锚在 ID）—— 没有「改 ID」的端点。
  */
-@Tag(name = "06. 后台属性维度与取值管理", description = "管理员维护菜品描述属性的维度与取值字典。"
-        + "改名免费（数据锚在维度 ID / 取值 ID）；维度/取值被引用不可删；单多选切换自动迁移数据。需要管理员 token。")
+@Tag(name = "06. 后台属性维度与取值管理", description = "管理员维护菜品属性的维度与取值字典。"
+        + "改名免费（数据锚在维度 ID / 取值 ID）；维度/取值被引用不可删；单多选切换自动迁移数据；"
+        + "系统维度（菜品种类）不可删、取值类型不可改。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/dish-dimensions")
 @RequiredArgsConstructor
@@ -63,7 +65,8 @@ public class DishAttributeAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "修改维度", description = "用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。")
+    @Operation(summary = "修改维度", description = "用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；"
+            + "系统维度（菜品种类）提交不同的取值类型 → 400；不存在 → 4001。")
     @PutMapping("/{dimensionId}")
     public Result<Void> updateDimension(
             @Parameter(description = "维度ID", example = "1") @PathVariable Long dimensionId,
@@ -72,7 +75,8 @@ public class DishAttributeAdminController {
         return Result.success();
     }
 
-    @Operation(summary = "删除维度", description = "用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。")
+    @Operation(summary = "删除维度", description = "用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；"
+            + "**系统维度（菜品种类）恒不可删 → 400**；不存在 → 4001。")
     @DeleteMapping("/{dimensionId}")
     public Result<Void> deleteDimension(
             @Parameter(description = "维度ID", example = "1") @PathVariable Long dimensionId) {

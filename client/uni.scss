@@ -1,16 +1,10 @@
 /* ==========================================================================
- * 食在交大 · uni.scss（占位说明文件，**不是色值真源**）
+ * 知行食记 · uni.scss（占位说明文件，**不是色值真源**）
  *
- * 2026-09-14 拍板（P0-04 / PR-01「口径唯一真源」）：本文件原有的 13 个独有 token
- * （--color-primary / --color-primary-dark / --color-star / --color-success /
- *  --text-quaternary / --text-white-secondary / --bg-glass / --bg-glass-dark /
- *  --blur-material / --font-card / --font-headline / --font-h1 / --icon-sm / --icon-lg）
- * 与权威真源冲突，已**全量删除**（逐一核查确认端上零消费）。
- *
- * 原因：uni-app 编译期会把本文件注入每个组件的 style 作用域，若在此重复声明 token，
- * 会形成「第二套色值真源」——改主色必漏改、组件可能静默取到陈旧值，
- * 违反「色值全站唯一事实源」原则。
- *
+ * ⚠️ **本文件不得声明任何 token**（色值 / 字体 / 圆角 / 阴影一律不进这里）。
+ * 原因：uni-app 编译期会把本文件注入每个组件的 style 作用域，在此重复声明会形成
+ * 「第二套真源」—— 改主色必漏改、组件可能静默取到陈旧值。
+
  * 唯一事实源：
  *   - 色值/尺寸/圆角/动效等全部设计 Token → src/theme/tokens.ts（COLOR_MAP + 原生属性例外常量）
  *   - WXSS 变量声明面 → src/App.vue 的全局 <style> page { ... }（微信 WXSS 不支持 :root）

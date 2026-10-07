@@ -1,8 +1,8 @@
 <template>
   <!-- 加载失败重试块（公共组件，P3-03 上提；UI 统一 Loop Round 13 扩展）
-       原在 my-reviews / notifications / HomeContent / find 四处完整复制（结构 / 文案 / 按压语言 / 无障碍属性一致），
+       四处历史完整复制（结构 / 文案 / 按压语言 / 无障碍属性一致），
        按 §2「多包高频复用者上提 components」收敛为唯一实现。
-       视觉基线：凹陷面 bg-soft + 大圆角 + 次级文字色 + 居中极简行内块。
+       视觉基线：**无底色块**的居中极简列 + 次级文字色（空 / 失败是内容状态，不需要灰底色块）。
        两种交互形态（按 props 自动选择，消费方无需分支）：
          · **整块可点**（默认，`primaryText` / `secondaryText` 都不传）：整块 role="button"，点击 emit('retry')
            —— my-reviews / notifications / HomeContent / find 沿用；
@@ -18,40 +18,30 @@
   <view
     class="retry-block"
     :class="{ 'has-margin': margin, 'is-strong': strong, 'is-tappable': !primaryText && !secondaryText }"
-    :role="!primaryText && !secondaryText ? 'button' : undefined"
+    :role="!primaryText && !secondaryText ? 'button' : 'alert'"
+    aria-live="assertive"
     :aria-label="!primaryText && !secondaryText ? ariaLabel : undefined"
     :hover-class="!primaryText && !secondaryText ? 'pressed' : 'none'"
     @tap="onBlockTap"
   >
     <!-- 图标位：加载中用旋转环替换（纯 CSS 环，零图标依赖） -->
     <view v-if="loading" class="retry-spinner" />
-    <IconSvg v-else name="report" :size="strong ? 96 : 44" :color="COLOR_MAP['text-tertiary']" />
+    <AppIcon v-else name="report" :size="strong ? 96 : 44" :color="COLOR_MAP['text-tertiary']" />
 
     <text class="retry-title">{{ title }}</text>
     <text class="retry-hint">{{ loading ? '正在重新加载…' : hint }}</text>
 
-    <!-- 双 CTA 形态（仅在传了按钮文案时渲染） -->
+    <!-- 双 CTA 形态（仅在传了按钮文案时渲染）：主 = 主色实底，次 = 浅底描边档 -->
     <view v-if="primaryText || secondaryText" class="retry-actions">
-      <view
+      <ContentButton
         v-if="primaryText"
-        class="retry-btn retry-btn--primary"
-        role="button"
-        :aria-label="primaryText"
-        hover-class="pressed"
-        @tap.stop="onPrimaryTap"
-      >
-        <text class="retry-btn-text retry-btn-text--primary">{{ primaryText }}</text>
-      </view>
-      <view
-        v-if="secondaryText"
-        class="retry-btn"
-        role="button"
-        :aria-label="secondaryText"
-        hover-class="pressed"
-        @tap.stop="emit('secondary')"
-      >
-        <text class="retry-btn-text">{{ secondaryText }}</text>
-      </view>
+        :text="primaryText"
+        :loading="loading"
+        :disabled="loading"
+        strong
+        @press.stop="onPrimaryTap"
+      />
+      <ContentButton v-if="secondaryText" :text="secondaryText" @press.stop="emit('secondary')" />
     </view>
   </view>
 </template>
@@ -66,7 +56,8 @@
  *
  * 仅承载失败态展示与事件上抛；重拉路径（含竞态 / 失败态复位 / 在途标记）由各消费方自行持有。
  */
-import IconSvg from './IconSvg.vue'
+import AppIcon from './AppIcon.vue'
+import ContentButton from '@/components/ContentButton.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
@@ -115,6 +106,8 @@ function onPrimaryTap() {
 </script>
 
 <style scoped>
+/* 失败态 = **无底色块**的居中极简列（图标 + 标题 + 副文案 + 可选双 CTA）：
+   空 / 失败是内容状态而非需要「色块」表达的异常，灰底只会在页面里切出一块与内容无关的灰矩形。 */
 .retry-block {
   display: flex;
   flex-direction: column;
@@ -122,8 +115,6 @@ function onPrimaryTap() {
   justify-content: center;
   gap: var(--spacing-xs);
   padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--bg-soft);
-  border-radius: var(--radius-card);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
@@ -159,9 +150,9 @@ function onPrimaryTap() {
 @keyframes retry-spin {
   to { transform: rotate(360deg); }
 }
-/* 尊重系统「减少动态效果」设置 */
+/* 尊重系统「减少动态效果」设置：停止持续旋转（全局基线是保留静态环） */
 @media (prefers-reduced-motion: reduce) {
-  .retry-spinner { animation-duration: 1.6s; }
+  .retry-spinner { animation: none; }
 }
 
 /* ===== 双 CTA 形态 ===== */
@@ -171,19 +162,5 @@ function onPrimaryTap() {
   gap: var(--spacing-md);
   margin-top: var(--spacing-sm);
 }
-.retry-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: var(--tap-target-size);
-  padding: 0 var(--spacing-xl);
-  /* CTA 圆角取全局主按钮档位 `--radius-btn`（24rpx），与 AppButton / EmptyState 同档 */
-  border-radius: var(--radius-btn);
-  background: var(--bg-card);
-  -webkit-tap-highlight-color: transparent;
-}
-.retry-btn--primary { background: var(--color-primary); box-shadow: var(--shadow-float); }
-.retry-btn.pressed { opacity: 0.85; }
-.retry-btn-text { font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-secondary); }
-.retry-btn-text--primary { color: var(--color-on-primary); }
+/* CTA 底色 / 圆角 / 触达 / 在途各档全部由公共 ContentButton 承担 */
 </style>

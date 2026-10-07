@@ -123,6 +123,8 @@
   --font-2xl: 20px;
   --font-3xl: 28px;
   --font-4xl: 32px;
+  /* 行高：详情抽屉等长文本区用舒展行距（§1.15），单行控件不消费 */
+  --line-height-relaxed: 1.6;
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -176,7 +178,7 @@
     /* 语义色实底 / 半透黑底上的文字**恒白**：浅色态同值，不回落深色文字
        （否则 `.btn-danger/-success/-warn:hover` 会成「深字压深色实底」，不可读） */
     --text-white: #ffffff;
-    /* 浅色态显式落地状态色（此前继承深态 #4ADE80/#F87171，实底白字仅 ≈1.7:1 不达标）：
+    /* 浅色态显式落地状态色（直接继承深态会致「实底白字 on 该色」≈1.7:1 不达标）：
        加深后白字 on 该色 ≥5:1（见 设计变量.md §2.5 ③） */
     --color-success: #15803d;
     --color-error: #c81e1e;

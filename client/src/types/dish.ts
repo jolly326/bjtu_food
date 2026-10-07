@@ -86,14 +86,14 @@ export interface MixedResultItem {
 /**
  * 列表查询参数（`GET /dishes`，**完整参数集恰为 5 项**：page / pageSize / keyword / view / seed）。
  *
- * `view` 是**筛选视图键**（值域由 `GET /dishes/views` 下发），**不是**菜品字段 `mealType`：
- * 物理大类只是视图的一种，将来「折扣」等视图按别的口径取数，端上无须改动。
+ * `view` 是**筛选视图 ID**（值域由 `GET /dishes/views` 下发），**不是**菜品字段 `mealTypeId`：
+ * 种类只是视图的一种，将来「折扣」等视图按别的口径取数，端上无须改动。
  * `canteenId` / `minPrice` / `maxPrice` / `sortBy` / `sortOrder` 均不传（筛选与排序由所选视图唯一决定）。
  */
 export interface DishQuery {
   keyword?: string
-  /** 筛选视图键（值取自 `GET /dishes/views` 的 `key`；不传 = 首个启用视图） */
-  view?: string
+  /** 筛选视图 ID（值取自 `GET /dishes/views` 的 `id`；不传 = 首个启用视图） */
+  view?: number
   /**
    * 会话随机种子：端上**冷启动生成一次、会话内恒定**，翻页沿用同一值。
    * 服务端**仅对「推荐类」视图**（sortKind=SEED_RANDOM）且无 keyword 时按
@@ -118,10 +118,12 @@ export interface GuessLike {
 
 /**
  * 首页筛选视图项（`GET /dishes/views`）。
- * 文案 / 顺序 / 子集全由后端下发，**端上不得维护任何中文映射**（只认 `key` + `label`）；
- * `order` 由服务端下发次序表达，端上按数组顺序渲染 ⇒ 按「零消费即删」不进入本类型。
+ * 文案 / 顺序 / 子集全由后端下发，**端上不得维护任何中文映射**（只认 `id` + `label`）；
+ * `order` 由服务端下发次序表达，端上按数组顺序渲染 ⇒ 按「零消费即删」不进入本类型；
+ * 筛选条件与排序口径都存服务端，端上不感知、也不回传。
  */
 export interface DishView {
-  key: string
+  /** 视图 ID（端上选中后原样回传为 `view`） */
+  id: number
   label: string
 }

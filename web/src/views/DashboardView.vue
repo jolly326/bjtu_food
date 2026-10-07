@@ -10,6 +10,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getDashboard } from '@/api/dashboard'
+import { formatDateTime } from '@/utils/datetime'
 import type { DashboardVO, RecentTodoVO } from '@/types/common'
 import { isSessionInvalid } from '@/api/http'
 import StateBox from '@/components/StateBox.vue'
@@ -88,7 +89,7 @@ onMounted(() => load())
               <button class="recent-item" type="button" @click="go(KIND_META[item.kind].to)">
                 <span class="tag recent-kind">{{ KIND_META[item.kind].label }}</span>
                 <span class="ellipsis recent-text" :title="item.title">{{ item.title }}</span>
-                <span class="recent-time">{{ item.submittedAt }}</span>
+                <span class="recent-time">{{ formatDateTime(item.submittedAt) }}</span>
               </button>
             </li>
           </ul>

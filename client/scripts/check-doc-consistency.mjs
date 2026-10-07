@@ -21,11 +21,25 @@ const STRICT = process.argv.includes('--strict')
 const MAX_PRINT = 200
 
 // 「还原为」含「原为」子串，用负向后顾排除该误报
-const RESIDUAL_BASE = [/(?<!还)原为/, /原先/, /此前/, /已作废/, /已下线/, /已于/, /project_spec/]
+// ⚠️ 决策留痕类措辞同样禁止（「原声明在别处」「绕过真源」等回溯叙述的变体）
+// ⚠️ 日期戳（20\d\d-\d\d-\d\d）：文档与注释都只描述「现在是什么」，修订日期一律不进正文
+const RESIDUAL_BASE = [
+  /(?<!还)原为/
+  , /原先/
+  , /此前/
+  , /已作废/
+  , /已下线/
+  , /已于/
+  , /project_spec/
+  , /原声明/
+  , /\\b20\\d\\d-\\d\\d-\\d\\d\\b/
+]
 const PATTERNS = STRICT ? [...RESIDUAL_BASE, /已删除/, /不再/, /改为/] : RESIDUAL_BASE
 
-const SCAN_DIRS = ['docs', 'client/src', 'server/src', 'web/src']
-const SCAN_EXTS = new Set(['.md', '.ts', '.vue', '.java'])
+// client/uni.scss 纳入扫描：uni-app 编译期把它注入每个组件的 style 作用域，是色值真源的红线重灾区。
+// ⚠️ client/scripts **不自扫** —— 门禁脚本按定义含全部检索词，自指必然全命中。
+const SCAN_DIRS = ['docs', 'client/src', 'client/uni.scss', 'server/src', 'web/src']
+const SCAN_EXTS = new Set(['.md', '.ts', '.vue', '.java', '.mjs', '.scss', '.css'])
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'target', '.git', 'generated', 'logs', 'unpackage'])
 
 const allowPath = join(ROOT, 'client/scripts/doc-consistency-allow.txt')

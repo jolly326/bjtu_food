@@ -7,6 +7,7 @@ import com.bjtufood.banner.entity.Banner;
 import com.bjtufood.banner.mapper.BannerMapper;
 import com.bjtufood.banner.service.impl.BannerServiceImpl;
 import com.bjtufood.canteen.dto.CanteenAdminVO;
+import com.bjtufood.canteen.dto.CanteenSaveReq;
 import com.bjtufood.canteen.entity.Canteen;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
@@ -112,13 +113,20 @@ class ThinServicesTest {
 
     // ==================== CanteenServiceImpl ====================
 
+    /** 写入 DTO 最小构造：只填必填的名称（其余字段缺省 = 保持原值） */
+    private static CanteenSaveReq namedReq(String name) {
+        CanteenSaveReq req = new CanteenSaveReq();
+        req.setName(name);
+        return req;
+    }
+
     @Test
     @DisplayName("canteen.update：id 为 null → 抛业务异常，且不触碰数据库（防无主更新）")
     void updateWithoutIdIsRejected() {
         CanteenMapper canteenMapper = mock(CanteenMapper.class);
 
         assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
-                mock(ImageUrlUtil.class)).update(null, "第一食堂"))
+                mock(ImageUrlUtil.class)).update(null, namedReq("第一食堂")))
                 .isInstanceOf(BusinessException.class);
         verify(canteenMapper, never()).updateById(any());
     }
@@ -132,7 +140,7 @@ class ThinServicesTest {
         when(canteenMapper.updateById(any())).thenReturn(0);
 
         assertThatThrownBy(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
-                mock(ImageUrlUtil.class)).update(9L, "第一食堂"))
+                mock(ImageUrlUtil.class)).update(9L, namedReq("第一食堂")))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -144,7 +152,7 @@ class ThinServicesTest {
         when(canteenMapper.updateById(any())).thenReturn(1);
 
         assertThatCode(() -> new CanteenServiceImpl(canteenMapper, mock(StallMapper.class),
-                mock(ImageUrlUtil.class)).update(1L, "第一食堂"))
+                mock(ImageUrlUtil.class)).update(1L, namedReq("第一食堂")))
                 .doesNotThrowAnyException();
     }
 

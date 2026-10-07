@@ -1,8 +1,9 @@
 <template>
-  <!-- 搜索结果菜品卡（页内私有；UI 统一 Loop Round 21 按用户规格设计，Round 21b 由 DishResultRow 更名）：
-       横向 flex = 左「正方形图片」+ 右「纵向三行信息」，整卡可点跳菜品详情。
-       · 卡片：白底 --bg-card + 大圆角 --radius-card + 柔和轻阴影 --shadow-card，内边距统一 --spacing-md；
-       · 左图：固定 160rpx 正方形，aspectFill 铺满（即容器内居中），无图 → 餐具占位图标（dish）；
+  <!-- 搜索结果菜品条目（页内私有；UI 统一 Loop Round 21 按用户规格设计，Round 21b 由 DishResultRow 更名）：
+        横向 flex = 左「正方形图片」+ 右「纵向三行信息」，整条可点跳菜品详情。
+        · 极简无卡片：**每条结果各自一块 `.module-wrap`**（暖奶米半透 + 圆角 + 极淡暖棕阴影），
+          只包裹这一条菜品信息；条目之间靠列表容器（find/index 的 `.mixed-list`）的 flex gap 留白分组。
+        · 左图：固定 160rpx 正方形，aspectFill 铺满（即容器内居中），无图 → 统一占位（`ImagePlaceholder`）；
        · 右信息：flex:1 且 align-self:stretch（上下边界与左图对齐），三行**垂直居中**（justify-content:center），
          行距 --spacing-sm ——
          ① 菜名（两行省略、命中**加粗**）；
@@ -13,7 +14,7 @@
        ⚠️ 卡间纵向间距由列表容器（find/index 的 .mixed-list）用 flex gap 承担 —— 本组件不用 `+` 兄弟选择器
        （mp-weixin WXSS 不保证支持，见 find/index 样式区登记）。 -->
   <view
-    class="dish-result-card"
+    class="dish-result-card module-wrap"
     role="button"
     :aria-label="`查看 ${item.name}`"
     hover-class="card-pressed"
@@ -64,7 +65,7 @@
       <view class="meta-row">
         <view class="rating-group">
           <!-- 星色 = 独立语义色（黄），不随主色换肤；必须传实色（data-uri 不解析 var()） -->
-          <IconSvg name="star-filled" :size="36" :color="COLOR_MAP['star']" class="rating-star" />
+          <AppIcon name="star-filled" :size="36" :color="COLOR_MAP['star']" class="rating-star" />
           <text class="rating-num">{{ formatRating(item.rating) }}</text>
         </view>
         <view v-if="item.price != null" class="price-group">
@@ -78,9 +79,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
-// 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
+// 星色须传**实色**：AppIcon 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 import { formatPrice } from '@/utils/money'
 import { getThumbImageUrl as thumbSrc } from '@/utils/image'
@@ -136,20 +137,15 @@ function onTap() {
 </script>
 
 <style scoped>
-/* 卡片：白底 + 大圆角 + 柔和轻阴影；内边距统一 --spacing-md。 */
+/* 极简无卡片：底色 / 圆角 / 阴影 / 内距全部由全局 `.module-wrap` 承担，本类只负责内部排版 */
 .dish-result-card {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-/* 整卡按压反馈：底色加深一档（bg-soft），与全站按压语言一致 */
+/* 整条按压反馈：底色加深一档（bg-soft），与全站按压语言一致 */
 .dish-result-card.card-pressed { background: var(--bg-soft); }
 /* 注：卡间纵向间距由列表容器（find/index .mixed-list）的 flex gap 承担 ——
    本组件不用 `+` 兄弟选择器（mp-weixin WXSS 不保证支持，见 find/index 样式区登记）。 */
@@ -207,7 +203,7 @@ function onTap() {
    评分组不渲染时价格仍靠右（price-group margin-left:auto） */
 .meta-row { display: flex; align-items: center; gap: var(--spacing-sm); }
 .rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
-/* 星图标宿主节点（<icon-svg> 自定义组件，未开 virtualHost）显式定为 36rpx 方形 flex 盒 ⇒
+/* 星图标宿主节点（<AppIcon> 自定义组件，未开 virtualHost）显式定为 36rpx 方形 flex 盒 ⇒
    内部图标在宿主内精确居中，与行盒/基线解耦（同 SearchBar .search-bar-icon 的 Round 20b 方案；
    否则星与数字会随继承字体度量上下错位 —— Round 21c 实测）。 */
 .rating-star {

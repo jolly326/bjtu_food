@@ -12,6 +12,9 @@ import vue from "@vitejs/plugin-vue";
  * <p>`@` → `src` 的 alias 必须与主配置保持一致，否则 `import '@/utils/x'` 无法解析。
  * 这里重复声明而非 import 主配置：import 即会连带执行 `uni()`。
  *
+ * <p>测试统一放 `tests/`（与 `src/` 分离，对齐后端 `src/main` vs `src/test` 范式）；
+ * `@` → `src` 的alias 让用例只按模块身份引用被测对象，不依赖与源码的相对位置。
+ *
  * <p>**两档环境**（用 `// @vitest-environment` 逐文件切换，默认 node）：
  * <ul>
  *   <li><b>node</b>（默认）：纯逻辑（utils / composables / stores / 纯 TS 模块），零 DOM 成本；</li>
@@ -30,6 +33,6 @@ export default defineConfig({
   test: {
     // 默认 node：组件测试文件自行用 `// @vitest-environment happy-dom` 覆盖
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["tests/**/*.test.ts"],
   },
 });

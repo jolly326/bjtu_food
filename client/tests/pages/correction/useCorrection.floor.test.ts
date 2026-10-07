@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { FLOOR_OPTIONS } from './useCorrection'
+import { FLOOR_OPTIONS } from '@/pages/correction/useCorrection'
 
 /**
  * 楼层受控字典回归测试。

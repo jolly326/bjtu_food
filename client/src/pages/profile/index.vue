@@ -5,16 +5,18 @@
     <Header title="个人信息" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <view class="info-card">
+      <!-- 极简无卡片：信息区收进**一块** `.module-wrap`（暖奶米半透，规格由全局类承担）；
+           行与行之间**不设分割线**，靠留白区分。昵称行的底线是**输入控件自身边界**，予以保留。 -->
+      <view class="info-card module-wrap">
         <!-- 头像 -->
-        <view class="info-row info-tappable" hover-class="pressed" @tap="changeAvatar">
+        <view class="info-row info-tappable" hover-class="pressed" role="button" aria-label="更换头像" @tap="changeAvatar">
           <text class="info-label">头像</text>
           <view class="avatar-wrap">
             <image v-if="avatar" :src="getThumbImageUrl(avatar)" class="avatar" :class="{ uploading: avatarUploading }" />
             <view v-else class="avatar" :class="{ uploading: avatarUploading }">
               <ImagePlaceholder name="user" :size="52" />
             </view>
-            <IconSvg name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="row-arrow" />
+            <AppIcon name="arrow" :size="28" :color="COLOR_MAP['text-tertiary']" class="row-arrow" />
           </view>
         </view>
 
@@ -24,6 +26,8 @@
           <input
             v-model="nickname"
             class="nickname-input"
+            aria-label="昵称"
+            :aria-required="true"
             placeholder="请输入昵称"
             maxlength="20"
             placeholder-class="input-placeholder"
@@ -53,14 +57,14 @@ import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { getThumbImageUrl } from '@/utils/image'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
-import { uploadUgcImage } from '@/api/upload'
+import { uploadAvatarImage } from '@/api/upload'
 import { backToHome } from '@/utils/back'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppButton from '@/components/AppButton.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
-// 图标色须传**实色**（IconSvg 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
+// 图标色须传**实色**（AppIcon 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 import { EMPTY_FIELD_TEXT } from '@/constants/copy'
 
@@ -120,7 +124,7 @@ function changeAvatar() {
     success: async (res) => {
       avatarUploading.value = true
       try {
-        const { url } = await uploadUgcImage(res.tempFilePaths[0])
+        const { url } = await uploadAvatarImage(res.tempFilePaths[0])
         if (!url) throw new Error('上传失败，请重试')
         avatar.value = url
         // MP-003：上传仅写本地态，落库需点「保存」，文案避免误导已保存
@@ -159,28 +163,31 @@ async function save() {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .profile-edit-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.profile-edit-page { min-height: 0; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口）通常 **大于** `100dvh`（当前视口）；二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
 /* Round 26 修复：① 补 `min-height: 0` —— flex 子项默认 `min-height: auto` ⇒ 不收缩 ⇒ 内容把容器撑高 ⇒
    与页根形成双层滚动（多余滚动 + 底部空白）；② 去掉 `overflow-y: auto` —— 本容器是 `scroll-view`，
    滚动由组件内部实现，外挂 CSS 只会在 H5 叠出第二根滚动条。 */
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
-/* 信息卡：inset 分组卡（Apple 列表分组风格）
-   圆角归档到**全站卡片档** `--radius-card`(24rpx)。 */
+/* 信息模块：底色 / 圆角 / 阴影 / 内距由全局 `.module-wrap` 承担。
+   行间**不设分割线**，改用 flex gap 留白区分（昵称行除外 —— 它的底线是输入控件自身边界）。 */
 .info-card {
   margin: 0 var(--page-gutter);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
 }
 .info-row {
   display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
-  border-bottom: 1rpx solid var(--border-color);
+  padding: var(--spacing-sm) 0;
   transition: background-color var(--duration-fast) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
-.info-row:last-child { border-bottom: none; }
 /* 可改行（昵称）：全站表单**下划线语言** —— 本行 1rpx 底线即输入项底线，聚焦转主色 */
+.info-row--field { border-bottom: 1rpx solid var(--border-color); }
 .info-row--field.is-focused { border-bottom-color: var(--color-primary); }
 /* 可点行（头像）按压反馈：走 hover-class="pressed"，底色语言同「我的」页列表行 */
 .info-row.info-tappable.pressed { background-color: var(--bg-soft); opacity: 1; }
@@ -198,13 +205,13 @@ async function save() {
 .info-value { font-size: var(--font-body); color: var(--text-secondary); }
 /* 邮箱较长：允许右对齐但自动换行不溢出 */
 .info-value-email { max-width: 62%; text-align: right; word-break: break-all; }
-/* 保存按钮：固定底部（与其他表单页一致） */
+/* 保存按钮：固定底部（与其他表单页一致）。底色取暖奶米半透档
+   （`--module-bg-strong`，此处需托住滚动内容故比页面模块略实）；不设顶部分割线，靠上投影分隔。 */
 .submit-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-action-bar);
   padding: var(--spacing-md);
   padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  background: var(--bg-card);
-  border-top: 1rpx solid var(--border-color);
+  background: var(--module-bg-strong);
   box-shadow: var(--shadow-bar-soft);
 }
 </style>

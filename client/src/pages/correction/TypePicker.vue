@@ -20,7 +20,7 @@
       </view>
       <!-- 选中标识：右侧对勾（与楼层弹层同口径 —— 「已选」不靠底色单独表达，
            色觉障碍 / 低亮度下仍可辨） -->
-      <IconSvg v-if="opt.value === modelValue" name="check" :size="28" :color="COLOR_MAP['primary-text']" />
+      <AppIcon v-if="opt.value === modelValue" name="check" :size="28" :color="COLOR_MAP['primary-text']" />
     </view>
   </view>
 </template>
@@ -36,7 +36,7 @@
  *
  * <p>**只两项**：「其他问题」MVP 暂不做（评审问题 1 决议 5.2 · 决定 4）。
  */
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { PROBLEM_TYPES } from './problemTypes'
 import type { DishProblemType } from '@/types/feedback'
@@ -79,7 +79,7 @@ function onPick(value: DishProblemType) {
   min-height: var(--tap-target-size);
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-sm);
-  background: var(--bg-card);
+  background: var(--module-bg);
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-card);
   box-sizing: border-box;

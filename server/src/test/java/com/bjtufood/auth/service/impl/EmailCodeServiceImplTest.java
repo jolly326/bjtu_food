@@ -258,9 +258,7 @@ class EmailCodeServiceImplTest {
         String body = (String) sent.getContent();
         // 品牌口径：学生端「知行食记」+ 端上已裁决副标题（逐字对齐 client/src/pages/mine/index.vue）
         assertThat(body).contains("知行食记").contains("北京交通大学 · 校园美食分享圈");
-        // ⚠️ 反向护栏：收件人是学生，管理后台品牌「食在交大」或后端技术名「校园食堂信息系统」
-        // 一旦泄漏进正文，会被当成陌生来源的钓鱼邮件——2026-10-03 曾发生此误，故显式禁止。
-        assertThat(body).doesNotContain("食在交大");
+        // ⚠️ 反向护栏：收件人是学生，后端技术名一旦泄漏进正文，会被当成陌生来源的钓鱼邮件，故显式禁止。
         assertThat(body).doesNotContain("校园食堂信息系统");
         // 文本块靠「内容行与结束分隔符缩进对齐」剥离前导空白（incidental whitespace）：
         // 二者错位时每行都会带前导空格并原样进入邮件正文，首行精确断言即该退化的护栏。

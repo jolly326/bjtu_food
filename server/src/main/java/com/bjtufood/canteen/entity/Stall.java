@@ -55,11 +55,7 @@ public class Stall {
     @Schema(description = "排序权重")
     private Integer sortOrder;
 
-    @TableField(fill = FieldFill.INSERT)
-    @Schema(description = "创建时间")
-    private LocalDateTime createdAt;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    /** 更新时间（DB 时钟：UPDATE 由 `ON UPDATE CURRENT_TIMESTAMP` 维护，应用层不写、不填充） */
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
 }

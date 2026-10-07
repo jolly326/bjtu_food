@@ -41,7 +41,7 @@ export interface paths {
   "/admin/stalls/{id}": {
     /**
      * 编辑档口
-     * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。floor / windowNo 缺省 = 保持原值，windowNo 空串 = 清空。
+     * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images / sortOrder 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
      */
     put: operations["updateStall"];
     /**
@@ -117,9 +117,14 @@ export interface paths {
   "/admin/dish-views/{id}": {
     /**
      * 修改视图
-     * @description 用途：改**文案 / 启停**。停用「最后一个启用的视图」→ 400；不存在 → 4001。
+     * @description 用途：改**文案 / 启停 / 筛选条件 / 排序口径**（四字段整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
      */
     put: operations["update"];
+    /**
+     * 删除视图
+     * @description 用途：删除 tab（从下发集合移除）。删除「最后一个启用的视图」→ 400；不存在 → 4001。
+     */
+    delete: operations["delete_1"];
   };
   "/admin/dish-views/sort": {
     /**
@@ -131,12 +136,12 @@ export interface paths {
   "/admin/dish-dimensions/{dimensionId}": {
     /**
      * 修改维度
-     * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
+     * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；系统维度（菜品种类）提交不同的取值类型 → 400；不存在 → 4001。
      */
     put: operations["updateDimension"];
     /**
      * 删除维度
-     * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
+     * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；**系统维度（菜品种类）恒不可删 → 400**；不存在 → 4001。
      */
     delete: operations["deleteDimension"];
   };
@@ -173,6 +178,13 @@ export interface paths {
      */
     put: operations["rename_1"];
   };
+  "/admin/dish-categories/sort": {
+    /**
+     * 分类值排序
+     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+     */
+    put: operations["sort_2"];
+  };
   "/admin/corrections/{id}": {
     /**
      * 问题反馈详情
@@ -188,7 +200,7 @@ export interface paths {
   "/admin/canteens/{id}": {
     /**
      * 编辑食堂
-     * @description 用途：修改食堂名称（新名重名 → 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
+     * @description 用途：修改食堂信息（name + location / description / images / sortOrder；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
      */
     put: operations["updateCanteen"];
     /**
@@ -207,7 +219,7 @@ export interface paths {
      * 删除 Banner
      * @description 用途：删除轮播图；不存在 → 4001。
      */
-    delete: operations["delete_1"];
+    delete: operations["delete_2"];
   };
   "/admin/banners/{id}/status": {
     /**
@@ -221,7 +233,7 @@ export interface paths {
      * Banner 排序
      * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
      */
-    put: operations["sort_2"];
+    put: operations["sort_3"];
   };
   "/upload/cloud-image": {
     /**
@@ -324,7 +336,7 @@ export interface paths {
     get: operations["listStalls"];
     /**
      * 新增档口
-     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体只接收 canteenId / name / floor / windowNo（StallSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
+     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images / sortOrder）—— 时间列与派生统计不在写入面内。
      */
     post: operations["createStall"];
   };
@@ -359,6 +371,18 @@ export interface paths {
      */
     post: operations["copyDish"];
   };
+  "/admin/dish-views": {
+    /**
+     * 视图列表
+     * @description 用途：视图管理页（按 order 升序，不分页）；带 conditions / sortKind 与 matchedCount（当前匹配的在售菜品数）。
+     */
+    get: operations["list_3"];
+    /**
+     * 新建视图
+     * @description 用途：新建 tab（默认启用、排最后）。条件由白名单字段 / 操作符 / 取值 ID 组成；`[]` = 不筛选。
+     */
+    post: operations["create_1"];
+  };
   "/admin/dish-dimensions": {
     /**
      * 维度列表
@@ -386,14 +410,14 @@ export interface paths {
   "/admin/dish-categories": {
     /**
      * 分类值列表
-     * @description 用途：分类值维护入口（按 order 升序，不分页）；带 dishCount（引用该分类的菜品数）。
+     * @description 用途：分类（种类）维护入口（按 order 升序，不分页）；带 dishCount（引用该种类的菜品数）。
      */
     get: operations["list_4"];
     /**
      * 登记分类值
-     * @description 用途：登记新分类值。`key` 选填（缺省由后端自动生成；填了则须为 1~20 小写字母/数字/- 且唯一）；名 1~32 字、应用层唯一。
+     * @description 用途：登记新种类取值。取值的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、同维度下唯一。
      */
-    post: operations["create_1"];
+    post: operations["create_2"];
   };
   "/admin/corrections/{id}/adopt": {
     /**
@@ -410,7 +434,7 @@ export interface paths {
     get: operations["listCanteens"];
     /**
      * 新增食堂
-     * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
+     * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内。
      */
     post: operations["createCanteen"];
   };
@@ -424,7 +448,7 @@ export interface paths {
      * 新增 Banner
      * @description 用途：新增轮播图（默认**启用**、排最后）。
      */
-    post: operations["create_2"];
+    post: operations["create_3"];
   };
   "/admin/auth/login": {
     /**
@@ -466,7 +490,7 @@ export interface paths {
      * 菜品分页查询
      * @description 用途：首页网格、搜索页。
      * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-     * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：全部 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
+     * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：种子里 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
      * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
      */
     get: operations["listDishes"];
@@ -499,9 +523,9 @@ export interface paths {
     /**
      * 首页筛选视图字典
      * @description 用途：首页横向筛选栏数据源。
-     * 下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图字典表唯一定义，
-     * 端上不得维护任何标签中文映射（端上只认 key + label，回传 view=<key>）。
-     * 「按大类取数」的视图做空类自动隐藏（当前无在售菜品即不下发）。
+     * 下发可见视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图表唯一定义，
+     * 端上不得维护任何标签中文映射（端上只认 id + label，回传 view=<id>）。
+     * 空视图自动隐藏（当前无在售菜品匹配即不下发）。
      * 公开接口。测试示例：/dishes/views
      */
     get: operations["listDishViews"];
@@ -543,13 +567,6 @@ export interface paths {
      * @description ADM。B2 意见反馈与 B3 举报管理**共用本端点**，用 category 分流（feedback = 排除 report；report = 仅 report；不传 = 全部）；再按 status/type/userId/keyword 过滤。
      */
     get: operations["list_2"];
-  };
-  "/admin/dish-views": {
-    /**
-     * 视图列表
-     * @description 用途：视图管理页（按 order 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
-     */
-    get: operations["list_3"];
   };
   "/admin/dashboard": {
     /**
@@ -693,7 +710,7 @@ export interface components {
        */
       status: string;
     };
-    /** @description 档口新增 / 修改请求 */
+    /** @description 档口新增 / 编辑请求 */
     StallSaveReq: {
       /**
        * Format: int64
@@ -716,6 +733,21 @@ export interface components {
        * @example 3号窗口
        */
       windowNo?: string;
+      /**
+       * @description 档口位置（≤128 字；缺省 = 保持原值，空串 = 清空）
+       * @example 二层东侧
+       */
+      location?: string;
+      /** @description 档口描述（≤512 字；缺省 = 保持原值，空串 = 清空） */
+      description?: string;
+      /** @description 档口图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
+      images?: string[];
+      /**
+       * Format: int32
+       * @description 排序权重（升序，越小越靠前；缺省 = 保持原值）
+       * @example 10
+       */
+      sortOrder?: number;
     };
     /** @description 举报原因改名请求 */
     ReportReasonRenameReq: {
@@ -824,7 +856,7 @@ export interface components {
        */
       images?: string[];
       /**
-       * @description 描述属性（键=维度 ID，值=取值 ID 或中文文本/数组；可空）
+       * @description 描述属性（键=描述维度 ID，值=取值 ID 或中文文本/数组；可空）
        * @example {
        *   "1": 2,
        *   "2": [
@@ -842,7 +874,7 @@ export interface components {
       };
       /**
        * Format: int64
-       * @description 菜品分类 ID（值域 = 分类值字典 /admin/dish-categories；必须存在，否则 400；不传 = 不修改）
+       * @description 菜品种类 ID（值域 = 种类字典 /admin/dish-categories；必须属于系统维度（菜品种类），否则 400；不传 = 不修改）
        * @example 3
        */
       mealTypeId?: number;
@@ -860,6 +892,26 @@ export interface components {
        */
       status: string;
     };
+    /** @description 视图筛选条件项 */
+    DishViewCondition: {
+      /**
+       * @description 条件字段（白名单：mealTypeId/discount/price/stallId/canteenId/avgRating/createdAt）
+       * @example mealTypeId
+       */
+      field?: string;
+      /**
+       * @description 操作符（白名单，随字段而定：= / in / isTrue / between / >= / <= / withinDays）
+       * @example =
+       */
+      op?: string;
+      /**
+       * @description 单值（`= / >= / <= / withinDays` 用；between 时为下界）
+       * @example 3
+       */
+      value?: string;
+      /** @description 多值（`in` 用；`between` 时为 [下界, 上界]） */
+      values?: string[];
+    };
     /** @description 筛选视图修改请求 */
     DishViewUpdateReq: {
       /**
@@ -869,6 +921,13 @@ export interface components {
       label: string;
       /** @description 是否在 client 首页出现（停用 = tab 隐藏） */
       enabled: boolean;
+      /** @description 筛选条件（AND；[] = 不筛选） */
+      conditions: components["schemas"]["DishViewCondition"][];
+      /**
+       * @description 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest）
+       * @example random
+       */
+      sortKind: string;
     };
     /** @description 属性维度保存请求 */
     DishDimensionSaveReq: {
@@ -891,7 +950,7 @@ export interface components {
        */
       label: string;
     };
-    /** @description 分类值重命名请求 */
+    /** @description 菜品种类取值重命名请求 */
     DishCategoryRenameReq: {
       /**
        * @description 分类中文名（1~32 字；分类名唯一）
@@ -917,13 +976,28 @@ export interface components {
        */
       rejectReason: string;
     };
-    /** @description 食堂新增 / 改名请求 */
+    /** @description 食堂新增 / 编辑请求 */
     CanteenSaveReq: {
       /**
        * @description 食堂名称（1~64 字；全站唯一，重名 400）
        * @example 第一食堂
        */
       name: string;
+      /**
+       * @description 食堂位置（≤128 字；缺省 = 保持原值，空串 = 清空）
+       * @example 学苑路 3 号
+       */
+      location?: string;
+      /** @description 食堂描述（≤512 字；缺省 = 保持原值，空串 = 清空） */
+      description?: string;
+      /** @description 食堂图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
+      images?: string[];
+      /**
+       * Format: int32
+       * @description 排序权重（升序，越小越靠前；缺省 = 保持原值）
+       * @example 10
+       */
+      sortOrder?: number;
     };
     /** @description Banner 保存请求 */
     BannerSaveReq: {
@@ -1215,11 +1289,6 @@ export interface components {
       sortOrder?: number;
       /**
        * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
        * @description 更新时间
        */
       updatedAt?: string;
@@ -1346,7 +1415,7 @@ export interface components {
        */
       canteenName?: string;
       /**
-       * @description 描述属性（键=维度 ID，值=中文文本/数组）
+       * @description 描述属性（键=描述维度 ID，值=中文文本/数组）
        * @example {
        *   "1": "半荤",
        *   "2": [
@@ -1364,7 +1433,7 @@ export interface components {
       };
       /**
        * Format: int64
-       * @description 菜品分类 ID（值域 = 分类值字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）
+       * @description 菜品种类 ID（值域 = 种类字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）
        * @example 3
        */
       mealTypeId?: number;
@@ -1397,6 +1466,73 @@ export interface components {
        */
       name: string;
     };
+    /** @description 筛选视图新建请求 */
+    DishViewCreateReq: {
+      /**
+       * @description tab 文案（1~32 字）
+       * @example 面食粉类
+       */
+      label: string;
+      /** @description 筛选条件（AND；缺省 / [] 均表示不筛选） */
+      conditions?: components["schemas"]["DishViewCondition"][];
+      /**
+       * @description 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest）
+       * @example random
+       */
+      sortKind: string;
+    };
+    /** @description 管理端筛选视图出参 */
+    DishViewAdminVO: {
+      /**
+       * Format: int64
+       * @description 视图ID（端上回传 view=<id>）
+       */
+      id?: number;
+      /**
+       * @description tab 文案
+       * @example 面食粉类
+       */
+      label?: string;
+      /**
+       * Format: int32
+       * @description 展示顺序（升序）
+       */
+      order?: number;
+      /** @description 是否在 client 首页出现 */
+      enabled?: boolean;
+      /** @description 筛选条件（AND；[] = 不筛选） */
+      conditions?: components["schemas"]["DishViewCondition"][];
+      /**
+       * @description 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest）
+       * @example random
+       */
+      sortKind?: string;
+      /**
+       * Format: int64
+       * @description 当前匹配的在售菜品数
+       */
+      matchedCount?: number;
+      /**
+       * Format: date-time
+       * @description 更新时间
+       */
+      updatedAt?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultDishViewAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishViewAdminVO"];
+    };
     /** @description 管理端属性维度出参 */
     DishDimensionAdminVO: {
       /**
@@ -1411,6 +1547,8 @@ export interface components {
       name?: string;
       /** @description 取值类型：single / multi */
       valueType?: string;
+      /** @description 是否系统维度（true = 菜品种类：取值类型不可改、维度不可删） */
+      system?: boolean;
       /**
        * Format: int32
        * @description 展示顺序（升序）
@@ -1495,44 +1633,34 @@ export interface components {
       message?: string;
       data?: components["schemas"]["DishValueAdminVO"];
     };
-    /** @description 分类值登记请求 */
+    /** @description 菜品种类取值登记请求 */
     DishCategorySaveReq: {
       /**
-       * @description 分类键（选填；小写字母 / 数字 / -，1~20；全站唯一；缺省自动生成）
-       * @example noodle
-       */
-      key?: string;
-      /**
-       * @description 分类中文名（1~32 字；分类名唯一）
+       * @description 种类中文名（1~32 字；同维度下唯一）
        * @example 面食粉类
        */
       label: string;
     };
-    /** @description 管理端分类值出参 */
+    /** @description 管理端菜品种类取值出参 */
     DishCategoryAdminVO: {
       /**
        * Format: int64
-       * @description 分类ID
+       * @description 取值ID（= dish.meal_type_id 的存储值）
        */
       id?: number;
       /**
-       * @description 分类键（dish.meal_type 的存储值；视图条件引用它；在用后不可改）
-       * @example noodle
-       */
-      key?: string;
-      /**
-       * @description 分类中文名（可改，改名免费）
+       * @description 种类中文名（可改，改名免费）
        * @example 面食粉类
        */
       label?: string;
       /**
        * Format: int32
-       * @description 顺序（后台下拉 / 列表展示序）
+       * @description 组内展示顺序
        */
       order?: number;
       /**
        * Format: int64
-       * @description 引用该分类的菜品数（删除前判断）
+       * @description 引用该种类的菜品数（删除前判断）
        */
       dishCount?: number;
       /**
@@ -1625,11 +1753,6 @@ export interface components {
        * @description 排序权重
        */
       sortOrder?: number;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
       /**
        * Format: date-time
        * @description 更新时间
@@ -1881,10 +2004,11 @@ export interface components {
        */
       keyword?: string;
       /**
-       * @description 筛选视图键（值域见 GET /dishes/views；白名单校验，非法值 400；空 = 首个启用视图）
-       * @example noodle
+       * Format: int64
+       * @description 筛选视图 ID（值域见 GET /dishes/views；白名单校验，非法值 400；空 = 首个启用视图）
+       * @example 2
        */
-      view?: string;
+      view?: number;
       /**
        * @description 推荐流会话随机种子（可选；仅「推荐」类视图（sortKind=SEED_RANDOM）且无 keyword 时参与排序，服务端按 CRC32(seed:ID) 稳定伪随机序；其余视图忽略本参数、按各自排序口径）
        * @example m3k9x7q2
@@ -2130,10 +2254,11 @@ export interface components {
     /** @description 首页筛选视图项 */
     DishViewVO: {
       /**
-       * @description 视图键（端上回传 view=<key> 用于筛选）
-       * @example noodle
+       * Format: int64
+       * @description 视图ID（端上回传 view=<id> 用于筛选）
+       * @example 2
        */
-      key?: string;
+      id?: number;
       /**
        * @description 中文标签（端上直接渲染）
        * @example 面食粉类
@@ -2512,12 +2637,12 @@ export interface components {
       coverImage?: string;
       /**
        * Format: int64
-       * @description 分类值 ID（值域 = 分类值字典 /admin/dish-categories）
+       * @description 种类取值 ID（值域 = 种类字典 /admin/dish-categories）
        * @example 3
        */
       mealTypeId?: number;
       /**
-       * @description 分类中文名（A6 分类值字典派生，端上零硬编码）
+       * @description 种类中文名（A6 种类字典派生，端上零硬编码）
        * @example 面食粉类
        */
       mealTypeLabel?: string;
@@ -2557,41 +2682,6 @@ export interface components {
        */
       message?: string;
       data?: components["schemas"]["AdminPageResultDishAdminListItemVO"];
-    };
-    /** @description 管理端筛选视图出参 */
-    DishViewAdminVO: {
-      /**
-       * Format: int64
-       * @description 视图ID
-       */
-      id?: number;
-      /**
-       * @description 视图键（端上回传 view=<key>；在用后不可改）
-       * @example noodle
-       */
-      key?: string;
-      /**
-       * @description tab 文案
-       * @example 面食粉类
-       */
-      label?: string;
-      /**
-       * Format: int32
-       * @description 展示顺序（升序）
-       */
-      order?: number;
-      /** @description 是否在 client 首页出现 */
-      enabled?: boolean;
-      /**
-       * Format: int64
-       * @description 当前匹配的在售菜品数
-       */
-      matchedCount?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
     };
     /** @description 统一响应结果 */
     ResultListDishViewAdminVO: {
@@ -2677,7 +2767,7 @@ export interface components {
       dishesWithoutStall?: number;
       /**
        * Format: int64
-       * @description 分类为空的菜品数（meal_type 为空）
+       * @description 种类为空的菜品数（meal_type_id 为空）
        */
       dishesWithoutCategory?: number;
       /**
@@ -3257,7 +3347,7 @@ export interface operations {
   };
   /**
    * 编辑档口
-   * @description 用途：修改档口基础信息（canteenId / name / floor / windowNo）。同食堂下重名 → 400；floor 不在楼层字典 → 400。floor / windowNo 缺省 = 保持原值，windowNo 空串 = 清空。
+   * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images / sortOrder 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
    */
   updateStall: {
     parameters: {
@@ -3847,7 +3937,7 @@ export interface operations {
   };
   /**
    * 修改视图
-   * @description 用途：改**文案 / 启停**。停用「最后一个启用的视图」→ 400；不存在 → 4001。
+   * @description 用途：改**文案 / 启停 / 筛选条件 / 排序口径**（四字段整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
    */
   update: {
     parameters: {
@@ -3862,6 +3952,53 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["DishViewUpdateReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除视图
+   * @description 用途：删除 tab（从下发集合移除）。删除「最后一个启用的视图」→ 400；不存在 → 4001。
+   */
+  delete_1: {
+    parameters: {
+      path: {
+        /**
+         * @description 视图ID
+         * @example 1
+         */
+        id: number;
       };
     };
     responses: {
@@ -3942,7 +4079,7 @@ export interface operations {
   };
   /**
    * 修改维度
-   * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
+   * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；系统维度（菜品种类）提交不同的取值类型 → 400；不存在 → 4001。
    */
   updateDimension: {
     parameters: {
@@ -3994,7 +4131,7 @@ export interface operations {
   };
   /**
    * 删除维度
-   * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
+   * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；**系统维度（菜品种类）恒不可删 → 400**；不存在 → 4001。
    */
   deleteDimension: {
     parameters: {
@@ -4251,7 +4388,7 @@ export interface operations {
     parameters: {
       path: {
         /**
-         * @description 分类值ID
+         * @description 取值ID
          * @example 3
          */
         id: number;
@@ -4260,6 +4397,49 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["DishCategoryRenameReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 分类值排序
+   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
+   */
+  sort_2: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SortItemsReq"];
       };
     };
     responses: {
@@ -4396,7 +4576,7 @@ export interface operations {
   };
   /**
    * 编辑食堂
-   * @description 用途：修改食堂名称（新名重名 → 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
+   * @description 用途：修改食堂信息（name + location / description / images / sortOrder；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
    */
   updateCanteen: {
     parameters: {
@@ -4549,7 +4729,7 @@ export interface operations {
    * 删除 Banner
    * @description 用途：删除轮播图；不存在 → 4001。
    */
-  delete_1: {
+  delete_2: {
     parameters: {
       path: {
         /**
@@ -4648,7 +4828,7 @@ export interface operations {
    * Banner 排序
    * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
    */
-  sort_2: {
+  sort_3: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["SortItemsReq"];
@@ -5264,7 +5444,7 @@ export interface operations {
   };
   /**
    * 新增档口
-   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体只接收 canteenId / name / floor / windowNo（StallSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
+   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images / sortOrder）—— 时间列与派生统计不在写入面内。
    */
   createStall: {
     requestBody: {
@@ -5397,7 +5577,7 @@ export interface operations {
         stallId?: number;
         /** @description 按食堂筛选（经档口间接） */
         canteenId?: number;
-        /** @description 按分类筛选（A6 分类值字典的分类 ID） */
+        /** @description 按分类筛选（A6 种类字典的取值 ID） */
         mealTypeId?: number;
         /** @description 按上架状态筛选：on / off；不传 = 全部（含已下架） */
         status?: string;
@@ -5532,6 +5712,87 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultDishAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 视图列表
+   * @description 用途：视图管理页（按 order 升序，不分页）；带 conditions / sortKind 与 matchedCount（当前匹配的在售菜品数）。
+   */
+  list_3: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListDishViewAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新建视图
+   * @description 用途：新建 tab（默认启用、排最后）。条件由白名单字段 / 操作符 / 取值 ID 组成；`[]` = 不筛选。
+   */
+  create_1: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishViewCreateReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultDishViewAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -5742,7 +6003,7 @@ export interface operations {
   };
   /**
    * 分类值列表
-   * @description 用途：分类值维护入口（按 order 升序，不分页）；带 dishCount（引用该分类的菜品数）。
+   * @description 用途：分类（种类）维护入口（按 order 升序，不分页）；带 dishCount（引用该种类的菜品数）。
    */
   list_4: {
     responses: {
@@ -5780,9 +6041,9 @@ export interface operations {
   };
   /**
    * 登记分类值
-   * @description 用途：登记新分类值。`key` 选填（缺省由后端自动生成；填了则须为 1~20 小写字母/数字/- 且唯一）；名 1~32 字、应用层唯一。
+   * @description 用途：登记新种类取值。取值的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、同维度下唯一。
    */
-  create_1: {
+  create_2: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["DishCategorySaveReq"];
@@ -5913,7 +6174,7 @@ export interface operations {
   };
   /**
    * 新增食堂
-   * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。
+   * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内。
    */
   createCanteen: {
     requestBody: {
@@ -5996,7 +6257,7 @@ export interface operations {
    * 新增 Banner
    * @description 用途：新增轮播图（默认**启用**、排最后）。
    */
-  create_2: {
+  create_3: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["BannerSaveReq"];
@@ -6253,7 +6514,7 @@ export interface operations {
    * 菜品分页查询
    * @description 用途：首页网格、搜索页。
    * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-   * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：全部 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
+   * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：种子里 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
    * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
    */
   listDishes: {
@@ -6402,9 +6663,9 @@ export interface operations {
   /**
    * 首页筛选视图字典
    * @description 用途：首页横向筛选栏数据源。
-   * 下发全部视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图字典表唯一定义，
-   * 端上不得维护任何标签中文映射（端上只认 key + label，回传 view=<key>）。
-   * 「按大类取数」的视图做空类自动隐藏（当前无在售菜品即不下发）。
+   * 下发可见视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图表唯一定义，
+   * 端上不得维护任何标签中文映射（端上只认 id + label，回传 view=<id>）。
+   * 空视图自动隐藏（当前无在售菜品匹配即不下发）。
    * 公开接口。测试示例：/dishes/views
    */
   listDishViews: {
@@ -6655,44 +6916,6 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultAdminPageResultFeedbackAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 视图列表
-   * @description 用途：视图管理页（按 order 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
-   */
-  list_3: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishViewAdminVO"];
         };
       };
       /** @description Bad Request */

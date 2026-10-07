@@ -14,29 +14,29 @@
  *      仍留在各自组件内。
  */
 
-/* ---------- 字段块与标签 ---------- */
-.field { margin-bottom: var(--spacing-lg); }
-.field:last-child { margin-bottom: 0; }
+/* ---------- 字段块与标签 ----------
+   极简无卡片：字段块自身**不排外边距**（外边距由外层 `.module-wrap` 之间的留白承担） */
+.field { margin-bottom: 0; }
 .field-label { display: block; font-size: var(--font-aux); font-weight: var(--weight-medium); color: var(--text-secondary); margin-bottom: var(--spacing-sm); }
-.req { color: var(--color-primary); margin-left: var(--spacing-2xs); font-size: var(--font-small); font-weight: var(--weight-heavy); }
+.req { color: var(--color-error); margin-left: var(--spacing-2xs); font-size: var(--font-small); font-weight: var(--weight-heavy); }
 
 /* ---------- 校验错误文案（仅字段下方浅红小字，无输入框变红 / 无粗红边框） ---------- */
 .field-error { display: block; margin-top: var(--spacing-xs); font-size: var(--font-tiny); color: var(--color-error); }
 
-/* ---------- 多行文本输入（iOS 下划线样式：透明背景、仅底部 1rpx 细线；聚焦高亮见 IssueForm） ---------- */
+/* ---------- 多行文本输入（模块内输入项：浅白半透底 + 圆角，**无边框无线**；
+       团队规范 §3.2「靠底色区分层级，禁止灰色边框线」） ---------- */
 .content-input {
   width: 100%;
   min-height: 300rpx;
   font-size: var(--font-body);
   color: var(--text-primary);
   line-height: 1.6;
-  padding: 0;
-  background: transparent;
-  /* 直角：显式声明以覆盖全局输入框形态基线（走 token，禁裸值） */
-  border-radius: var(--radius-none);
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-lg);
+  /* 比模块底更浅一档，用于区分层级（模块内输入项变体） */
+  background: var(--module-input-bg);
+  border-radius: var(--radius-icon);
   box-sizing: border-box;
   border: none;
-  border-bottom: 1rpx solid var(--border-color);
 }
 .content-input-sm { min-height: 140rpx; }
 
@@ -46,9 +46,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-xs);
-  height: var(--tap-target-size);
   padding: 0 var(--page-gutter);
-  background: var(--bg-input);
+  background: var(--module-input-bg);
   border-radius: var(--radius-icon);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

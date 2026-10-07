@@ -125,11 +125,11 @@ public class DishCorrection {
     @Schema(description = "处理时间")
     private LocalDateTime handledAt;
 
-    @TableField(fill = FieldFill.INSERT)
+    /** 创建时间（DB 时钟：INSERT 由 `DEFAULT CURRENT_TIMESTAMP` 写入，应用层不写、不填充） */
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    /** 更新时间（DB 时钟：UPDATE 由 `ON UPDATE CURRENT_TIMESTAMP` 维护，应用层不写、不填充） */
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
 }

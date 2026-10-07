@@ -6,8 +6,9 @@ import {
   buildCorrectionDiff,
   snapshotAttributes,
   type CorrectionBaseline,
-} from './correctionDiff'
-import type { AttributeEditor, CorrectionFormModel } from './useCorrection'
+} from '@/pages/correction/correctionDiff'
+import type { AttributeEditor, CorrectionFormModel } from '@/pages/correction/useCorrection'
+import { toUgcItems, type UgcImageItem } from '@/components/ugcImage'
 
 /**
  * 纠错「局部提交」口径回归测试 —— 本模块即 `POST /dishes/{id}/correction` 的请求体组装逻辑。
@@ -35,7 +36,7 @@ function form(over: Partial<CorrectionFormModel> = {}): CorrectionFormModel {
     canteenName: '一食堂',
     floor: '二层',
     stallName: '窗口1',
-    images: ['a.jpg'],
+    images: toUgcItems(['a.jpg']),
     attributes: [],
     ...over,
   }
@@ -182,7 +183,7 @@ describe('buildCorrectionDiff · 金额（红线）', () => {
 
 describe('buildCorrectionDiff · 图片', () => {
   it('顺序变化算改动', () => {
-    const p = buildCorrectionDiff('红烧肉', form({ images: ['b.jpg', 'a.jpg'] }), base())
+    const p = buildCorrectionDiff('红烧肉', form({ images: toUgcItems(['b.jpg', 'a.jpg']) }), base())
     expect(p.images).toEqual(['b.jpg', 'a.jpg'])
   })
 
@@ -192,7 +193,9 @@ describe('buildCorrectionDiff · 图片', () => {
   })
 
   it('空串被过滤（不得提交空 URL）', () => {
-    const p = buildCorrectionDiff('红烧肉', form({ images: ['a.jpg', '', 'c.jpg'] }), base())
+    // 中间项尚未过机审（url 为空）⇒ 不提交空 URL
+    const pending: UgcImageItem = { preview: 'tmp.jpg', fileId: 'cloud://x', url: '' }
+    const p = buildCorrectionDiff('红烧肉', form({ images: [...toUgcItems(['a.jpg']), pending, ...toUgcItems(['c.jpg'])] }), base())
     expect(p.images).toEqual(['a.jpg', 'c.jpg'])
   })
 })

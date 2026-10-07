@@ -7,7 +7,12 @@ import { getUsername } from '@/api/session'
  *
  * <p>口径真源：[C1 管理员登录与访问控制](../../../docs/func/web/C-账号与访问/C1-管理员登录与访问控制.md)
  * —— **账密登录，无个人页**：🔴 前端不持有口令，底部身份区回显**登录响应下发的 username**
- * （不是静态文案）；导航 **13 项**见 [UI 基线 §四](../../../docs/ui/web/公共组件与形态基线.md)。
+ * （不是静态文案）。
+ *
+ * <p>导航 **5 组 / 13 项，按业务域分组**（运营 / 场所 / 内容 / 互动 / 账号）——
+ * 分组口径见 [UI 基线 §1.1](../../../docs/ui/web/公共组件与形态基线.md)：
+ * 同一个「域」的菜单放一起（一所食堂的档口归「场所」、菜品与它引用的字典归「内容」、
+ * 一切 UGC 与治理字典归「互动」），避免按「主数据 / 治理 / 配置」这类**实现视角**切分。
  */
 interface NavItem {
   to: string
@@ -21,16 +26,22 @@ interface NavGroup {
 /** 身份区显示名：取登录时回签的 username；取不到则兜底「管理员」 */
 const displayName = computed(() => getUsername() || '管理员')
 
+/** 导航分组（5 组 / 13 项，按业务域） */
 const groups: NavGroup[] = [
   {
-    title: '概览',
+    title: '运营',
     items: [{ to: '/dashboard', label: '运营看板' }],
   },
   {
-    title: '主数据',
+    title: '场所',
     items: [
       { to: '/canteens', label: '食堂管理' },
       { to: '/stalls', label: '档口管理' },
+    ],
+  },
+  {
+    title: '内容',
+    items: [
       { to: '/dishes', label: '菜品管理' },
       { to: '/dimensions', label: '属性维度' },
       { to: '/views', label: '首页筛选视图' },
@@ -38,18 +49,18 @@ const groups: NavGroup[] = [
     ],
   },
   {
-    title: '治理',
+    title: '互动',
     items: [
       { to: '/reviews', label: '评价管理' },
       { to: '/feedbacks', label: '意见反馈' },
       { to: '/reports', label: '举报管理' },
       { to: '/corrections', label: '菜品问题反馈' },
-      { to: '/users', label: '用户管理' },
+      { to: '/report-reasons', label: '举报原因' },
     ],
   },
   {
-    title: '配置',
-    items: [{ to: '/report-reasons', label: '举报原因' }],
+    title: '账号',
+    items: [{ to: '/users', label: '用户管理' }],
   },
 ]
 </script>
@@ -61,7 +72,7 @@ const groups: NavGroup[] = [
       <div class="brand">
         <div class="brand-logo">食</div>
         <div class="brand-text">
-          <div class="brand-name">食在交大</div>
+          <div class="brand-name">知行食记</div>
           <div class="brand-sub">管理后台</div>
         </div>
       </div>

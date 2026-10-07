@@ -14,7 +14,7 @@
           hover-class="pressed"
           @tap="onReadAll"
         >
-          <IconSvg name="check" :size="26" :color="(hasUnread && !readAllBusy) ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
+          <AppIcon name="check" :size="28" :color="(hasUnread && !readAllBusy) ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
           <text class="read-all-text">全部已读</text>
         </view>
       </template>
@@ -23,20 +23,24 @@
     <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门 + 失败重试块 @tap」，容器为普通滚动容器。 -->
     <scroll-view class="scroll-wrap v-scroll" scroll-y @scroll="onScroll" @scrolltolower="loadMore">
       <view class="list">
-        <!-- 单张白卡：全部通知行收纳在同一张卡内，行间 1rpx 浅分隔线 -->
-        <view v-if="list.length" class="list-card">
+        <!-- 单张列表卡：全部通知行收纳在同一块壳内，行间 1rpx 浅分隔线。
+             壳走公共 `CardSection`（bare+flush：行自带内距、外距由滚动区内距承担），
+             页面不再手写「底色 + 圆角 + 阴影 + 裁切」四件套。 -->
+        <CardSection v-if="list.length" bare flush>
           <view :style="{ height: topPad + 'px' }" />
           <view
             v-for="n in visible"
             :key="n.id"
             class="msg-item v-item"
             :class="{ unread: !n.isRead }"
+            role="button"
+            :aria-label="msgAriaLabel(n)"
             hover-class="pressed"
             @tap="onTap(n)"
           >
-            <!-- 未读左侧暖橙细竖条（与红点共同表达未读，强化层级） -->
-            <view v-if="!n.isRead" class="msg-unread-bar" />
-            <view class="msg-dot" :class="{ read: n.isRead }" />
+            <!-- 未读左侧暖橙细竖条 + 红点：纯装饰，读屏信息已由行 aria-label 承担 -->
+            <view v-if="!n.isRead" class="msg-unread-bar" aria-hidden="true" />
+            <view class="msg-dot" :class="{ read: n.isRead }" aria-hidden="true" />
             <view class="msg-body">
               <view class="msg-title-row">
                 <text class="msg-title">{{ n.title }}</text>
@@ -46,7 +50,7 @@
             </view>
           </view>
           <view :style="{ height: bottomPad + 'px' }" />
-        </view>
+        </CardSection>
       </view>
 
       <!-- 三态判断序固定 **失败 > 在途 > 空**（有错不显示空）：
@@ -81,8 +85,9 @@
 import { computed, ref } from 'vue'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import CardSection from '@/components/CardSection.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useNotifyStore } from '@/stores/notify'
 import { useOnShowRefresh } from '@/composables/useOnShowRefresh'
@@ -157,6 +162,16 @@ async function onReadAll() {
 }
 
 /**
+ * 通知行的读屏标签：把「未读」这一**纯视觉**状态转成可播报文本。
+ *
+ * 未读由左侧竖条 + 红点表达（`aria-hidden`），读屏信息由本标签承担；
+ * 行本身可点（跳详情），故标签需同时说明「未读」与「可点」。
+ */
+function msgAriaLabel(n: Notification): string {
+  return `${n.isRead ? '' : '未读，'}${n.title}，${formatDateTime(n.createdAt)}`
+}
+
+/**
  * onShow 重拉闸门：首次进入必拉；之后从二级页（如菜品详情）返回时，
  * 30s 内且本页无「写失败遗留」则跳过重拉，避免列表被无谓重置、浏览位置丢失。
  */
@@ -190,18 +205,17 @@ async function onTap(n: Notification) {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .notifications-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.notifications-page { min-height: 0; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口）通常 **大于** `100dvh`（当前视口）；二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
 /* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：通知卡 / 空态 / 失败块都是滚动区末块，
    无安全区时会被 Home Indicator 压住（同 `my-reviews` 的 `.scroll-wrap` 写法） */
 .scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom)); box-sizing: border-box; }
 
-/* 列表容器：单张白卡装全部行；`.list` 仅作占位 wrapper（行少时不渲染空卡） */
+/* 列表容器：单张模块装全部行；`.list` 仅作占位 wrapper（行少时不渲染空块） */
 .list { display: block; }
-.list-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
 .msg-item {
   position: relative;
   display: flex;
@@ -252,9 +266,12 @@ async function onTap(n: Notification) {
    禁用态（is-disabled）常驻中性描边 + 文字三阶末档（描边 / 文字类禁用档，**不降透明**）、不可点；
    按压走全局 .pressed 兜底 */
 .read-all {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--spacing-2xs);
+  /* 触达：min-height 兜到全站基线 88rpx（44pt），原先 padding 撑出的约 42rpx 不足触达下限 */
+  min-height: var(--tap-target-size);
   padding: var(--spacing-2xs) var(--spacing-sm);
   background: var(--bg-card);
   border: 1rpx solid var(--border-color);

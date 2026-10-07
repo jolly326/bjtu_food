@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mergePagedRows } from '../composables/usePagedList'
+import { mergePagedRows } from '@/composables/usePagedList'
 import { RESULT_PAGE_SIZE } from '@/constants/paging'
 
 describe('mergePagedRows', () => {

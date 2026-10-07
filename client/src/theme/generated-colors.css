@@ -13,8 +13,8 @@ page {
   --color-primary: #B4531A;
   --color-primary-fill: #B4531A;
   --color-primary-text: #B4531A;
-  --color-primary-bright: #F5A623;
-  --color-primary-amber: #F5A623;
+  --color-primary-bright: #B4531A;
+  --color-primary-amber: #B4531A;
   --color-primary-orange: #E67E22;
   --color-primary-yellow: #FFD166;
   --color-orange-deep: #D35400;
@@ -38,8 +38,8 @@ page {
   --text-white: #FFFFFF;
   --text-primary: #2D1F14;
   --text-title: #2D1F14;
-  --text-body: #4A3520;
-  --text-secondary: #4A3520;
+  --text-body: #44382E;
+  --text-secondary: #44382E;
   --text-subtitle: #7F6A55;
   --text-tertiary: #7F6A55;
   --text-placeholder: #B5A594;
@@ -50,10 +50,18 @@ page {
   --bg-soft-yellow: #FFF3D6;
   /* 无 --bg-warm（页面底统一 --bg-page，手工同步保持一致） */
   --bg-card: #FFFFFF;
+  /* ===== 极简无卡片 · 模块表面（`.module-wrap`）=====
+     暖奶米半透底 + 极淡暖棕阴影；α 是唯一旋钮（0.65），发糊机型用 `--module-bg-strong`（0.75）兜底。 */
+  --module-bg: rgba(255, 250, 243, 0.65);
+  --module-bg-strong: rgba(255, 250, 243, 0.75);
+  --module-input-bg: rgba(255, 255, 255, 0.5);
+  --module-shadow: 0 2rpx 8rpx rgba(180, 155, 125, 0.08);
+  /* 模态浮层底色（弹窗保留卡片形态，与页面模块区分） */
+  --overlay-panel-bg: rgba(248, 244, 238, 0.92);
   /* 无 --card-bg（与 --bg-card 同值的重复键，手工同步保持一致） */
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
-  --bg-placeholder: #F0ECE8;
+  --bg-placeholder: #F2EBE1;
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
   /* ===== 阴影 ===== */

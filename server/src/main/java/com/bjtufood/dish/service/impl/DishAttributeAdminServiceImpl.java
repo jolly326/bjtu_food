@@ -31,9 +31,10 @@ import java.util.Map;
 /**
  * A4 属性维度与取值管理实现（含属性值读写口径转换）。
  * <p>
- * <b>计数策略</b>：维度 / 取值的引用计数（`dishCount`）与「被引用不可删」判据都需扫 `dish.attributes`；
- * 以「一次拉回 id + attributes 后在内存聚合」实现（管理端低频操作，口径与 `DishAttributeCatalog`
- * 的候选聚合一致，避免为每个维度/取值单发 COUNT 造成 N+1）。
+ * <b>计数策略</b>：维度 / 取值的引用计数（`dishCount`）与「被引用不可删」判据都需扫菜品行 ——
+ * 描述维度的引用在 `dish.attributes`、**系统维度（菜品种类）的引用在 `dish.meal_type_id`**；
+ * 以「一次拉回 id + attributes + meal_type_id 后在内存聚合」实现（管理端低频操作，口径与
+ * `DishAttributeCatalog` 的候选聚合一致，避免为每个维度/取值单发 COUNT 造成 N+1）。
  */
 @Service
 @RequiredArgsConstructor
@@ -58,6 +59,28 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
     // ==================== 维度 ====================
 
     @Override
+    public Long systemDimensionId() {
+        DishAttributeDimension system = firstSystemDimension();
+        if (system == null) {
+            // 建库未完成（系统维度行缺失）：属服务端状态问题，不是调用方的错
+            throw new BusinessException(500, "系统维度（菜品种类）未初始化");
+        }
+        return system.getId();
+    }
+
+    /** 系统维度行（`system = 1`；建库维护，至多一行）；未初始化返回 {@code null}。 */
+    private DishAttributeDimension firstSystemDimension() {
+        List<DishAttributeDimension> rows = dimensionMapper.selectList(new LambdaQueryWrapper<DishAttributeDimension>()
+                .eq(DishAttributeDimension::getSystem, true)
+                .orderByAsc(DishAttributeDimension::getId));
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private static boolean isSystem(DishAttributeDimension dimension) {
+        return dimension != null && Boolean.TRUE.equals(dimension.getSystem());
+    }
+
+    @Override
     public List<DishDimensionAdminVO> listDimensions() {
         List<DishAttributeDimension> dimensions = dimensionMapper.selectList(
                 new LambdaQueryWrapper<DishAttributeDimension>().orderByAsc(DishAttributeDimension::getSortOrder));
@@ -67,6 +90,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
             vo.setId(d.getId());
             vo.setName(d.getName());
             vo.setValueType(d.getValueType());
+            vo.setSystem(isSystem(d));
             vo.setOrder(d.getSortOrder());
             vo.setDishCount(usage.dishCountByDimensionId.getOrDefault(d.getId(), 0L));
             vo.setValueCount(usage.valueCountByDimensionId.getOrDefault(d.getId(), 0L));
@@ -84,12 +108,14 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         entity.setName(dimensionName);
         entity.setValueType(type);
         entity.setSortOrder(nextDimensionOrder());
+        // 新建的一律是描述维度（system 落库默认 0）：系统维度由建库维护，无新增入口
         dimensionMapper.insert(entity);
         DishAttributeDimension saved = dimensionMapper.selectById(entity.getId());
         DishDimensionAdminVO vo = new DishDimensionAdminVO();
         vo.setId(saved.getId());
         vo.setName(saved.getName());
         vo.setValueType(saved.getValueType());
+        vo.setSystem(isSystem(saved));
         vo.setOrder(saved.getSortOrder());
         vo.setDishCount(0L);
         vo.setValueCount(0L);
@@ -106,13 +132,18 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         }
         String dimensionName = requireText(name, "维度名", LABEL_MAX);
         String type = requireValueType(valueType);
+        boolean typeChanged = !type.equals(current.getValueType());
+        // 系统维度（菜品种类）恒单值：改 valueType 等于改菜品的分类语义，一律拒绝（name 仍可改）
+        if (isSystem(current) && typeChanged) {
+            throw new BusinessException("系统维度（菜品种类）的取值类型不可修改");
+        }
         DishAttributeDimension update = new DishAttributeDimension();
         update.setId(id);
         update.setName(dimensionName);
         update.setValueType(type);
         dimensionMapper.updateById(update);
         // 单/多选切换：同事务内迁移该维度下菜品的数据形状（标量 ↔ 数组）
-        if (!type.equals(current.getValueType())) {
+        if (typeChanged) {
             migrateShape(current.getId(), type);
         }
     }
@@ -123,6 +154,10 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         DishAttributeDimension current = dimensionMapper.selectById(id);
         if (current == null) {
             throw new BusinessException(4001, "维度不存在");
+        }
+        if (isSystem(current)) {
+            // 其取值被 dish.meal_type_id 引用，删维度会留下悬空种类
+            throw new BusinessException("系统维度（菜品种类）不可删除");
         }
         Usage usage = scanUsage();
         long used = usage.dishCountByDimensionId.getOrDefault(current.getId(), 0L);
@@ -230,6 +265,10 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
             if (dimension == null) {
                 // 维度 ID 不在白名单（= 维度表）→ 400
                 throw new BusinessException("未知的属性维度：" + key);
+            }
+            if (isSystem(dimension)) {
+                // 菜品种类只走 dish.meal_type_id：同一事实不进两处
+                throw new BusinessException("菜品种类不是描述属性，请用 mealTypeId 提交：" + key);
             }
             String dimensionKey = String.valueOf(dimension.getId());
             boolean multi = TYPE_MULTI.equals(dimension.getValueType());
@@ -394,9 +433,15 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         for (DishAttributeValue v : valueMapper.selectList(null)) {
             usage.valueCountByDimensionId.merge(v.getDimensionId(), 1L, Long::sum);
         }
+        DishAttributeDimension system = firstSystemDimension();
         List<Dish> dishes = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                .select(Dish::getId, Dish::getAttributes));
+                .select(Dish::getId, Dish::getAttributes, Dish::getMealTypeId));
         for (Dish dish : dishes) {
+            // 系统维度（菜品种类）：引用在独立列 dish.meal_type_id，不在 attributes 里
+            if (system != null && dish.getMealTypeId() != null) {
+                usage.dishCountByDimensionId.merge(system.getId(), 1L, Long::sum);
+                usage.dishCountByValueId.merge(dish.getMealTypeId(), 1L, Long::sum);
+            }
             Map<String, Object> parsed = JsonMapUtil.parseObject(dish.getAttributes());
             parsed.forEach((dimensionKey, value) -> {
                 if (value == null || (value instanceof Collection<?> c && c.isEmpty())) {

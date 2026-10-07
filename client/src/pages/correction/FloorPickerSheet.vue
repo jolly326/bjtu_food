@@ -23,7 +23,7 @@
         @tap="emit('select', opt)"
       >
         <text class="fp-label">{{ opt }}</text>
-        <IconSvg v-if="opt === value" name="check" :size="28" :color="COLOR_MAP['primary-text']" />
+        <AppIcon v-if="opt === value" name="check" :size="28" :color="COLOR_MAP['primary-text']" />
       </view>
     </view>
   </BaseSheet>
@@ -36,7 +36,7 @@
  * 只管展示与回抛：字典项**值即汉字**，`select` 事件回抛所选汉字（即存储值），由表单层写入 `form.floor`。
  */
 import BaseSheet from '@/components/BaseSheet.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 withDefaults(defineProps<{
