@@ -54,6 +54,13 @@ import java.util.Map;
 @Service
 public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider {
 
+    /** 启动即打印微信出网通道（基址 / 内网开关 / 凭据状态），避免「以为配了内网、实际走的公网」这类排查盲区 */
+    @jakarta.annotation.PostConstruct
+    void logChannel() {
+        log.info("微信开放接口通道：base={} internalCall={} credentialsConfigured={}",
+                wechatProperties.getApiBaseUrl(), wechatProperties.isInternalCall(), wechatProperties.isConfigured());
+    }
+
     /** 连接/读取超时（毫秒）：与 WechatService 一致，防止微信接口挂起拖垮 UGC 主链路 */
     private static final int WECHAT_TIMEOUT_MS = 5000;
 

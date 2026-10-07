@@ -20,6 +20,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -283,19 +284,24 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
                 return "image.jpg";
             }
         });
+        String url = wechatProperties.api(WechatApiConst.IMG_SEC_CHECK_URL)
+                + (accessToken == null ? "" : "?access_token=" + accessToken);
         String respBody;
         try {
-            String url = wechatProperties.api(WechatApiConst.IMG_SEC_CHECK_URL)
-                    + (accessToken == null ? "" : "?access_token=" + accessToken);
             respBody = restTemplate.postForObject(url, new HttpEntity<>(body, headers), String.class);
         } catch (BusinessException e) {
             // token 获取失败等业务异常原样传播，不在此处二次包装
             throw e;
+        } catch (HttpStatusCodeException e) {
+            // 微信 WAF 对「云托管公网 HTTPS 调用」与「multipart + 空 UA」统一拦 412：把排查要素打进日志
+            log.error("imgSecCheck 调用失败 url={} internal={} status={} respBody={}", url,
+                    wechatProperties.isInternalCall(), e.getStatusCode(), e.getResponseBodyAsString(), e);
+            throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
         } catch (ResourceAccessException e) {
-            log.error("imgSecCheck 上游不可达", e);
+            log.error("imgSecCheck 上游不可达 url={} internal={}", url, wechatProperties.isInternalCall(), e);
             throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
         } catch (Exception e) {
-            log.error("imgSecCheck 调用失败", e);
+            log.error("imgSecCheck 调用失败 url={} internal={}", url, wechatProperties.isInternalCall(), e);
             throw new BusinessException(500, "内容安全检测服务暂不可用，请稍后重试");
         }
         Map<String, Object> resp = parseJson(respBody, "img_sec_check");
