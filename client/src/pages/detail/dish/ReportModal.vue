@@ -1,7 +1,7 @@
 <template>
   <!-- 举报底部弹层（对齐 BaseSheet 统一骨架：遮罩/grabber/下滑关闭/安全区）：
        原因为**底部弹出的单选列表**（字典端点实时拉取，端上零硬编码），不再填写文本；
-       选中原因后点「提交举报」——原因机器值作为 sub 上送（content 可空）。 -->
+       选中原因后点「提交举报」——原因 ID 作为 reasonId 上送（content 可空）。 -->
   <BaseSheet
     :visible="open"
     title="举报评价"
@@ -17,13 +17,13 @@
       <view v-if="reasons.length" class="rp-list">
         <view
           v-for="r in reasons"
-          :key="r.value"
+          :key="r.id"
           class="rp-option"
-          :class="{ on: selected === r.value }"
+          :class="{ on: selected === r.id }"
           role="radio"
-          :aria-checked="selected === r.value ? 'true' : 'false'"
+          :aria-checked="selected === r.id ? 'true' : 'false'"
           :aria-label="r.label"
-          @tap="selected = r.value"
+          @tap="selected = r.id"
         >
           <text class="rp-option-text">{{ r.label }}</text>
         </view>
@@ -51,8 +51,8 @@
 <script setup lang="ts">
 /**
  * 举报底部弹层（页包内私有组件）：**原因单选**（底部弹层形态，对齐 BaseSheet 统一骨架）。
- * 选项来自后端字典 `GET /report-reasons`（PUB，打开时实时拉取，端上零硬编码——PR-12）；
- * 选中值经 `submit` 事件上抛（`useReport` 以 sub 上送，content 可空）。
+ * 选项来自后端字典 `GET /report-reasons`（PUB，打开时实时拉取，端上零硬编码）；
+ * 选中原因 ID 经 `submit` 事件上抛（`useReport` 以 reasonId 上送，content 可空）。
  */
 import { ref, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
@@ -65,19 +65,19 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void
-  (e: 'submit', reasonValue: string): void
+  (e: 'submit', reasonId: number): void
 }>()
 
 const reasons = ref<ReportReason[]>([])
 const reasonsFailed = ref(false)
-const selected = ref('')
+const selected = ref(0)
 
 /** 打开时实时拉取原因字典（公开端点，游客可用）；失败静默降级为提示行 */
 watch(
   () => props.open,
   (v) => {
     if (!v) return
-    selected.value = ''
+    selected.value = 0
     reasonsFailed.value = false
     listReportReasons()
       .then((rows) => {

@@ -16,7 +16,7 @@ export const FLOOR_OPTIONS: readonly string[] = ['负一层', '一层', '二层'
  *
  * 描述属性走**动态属性模型**（值即中文）：维度名与当前值取自 `GET /dishes/{id}`；
  * 编辑态参考候选**按需**取 `GET /dishes/{id}/attributes`（仅该菜现有维度；候选只是提示，
- * 用户恒可自由输入候选之外的新值）；提交经 `attributes` 对象（键 = 维度 `fieldKey`，仅改动维度）。
+ * 用户恒可自由输入候选之外的新值）；提交经 `attributes` 对象（键 = 维度 ID 字符串，仅改动维度）。
  * 展示侧中文由详情直出，**端上零翻译 / 零字典**。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用 useCorrection()，
@@ -37,8 +37,8 @@ import { CORRECTION_IMAGE_MAX, GONE_IMAGE_MAX } from '@/constants/ugc'
 
 /** 描述属性编辑项（表单内一个维度的可编辑模型） */
 export interface AttributeEditor {
-  /** 维度键（camelCase）＝ 提交时 `attributes` 的键 */
-  fieldKey: string
+  /** 维度 ID ＝ 提交时 `attributes` 的键（字符串形态） */
+  dimensionId: number
   /** 维度中文名（来自详情 `attributes[].name`） */
   name: string
   /** 取值类型：`single`（单值）｜ `multi`（多值）—— 取自编辑态端点，缺省按详情值形态推断 */
@@ -188,16 +188,16 @@ export function useCorrection() {
       form.stallName = detail.stallName
       form.images = detail.images.slice(0, CORRECTION_IMAGE_MAX)
 
-      // 描述属性：维度名 / 当前值取自详情；候选与单多选取自编辑端点（按 fieldKey 对齐）
+      // 描述属性：维度名 / 当前值取自详情；候选与单多选取自编辑端点（按 dimensionId 对齐）
       form.attributes = (detail.attributes || [])
-        .filter((item) => !!item.fieldKey)
+        .filter((item) => !!item.dimensionId)
         .map((item) => {
-          const def = attrDefs.find((x) => x.fieldKey === item.fieldKey)
+          const def = attrDefs.find((x) => x.dimensionId === item.dimensionId)
           const initial = Array.isArray(item.value)
             ? item.value.map(String)
             : String(item.value ?? '') ? [String(item.value)] : []
           return {
-            fieldKey: item.fieldKey,
+            dimensionId: item.dimensionId,
             name: item.name,
             valueType: def?.valueType ?? (Array.isArray(item.value) ? 'multi' : 'single'),
             candidates: def?.options ?? [],

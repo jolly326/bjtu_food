@@ -131,7 +131,7 @@ export interface paths {
   "/admin/dish-dimensions/{dimensionId}": {
     /**
      * 修改维度
-     * @description 用途：改维度名 / 取值类型（**维度键不可改**）。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
+     * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
      */
     put: operations["updateDimension"];
     /**
@@ -237,7 +237,7 @@ export interface paths {
   "/reviews/{id}/report": {
     /**
      * 举报评价
-     * @description PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reason":"spam"}
+     * @description PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
      */
     post: operations["report"];
   };
@@ -336,7 +336,7 @@ export interface paths {
     get: operations["list_1"];
     /**
      * 新增举报原因
-     * @description 用途：新增（默认**启用**、排最后）。机器值 1~32、小写字母/数字/-、全站唯一；启用数上限 8。
+     * @description 用途：新增（默认**启用**、排最后）。只填中文标签（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
      */
     post: operations["create"];
   };
@@ -367,7 +367,7 @@ export interface paths {
     get: operations["listDimensions"];
     /**
      * 新增维度
-     * @description 用途：新建维度（默认排最后）。维度键须为 camelCase 且唯一。
+     * @description 用途：新建维度（默认排最后）。只填中文名与取值类型；维度 ID 由后端生成。
      */
     post: operations["createDimension"];
   };
@@ -391,7 +391,7 @@ export interface paths {
     get: operations["list_4"];
     /**
      * 登记分类值
-     * @description 用途：登记新分类值（A3 菜品保存的「自动登记」最终落到本端点）。键 1~20 小写字母/数字/-、全站唯一；名 1~32 字、应用层唯一。
+     * @description 用途：登记新分类值。`key` 选填（缺省由后端自动生成；填了则须为 1~20 小写字母/数字/- 且唯一）；名 1~32 字、应用层唯一。
      */
     post: operations["create_1"];
   };
@@ -436,7 +436,7 @@ export interface paths {
   "/report-reasons": {
     /**
      * 举报原因字典
-     * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。测试示例：/report-reasons
+     * @description PUB。举报时的原因单选项（id 原因 ID + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
      */
     get: operations["reportReasons"];
   };
@@ -486,10 +486,10 @@ export interface paths {
     /**
      * 菜品描述属性编辑态选项（按菜现有维度）
      * @description 用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
-     * 只返回**该菜现有维度**的候选值：每项含 fieldKey（维度键，与 GET /dishes/{id} 的
-     * attributes[].fieldKey 对齐）/ valueType（single|multi）/
-     * options（该维度全部候选值，按 order 升序；每项 valueKey / label）。
-     * **options 为空数组 = 自由文本维度**（无候选值）。
+     * 只返回**该菜现有维度**的候选值：每项含 dimensionId（维度 ID，与 GET /dishes/{id} 的
+     * attributes[].dimensionId 对齐）/ valueType（single|multi）/
+     * options（该维度全部候选值，按 order 升序）。
+     * **options 为空数组 = 暂无参考候选**（仍可自由输入）。
      * 维度名与当前值在 GET /dishes/{id} 里已有，本端点不重复下发。公开接口。
      * 测试示例：/dishes/1/attributes
      */
@@ -824,27 +824,28 @@ export interface components {
        */
       images?: string[];
       /**
-       * @description 描述属性（键=维度 fieldKey，值=中文文本/数组；可空）
+       * @description 描述属性（键=维度 ID，值=取值 ID 或中文文本/数组；可空）
        * @example {
-       *   "dietType": "半荤",
-       *   "ingredients": [
+       *   "1": 2,
+       *   "2": [
        *     "蛋"
        *   ],
-       *   "flavorTags": [
+       *   "3": [
        *     "酸",
        *     "甜"
        *   ],
-       *   "serveTemp": "热食"
+       *   "4": "热食"
        * }
        */
       attributes?: {
         [key: string]: Record<string, never>;
       };
       /**
-       * @description 菜品分类键（值域 = 分类值字典 /admin/dish-categories；**可填新值，保存时自动登记**；空 / 超 20 字 / 非法字符 → 400；不传 = 不修改）
-       * @example noodle
+       * Format: int64
+       * @description 菜品分类 ID（值域 = 分类值字典 /admin/dish-categories；必须存在，否则 400；不传 = 不修改）
+       * @example 3
        */
-      mealType?: string;
+      mealTypeId?: number;
       /**
        * @description 状态：on=上架，off=下架
        * @example on
@@ -871,11 +872,6 @@ export interface components {
     };
     /** @description 属性维度保存请求 */
     DishDimensionSaveReq: {
-      /**
-       * @description 维度键（camelCase，字母开头；在用后不可改）
-       * @example dietType
-       */
-      fieldKey: string;
       /**
        * @description 维度中文名（1~32 字）
        * @example 饮食属性
@@ -978,10 +974,11 @@ export interface components {
     /** @description 提交评价举报请求 */
     ReportReq: {
       /**
-       * @description 举报原因（必选，值域 = GET /report-reasons 下发项）
-       * @example spam
+       * Format: int64
+       * @description 举报原因 ID（必选，值域 = GET /report-reasons 下发项的 id）
+       * @example 1
        */
-      reason: string;
+      reasonId: number;
       /**
        * @description 补充说明（可空，≤1000 字）
        * @example 疑似广告刷屏
@@ -1079,10 +1076,10 @@ export interface components {
        */
       floor?: string;
       /**
-       * @description 动态描述属性（键=维度 fieldKey，值=中文文本/数组；仅传改动维度）
+       * @description 动态描述属性（键=维度 ID，值=中文文本/数组；仅传改动维度）
        * @example {
-       *   "dietType": "素",
-       *   "flavorTags": [
+       *   "1": "素",
+       *   "3": [
        *     "辣",
        *     "酸"
        *   ]
@@ -1230,11 +1227,6 @@ export interface components {
     /** @description 举报原因新增请求 */
     ReportReasonSaveReq: {
       /**
-       * @description 机器值（小写字母 / 数字 / -，1~32；全站唯一；在用后不可改）
-       * @example spam
-       */
-      value: string;
-      /**
        * @description 中文标签（1~32 字）
        * @example 垃圾广告 / 营销刷屏
        */
@@ -1244,14 +1236,9 @@ export interface components {
     ReportReasonAdminVO: {
       /**
        * Format: int64
-       * @description 原因ID
+       * @description 原因ID（落库列 = user_feedback.sub_reason_id）
        */
       id?: number;
-      /**
-       * @description 机器值（端上提交字段名 = reason；落库列 = user_feedback.sub）
-       * @example spam
-       */
-      value?: string;
       /**
        * @description 中文标签
        * @example 垃圾广告 / 营销刷屏
@@ -1266,7 +1253,7 @@ export interface components {
       status?: string;
       /**
        * Format: int64
-       * @description 被举报记录引用次数（type='report' 且 sub=value）—— 删除前判断
+       * @description 被举报记录引用次数（type='report' 且 sub_reason_id=id）—— 删除前判断
        */
       feedbackCount?: number;
       /**
@@ -1359,27 +1346,28 @@ export interface components {
        */
       canteenName?: string;
       /**
-       * @description 描述属性（键=维度 fieldKey，值=中文文本/数组）
+       * @description 描述属性（键=维度 ID，值=中文文本/数组）
        * @example {
-       *   "dietType": "半荤",
-       *   "ingredients": [
+       *   "1": "半荤",
+       *   "2": [
        *     "蛋"
        *   ],
-       *   "flavorTags": [
+       *   "3": [
        *     "酸",
        *     "甜"
        *   ],
-       *   "serveTemp": "热食"
+       *   "4": "热食"
        * }
        */
       attributes?: {
         [key: string]: Record<string, never>;
       };
       /**
-       * @description 菜品分类键（值域 = 分类值字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）
-       * @example noodle
+       * Format: int64
+       * @description 菜品分类 ID（值域 = 分类值字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）
+       * @example 3
        */
-      mealType?: string;
+      mealTypeId?: number;
       /**
        * @description 分类中文名
        * @example 面食粉类
@@ -1413,14 +1401,9 @@ export interface components {
     DishDimensionAdminVO: {
       /**
        * Format: int64
-       * @description 维度ID
+       * @description 维度ID（= 菜品 attributes JSON 的键）
        */
       id?: number;
-      /**
-       * @description 维度键（= 菜品 attributes 的键，camelCase；**在用后不可改**）
-       * @example dietType
-       */
-      fieldKey?: string;
       /**
        * @description 维度中文名（可改，改名免费）
        * @example 饮食属性
@@ -1515,10 +1498,10 @@ export interface components {
     /** @description 分类值登记请求 */
     DishCategorySaveReq: {
       /**
-       * @description 分类键（小写字母 / 数字 / -，1~20；全站唯一；在用后不可改）
+       * @description 分类键（选填；小写字母 / 数字 / -，1~20；全站唯一；缺省自动生成）
        * @example noodle
        */
-      key: string;
+      key?: string;
       /**
        * @description 分类中文名（1~32 字；分类名唯一）
        * @example 面食粉类
@@ -1739,10 +1722,11 @@ export interface components {
     /** @description 举报原因字典项 */
     ReportReasonVO: {
       /**
-       * @description 机器值（提交举报时作为 sub 上送）
-       * @example spam
+       * Format: int64
+       * @description 原因 ID（提交举报时作为 reasonId 上送）
+       * @example 1
        */
-      value?: string;
+      id?: number;
       /**
        * @description 中文标签（端上直接渲染）
        * @example 垃圾广告 / 营销刷屏
@@ -1972,10 +1956,11 @@ export interface components {
     /** @description 菜品描述属性展示项（值即中文） */
     DishAttributeItem: {
       /**
-       * @description 维度键（camelCase）
-       * @example flavorTags
+       * Format: int64
+       * @description 维度 ID（= dish.attributes JSON 的键）
+       * @example 3
        */
-      fieldKey?: string;
+      dimensionId?: number;
       /**
        * @description 维度中文名
        * @example 口味
@@ -2113,16 +2098,17 @@ export interface components {
     /** @description 菜品属性编辑态项（按菜现有维度） */
     DishAttributeEditVO: {
       /**
-       * @description 维度键（camelCase；与 GET /dishes/{id} 的 attributes[].fieldKey 对齐）
-       * @example flavorTags
+       * Format: int64
+       * @description 维度 ID（与 GET /dishes/{id} 的 attributes[].dimensionId 对齐；提交时即 attributes 的键）
+       * @example 3
        */
-      fieldKey?: string;
+      dimensionId?: number;
       /**
        * @description 取值类型：single=单值 / multi=多值（值取数组）
        * @example multi
        */
       valueType?: string;
-      /** @description 该维度参考候选值（中文文本，按使用频次倒序；空数组=暂无参考值） */
+      /** @description 该维度参考候选值（中文文本；空数组=暂无参考值） */
       options?: string[];
     };
     /** @description 统一响应结果 */
@@ -2448,7 +2434,8 @@ export interface components {
       handledAt?: string;
       /** Format: date-time */
       updatedAt?: string;
-      reason?: string;
+      /** Format: int64 */
+      subReasonId?: number;
       reasonLabel?: string;
       /** Format: int64 */
       reviewId?: number;
@@ -2524,10 +2511,11 @@ export interface components {
       /** @description 封面图绝对 URL（首图派生；无图为空串） */
       coverImage?: string;
       /**
-       * @description 分类键
-       * @example noodle
+       * Format: int64
+       * @description 分类值 ID（值域 = 分类值字典 /admin/dish-categories）
+       * @example 3
        */
-      mealType?: string;
+      mealTypeId?: number;
       /**
        * @description 分类中文名（A6 分类值字典派生，端上零硬编码）
        * @example 面食粉类
@@ -2828,10 +2816,10 @@ export interface components {
        */
       floor?: string;
       /**
-       * @description 提交的描述属性（键=维度 fieldKey，值=中文/数组；仅改动维度）
+       * @description 提交的描述属性（键=维度 ID，值=中文/数组；仅改动维度）
        * @example {
-       *   "dietType": "素",
-       *   "flavorTags": [
+       *   "1": "素",
+       *   "3": [
        *     "辣",
        *     "酸"
        *   ]
@@ -2957,7 +2945,7 @@ export interface components {
     /** @description 纠错差异对照项 */
     DishCorrectionDifferenceVO: {
       /**
-       * @description 差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<fieldKey>
+       * @description 差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<维度ID>
        * @example name
        */
       field?: string;
@@ -3954,7 +3942,7 @@ export interface operations {
   };
   /**
    * 修改维度
-   * @description 用途：改维度名 / 取值类型（**维度键不可改**）。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
+   * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；不存在 → 4001。
    */
   updateDimension: {
     parameters: {
@@ -4753,7 +4741,7 @@ export interface operations {
   };
   /**
    * 举报评价
-   * @description PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reason":"spam"}
+   * @description PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
    */
   report: {
     parameters: {
@@ -5357,7 +5345,7 @@ export interface operations {
   };
   /**
    * 新增举报原因
-   * @description 用途：新增（默认**启用**、排最后）。机器值 1~32、小写字母/数字/-、全站唯一；启用数上限 8。
+   * @description 用途：新增（默认**启用**、排最后）。只填中文标签（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
    */
   create: {
     requestBody: {
@@ -5409,8 +5397,8 @@ export interface operations {
         stallId?: number;
         /** @description 按食堂筛选（经档口间接） */
         canteenId?: number;
-        /** @description 按分类键筛选（A6 分类值字典） */
-        mealType?: string;
+        /** @description 按分类筛选（A6 分类值字典的分类 ID） */
+        mealTypeId?: number;
         /** @description 按上架状态筛选：on / off；不传 = 全部（含已下架） */
         status?: string;
         /** @description 关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径） */
@@ -5464,21 +5452,22 @@ export interface operations {
          *   "stallId": 1,
          *   "name": "测试菜品",
          *   "price": 1200,
+         *   "mealTypeId": 3,
          *   "description": "Swagger UI 测试新增菜品",
          *   "images": [
          *     "/images/seed/dishes/tomato-egg.jpg"
          *   ],
          *   "attributes": {
-         *     "dietType": "half",
-         *     "ingredients": [
-         *       "egg",
-         *       "rice"
+         *     "1": 2,
+         *     "2": [
+         *       "蛋",
+         *       "米饭"
          *     ],
-         *     "flavorTags": [
-         *       "sour",
-         *       "sweet"
+         *     "3": [
+         *       "酸",
+         *       "甜"
          *     ],
-         *     "serveTemp": "hot"
+         *     "4": "热食"
          *   },
          *   "status": "on"
          * }
@@ -5611,7 +5600,7 @@ export interface operations {
   };
   /**
    * 新增维度
-   * @description 用途：新建维度（默认排最后）。维度键须为 camelCase 且唯一。
+   * @description 用途：新建维度（默认排最后）。只填中文名与取值类型；维度 ID 由后端生成。
    */
   createDimension: {
     requestBody: {
@@ -5791,7 +5780,7 @@ export interface operations {
   };
   /**
    * 登记分类值
-   * @description 用途：登记新分类值（A3 菜品保存的「自动登记」最终落到本端点）。键 1~20 小写字母/数字/-、全站唯一；名 1~32 字、应用层唯一。
+   * @description 用途：登记新分类值。`key` 选填（缺省由后端自动生成；填了则须为 1~20 小写字母/数字/- 且唯一）；名 1~32 字、应用层唯一。
    */
   create_1: {
     requestBody: {
@@ -6091,7 +6080,7 @@ export interface operations {
   };
   /**
    * 举报原因字典
-   * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。测试示例：/report-reasons
+   * @description PUB。举报时的原因单选项（id 原因 ID + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
    */
   reportReasons: {
     responses: {
@@ -6360,10 +6349,10 @@ export interface operations {
   /**
    * 菜品描述属性编辑态选项（按菜现有维度）
    * @description 用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
-   * 只返回**该菜现有维度**的候选值：每项含 fieldKey（维度键，与 GET /dishes/{id} 的
-   * attributes[].fieldKey 对齐）/ valueType（single|multi）/
-   * options（该维度全部候选值，按 order 升序；每项 valueKey / label）。
-   * **options 为空数组 = 自由文本维度**（无候选值）。
+   * 只返回**该菜现有维度**的候选值：每项含 dimensionId（维度 ID，与 GET /dishes/{id} 的
+   * attributes[].dimensionId 对齐）/ valueType（single|multi）/
+   * options（该维度全部候选值，按 order 升序）。
+   * **options 为空数组 = 暂无参考候选**（仍可自由输入）。
    * 维度名与当前值在 GET /dishes/{id} 里已有，本端点不重复下发。公开接口。
    * 测试示例：/dishes/1/attributes
    */

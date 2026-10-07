@@ -172,8 +172,8 @@
       <view v-if="model.attributes.length" class="attrs">
         <AttributeGroup
           v-for="(ed, idx) in model.attributes"
-          :key="ed.fieldKey"
-          :field-key="ed.fieldKey"
+          :key="ed.dimensionId"
+          :dimension-id="ed.dimensionId"
           :name="ed.name"
           :value-type="ed.valueType"
           :selected="ed.selected"
@@ -338,16 +338,16 @@ function onFieldInput(key: FieldKey, e: Event) {
 
 /**
  * 属性维度选区变化：以不可变替换回抛该维度的编辑项（patch 组装由 `useCorrection` 与基线比对完成）。
- * 同时回抛 `clear`（键取 `form.attributes.<fieldKey>`）——**与文本字段口径一致**：用户一动内容就
+ * 同时回抛 `clear`（键取 `form.attributes.<dimensionId>`）——**与文本字段口径一致**：用户一动内容就
  * 撤下上一次的提交失败橙字（属性区无字段级错误，故该键在 `fieldErrors` 中恒为空、仅起撤提示作用）。
  */
-function onAttributeChange(fieldKey: string, selected: string[]) {
+function onAttributeChange(dimensionId: number, selected: string[]) {
   patchModel({
     attributes: model.value.attributes.map((x) =>
-      x.fieldKey === fieldKey ? { ...x, selected } : x,
+      x.dimensionId === dimensionId ? { ...x, selected } : x,
     ),
   })
-  emit('clear', `form.attributes.${fieldKey}`)
+  emit('clear', `form.attributes.${dimensionId}`)
 }
 
 /** 图片增删：整值替换回抛 + 回抛 `clear`（撤下过期的失败提示） */

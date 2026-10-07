@@ -33,14 +33,14 @@ public class DishAdminController {
     public Result<AdminPageResult<DishAdminListItemVO>> listMyDishes(
             @Parameter(description = "按档口筛选") @RequestParam(required = false) Long stallId,
             @Parameter(description = "按食堂筛选（经档口间接）") @RequestParam(required = false) Long canteenId,
-            @Parameter(description = "按分类键筛选（A6 分类值字典）") @RequestParam(required = false) String mealType,
+            @Parameter(description = "按分类筛选（A6 分类值字典的分类 ID）") @RequestParam(required = false) Long mealTypeId,
             @Parameter(description = "按上架状态筛选：on / off；不传 = 全部（含已下架）")
             @RequestParam(required = false) String status,
             @Parameter(description = "关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径）")
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        DishAdminListQuery query = new DishAdminListQuery(stallId, canteenId, mealType, status, keyword);
+        DishAdminListQuery query = new DishAdminListQuery(stallId, canteenId, mealTypeId, status, keyword);
         return Result.success(AdminPageResult.of(dishService.listAllForAdmin(query, page, pageSize)));
     }
 
@@ -52,9 +52,10 @@ public class DishAdminController {
                       "stallId": 1,
                       "name": "测试菜品",
                       "price": 1200,
+                      "mealTypeId": 3,
                       "description": "Swagger UI 测试新增菜品",
                       "images": ["/images/seed/dishes/tomato-egg.jpg"],
-                      "attributes": {"dietType": "half", "ingredients": ["egg", "rice"], "flavorTags": ["sour", "sweet"], "serveTemp": "hot"},
+                      "attributes": {"1": 2, "2": ["蛋", "米饭"], "3": ["酸", "甜"], "4": "热食"},
                       "status": "on"
                     }
                     """)))

@@ -15,11 +15,8 @@ import java.time.LocalDateTime;
 @Schema(description = "管理端属性维度出参")
 public class DishDimensionAdminVO {
 
-    @Schema(description = "维度ID")
+    @Schema(description = "维度ID（= 菜品 attributes JSON 的键）")
     private Long id;
-
-    @Schema(description = "维度键（= 菜品 attributes 的键，camelCase；**在用后不可改**）", example = "dietType")
-    private String fieldKey;
 
     @Schema(description = "维度中文名（可改，改名免费）", example = "饮食属性")
     private String name;

@@ -55,8 +55,8 @@
  * AttributeGroup —— 单维度属性字段行（当前值摘要 + 弹层入口）
  *
  * 接口口径（UI 稿「`AttributeGroup` 入参」）：
- * `props: { fieldKey, name, valueType, selected, candidates, first }`，
- * `emits: change(fieldKey, selected)` —— **本组件不直接改 props**，一律回抛新数组由父级写回，
+ * `props: { dimensionId, name, valueType, selected, candidates, first }`，
+ * `emits: change(dimensionId, selected)` —— **本组件不直接改 props**，一律回抛新数组由父级写回，
  * 保证「表单值唯一真源在父级编排（`useCorrection`）」。
  *
  * 颜色全走语义 token（禁裸 hex）；图标走 `IconSvg`（禁 emoji / 文本当图标）；
@@ -74,8 +74,8 @@ import { COLOR_MAP } from '@/theme/tokens'
 const SUMMARY_MAX = 3
 
 const props = withDefaults(defineProps<{
-  /** 维度键（camelCase）＝ 提交时 `attributes` 的键 */
-  fieldKey: string
+  /** 维度 ID ＝ 提交时 `attributes` 的键（字符串形态） */
+  dimensionId: number
   /** 维度中文名（如「食材」），同时是弹层标题与占位文案的词根 */
   name: string
   /** `single`（单选）｜ `multi`（多选）—— 驱动标注文案与选中态视觉档 */
@@ -92,7 +92,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   /** 选区变化：回抛**新的**已选数组（弹层确认后转发；父级写回，组件不改 props） */
-  (e: 'change', fieldKey: string, selected: string[]): void
+  (e: 'change', dimensionId: number, selected: string[]): void
 }>()
 
 const hasValue = computed(() => props.selected.length > 0)
@@ -132,7 +132,7 @@ function openPicker() {
 
 /** 弹层回抛新已选（多选确认 / 清空、单选点项 / 添加自定义）⇒ 转发 change；表单真源恒在父级编排 */
 function onSheetUpdate(next: string[]) {
-  emit('change', props.fieldKey, next)
+  emit('change', props.dimensionId, next)
 }
 </script>
 

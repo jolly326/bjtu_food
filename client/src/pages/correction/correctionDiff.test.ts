@@ -18,13 +18,13 @@ import type { AttributeEditor, CorrectionFormModel } from './useCorrection'
  * ③ 金额元 → 分（金额红线）。
  */
 
-/** 造一份可编辑的维度项 */
+/** 造一份可编辑的维度项（dimensionId 用数值；payload 键 = 维度 ID 字符串） */
 function attr(
-  fieldKey: string,
+  dimensionId: number,
   selected: string[],
   valueType: 'single' | 'multi' = 'multi',
 ): AttributeEditor {
-  return { fieldKey, name: fieldKey, valueType, candidates: [], selected }
+  return { dimensionId, name: `维度${dimensionId}`, valueType, candidates: [], selected }
 }
 
 /** 造表单（默认全字段有值，便于只测某一维度） */
@@ -198,74 +198,74 @@ describe('buildCorrectionDiff · 图片', () => {
 })
 
 describe('buildCorrectionDiff · 描述属性', () => {
-  it('维度值成员变化 → 进 payload', () => {
-    const f = form({ attributes: [attr('taste', ['辣', '麻'])] })
-    const b = base({ attributes: { taste: ['辣'] } })
+  it('维度值成员变化 → 进 payload（键 = 维度 ID 字符串）', () => {
+    const f = form({ attributes: [attr(3, ['辣', '麻'])] })
+    const b = base({ attributes: { '3': ['辣'] } })
     const p = buildCorrectionDiff('红烧肉', f, b)
-    expect(p.attributes).toEqual({ taste: ['辣', '麻'] })
+    expect(p.attributes).toEqual({ '3': ['辣', '麻'] })
   })
 
   it('维度值仅次序不同 → **不**算改动（无意义提交）', () => {
-    const f = form({ attributes: [attr('taste', ['麻', '辣'])] })
-    const b = base({ attributes: { taste: ['辣', '麻'] } })
+    const f = form({ attributes: [attr(3, ['麻', '辣'])] })
+    const b = base({ attributes: { '3': ['辣', '麻'] } })
     expect(buildCorrectionDiff('红烧肉', f, b)).toEqual({})
   })
 
   it('single 维度只提交首个值（不是数组）', () => {
-    const f = form({ attributes: [attr('taste', ['辣', '麻'], 'single')] })
-    const b = base({ attributes: { taste: ['甜'] } })
+    const f = form({ attributes: [attr(3, ['辣', '麻'], 'single')] })
+    const b = base({ attributes: { '3': ['甜'] } })
     const p = buildCorrectionDiff('红烧肉', f, b)
-    expect(p.attributes).toEqual({ taste: '辣' })
+    expect(p.attributes).toEqual({ '3': '辣' })
   })
 
   it('single 维度被清空 → 提交空串（表达「清掉这个维度」）', () => {
-    const f = form({ attributes: [attr('taste', [], 'single')] })
-    const b = base({ attributes: { taste: ['辣'] } })
+    const f = form({ attributes: [attr(3, [], 'single')] })
+    const b = base({ attributes: { '3': ['辣'] } })
     const p = buildCorrectionDiff('红烧肉', f, b)
-    expect(p.attributes).toEqual({ taste: '' })
+    expect(p.attributes).toEqual({ '3': '' })
   })
 
   it('multi 维度被清空 → 提交空数组', () => {
-    const f = form({ attributes: [attr('taste', [], 'multi')] })
-    const b = base({ attributes: { taste: ['辣'] } })
+    const f = form({ attributes: [attr(3, [], 'multi')] })
+    const b = base({ attributes: { '3': ['辣'] } })
     const p = buildCorrectionDiff('红烧肉', f, b)
-    expect(p.attributes).toEqual({ taste: [] })
+    expect(p.attributes).toEqual({ '3': [] })
   })
 
   it('基线中无该维度（详情未返回）且未选值 → 视为无改动', () => {
-    const f = form({ attributes: [attr('newDim', [])] })
+    const f = form({ attributes: [attr(9, [])] })
     const p = buildCorrectionDiff('红烧肉', f, base())
     expect(p).toEqual({})
   })
 
   it('多维度各自独立比对，只提交有改动的', () => {
     const f = form({
-      attributes: [attr('taste', ['辣', '麻']), attr('temp', ['热', '温'])],
+      attributes: [attr(3, ['辣', '麻']), attr(4, ['热', '温'])],
     })
-    const b = base({ attributes: { taste: ['辣', '麻'], temp: ['温'] } })
+    const b = base({ attributes: { '3': ['辣', '麻'], '4': ['温'] } })
     const p = buildCorrectionDiff('红烧肉', f, b)
-    expect(p.attributes).toEqual({ temp: ['热', '温'] })
+    expect(p.attributes).toEqual({ '4': ['热', '温'] })
   })
 
   it('无任何维度改动时不产出 attributes 键（不留空对象）', () => {
-    const f = form({ attributes: [attr('taste', ['辣'])] })
-    const b = base({ attributes: { taste: ['辣'] } })
+    const f = form({ attributes: [attr(3, ['辣'])] })
+    const b = base({ attributes: { '3': ['辣'] } })
     const p = buildCorrectionDiff('红烧肉', f, b)
     expect('attributes' in p).toBe(false)
   })
 })
 
 describe('snapshotAttributes（预填基线）', () => {
-  it('冻结当时的选中值为基线', () => {
-    const snap = snapshotAttributes([attr('taste', ['辣', '麻']), attr('temp', ['热'])])
-    expect(snap).toEqual({ taste: ['辣', '麻'], temp: ['热'] })
+  it('冻结当时的选中值为基线（键 = 维度 ID 字符串）', () => {
+    const snap = snapshotAttributes([attr(3, ['辣', '麻']), attr(4, ['热'])])
+    expect(snap).toEqual({ '3': ['辣', '麻'], '4': ['热'] })
   })
 
   it('快照为**副本**：后续改 selected 不得影响基线', () => {
-    const ed = attr('taste', ['辣'])
+    const ed = attr(3, ['辣'])
     const snap = snapshotAttributes([ed])
     ed.selected.push('麻')
     // 否则「加载后改一下再改回来」会被误判为无改动、提交丢失
-    expect(snap.taste).toEqual(['辣'])
+    expect(snap['3']).toEqual(['辣'])
   })
 })

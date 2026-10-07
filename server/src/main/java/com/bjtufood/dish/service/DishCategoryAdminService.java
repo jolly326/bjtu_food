@@ -5,10 +5,11 @@ import com.bjtufood.dish.dto.DishCategoryAdminVO;
 import java.util.List;
 
 /**
- * A6 分类值字典管理（`/admin/dish-categories`）+ 菜品录入的**值域校验与自动登记**。
+ * A6 分类值字典管理（`/admin/dish-categories`）。
  *
- * <p>分类值由**自由输入产生**（A3 菜品录入），后台只保留**重命名**。
- * 数据锚在 `key`（`dish.meal_type` 存的就是它）⇒ 改名免费。
+ * <p>数据锚在 `id`（`dish.meal_type` 存的就是它）⇒ 改名免费。
+ * `key` 是**代码锚点**（内置视图常量 `DishViewDefs` 按 `key` 引用分类），新建时选填、
+ * 缺省由后端自动生成；在用后不可改。
  */
 public interface DishCategoryAdminService {
 
@@ -18,6 +19,8 @@ public interface DishCategoryAdminService {
     /**
      * 登记新分类值（`POST /admin/dish-categories`）。
      *
+     * @param key   分类键（小写字母 / 数字 / `-`，1~20；**选填**，缺省自动生成 `cat-` + 8 位小写十六进制）
+     * @param label 分类中文名（1~32 字）
      * @throws com.bjtufood.common.exception.BusinessException code=400 键非法 / 键重名 / 名非法 / 名重名
      */
     DishCategoryAdminVO create(String key, String label);
@@ -30,12 +33,9 @@ public interface DishCategoryAdminService {
     void rename(Long id, String label);
 
     /**
-     * 菜品录入时的值域校验与**自动登记**（A3 调用）：
-     * `key` 已存在 → 原样返回；不存在 → 以 `key` 为键、`key` 为初名登记一行后返回。
+     * 分类 ID 存在性校验（A3 菜品保存调用：`mealTypeId` 必须在字典内）。
      *
-     * @param key 分类键（小写字母 / 数字 / `-`，1~20）
-     * @return 规范化后的分类键
-     * @throws com.bjtufood.common.exception.BusinessException code=400 键非法（空 / 超长 / 非法字符）
+     * @throws com.bjtufood.common.exception.BusinessException code=400 分类值不存在
      */
-    String resolveOrRegister(String key);
+    void requireExists(Long categoryId);
 }

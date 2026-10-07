@@ -105,10 +105,10 @@ public class DishController {
             summary = "菜品描述属性编辑态选项（按菜现有维度）",
             description = """
                     用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
-                    只返回**该菜现有维度**的候选值：每项含 fieldKey（维度键，与 GET /dishes/{id} 的
-                    attributes[].fieldKey 对齐）/ valueType（single|multi）/
-                    options（该维度全部候选值，按 order 升序；每项 valueKey / label）。
-                    **options 为空数组 = 自由文本维度**（无候选值）。
+                    只返回**该菜现有维度**的候选值：每项含 dimensionId（维度 ID，与 GET /dishes/{id} 的
+                    attributes[].dimensionId 对齐）/ valueType（single|multi）/
+                    options（该维度全部候选值，按 order 升序）。
+                    **options 为空数组 = 暂无参考候选**（仍可自由输入）。
                     维度名与当前值在 GET /dishes/{id} 里已有，本端点不重复下发。公开接口。
                     测试示例：/dishes/1/attributes
                     """

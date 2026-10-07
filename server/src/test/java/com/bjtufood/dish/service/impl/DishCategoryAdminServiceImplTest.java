@@ -23,12 +23,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * A6 分类值字典的契约与「自动登记」单测（口径见
+ * A6 分类值字典的契约单测（口径见
  * docs/api/web/categories.md 与 docs/schema/dish_category_value.md）：
  * <ol>
- *   <li><b>自动登记</b>：A3 输入新分类 → 落库；已存在 → 原样返回、不重复插入；键非法 → {@code 400}；</li>
- *   <li><b>登记唯一</b>：键重名 → {@code 400}；</li>
- *   <li><b>列表</b>：按 order 升序返回并带 dishCount。</li>
+ *   <li><b>登记</b>：`key` 选填（缺省自动生成）、填了则校验格式与唯一性；`label` 必填且唯一；</li>
+ *   <li><b>存在性校验</b>：`requireExists` 供 A3 菜品保存校验 `mealTypeId`；</li>
+ *   <li><b>列表</b>：按 order 升序返回并带 dishCount（按分类 ID 统计）。</li>
  * </ol>
  */
 class DishCategoryAdminServiceImplTest {
@@ -59,36 +59,6 @@ class DishCategoryAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("resolveOrRegister：已存在 → 原样返回且不重复插入")
-    void resolveOrRegister_existing_returnsWithoutInsert() {
-        when(categoryMapper.selectCount(any())).thenReturn(1L);
-
-        assertThat(service().resolveOrRegister("noodle")).isEqualTo("noodle");
-        verify(categoryMapper, never()).insert(any());
-    }
-
-    @Test
-    @DisplayName("resolveOrRegister：不存在 → 以键为初名自动登记")
-    void resolveOrRegister_missing_registers() {
-        when(categoryMapper.selectCount(any())).thenReturn(0L);
-
-        assertThat(service().resolveOrRegister("new-kind")).isEqualTo("new-kind");
-        verify(categoryMapper).insert(any());
-    }
-
-    @Test
-    @DisplayName("resolveOrRegister：键非法（大写 / 超长 / 空）→ 400")
-    void resolveOrRegister_illegalKey_rejected400() {
-        assertThatThrownBy(() -> service().resolveOrRegister("Noodle"))
-                .isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> service().resolveOrRegister(""))
-                .isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> service().resolveOrRegister("a".repeat(21)))
-                .isInstanceOf(BusinessException.class);
-        verify(categoryMapper, never()).insert(any());
-    }
-
-    @Test
     @DisplayName("create：键重名 → 400")
     void create_duplicateKey_rejected400() {
         when(categoryMapper.selectCount(any())).thenReturn(1L);
@@ -100,17 +70,40 @@ class DishCategoryAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("listAll：按 order 升序返回并带 dishCount")
+    @DisplayName("create：不填 key → 自动生成唯一键（cat- 前缀）后落库")
+    void create_blankKey_autoGenerates() {
+        when(categoryMapper.selectCount(any())).thenReturn(0L);
+        when(categoryMapper.selectById(any())).thenReturn(category(9L, "cat-0a1b2c3d", "新品类", 9));
+
+        var vo = service().create("  ", "新品类");
+
+        verify(categoryMapper).insert(any());
+        assertThat(vo.getKey()).startsWith("cat-");
+        assertThat(vo.getKey().length()).isEqualTo("cat-".length() + 8);
+    }
+
+    @Test
+    @DisplayName("requireExists：分类不存在 → 400（A3 菜品保存的 mealTypeId 白名单校验）")
+    void requireExists_missing_rejected400() {
+        when(categoryMapper.selectById(404L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service().requireExists(404L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
+    }
+
+    @Test
+    @DisplayName("listAll：按 order 升序返回并带 dishCount（按分类 ID 统计）")
     void listAll_carriesDishCount() {
         when(categoryMapper.selectList(any())).thenReturn(List.of(
                 category(3L, "noodle", "面食粉类", 3),
                 category(1L, "set_meal", "套餐盖饭", 1)));
         Dish d1 = new Dish();
         d1.setId(1L);
-        d1.setMealType("noodle");
+        d1.setMealType(3L);
         Dish d2 = new Dish();
         d2.setId(2L);
-        d2.setMealType("noodle");
+        d2.setMealType(3L);
         when(dishMapper.selectList(any())).thenReturn(List.of(d1, d2));
 
         var list = service().listAll();

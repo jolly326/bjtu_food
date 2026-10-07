@@ -44,7 +44,7 @@ const {
   nextPage,
 } = usePagedList<ReportAdminVO>(
   // B3 与 B2 同端点：`category=report` 时服务端在反馈行基础上补举报私有字段
-  // （reason/reasonLabel/reviewId/reviewContent/reviewDishName/reviewHidden）⇒ 收窄为本页 VO。
+  // （subReasonId/reasonLabel/reviewId/reviewContent/reviewDishName/reviewHidden）⇒ 收窄为本页 VO。
   async (pageNo, pageSize) =>
     (await listFeedbacks({ page: pageNo, pageSize, ...params() })) as AdminPage<ReportAdminVO>,
 )

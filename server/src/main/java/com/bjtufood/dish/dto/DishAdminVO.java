@@ -61,13 +61,13 @@ public class DishAdminVO {
     @Schema(description = "所属食堂名称", example = "第一食堂")
     private String canteenName;
 
-    /** 描述属性（动态属性模型）：键 = 维度 fieldKey，值 = 中文文本 / 数组；无属性为 null */
-    @Schema(description = "描述属性（键=维度 fieldKey，值=中文文本/数组）",
-            example = "{\"dietType\":\"半荤\",\"ingredients\":[\"蛋\"],\"flavorTags\":[\"酸\",\"甜\"],\"serveTemp\":\"热食\"}")
+    /** 描述属性（动态属性模型）：键 = 维度 ID（字符串形态），值 = 中文文本 / 数组；无属性为 null */
+    @Schema(description = "描述属性（键=维度 ID，值=中文文本/数组）",
+            example = "{\"1\":\"半荤\",\"2\":[\"蛋\"],\"3\":[\"酸\",\"甜\"],\"4\":\"热食\"}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品分类键（值域 = 分类值字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）", example = "noodle")
-    private String mealType;
+    @Schema(description = "菜品分类 ID（值域 = 分类值字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）", example = "3")
+    private Long mealTypeId;
 
     /** 分类中文名（A6 分类值字典派生；列表直接可读，端上零硬编码） */
     @Schema(description = "分类中文名", example = "面食粉类")

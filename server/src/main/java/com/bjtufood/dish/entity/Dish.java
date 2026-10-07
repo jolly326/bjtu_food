@@ -50,19 +50,19 @@ public class Dish {
     private String images;
 
     /**
-     * 描述属性（动态属性模型，JSON 对象）：键 = 维度 {@code fieldKey}（camelCase），
-     * 值 = 机器值（{@code single} 维度为字符串 / {@code multi} 维度为字符串数组）；
+     * 描述属性（动态属性模型，JSON 对象）：键 = 维度 {@code id}（字符串形态的十进制 ID），
+     * 值 = 取值 ID（{@code single} 维度为数字 / {@code multi} 维度为数字数组）；
      * 仅含该菜品实际拥有的维度。字典真源 = {@code dish_attribute_dimension} + {@code dish_attribute_value}。
-     * 列 ↔ 展示项的整理（机器值 + 中文标签）由 Service 层完成，本字段只持存储形态。
+     * 列 ↔ 展示项的整理（中文标签翻译）由 Service 层完成，本字段只持存储形态。
      */
-    @Schema(description = "描述属性（JSON：键=维度 fieldKey，值=机器值/数组）", example = "{\"dietType\":\"veg\",\"flavorTags\":[\"spicy\"]}")
+    @Schema(description = "描述属性（JSON：键=维度 ID，值=取值 ID/数组）", example = "{\"1\":\"2\",\"3\":[\"5\",\"7\"]}")
     private String attributes;
 
-    /** 菜品大类：值域由视图字典表派生（单一真源）；
-     *  每个菜品恰属一个大类（互斥、全量覆盖目标）；不进公开菜品出参（DishListItemVO / DishDetailVO），
-     *  仅供「大类视图」筛选与视图字典下发 */
-    @Schema(description = "菜品分类键（值域 = dish_category_value 分类值字典；自由输入自动登记）", example = "noodle")
-    private String mealType;
+    /** 菜品分类：存 {@code dish_category_value.id}（单一真源）；
+     *  每个菜品恰属一个分类（互斥）；不进公开菜品出参（DishListItemVO / DishDetailVO），
+     *  仅供「大类视图」筛选与分类字典下发 */
+    @Schema(description = "菜品分类 ID（值域 = dish_category_value 分类值字典的 id）", example = "3")
+    private Long mealType;
 
     /** 状态：on（上架）/ off（下架）（菜品审核语义已取消，见 docs/schema/dish.md） */
     @Schema(description = "状态", example = "on")

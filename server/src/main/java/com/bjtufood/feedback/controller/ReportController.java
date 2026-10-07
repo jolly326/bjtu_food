@@ -44,9 +44,9 @@ public class ReportController {
 
     @Operation(summary = "举报评价",
             description = "PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。"
-                    + "写入 user_feedback（type=report，status=pending）。"
+                    + "写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。"
                     + "同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。"
-                    + "测试示例：POST /reviews/3/report {\"reason\":\"spam\"}")
+                    + "测试示例：POST /reviews/3/report {\"reasonId\":1}")
     @PostMapping("/{id}/report")
     public Result<Void> report(
             @Parameter(description = "被举报的评价ID", example = "3")

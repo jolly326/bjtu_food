@@ -16,17 +16,15 @@ import com.bjtufood.feedback.service.ReportReasonService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * 举报原因字典服务实现（A7）。
  * <p>
- * 三条不变量见接口 javadoc；`feedbackCount` 用 `feedbackMapper` 统计
- * （`type='report' AND sub=value`，**同域内跨表**，不越界）。
+ * 数据锚在原因 ID；`feedbackCount` 用 `feedbackMapper` 统计
+ * （`type='report' AND sub_reason_id = id`，**同域内跨表**，不越界）。
  */
 @Service
 @RequiredArgsConstructor
@@ -36,8 +34,6 @@ public class ReportReasonServiceImpl implements ReportReasonService {
     private static final String STATUS_OFF = "off";
     /** 启用条数上限（单选弹层可用性约束，非技术约束） */
     private static final int MAX_ENABLED = 8;
-    /** 机器值格式：小写字母 / 数字 / `-` */
-    private static final Pattern VALUE_PATTERN = Pattern.compile("^[a-z0-9-]{1,32}$");
     private static final int LABEL_MAX = 32;
 
     private final ReportReasonMapper reportReasonMapper;
@@ -49,7 +45,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
                         .eq(ReportReason::getStatus, STATUS_ON)
                         .orderByAsc(ReportReason::getSortOrder))
                 .stream()
-                .map(r -> new ReportReasonVO(r.getValue(), r.getLabel()))
+                .map(r -> new ReportReasonVO(r.getId(), r.getLabel()))
                 .toList();
     }
 
@@ -65,18 +61,16 @@ public class ReportReasonServiceImpl implements ReportReasonService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public ReportReasonAdminVO create(String value, String label) {
-        String normalizedValue = normalizeValue(value);
+    public ReportReasonAdminVO create(String label) {
         String normalizedLabel = normalizeLabel(label);
-        // 机器值全站唯一（uk_reason_value 兜底，应用层先行给友好错误）
+        // 标签唯一由应用层保证（label 无唯一索引，与 dish_attribute_value / dish_category_value 同口径）
         DuplicateGuard.assertUnique(reportReasonMapper, new LambdaQueryWrapper<ReportReason>()
-                .eq(ReportReason::getValue, normalizedValue), "机器值已存在");
+                .eq(ReportReason::getLabel, normalizedLabel), "中文标签已存在");
         // 新增默认启用 ⇒ 启用数将达到 count+1，超上限即拒
         if (countEnabled() >= MAX_ENABLED) {
             throw new BusinessException("启用数已达上限 " + MAX_ENABLED + " 条，请先停用其它原因");
         }
         ReportReason entity = new ReportReason();
-        entity.setValue(normalizedValue);
         entity.setLabel(normalizedLabel);
         entity.setStatus(STATUS_ON);
         entity.setSortOrder(nextOrder());
@@ -143,7 +137,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
         if (current == null) {
             throw new BusinessException(4001, "原因不存在");
         }
-        long used = countFeedbackByValue(current.getValue());
+        long used = countFeedbackByReasonId(current.getId());
         if (used > 0) {
             // 删掉会让历史举报翻不出中文 ⇒ 下线一律用停用
             throw new BusinessException("该原因已被 " + used + " 条举报引用，不能删除（可改为停用）");
@@ -152,13 +146,22 @@ public class ReportReasonServiceImpl implements ReportReasonService {
     }
 
     @Override
-    public boolean isSubmittable(String value) {
-        if (!StringUtils.hasText(value)) {
+    public boolean isSubmittable(Long reasonId) {
+        if (reasonId == null) {
             return false;
         }
         return reportReasonMapper.selectCount(new LambdaQueryWrapper<ReportReason>()
-                .eq(ReportReason::getValue, value.trim())
+                .eq(ReportReason::getId, reasonId)
                 .eq(ReportReason::getStatus, STATUS_ON)) > 0;
+    }
+
+    @Override
+    public Map<Long, String> labelByIdAll() {
+        Map<Long, String> labels = new java.util.HashMap<>();
+        for (ReportReason reason : reportReasonMapper.selectList(null)) {
+            labels.put(reason.getId(), reason.getLabel());
+        }
+        return labels;
     }
 
     // ==================== 内部工具 ====================
@@ -168,11 +171,11 @@ public class ReportReasonServiceImpl implements ReportReasonService {
                 .eq(ReportReason::getStatus, STATUS_ON));
     }
 
-    /** 被举报记录引用次数：`type='report' AND sub=value` */
-    private long countFeedbackByValue(String value) {
+    /** 被举报记录引用次数：`type='report' AND sub_reason_id = id` */
+    private long countFeedbackByReasonId(Long reasonId) {
         return feedbackMapper.selectCount(new LambdaQueryWrapper<Feedback>()
                 .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
-                .eq(Feedback::getSub, value));
+                .eq(Feedback::getSubReasonId, reasonId));
     }
 
     /** 新项排最后：现有最大 sortOrder + 1 */
@@ -188,17 +191,9 @@ public class ReportReasonServiceImpl implements ReportReasonService {
         }
     }
 
-    private static String normalizeValue(String value) {
-        String v = value == null ? null : value.trim();
-        if (v == null || !VALUE_PATTERN.matcher(v).matches()) {
-            throw new BusinessException("机器值只能包含小写字母、数字与 -，长度 1~32");
-        }
-        return v;
-    }
-
     private static String normalizeLabel(String label) {
         String l = label == null ? null : label.trim();
-        if (!StringUtils.hasText(l)) {
+        if (l == null || l.isEmpty()) {
             throw new BusinessException("中文标签不能为空");
         }
         if (l.length() > LABEL_MAX) {
@@ -210,11 +205,10 @@ public class ReportReasonServiceImpl implements ReportReasonService {
     private ReportReasonAdminVO toAdminVO(ReportReason entity) {
         ReportReasonAdminVO vo = new ReportReasonAdminVO();
         vo.setId(entity.getId());
-        vo.setValue(entity.getValue());
         vo.setLabel(entity.getLabel());
         vo.setOrder(entity.getSortOrder());
         vo.setStatus(entity.getStatus());
-        vo.setFeedbackCount(countFeedbackByValue(entity.getValue()));
+        vo.setFeedbackCount(countFeedbackByReasonId(entity.getId()));
         vo.setUpdatedAt(entity.getUpdatedAt());
         return vo;
     }

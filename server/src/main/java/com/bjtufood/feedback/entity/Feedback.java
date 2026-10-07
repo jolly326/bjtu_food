@@ -38,6 +38,10 @@ public class Feedback {
     @Schema(description = "二级分类（仅历史 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null")
     private String sub;
 
+    /** 举报原因 ID（仅 type='report' 有效 = report_reason.id；其他类型为 null） */
+    @Schema(description = "举报原因 ID（type='report' 时 = report_reason.id；其他行为 null）")
+    private Long subReasonId;
+
     @Schema(description = "反馈内容")
     private String content;
 

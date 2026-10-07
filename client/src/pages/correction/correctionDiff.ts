@@ -93,9 +93,11 @@ export function buildCorrectionDiff(
   if (!sameList(form.images, baseline.images)) payload.images = form.images.filter(Boolean)
   const attrs: Record<string, string | string[]> = {}
   for (const ed of form.attributes) {
+    // 维度键 = 维度 ID 字符串（与 `dish.attributes` JSON 键形态一致）
+    const key = String(ed.dimensionId)
     // 维度值按集合比对（顺序不同不算改动），图片仍按顺序比对（见上）
-    if (sameValueSet(ed.selected, baseline.attributes[ed.fieldKey] ?? [])) continue
-    attrs[ed.fieldKey] = ed.valueType === 'multi' ? ed.selected : (ed.selected[0] ?? '')
+    if (sameValueSet(ed.selected, baseline.attributes[key] ?? [])) continue
+    attrs[key] = ed.valueType === 'multi' ? ed.selected : (ed.selected[0] ?? '')
   }
   if (Object.keys(attrs).length) payload.attributes = attrs
   return payload
@@ -104,6 +106,6 @@ export function buildCorrectionDiff(
 /** 从编辑项快照基线（加载完成后调用：把当时的选中值冻结为「预填值」） */
 export function snapshotAttributes(attributes: AttributeEditor[]): Record<string, string[]> {
   const map: Record<string, string[]> = {}
-  for (const ed of attributes) map[ed.fieldKey] = [...ed.selected]
+  for (const ed of attributes) map[String(ed.dimensionId)] = [...ed.selected]
   return map
 }

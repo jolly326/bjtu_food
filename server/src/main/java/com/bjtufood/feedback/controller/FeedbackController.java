@@ -63,7 +63,7 @@ public class FeedbackController {
      * {@code /admin/report-reasons}（管理端 JWT 保护）。
      * 构造逻辑共用 {@code FeedbackService#reportReasons()}。
      */
-    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（value 机器值 + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。测试示例：/report-reasons")
+    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（id 原因 ID + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons")
     @GetMapping("/report-reasons")
     public Result<List<ReportReasonVO>> reportReasons() {
         return Result.success(feedbackService.reportReasons());

@@ -2,9 +2,9 @@
  * 反馈 / 举报 / 菜品问题反馈写入契约（三条互不耦合的链路）。
  *
  * - **意见反馈**（`POST /feedback`）：3 类型（bug / suggestion / other）+ 描述 + 截图（≤1 张）
- * - **评价举报**（`POST /reviews/{id}/report`）：RESTful 子资源，举报对象（评价 ID）在路径中，`reason` 必选
+ * - **评价举报**（`POST /reviews/{id}/report`）：RESTful 子资源，举报对象（评价 ID）在路径中，`reasonId` 必选
  * - **菜品问题反馈**（`POST /dishes/{id}/correction`）：**先选 `type`**；`field` 局部提交（只传改动项），
- *   描述属性经 `attributes`（键 = 维度 `fieldKey`）；`gone` 一键提交（仅选填 `note` / `images`）
+ *   描述属性经 `attributes`（键 = 维度 ID）；`gone` 一键提交（仅选填 `note` / `images`）
  */
 
 /**
@@ -70,7 +70,7 @@ export interface DishCorrectionPayload {
   stallName?: string
   /** 楼层（`field` 型；**受控字典值·值即汉字**，归属档口 `stall.floor`）：采纳时写回目标档口，同档口其他菜品一并生效 */
   floor?: string
-  /** 动态描述属性（`field` 型）：键 = 维度 `fieldKey`，值 = 中文文本（single）或中文数组（multi）；仅含改动维度 */
+  /** 动态描述属性（`field` 型）：键 = 维度 ID（字符串），值 = 中文文本（single）或中文数组（multi）；仅含改动维度 */
   attributes?: Record<string, string | string[]>
   /**
    * 图片 URL 数组（经 ImagePicker → 上传安检）。
@@ -98,6 +98,6 @@ export interface FeedbackSubmit {
 
 /** 评价举报请求体：举报对象在**路径**中；请求体无 `type` / `relatedType` / `relatedId` */
 export interface ReportPayload {
-  /** 举报原因机器值（必选，字典端点 `GET /report-reasons` 下发项） */
-  reason: string
+  /** 举报原因 ID（必选，字典端点 `GET /report-reasons` 下发项的 `id`） */
+  reasonId: number
 }

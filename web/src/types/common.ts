@@ -114,7 +114,7 @@ export interface StallSaveReq {
 }
 
 // ===== A3 菜品 =====
-/** 描述属性：键 = 维度 `fieldKey`，值 = 中文文本 / 数组 */
+/** 描述属性：键 = 维度 ID（字符串形态），值 = 中文文本 / 数组 */
 export type DishAttributes = Record<string, string | string[]>
 
 /** A3 菜品列表行（**瘦身**：不含 description / attributes / 全量 images；封面 = 首图派生值） */
@@ -128,7 +128,7 @@ export interface DishAdminListItemVO {
   originalPrice: number | null
   /** 封面图绝对 URL（首图派生；无图为空串） */
   coverImage: string
-  mealType: string
+  mealTypeId: number
   /** 分类中文名（A6 分类值字典派生） */
   mealTypeLabel?: string
   status: OnOffStatus
@@ -156,8 +156,8 @@ export interface DishAdminVO {
   stallId: number
   stallName: string
   canteenName: string
-  /** 分类键（= `dish.meal_type`，值域来自 A6 分类值字典） */
-  mealType: string
+  /** 分类值 ID（= `dish.meal_type`，值域来自 A6 分类值字典） */
+  mealTypeId: number
   /** 分类中文名（A6 分类值字典派生，列表直接展示，端上零硬编码） */
   mealTypeLabel?: string
   attributes: DishAttributes | null
@@ -174,8 +174,8 @@ export interface DishSaveReq {
   stallId: number
   price: number
   originalPrice?: number | null
-  /** 分类键；**允许新键并自动登记**（见 A6 值管理） */
-  mealType: string
+  /** 分类值 ID（须存在于 A6 分类值字典） */
+  mealTypeId: number
   description?: string
   /** 0~5 张、有序、首图作封面 */
   images: string[]
@@ -188,14 +188,14 @@ export interface DishListParams {
   keyword?: string
   canteenId?: number
   stallId?: number
-  mealType?: string
+  mealTypeId?: number
   status?: OnOffStatus | ''
 }
 
 // ===== A4 属性维度与取值 =====
 export interface DishDimensionAdminVO {
+  /** 维度 ID（= `dish.attributes` JSON 的键） */
   id: number
-  fieldKey: string
   name: string
   valueType: 'single' | 'multi'
   order: number
@@ -214,7 +214,6 @@ export interface DishValueAdminVO {
 }
 
 export interface DishDimensionSaveReq {
-  fieldKey: string
   name: string
   valueType: 'single' | 'multi'
 }
@@ -264,7 +263,7 @@ export interface DishViewUpdateReq {
   enabled: boolean
 }
 
-/** A6 分类值（`dish.meal_type` 的取值域；条件构建器的「值」就是它的 `key`） */
+/** A6 分类值（`dish.meal_type` 存它的 `id`；`key` 是代码锚点，新建缺省由后端自动生成） */
 export interface DishCategoryAdminVO {
   id: number
   key: string
@@ -277,13 +276,12 @@ export interface DishCategoryAdminVO {
 
 // ===== A7 举报原因 =====
 export interface ReportReasonAdminVO {
+  /** 原因 ID（落库列 = `user_feedback.sub_reason_id`） */
   id: number
-  /** 机器值（端上提交字段名 = `reason`；落库列 = `user_feedback.sub`；**在用后不可改**） */
-  value: string
   label: string
   order: number
   status: OnOffStatus
-  /** 被举报记录引用次数（`type='report'` 且 `sub = value`）—— 删除前判断 */
+  /** 被举报记录引用次数（`type='report'` 且 `sub_reason_id = id`）—— 删除前判断 */
   feedbackCount: number
   updatedAt: string
 }
@@ -344,8 +342,9 @@ export interface FeedbackAdminVO {
 
 /** B3 举报行 = 反馈行 + 被举报评价摘要与可见性 */
 export interface ReportAdminVO extends FeedbackAdminVO {
-  /** 举报原因机器值（= `user_feedback.sub`） */
-  reason: string
+  /** 举报原因 ID（= `user_feedback.sub_reason_id` = `report_reason.id`） */
+  subReasonId: number
+  /** 举报原因中文名（服务端按 ID 实时翻译） */
   reasonLabel: string
   reviewId: number
   reviewContent: string | null

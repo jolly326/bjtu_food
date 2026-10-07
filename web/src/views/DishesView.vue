@@ -47,21 +47,21 @@ import StatusTag from '@/components/StatusTag.vue'
 const canteens = ref<CanteenAdminVO[]>([])
 const stalls = ref<StallAdminVO[]>([])
 const dimensions = ref<DishDimensionAdminVO[]>([])
-/** A6 分类值字典：分类**筛选下拉**与「分类中文名」展示的真源 */
+/** A6 分类值字典：分类**筛选下拉**与编辑表单分类下拉、以及「分类中文名」展示的真源 */
 const categories = ref<DishCategoryAdminVO[]>([])
 /**
- * 取值字典（按维度 `fieldKey` 分组）—— A4 落地后**属性的候选真源**。
+ * 取值字典（按维度 ID 分组）—— A4 落地后**属性的候选真源**。
  *
  * <p>表单用 `input` + `datalist`：既给出字典建议，又保留「**自由输入新值**」能力
  * （服务端在同维度内未命中即**自动登记**为新取值，见 A4 的「灵活取值」）。
  */
-const valuesByFieldKey = ref<Record<string, DishValueAdminVO[]>>({})
+const valuesByDimensionId = ref<Record<string, DishValueAdminVO[]>>({})
 
 /* ==================== 列表 ==================== */
 const fKeyword = ref('')
 const fCanteenId = ref(0)
 const fStallId = ref(0)
-const fMealType = ref('')
+const fMealTypeId = ref(0)
 const fStatus = ref<OnOffStatus | ''>('')
 
 function params(): DishListParams {
@@ -69,7 +69,7 @@ function params(): DishListParams {
     keyword: fKeyword.value || undefined,
     canteenId: fCanteenId.value || undefined,
     stallId: fStallId.value || undefined,
-    mealType: fMealType.value || undefined,
+    mealTypeId: fMealTypeId.value || undefined,
     status: fStatus.value || undefined,
   }
 }
@@ -105,7 +105,7 @@ const form = ref({
   stallId: 0,
   priceYuan: '',
   originalPriceYuan: '',
-  mealType: '',
+  mealTypeId: 0,
   description: '',
   /** 组件态 = `{ url }` 对象数组（ImageUpload 契约）；提交时映射回 `imageUrls: string[]` */
   images: [] as ImageItem[],
@@ -121,7 +121,7 @@ function resetForm(): void {
     stallId: stalls.value[0]?.id ?? 0,
     priceYuan: '',
     originalPriceYuan: '',
-    mealType: '',
+    mealTypeId: categories.value[0]?.id ?? 0,
     description: '',
     images: [],
   }
@@ -150,7 +150,7 @@ async function openEdit(row: DishAdminListItemVO): Promise<void> {
       stallId: d.stallId,
       priceYuan: String(fenToYuan(d.price)),
       originalPriceYuan: d.originalPrice == null ? '' : String(fenToYuan(d.originalPrice)),
-      mealType: d.mealType,
+      mealTypeId: d.mealTypeId,
       description: d.description,
       // 编辑回显：契约出参 `images: string[]`（有序）映射为组件对象数组，顺序不变 ⇒ 首图仍是封面
       images: d.images.map((url) => ({ url })),
@@ -158,9 +158,9 @@ async function openEdit(row: DishAdminListItemVO): Promise<void> {
     attrSingle.value = {}
     attrMulti.value = {}
     for (const dim of dimensions.value) {
-      const v = d.attributes?.[dim.fieldKey]
-      if (Array.isArray(v)) attrMulti.value[dim.fieldKey] = v.join('、')
-      else if (typeof v === 'string') attrSingle.value[dim.fieldKey] = v
+      const v = d.attributes?.[String(dim.id)]
+      if (Array.isArray(v)) attrMulti.value[String(dim.id)] = v.join('、')
+      else if (typeof v === 'string') attrSingle.value[String(dim.id)] = v
     }
     open.value = true
   } catch (e) {
@@ -173,15 +173,17 @@ async function openEdit(row: DishAdminListItemVO): Promise<void> {
 function buildAttributes(): Record<string, string | string[]> {
   const out: Record<string, string | string[]> = {}
   for (const d of dimensions.value) {
+    // 键 = 维度 ID 字符串（`dish.attributes` JSON 键形态）
+    const key = String(d.id)
     if (d.valueType === 'single') {
-      const v = (attrSingle.value[d.fieldKey] ?? '').trim()
-      if (v) out[d.fieldKey] = v
+      const v = (attrSingle.value[key] ?? '').trim()
+      if (v) out[key] = v
     } else {
-      const arr = (attrMulti.value[d.fieldKey] ?? '')
+      const arr = (attrMulti.value[key] ?? '')
         .split(/[、,]/)
         .map((s) => s.trim())
         .filter(Boolean)
-      if (arr.length) out[d.fieldKey] = arr
+      if (arr.length) out[key] = arr
     }
   }
   return out
@@ -200,8 +202,8 @@ async function save(): Promise<void> {
     ElMessage.warning('请至少上传一张封面图')
     return
   }
-  if (!form.value.mealType.trim()) {
-    ElMessage.warning('请填写菜品分类')
+  if (!form.value.mealTypeId) {
+    ElMessage.warning('请选择菜品分类')
     return
   }
   const price = yuanToFen(form.value.priceYuan)
@@ -221,7 +223,7 @@ async function save(): Promise<void> {
     stallId: form.value.stallId,
     price,
     originalPrice,
-    mealType: form.value.mealType.trim(),
+    mealTypeId: form.value.mealTypeId,
     description: form.value.description,
     // 提交映射：按数组顺序回 `imageUrls: string[]`（首图即封面，后端 / client 契约零变更）
     images: form.value.images.map((img) => img.url),
@@ -313,7 +315,7 @@ function reset(): void {
   fKeyword.value = ''
   fCanteenId.value = 0
   fStallId.value = 0
-  fMealType.value = ''
+  fMealTypeId.value = 0
   fStatus.value = ''
   reloadFirstPage()
 }
@@ -331,11 +333,11 @@ onMounted(async () => {
     stalls.value = ss
     dimensions.value = ds
     categories.value = cats
-    // 各维度的取值字典：逐个拉取后按 fieldKey 归组（供 datalist 建议）
+    // 各维度的取值字典：逐个拉取后按维度 ID 归组（供 datalist 建议）
     const grouped = await Promise.all(
-      ds.map(async (d) => [d.fieldKey, await listValues(d.id)] as const),
+      ds.map(async (d) => [String(d.id), await listValues(d.id)] as const),
     )
-    valuesByFieldKey.value = Object.fromEntries(grouped)
+    valuesByDimensionId.value = Object.fromEntries(grouped)
   } catch {
     /* 列表仍可展示 */
   }
@@ -365,10 +367,10 @@ onMounted(async () => {
         <option :value="0">全部档口</option>
         <option v-for="s in filteredStalls" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
-      <!-- A6 分类值字典驱动的下拉：筛选值 = 分类键（管理员从下拉选取合法键） -->
-      <select class="form-input" v-model="fMealType" @change="reloadFirstPage">
-        <option value="">全部分类</option>
-        <option v-for="c in categories" :key="c.key" :value="c.key">{{ c.label }}</option>
+      <!-- A6 分类值字典驱动的下拉：筛选值 = 分类 ID -->
+      <select class="form-input" v-model.number="fMealTypeId" @change="reloadFirstPage">
+        <option :value="0">全部分类</option>
+        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.label }}</option>
       </select>
       <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
         <option value="">全部状态</option>
@@ -416,7 +418,7 @@ onMounted(async () => {
               {{ row.originalPrice == null ? '—' : formatYuan(row.originalPrice) }}
             </td>
             <td>{{ row.canteenName }} / {{ row.stallName }}</td>
-            <td>{{ row.mealTypeLabel || row.mealType || '—' }}</td>
+            <td>{{ row.mealTypeLabel || '—' }}</td>
             <td><StatusTag :status="row.status" kind="dish" /></td>
             <td class="num">
               {{ row.avgRating ?? '—' }}
@@ -507,12 +509,10 @@ onMounted(async () => {
       </div>
       <div class="field">
         <label for="dish-meal-type">菜品分类</label>
-        <input
-          id="dish-meal-type"
-          class="form-input"
-          v-model="form.mealType"
-          placeholder="如 主食 / 饮品；可填新分类，保存时自动登记"
-        />
+        <select id="dish-meal-type" class="form-input" v-model.number="form.mealTypeId">
+          <option :value="0" disabled>请选择分类</option>
+          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.label }}</option>
+        </select>
       </div>
       <div class="field">
         <label for="dish-description">描述</label>
@@ -526,24 +526,29 @@ onMounted(async () => {
         <div class="dim-title">描述属性（下拉给出字典建议；填新值保存时自动登记）</div>
         <div class="field" v-for="d in dimensions" :key="d.id">
           <label>{{ d.name }}{{ d.valueType === 'multi' ? '（多值）' : '' }}</label>
-          <!-- 字典建议 + 自由录入：value 为中文，服务端同维度内未命中即自动登记为新取值。
+          <!-- 字典建议 + 自由录入：value 为中文，服务端同维度内未命中即自动登记为新取值；
+               键 = 维度 ID 字符串（`dish.attributes` JSON 键形态）。
                v-model 必须是成员表达式 ⇒ 单值 / 多值分列两个输入（不用三元写法）。 -->
           <input
             v-if="d.valueType === 'single'"
             class="form-input"
-            :list="`dim-${d.fieldKey}`"
+            :list="`dim-${d.id}`"
             placeholder="选择或输入新值"
-            v-model="attrSingle[d.fieldKey]"
+            v-model="attrSingle[String(d.id)]"
           />
           <input
             v-else
             class="form-input"
-            :list="`dim-${d.fieldKey}`"
+            :list="`dim-${d.id}`"
             placeholder="多个值用顿号分隔"
-            v-model="attrMulti[d.fieldKey]"
+            v-model="attrMulti[String(d.id)]"
           />
-          <datalist :id="`dim-${d.fieldKey}`">
-            <option v-for="v in valuesByFieldKey[d.fieldKey] ?? []" :key="v.id" :value="v.label" />
+          <datalist :id="`dim-${d.id}`">
+            <option
+              v-for="v in valuesByDimensionId[String(d.id)] ?? []"
+              :key="v.id"
+              :value="v.label"
+            />
           </datalist>
         </div>
       </div>

@@ -74,10 +74,10 @@ class DishCacheBenchmarkTest {
     private static final int CALLS = 5;
 
     private static final List<DishAttributeDimension> DIMENSIONS = List.of(
-            dimension(1L, "dietType", "饮食属性", "single", 1),
-            dimension(2L, "spiceLevel", "辣度", "single", 2),
-            dimension(3L, "flavorTags", "口味", "multi", 3),
-            dimension(4L, "serveTemp", "出餐温度", "single", 4));
+            dimension(1L, "饮食属性", "single", 1),
+            dimension(2L, "辣度", "single", 2),
+            dimension(3L, "口味", "multi", 3),
+            dimension(4L, "出餐温度", "single", 4));
 
     private DishMapper dishMapper;
     private DishViewLogMapper dishViewLogMapper;
@@ -261,8 +261,9 @@ class DishCacheBenchmarkTest {
         PerfMetrics.emit("server.cache.candidates_recompute_after_write", recompute, "次/请求",
                 "失效后首次请求的 Mapper 调用（取行 + 维度字典 + 取值字典重算；维度字典已单独缓存故此处仅候选路径重查）");
         // 护栏③：失效必须真的生效——否则新写入的取值最长要等一整个 TTL 才出现在候选里。
-        // 口径变更（A4）：候选重算现由「维度字典 + 取值字典」两次查询构成 ⇒ 取行(1) + 维度(1) + 取值(1) = 3。
-        assertThat(recompute).isEqualTo(3L);
+        // 口径（A4）：候选重算只查「取值字典」一次（按 dimensionId 直归组，不再回查维度字典）
+        // ⇒ 取行(1) + 取值(1) = 2。
+        assertThat(recompute).isEqualTo(2L);
         assertThat(after).hasSize(4);
 
         CacheStats stats = cacheStats(CacheConfig.ATTRIBUTE_CANDIDATES);
@@ -308,11 +309,10 @@ class DishCacheBenchmarkTest {
         return v;
     }
 
-    private static DishAttributeDimension dimension(Long id, String fieldKey, String name,
+    private static DishAttributeDimension dimension(Long id, String name,
                                                     String valueType, Integer order) {
         DishAttributeDimension dim = new DishAttributeDimension();
         dim.setId(id);
-        dim.setFieldKey(fieldKey);
         dim.setName(name);
         dim.setValueType(valueType);
         dim.setSortOrder(order);
@@ -327,10 +327,10 @@ class DishCacheBenchmarkTest {
         return dish;
     }
 
-    /** 单菜属性 JSON：4 个维度各一个值（多选维度为数组，与生产落库形态一致） */
+    /** 单菜属性 JSON：4 个维度各一个值（键 = 维度 ID 字符串；多选维度为数组，与生产落库形态一致） */
     private static String sampleAttributesJson(int seed) {
-        return "{\"dietType\":\"v" + (seed % 20) + "\",\"spiceLevel\":\"v" + ((seed + 3) % 20)
-                + "\",\"flavorTags\":[\"v" + ((seed + 7) % 20) + "\"],\"serveTemp\":\"v"
+        return "{\"1\":\"v" + (seed % 20) + "\",\"2\":\"v" + ((seed + 3) % 20)
+                + "\",\"3\":[\"v" + ((seed + 7) % 20) + "\"],\"4\":\"v"
                 + ((seed + 11) % 20) + "\"}";
     }
 

@@ -89,10 +89,10 @@ public class FeedbackAdminVO {
 
     // ===== B3 举报私有字段（type=report 时填充；反馈行为 null） =====
 
-    /** 举报原因机器值（= `user_feedback.sub`；反馈行为 null） */
-    private String reason;
+    /** 举报原因 ID（= `user_feedback.sub_reason_id` = `report_reason.id`；反馈行为 null） */
+    private Long subReasonId;
 
-    /** 举报原因中文名（由 `report_reason` 字典翻译；字典缺失时回退机器值，端上零硬编码） */
+    /** 举报原因中文名（由 `report_reason` 字典翻译；停用原因仍可译出，端上零硬编码） */
     private String reasonLabel;
 
     /** 被举报评价 ID（= `relatedId`；反馈行为 null） */

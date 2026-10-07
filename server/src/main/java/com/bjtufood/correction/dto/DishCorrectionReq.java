@@ -63,11 +63,11 @@ public class DishCorrectionReq {
     private String floor;
 
     /**
-     * 动态描述属性（局部：仅含用户改动的维度项）。键 = 维度 {@code fieldKey}，值 = **中文文本**（或文本数组）；
+     * 动态描述属性（局部：仅含用户改动的维度项）。键 = 维度 {@code id}（字符串形态），值 = **中文文本**（或文本数组）；
      * 取值为自由文本、候选仅作提示不限制；命中内容安检则 400。
      */
-    @Schema(description = "动态描述属性（键=维度 fieldKey，值=中文文本/数组；仅传改动维度）",
-            example = "{\"dietType\":\"素\",\"flavorTags\":[\"辣\",\"酸\"]}")
+    @Schema(description = "动态描述属性（键=维度 ID，值=中文文本/数组；仅传改动维度）",
+            example = "{\"1\":\"素\",\"3\":[\"辣\",\"酸\"]}")
     private Map<String, Object> attributes;
 
     /**

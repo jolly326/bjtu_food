@@ -101,7 +101,7 @@ class FeedbackServiceImplTest {
      * 本类只关心「不可提交时 400 且不落库」这一条契约。
      */
     private void stubReasonSubmittable() {
-        when(reportReasonService.isSubmittable(anyString())).thenReturn(true);
+        when(reportReasonService.isSubmittable(anyLong())).thenReturn(true);
     }
 
     private FeedbackReq feedbackReq(String type, String content) {
@@ -111,9 +111,9 @@ class FeedbackServiceImplTest {
         return req;
     }
 
-    private ReportReq reportReq(String reason, String content) {
+    private ReportReq reportReq(Long reasonId, String content) {
         ReportReq req = new ReportReq();
-        req.setReason(reason);
+        req.setReasonId(reasonId);
         req.setContent(content);
         return req;
     }
@@ -169,7 +169,7 @@ class FeedbackServiceImplTest {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(false);
 
-        assertThatThrownBy(() -> service().report(7L, 99L, reportReq("spam", "")))
+        assertThatThrownBy(() -> service().report(7L, 99L, reportReq(1L, "")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
         verify(feedbackMapper, never()).insert(any());
     }
@@ -183,7 +183,7 @@ class FeedbackServiceImplTest {
 
         assertThatThrownBy(() -> service().report(7L, 99L, reportReq(null, "")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        assertThatThrownBy(() -> service().report(7L, 99L, reportReq("not-a-reason", "")))
+        assertThatThrownBy(() -> service().report(7L, 99L, reportReq(999L, "")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         verify(feedbackMapper, never()).insert(any());
     }
@@ -196,27 +196,28 @@ class FeedbackServiceImplTest {
         when(feedbackMapper.selectCount(any())).thenReturn(1L);
         stubReasonSubmittable();
 
-        assertThatThrownBy(() -> service().report(7L, 99L, reportReq("spam", "")))
+        assertThatThrownBy(() -> service().report(7L, 99L, reportReq(1L, "")))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         verify(feedbackMapper, never()).insert(any());
     }
 
     @Test
-    @DisplayName("report：正常落库 —— sub=原因、关联类型=review、关联 id=路径 id")
+    @DisplayName("report：正常落库 —— sub_reason_id=原因 ID、sub 恒空、关联类型=review、关联 id=路径 id")
     void report_valid_persistsWithSubAndRelated() {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
         when(feedbackMapper.selectCount(any())).thenReturn(0L);
         stubReasonSubmittable();
 
-        service().report(7L, 99L, reportReq("abuse", "辱骂内容"));
+        service().report(7L, 99L, reportReq(2L, "辱骂内容"));
 
         ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
         verify(feedbackMapper).insert(captor.capture());
         Feedback saved = captor.getValue();
         assertThat(saved.getUserId()).isEqualTo(7L);
         assertThat(saved.getType()).isEqualTo(FeedbackConst.TYPE_REPORT);
-        assertThat(saved.getSub()).isEqualTo("abuse");
+        assertThat(saved.getSubReasonId()).isEqualTo(2L);
+        assertThat(saved.getSub()).isNull();
         assertThat(saved.getRelatedType()).isEqualTo(FeedbackConst.RELATED_REVIEW);
         assertThat(saved.getRelatedId()).isEqualTo(99L);
         assertThat(saved.getStatus()).isEqualTo(FeedbackConst.STATUS_PENDING);
@@ -229,7 +230,7 @@ class FeedbackServiceImplTest {
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
         stubReasonSubmittable();
 
-        service().report(null, 99L, reportReq("spam", ""));
+        service().report(null, 99L, reportReq(1L, ""));
 
         // 游客无 userId 可判重 ⇒ 不发起 selectCount，但仍要落一条匿名举报
         verify(feedbackMapper, never()).selectCount(any());
