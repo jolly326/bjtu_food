@@ -10,6 +10,8 @@ import com.bjtufood.auth.dto.UserOverviewVO;
 import com.bjtufood.auth.dto.UserVO;
 import com.bjtufood.auth.entity.User;
 import com.bjtufood.auth.constant.UserConst;
+import com.bjtufood.auth.entity.EmailVerificationCode;
+import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
@@ -33,6 +35,8 @@ public class UserServiceImpl implements UserService {
     private static final String NICKNAME_PLACEHOLDER = "食客新友";
 
     private final UserMapper userMapper;
+    /** 解绑邮箱时清理该绑定邮箱的历史验证码（表无 user_id 列，按 email 匹配删除） */
+    private final EmailVerificationCodeMapper emailVerificationCodeMapper;
 
     @Override
     public UserOverviewVO countOverview() {
@@ -49,9 +53,12 @@ public class UserServiceImpl implements UserService {
     private final com.bjtufood.auth.config.TokenBlacklist tokenBlacklist;
     /**
      * 「DB status 写 + TokenBlacklist 写」的临界区（详见 {@link UserStateWriteLock} 类注释）。
-     * 与 {@code AuthServiceImpl#deleteAccount} 共用同一实例，故同一 userId 的两条状态写入口互相串行。
+     * 与 {@code AccountCloser#close}（本人注销 / 管理员删除账号）共用同一实例，
+     * 故同一 userId 的「启停 / 解绑邮箱 / 注销」三条写入口互相串行。
      */
     private final UserStateWriteLock userStateWriteLock;
+    /** 账号注销执行器（本人自注销与管理员删除账号的唯一实现，口径见其类注释） */
+    private final AccountCloser accountCloser;
 
     @Override
     public IPage<UserVO> listUsers(int page, int pageSize, String status, String keyword) {
@@ -127,7 +134,7 @@ public class UserServiceImpl implements UserService {
         // 「读现状 → 写 DB → 同步黑名单」必须整体落在同一 userId 临界区内：
         // 否则并发「禁用 / 启用」交错可得 DB 终态 active 而该 userId 仍在拉黑中，该用户连重新登录
         // 换到的新 token 也会被 JwtAuthFilter 一律 401（重启或 7 天窗口前不自愈）。
-        // 同一 userId 的注销路径（AuthServiceImpl#deleteAccount）持有同一把锁，故「启用 vs 注销」亦不交错。
+        // 同一 userId 的注销路径（AccountCloser#close）持有同一把锁，故「启用 vs 注销」亦不交错。
         userStateWriteLock.run(id, () -> {
             // 存在性校验（契约 4001「用户不存在」）；读与后续写同处临界区，避免读到的现状事后被推翻
             if (userMapper.selectById(id) == null) {
@@ -143,13 +150,58 @@ public class UserServiceImpl implements UserService {
                     .set(User::getStatus, status));
             // 禁用后该用户已签发的 token 必须立即失效（否则改了状态仍能带旧 token 访问）；
             // 恢复 active 时解除拉黑，使其可正常登录使用。
-            // （deleted 状态仅由微信账号合并流程在 AuthServiceImpl 内部写入，不经本接口）
+            // （deleted 状态由 AccountCloser 的注销路径写入，不经本接口）
             if (UserConst.STATUS_DISABLED.equals(status)) {
                 tokenBlacklist.revokeUser(id);
             } else {
                 tokenBlacklist.restoreUser(id);
             }
         });
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unbindEmail(Long id) {
+        // 「读现状 → 置空 bind_email → 清验证码」整体落在同一 userId 临界区：
+        // 与启停 / 注销（AccountCloser#close）对同一账号的写互不交错。
+        userStateWriteLock.run(id, () -> doUnbindEmail(id));
+    }
+
+    /**
+     * {@link #unbindEmail} 的临界区主体。
+     * <p>
+     * 认证态唯一判据 = {@code bind_email} 非空（不进 JWT，实时查库判定），置 NULL 即实时回落游客态；
+     * 只动这一列 —— 不改 {@code status}、不动 {@code email}（账号标识），登录与已发表内容不受影响。
+     * <p>
+     * 事务边界：方法入口开事务（含两条写：user 行 + 验证码清理，须同生共死），
+     * 锁在事务内获取（与 {@code AccountCloser#close} 同一口径）。
+     */
+    private void doUnbindEmail(Long id) {
+        // 存在性校验（契约 4001「用户不存在」）；读与后续写同处临界区，避免读到的现状事后被推翻
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException(4001, "用户不存在");
+        }
+        String bindEmail = user.getBindEmail();
+        if (!StringUtils.hasText(bindEmail)) {
+            // 未认证账号无可解绑对象（已注销账号的 bind_email 恒为 NULL，同样命中此处）
+            throw new BusinessException("该用户未绑定邮箱");
+        }
+        // 必须用 LambdaUpdateWrapper 显式 set NULL：updateById 默认 NOT_NULL 策略对 null 字段不写列
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, id)
+                .set(User::getBindEmail, null));
+        // 残留验证码清理（与注销同口径）：表无 user_id 列，按 email 匹配删除，
+        // 避免残留验证码在他端被消费
+        emailVerificationCodeMapper.delete(new LambdaQueryWrapper<EmailVerificationCode>()
+                .eq(EmailVerificationCode::getEmail, bindEmail));
+    }
+
+    @Override
+    public void deleteAccount(Long id) {
+        // 管理员路径无对方 token 明文（token = null）：匿名化写库、清验证码、通知删除事件、
+        // userId 维度拉黑与终态保护整体收敛到 AccountCloser（与本人自注销唯一实现）。
+        accountCloser.close(id, null, false);
     }
 
     // 本域不含垂直越权防护（无 checkAdminOperation / 角色解析）：管理端为单一管理员模型，

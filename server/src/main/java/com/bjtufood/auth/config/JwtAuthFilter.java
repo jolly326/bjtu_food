@@ -72,6 +72,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        // CORS 预检（OPTIONS）直接放行：预检不携带凭证，照常校验会返回 401 且不含 CORS 头，
+        // 浏览器判定「跨域被拦」（H5 / 管理端浏览器联调场景）；实际请求仍走完整校验。
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         // 0. Origin 白名单二次校验（CSRF 兜底）：仅对带 Origin 头的浏览器请求生效。
         //    微信小程序 wx.request 不发送 Origin，放行；恶意前端即使拿到 token 也无法跨白名单源调用。
         if (!isOriginAllowed(request)) {

@@ -17,10 +17,12 @@ import com.bjtufood.upload.controller.AdminUploadController;
 import com.bjtufood.upload.dto.UploadResultVO;
 import com.bjtufood.auth.entity.AdminAccount;
 import com.bjtufood.auth.entity.User;
+import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.service.AuthService;
 import com.bjtufood.auth.aspect.RequireVerifiedAspect;
+import com.bjtufood.auth.service.impl.AccountCloser;
 import com.bjtufood.auth.service.impl.UserServiceImpl;
 import com.bjtufood.auth.service.impl.UserStateWriteLock;
 import com.bjtufood.common.config.CorsProperties;
@@ -168,6 +170,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         UserServiceImpl.class,
         // UserServiceImpl 的「DB status 写 + 黑名单写」临界区组件（无外部依赖，切片内用真实实例即可）
         UserStateWriteLock.class,
+        // UserServiceImpl 的解绑邮箱 / 删除账号路径依赖：验证码清理 Mapper 打桩（见下方 @MockBean）、
+        // 注销执行器用真实实例（事件发布器 / TokenBlacklist 由切片提供）
+        AccountCloser.class,
         // 反馈 / 举报入参校验（type 白名单）的真实实现
         FeedbackServiceImpl.class,
         // 举报原因字典（A7 表驱动）：FeedbackServiceImpl 依赖其 isSubmittable 做提交白名单
@@ -253,6 +258,9 @@ class SmokeApiTest {
     /** @RequireVerified 切面按 user.bind_email（认证态唯一判据）实时判定，打桩避免查库 */
     @MockBean
     private UserMapper userMapper;
+    /** UserServiceImpl 解绑邮箱时的验证码清理依赖（表无 user_id 列，按 email 匹配），打桩避免查库 */
+    @MockBean
+    private EmailVerificationCodeMapper emailVerificationCodeMapper;
     @MockBean
     private FeedbackMapper feedbackMapper;
     /** 举报原因字典表（A7）：打桩避免查库 */

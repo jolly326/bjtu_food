@@ -12,6 +12,12 @@ package com.bjtufood.wechat.constant;
  */
 public interface WechatApiConst {
 
+    /** 微信开放接口公网基址（下列完整 URL 均基于它；运行时基址重写见 WechatProperties#api） */
+    String DEFAULT_API_BASE = "https://api.weixin.qq.com";
+
+    /** 出网请求统一 User-Agent（微信网关 WAF 对空 UA 的 multipart 上传拦 412，2026-10-07 线上实测） */
+    String USER_AGENT = "Mozilla/5.0 (compatible; bjtu-food/1.0)";
+
     /** 获取稳定版接口调用凭据（access_token） */
     String STABLE_TOKEN_URL = "https://api.weixin.qq.com/cgi-bin/stable_token";
 

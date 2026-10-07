@@ -436,7 +436,7 @@ export interface paths {
   "/report-reasons": {
     /**
      * 举报原因字典
-     * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂「反馈提交」下语义错位）→ /report-reasons，无过渡别名。测试示例：/report-reasons
+     * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。测试示例：/report-reasons
      */
     get: operations["reportReasons"];
   };
@@ -592,6 +592,20 @@ export interface paths {
      * 终态保护：已注销账号重复调用返回 400「账号已注销」。
      */
     delete: operations["deleteAccount"];
+  };
+  "/admin/users/{id}": {
+    /**
+     * 删除账号（注销）
+     * @description 用途：管理端代用户注销 —— 与本人 DELETE /auth/account 完全同口径：匿名化（昵称→已注销用户、username→deleted_{id}、avatar/email/openid/bind_email→NULL、status→deleted），非物理删除（user 行保留，历史评价/反馈归属不丢）；删除绑定邮箱验证码与全部站内通知；该 userId 全部已签发 token 拉黑。终态保护：已注销→400「账号已注销」，已禁用→400「账号已被禁用，无法注销」。
+     */
+    delete: operations["deleteAccount_1"];
+  };
+  "/admin/users/{id}/email": {
+    /**
+     * 解绑认证邮箱
+     * @description 用途：置空 bind_email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不动 email（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
+     */
+    delete: operations["unbindEmail"];
   };
   "/admin/reviews/{id}": {
     /**
@@ -6077,7 +6091,7 @@ export interface operations {
   };
   /**
    * 举报原因字典
-   * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签）；服务端按序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。管理端复用本端点即可（非敏感公开枚举）。2026-09-30 P2 迁址：原 /feedback/report-reasons（字典挂「反馈提交」下语义错位）→ /report-reasons，无过渡别名。测试示例：/report-reasons
+   * @description PUB。举报时的原因单选项（value 机器值 + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 value 作为 sub 上送。端上零硬编码。测试示例：/report-reasons
    */
   reportReasons: {
     responses: {
@@ -6906,6 +6920,110 @@ export interface operations {
    * 终态保护：已注销账号重复调用返回 400「账号已注销」。
    */
   deleteAccount: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除账号（注销）
+   * @description 用途：管理端代用户注销 —— 与本人 DELETE /auth/account 完全同口径：匿名化（昵称→已注销用户、username→deleted_{id}、avatar/email/openid/bind_email→NULL、status→deleted），非物理删除（user 行保留，历史评价/反馈归属不丢）；删除绑定邮箱验证码与全部站内通知；该 userId 全部已签发 token 拉黑。终态保护：已注销→400「账号已注销」，已禁用→400「账号已被禁用，无法注销」。
+   */
+  deleteAccount_1: {
+    parameters: {
+      path: {
+        /**
+         * @description 用户ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody?: {
+      content: {
+        "*/*": never;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 解绑认证邮箱
+   * @description 用途：置空 bind_email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不动 email（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
+   */
+  unbindEmail: {
+    parameters: {
+      path: {
+        /**
+         * @description 用户ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody?: {
+      content: {
+        "*/*": never;
+      };
+    };
     responses: {
       /** @description OK */
       200: {

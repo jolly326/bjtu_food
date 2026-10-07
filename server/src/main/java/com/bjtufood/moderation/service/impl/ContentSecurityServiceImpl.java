@@ -4,6 +4,7 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.moderation.dto.SecSuggest;
 import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.wechat.constant.WechatApiConst;
+import com.bjtufood.wechat.config.WechatProperties;
 import com.bjtufood.wechat.service.WechatAccessTokenProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,22 +67,27 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     /** 微信 access_token 凭据提供方（P0-B：凭据生命周期由它持有，本类只消费 {@code get()}） */
     private final WechatAccessTokenProvider tokenProvider;
 
+    /** 微信出网基址与内网调用开关（云托管公网调用开放接口被 WAF 拦 412，切内网通道规避） */
+    private final WechatProperties wechatProperties;
+
     /**
      * Spring 装配入口：注入凭据提供方，RestTemplate 走默认超时配置。
      * 保留单参构造的「可注入语义」，便于测试整体替换依赖。
      */
     @Autowired
-    public ContentSecurityServiceImpl(WechatAccessTokenProvider tokenProvider) {
-        this(defaultRestTemplate(), tokenProvider);
+    public ContentSecurityServiceImpl(WechatAccessTokenProvider tokenProvider, WechatProperties wechatProperties) {
+        this(defaultRestTemplate(), tokenProvider, wechatProperties);
     }
 
     /**
-     * 测试可注入构造：允许传入 MockRestServiceServer 绑定的 RestTemplate 与受控凭据提供方；
-     * 生产装配走 {@link #ContentSecurityServiceImpl(WechatAccessTokenProvider)}。
+     * 测试可注入构造：允许传入 MockRestServiceServer 绑定的 RestTemplate、受控凭据提供方与运行时基址；
+     * 生产装配走 {@link #ContentSecurityServiceImpl(WechatAccessTokenProvider, WechatProperties)}。
      */
-    public ContentSecurityServiceImpl(RestTemplate restTemplate, WechatAccessTokenProvider tokenProvider) {
+    public ContentSecurityServiceImpl(RestTemplate restTemplate, WechatAccessTokenProvider tokenProvider,
+                                      WechatProperties wechatProperties) {
         this.restTemplate = restTemplate;
         this.tokenProvider = tokenProvider;
+        this.wechatProperties = wechatProperties;
     }
 
     /**
@@ -129,19 +135,14 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
 
         // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
         // token 失效（40001/42001）时清空缓存重取一次，避免内容安全检测持续失败最长 2 小时。
-        Map<String, Object> resp = callWithTokenRetry(() -> {
-            String body = postJson(WechatApiConst.MSG_SEC_CHECK_URL + "?access_token=" + tokenProvider.get(), reqBody);
-            Map<String, Object> r = parseJson(body, "msg_sec_check");
-            Integer errcode = asInt(r.get("errcode"));
-            if (errcode != null && errcode != 0) {
-                if (isTokenInvalidErrcode(errcode)) {
-                    throw new TokenInvalidException(errcode);
-                }
-                // 其余 errcode：fail-closed 交由用户重试
-                throw secCheckUnavailable("msgSecCheck", errcode, r.get("errmsg"));
-            }
-            return r;
-        }, "msgSecCheck");
+        String url = wechatProperties.api(WechatApiConst.MSG_SEC_CHECK_URL);
+        Map<String, Object> resp;
+        if (wechatProperties.isInternalCall()) {
+            // 云托管内网通道：平台自动注入鉴权，URL 不拼 access_token、无 token 重试面
+            resp = doMsgSecCheck(url, reqBody, null);
+        } else {
+            resp = callWithTokenRetry(() -> doMsgSecCheck(url, reqBody, tokenProvider.get()), "msgSecCheck");
+        }
         // 红线：以 result.suggest 判定，不只看 errcode；review 已在 SecSuggest.fromValue 归一为 PASS（放行）
         Object result = resp.get("result");
         String suggest = null;
@@ -256,15 +257,21 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         }
         // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，
         // token 失效（40001/42001）时清空缓存重取一次，避免图片内容安全检测持续失败最长 2 小时。
+        if (wechatProperties.isInternalCall()) {
+            // 云托管内网通道：URL 不拼 access_token（平台自动注入鉴权），无 token 重试面
+            doImgSecCheck(image, null);
+            return;
+        }
         callWithTokenRetry(() -> {
-            doImgSecCheck(image);
+            doImgSecCheck(image, tokenProvider.get());
             return null;
         }, "imgSecCheck");
     }
 
-    private void doImgSecCheck(byte[] image) {
+    private void doImgSecCheck(byte[] image, String accessToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("User-Agent", WechatApiConst.USER_AGENT);
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         // 🔴 part 必须带 filename：微信 img_sec_check 要求 `media` 是「文件」项 —— 缺 filename
         //    （退化为普通表单字段）会回 errcode=47001「data format error」（实测）。文件名仅用于让
@@ -278,9 +285,9 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         });
         String respBody;
         try {
-            respBody = restTemplate.postForObject(
-                    WechatApiConst.IMG_SEC_CHECK_URL + "?access_token=" + tokenProvider.get(),
-                    new HttpEntity<>(body, headers), String.class);
+            String url = wechatProperties.api(WechatApiConst.IMG_SEC_CHECK_URL)
+                    + (accessToken == null ? "" : "?access_token=" + accessToken);
+            respBody = restTemplate.postForObject(url, new HttpEntity<>(body, headers), String.class);
         } catch (BusinessException e) {
             // token 获取失败等业务异常原样传播，不在此处二次包装
             throw e;
@@ -308,6 +315,21 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         throw secCheckUnavailable("imgSecCheck", errcode, resp.get("errmsg"));
     }
 
+    /** msgSecCheck 单次调用（accessToken 为 null = 内网通道，不拼 token 参数） */
+    private Map<String, Object> doMsgSecCheck(String url, Map<String, Object> reqBody, String accessToken) {
+        String body = postJson(accessToken == null ? url : url + "?access_token=" + accessToken, reqBody);
+        Map<String, Object> r = parseJson(body, "msg_sec_check");
+        Integer errcode = asInt(r.get("errcode"));
+        if (errcode != null && errcode != 0) {
+            if (isTokenInvalidErrcode(errcode)) {
+                throw new TokenInvalidException(errcode);
+            }
+            // 其余 errcode：fail-closed 交由用户重试
+            throw secCheckUnavailable("msgSecCheck", errcode, r.get("errmsg"));
+        }
+        return r;
+    }
+
     // ==================== HTTP / 解析工具 ====================
 
     /** POST JSON（先按 String 读取再解析，微信响应 Content-Type 为 text/plain） */
@@ -315,6 +337,7 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("User-Agent", WechatApiConst.USER_AGENT);
             return restTemplate.postForObject(url,
                     new HttpEntity<>(OBJECT_MAPPER.writeValueAsString(body), headers), String.class);
         } catch (ResourceAccessException e) {

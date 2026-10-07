@@ -258,7 +258,8 @@ public class UploadServiceImpl implements UploadService {
 
     /** 单次 batchdownloadfile 调用：取 token → 请求 → 判 errcode → 解析临时下载链接 */
     private String doFetchCloudDownloadUrl(String env, String fileId) {
-        String url = BATCH_DOWNLOAD_URL + "?access_token=" + tokenProvider.get();
+        String url = wechatProperties.api(BATCH_DOWNLOAD_URL)
+                + (wechatProperties.isInternalCall() ? "" : "?access_token=" + tokenProvider.get());
 
         Map<String, Object> reqBody = Map.of(
                 "env", env,
@@ -268,6 +269,7 @@ public class UploadServiceImpl implements UploadService {
         try {
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            headers.set("User-Agent", WechatApiConst.USER_AGENT);
             body = cloudRestTemplate.postForObject(url,
                     new org.springframework.http.HttpEntity<>(OBJECT_MAPPER.writeValueAsString(reqBody), headers),
                     String.class);

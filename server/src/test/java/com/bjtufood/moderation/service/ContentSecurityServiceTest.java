@@ -66,7 +66,7 @@ class ContentSecurityServiceTest {
         wechatProperties.setAppid("wx-appid");
         wechatProperties.setSecret("wx-secret");
         tokenProvider = new WechatAccessTokenProviderImpl(restTemplate, wechatProperties);
-        contentSecurityService = new ContentSecurityServiceImpl(restTemplate, tokenProvider);
+        contentSecurityService = new ContentSecurityServiceImpl(restTemplate, tokenProvider, wechatProperties);
     }
 
     private void expectStableToken() {

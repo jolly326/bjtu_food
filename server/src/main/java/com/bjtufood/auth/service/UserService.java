@@ -90,6 +90,31 @@ public interface UserService {
      */
     void updateStatus(Long id, String status);
 
+    /**
+     * 解绑认证邮箱（{@code DELETE /admin/users/{id}/email}）。
+     * <p>
+     * 只置空 {@code bind_email} 一列（认证态唯一判据，置 NULL 即实时回落游客态、UGC 写被拒）；
+     * 不改 {@code status}、不动 {@code email}（账号标识），登录与已发表内容不受影响。
+     * 绑定邮箱的历史验证码随解绑删除。写操作与启停 / 注销共用同一 userId 临界区
+     * （{@code UserStateWriteLock}），不代绑新邮箱（重新认证必须由用户本人走验证码流程）。
+     *
+     * @param id 用户ID
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 用户不存在；
+     *         code=400 目标未绑定邮箱（「该用户未绑定邮箱」）
+     */
+    void unbindEmail(Long id);
+
+    /**
+     * 删除账号（{@code DELETE /admin/users/{id}}）—— 管理端代用户注销，
+     * 与本人自注销（{@code DELETE /auth/account}）完全同口径（匿名化，非物理删除），
+     * 实现收敛在 {@code AccountCloser}（详见其类注释）。
+     *
+     * @param id 用户ID
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 用户不存在；
+     *         code=400「账号已注销」（终态保护）/「账号已被禁用，无法注销」
+     */
+    void deleteAccount(Long id);
+
     // ==================== 跨域只读契约（P0-1 分层约束） ====================
 
     /**

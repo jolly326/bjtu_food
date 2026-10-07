@@ -162,7 +162,7 @@ public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider 
                 "appid", wechatProperties.getAppid(),
                 "secret", wechatProperties.getSecret());
 
-        String body = postJson(WechatApiConst.STABLE_TOKEN_URL, reqBody);
+        String body = postJson(wechatProperties.api(WechatApiConst.STABLE_TOKEN_URL), reqBody);
         Map<String, Object> resp = parseJson(body, "stable_token");
 
         Integer errcode = asInt(resp.get("errcode"));
@@ -190,6 +190,7 @@ public class WechatAccessTokenProviderImpl implements WechatAccessTokenProvider 
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("User-Agent", WechatApiConst.USER_AGENT);
             return restTemplate.postForObject(url,
                     new HttpEntity<>(OBJECT_MAPPER.writeValueAsString(body), headers), String.class);
         } catch (ResourceAccessException e) {
