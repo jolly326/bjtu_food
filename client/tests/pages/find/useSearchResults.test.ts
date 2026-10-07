@@ -14,7 +14,7 @@ vi.mock('@/stores/dish', () => ({
 }))
 
 // 在 mock 之后动态 import：确保被测模块内部 useDishStore() 取到 mock
-const { useSearchResults } = await import('./useSearchResults')
+const { useSearchResults } = await import('@/pages/find/useSearchResults')
 
 /** 造一行菜品（仅提供被测逻辑读到的字段） */
 function dish(id: number, name = `菜${id}`): DishListItem {

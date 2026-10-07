@@ -80,7 +80,7 @@
                标签集合与文案完全来自字典（GET /dishes/views）。 -->
           <HomeMealTabs
             :items="dishStore.viewList"
-            :active-key="dishStore.filterView"
+            :active-id="dishStore.filterView"
             @select="onViewSelect"
           />
         </view>
@@ -263,8 +263,8 @@ const sliceStyle = computed(() => {
 })
 
 /** 切换筛选视图：写回 store（内部重置分页并刷新列表）；**不重置滚动位置**，保持当前吸顶 / 初始态 */
-async function onViewSelect(key: string) {
-  await dishStore.setHomeView(key)
+async function onViewSelect(id: number) {
+  await dishStore.setHomeView(id)
 }
 
 /** 搜索入口：搜索胶囊与右侧「搜索」按钮共用（均进搜索页 A2） */
@@ -316,6 +316,7 @@ onShareAppMessage(() => {
    结果：**标题带**背后没有内容经过；**吸顶容器**背后有卡片滚过 ⇒ 只有它需要表面
    （吸顶后铺背景图切片，由 `@scroll` 驱动离散开关 —— 详见 §11.1）。 */
 .home-page {
+  min-height: 0;
   /* 纱（wash）是**全站 token**：`--page-wash`（定义在 `App.vue` 的 `page{}`）；
      本页唯一的 `PageWallpaper`（页底壁纸层）自动取到该 token —— 横条一律透明，露出的就是这一层。
      改纱的浓淡 = 改 `App.vue` 里那一处（全站生效，不要在本页另立色值）。 */
@@ -390,7 +391,7 @@ onShareAppMessage(() => {
 
 /* ===== 滚动区：`flex: 1` ⇒ 顶边 = 标签栏下沿、底边 = 菜单栏上沿（页面 padding-bottom 让出）=====
    网格在它内部滚动；**吸顶容器是例外**：卡片会从其背后滚过 ⇒ 吸顶态铺一层**背景图切片**
-   （`.home-sticky-slice`，2026-09-27 决议），并由滚动监听驱动一个**离散开关** `pinned`
+   （`.home-sticky-slice`），并由滚动监听驱动一个**离散开关** `pinned`
    （只在跨过锁定点翻转一次，不做逐帧对齐）。除该处外，本页无其它表面 ——
    （UI 统一 Loop Round 9 修正：原注释"全页零表面、零切片、零滚动监听"已与实现不符）。 */
 .scroll-wrap {

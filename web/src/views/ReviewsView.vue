@@ -12,8 +12,8 @@
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture } from '@element-plus/icons-vue'
 import { confirmDelete } from '@/utils/confirm'
+import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { deleteReview, listReviews, setReviewHidden } from '@/api/reviews'
 import type { ReviewAdminVO, ReviewListParams } from '@/types/common'
@@ -21,9 +21,12 @@ import { usePagedList } from '@/composables/usePagedList'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { resolveImageUrl } from '@/utils/image'
+import DetailMetaRow from '@/components/DetailMetaRow.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
+import { useRowAction } from '@/composables/useRowAction'
 
 const fKeyword = ref('')
 const fDishId = ref('')
@@ -61,7 +64,7 @@ const {
 
 /* ===== 隐藏 / 恢复显示（显式置位，非 toggle） ===== */
 /** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
-const busyId = ref<number | null>(null)
+const { isBusy, runRowAction } = useRowAction()
 
 const hideOpen = ref(false)
 const hideTarget = ref<ReviewAdminVO | null>(null)
@@ -98,46 +101,38 @@ async function submitHide(): Promise<void> {
   }
 }
 
-async function unhide(row: ReviewAdminVO): Promise<void> {
-  busyId.value = row.id
-  try {
-    await setReviewHidden(row.id, { hidden: false })
-    ElMessage.success('已恢复显示')
-    await reload()
-    syncCurrent(row.id)
-  } catch (e) {
-    fail(e)
-  } finally {
-    busyId.value = null
-  }
+function unhide(row: ReviewAdminVO): Promise<void> {
+  return runRowAction({
+    id: row.id,
+    action: () => setReviewHidden(row.id, { hidden: false }),
+    successMessage: '已恢复显示',
+    refresh: reload,
+    syncAfterRefresh: syncCurrent,
+  })
 }
 
-async function remove(row: ReviewAdminVO): Promise<void> {
-  try {
-    await confirmDelete(
-      `确认删除这条评价？删除后不可恢复，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`,
-      {
-        title: '删除评价',
-      },
-    )
-  } catch {
-    return
-  }
-  busyId.value = row.id
-  try {
-    await deleteReview(row.id)
-    ElMessage.success('已删除')
+function remove(row: ReviewAdminVO): Promise<void> {
+  return runRowAction({
+    id: row.id,
+    action: async () => {
+      await confirmDelete(
+        `确认删除这条评价？删除后不可恢复，并会触发「${row.dishName ?? '该菜品'}」的评分重算；作者会收到站内回执。`,
+        {
+          title: '删除评价',
+        },
+      )
+      await deleteReview(row.id)
+    },
+    successMessage: '已删除',
+    failMessage: '删除失败',
+    refresh: reload,
     // 行已不存在：抽屉若正开着这条，一并关闭（不留空壳）
-    if (current.value?.id === row.id) {
+    closeDrawer: () => {
+      if (current.value?.id !== row.id) return
       detailOpen.value = false
       current.value = null
-    }
-    await reload()
-  } catch (e) {
-    fail(e, '删除失败')
-  } finally {
-    busyId.value = null
-  }
+    },
+  })
 }
 
 /* ===== 详情抽屉（评价全文 + 配图大图入口 + 元信息 + 处置） ===== */
@@ -270,11 +265,8 @@ onMounted(() => reloadFirstPage())
               </span>
             </td>
             <td>
-              <!-- 内容摘要 + 配图角标（「该行有图」为审核高频判据，图标 + 张数） -->
+              <!-- 内容摘要（配图在右侧图片列直接呈现缩略图，不再重复角标） -->
               <ClampText :text="row.content" />
-              <span v-if="row.images?.length" class="img-flag">
-                <el-icon><Picture /></el-icon>{{ row.images.length }}
-              </span>
             </td>
             <td>
               <div class="thumbs">
@@ -287,17 +279,17 @@ onMounted(() => reloadFirstPage())
                   :aria-label="`查看第 ${i + 1} 张配图`"
                   @click="openPreview(row.images, i)"
                 >
-                  <img :src="img" alt="" />
+                  <img :src="resolveImageUrl(img)" alt="" />
                 </button>
               </div>
             </td>
             <td><StatusTag :status="row.hidden ? 'hidden' : 'visible'" kind="review" /></td>
-            <td class="muted">{{ row.createdAt }}</td>
+            <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
               <button
                 class="link"
                 type="button"
-                :disabled="busyId === row.id"
+                :disabled="isBusy(row.id)"
                 @click="openDetail(row)"
               >
                 详情
@@ -305,7 +297,7 @@ onMounted(() => reloadFirstPage())
               <button
                 class="link"
                 type="button"
-                :disabled="busyId === row.id"
+                :disabled="isBusy(row.id)"
                 @click="row.hidden ? unhide(row) : openHide(row)"
               >
                 {{ row.hidden ? '恢复显示' : '隐藏' }}
@@ -313,7 +305,7 @@ onMounted(() => reloadFirstPage())
               <button
                 class="link danger"
                 type="button"
-                :disabled="busyId === row.id"
+                :disabled="isBusy(row.id)"
                 @click="remove(row)"
               >
                 删除
@@ -350,16 +342,13 @@ onMounted(() => reloadFirstPage())
             :aria-label="`查看第 ${i + 1} 张配图`"
             @click="openPreview(current.images, i)"
           >
-            <img :src="img" alt="" />
+            <img :src="resolveImageUrl(img)" alt="" />
           </button>
         </div>
       </div>
 
-      <div class="meta">
-        <div class="meta-row">
-          <span class="meta-key">评价 ID</span>
-          <span class="meta-val num">#{{ current?.id }}</span>
-        </div>
+      <div class="detail-meta">
+        <DetailMetaRow k="评价 ID" num>#{{ current?.id }}</DetailMetaRow>
         <div class="meta-row">
           <span class="meta-key">作者</span>
           <span class="meta-val">
@@ -399,13 +388,9 @@ onMounted(() => reloadFirstPage())
             <StatusTag :status="current?.hidden ? 'hidden' : 'visible'" kind="review" />
           </span>
         </div>
-        <div class="meta-row">
-          <span class="meta-key">发表时间</span>
-          <span class="meta-val">{{ current?.createdAt }}</span>
-        </div>
+        <DetailMetaRow k="发表时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
         <div class="meta-row" v-if="current && current.hidden && current.hiddenNote">
-          <span class="meta-key">隐藏附注</span>
-          <span class="meta-val">{{ current.hiddenNote }}</span>
+          <DetailMetaRow k="隐藏附注">{{ current.hiddenNote }}</DetailMetaRow>
         </div>
       </div>
 
@@ -413,7 +398,7 @@ onMounted(() => reloadFirstPage())
         <button
           class="link"
           type="button"
-          :disabled="busyId === current?.id"
+          :disabled="isBusy(current?.id)"
           @click="detailToggleHide"
         >
           {{ current?.hidden ? '恢复显示' : '隐藏' }}
@@ -421,7 +406,7 @@ onMounted(() => reloadFirstPage())
         <button
           class="link danger"
           type="button"
-          :disabled="busyId === current?.id"
+          :disabled="isBusy(current?.id)"
           @click="detailRemove"
         >
           删除
@@ -482,31 +467,6 @@ onMounted(() => reloadFirstPage())
 .filters .form-input {
   width: 150px;
 }
-/* 评价者主标识：头像 + 昵称合并为一个单元格（范式与 UsersView 逐字同源） */
-.user-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-pill);
-  object-fit: cover;
-  display: block;
-  flex: none;
-}
-.avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-soft);
-  color: var(--text-muted);
-}
-.thumbs {
-  display: flex;
-  gap: var(--space-1);
-}
 /* 评分展示：内联 SVG 星形图标（--color-star，独立语义色）在数字前，数字保持 .num 等宽
    （表格评分格与抽屉评分位共用同一段展示结构） */
 .rating-cell {
@@ -526,74 +486,12 @@ onMounted(() => reloadFirstPage())
   border-radius: var(--radius-sm);
   object-fit: cover;
 }
-/* 缩略图按钮：只保留图本身（点击即看大图），焦点环沿用全站 `button:focus-visible` */
-.thumb {
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-}
+/* 抽屉内配图与下方元信息之间的间距（公共 `.detail-thumbs` 只给上间距） */
 .detail-thumbs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
   margin-bottom: var(--space-4);
 }
-.detail-thumbs img {
-  width: 140px;
-  height: 140px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
-.meta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.meta-row {
-  display: flex;
-  gap: var(--space-3);
-  font-size: var(--font-sm);
-}
-.meta-key {
-  flex: none;
-  width: 72px;
-  color: var(--text-muted);
-}
-.meta-val {
-  min-width: 0;
-  color: var(--text-secondary);
-  /* 超长串（URL / 无空格长词）可断行，不撑破抽屉 */
-  overflow-wrap: anywhere;
-}
-.num {
-  font-variant-numeric: tabular-nums;
-}
-.muted {
-  color: var(--text-muted);
-  font-size: var(--font-sm);
-}
+/* 字数计数右对齐（本页表单习惯；公共 `.hint` 为左对齐） */
 .hint {
-  margin-top: var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--font-xs);
   text-align: right;
-}
-.ctx {
-  background: var(--bg-soft);
-  border-radius: var(--radius);
-  padding: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-.ctx-label {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  margin-bottom: var(--space-1);
-}
-.ctx-body {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: var(--text-primary);
 }
 </style>

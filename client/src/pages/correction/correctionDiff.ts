@@ -19,6 +19,7 @@ export type DishCorrectionDiff = Omit<DishCorrectionPayload, 'type'>
 import { yuanToFen } from '@/utils/money'
 import type { AttributeEditor, CorrectionFormModel } from './useCorrection'
 import type { DishCorrectionPayload } from '@/types/feedback'
+import { ugcItemUrls } from '@/components/ugcImage'
 
 /** 预填基线快照（与 `form` 同构的只读副本，由加载完成后写入） */
 export interface CorrectionBaseline {
@@ -90,7 +91,9 @@ export function buildCorrectionDiff(
   if (form.canteenName.trim() !== baseline.canteenName) payload.canteenName = form.canteenName.trim()
   if (form.floor.trim() !== baseline.floor) payload.floor = form.floor.trim()
   if (form.stallName.trim() !== baseline.stallName) payload.stallName = form.stallName.trim()
-  if (!sameList(form.images, baseline.images)) payload.images = form.images.filter(Boolean)
+  // 配图按**正式 URL** 有序比对（两段式：未过机审的项 url 为空，不参与提交）
+  const images = ugcItemUrls(form.images)
+  if (!sameList(images, baseline.images)) payload.images = images.filter(Boolean)
   const attrs: Record<string, string | string[]> = {}
   for (const ed of form.attributes) {
     // 维度键 = 维度 ID 字符串（与 `dish.attributes` JSON 键形态一致）

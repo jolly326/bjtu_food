@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 楼层受控字典（UI 稿「楼层控件」）：**值即汉字**，端上常量。
  *
  * 真源见 `docs/schema/stall.md`（`负一层` / `一层` / `二层` / `三层` / `四层`）：
@@ -32,8 +32,9 @@ import type { DishCorrectionPayload, DishProblemType } from '@/types/feedback'
 import { buildCorrectionDiff, priceValid as isPriceValid, snapshotAttributes } from './correctionDiff'
 import { backToHome } from '@/utils/back'
 import { joinLocation } from '@/utils/dish'
-import { toastInfo, toastSuccess } from '@/utils/error'
+import { errorMessage, toastInfo, toastSuccess, isSurfaced } from '@/utils/error'
 import { CORRECTION_IMAGE_MAX, GONE_IMAGE_MAX } from '@/constants/ugc'
+import { submitUgcImages, toUgcItems, ugcItemUrls, type UgcImageItem } from '@/components/ugcImage'
 
 /** 描述属性编辑项（表单内一个维度的可编辑模型） */
 export interface AttributeEditor {
@@ -63,7 +64,8 @@ export interface CorrectionFormModel {
   /** 楼层（契约 `DishCorrectionReq.floor`；归属档口，仅楼层改动也算有效改动） */
   floor: string
   stallName: string
-  images: string[]
+  /** 配图（两段式：预填项已有正式 URL；新加项提交时才过机审拿 URL） */
+  images: UgcImageItem[]
   attributes: AttributeEditor[]
 }
 
@@ -128,8 +130,7 @@ export function useCorrection() {
     /** 楼层（契约 `DishCorrectionReq.floor`；值即汉字、归属档口，仅楼层改动也属有效改动） */
     floor: '',
     stallName: '',
-    /** 图片（预填菜品图，可增删，≤3 张） */
-    images: [] as string[],
+    images: [] as UgcImageItem[],
     /** 描述属性编辑项（维度顺序 = 详情返回顺序） */
     attributes: [] as AttributeEditor[],
   })
@@ -186,7 +187,7 @@ export function useCorrection() {
       form.canteenName = detail.canteen
       form.floor = detail.floor || ''
       form.stallName = detail.stallName
-      form.images = detail.images.slice(0, CORRECTION_IMAGE_MAX)
+      form.images = toUgcItems(detail.images.slice(0, CORRECTION_IMAGE_MAX))
 
       // 描述属性：维度名 / 当前值取自详情；候选与单多选取自编辑端点（按 dimensionId 对齐）
       form.attributes = (detail.attributes || [])
@@ -210,7 +211,7 @@ export function useCorrection() {
       baseline.canteenName = form.canteenName
       baseline.floor = form.floor
       baseline.stallName = form.stallName
-      baseline.images = [...form.images]
+      baseline.images = ugcItemUrls(form.images)
       baseline.attributes = {}
       baseline.attributes = snapshotAttributes(form.attributes)
     } catch (e) {
@@ -376,6 +377,10 @@ export function useCorrection() {
     submitting.value = true
     submitError.value = ''
     try {
+      // 两段式提交：先把新增配图逐张送机审转 COS（失败文案带「第 N 张图片」，此时不改表单）。
+      // 必须在算 diff **之前**做 —— 新加的图此刻还没有正式 URL，不过机审就会被 diff 判为
+      // 「图片有改动」却交不出任何新 URL，产生一次无意义的空改动提交。
+      if (form.images.length) await submitUgcImages(form.images)
       // 局部提交：只上传改动项（dishId 在路径；price 元 → 分，金额红线）
       await createDishCorrection(dishId.value, diff.value)
       clearCooldown()
@@ -386,7 +391,8 @@ export function useCorrection() {
       // 限频：请求层已弹过 toast（内含「请 N 秒后再试」），此处只进倒计时退避、不重复 toast；
       // 其它失败（业务 400 / 网络）同样**不改表单**，只把原因落在页面底部橙字提示上。
       handleRateLimit(e)
-      submitError.value = e instanceof Error && e.message ? e.message : '提交失败，请稍后再试'
+      // 请求层已弹过 toast 的错误（网络异常等）不在页内重复展示 —— 否则一次失败出现两条提示
+      if (!isSurfaced(e)) submitError.value = errorMessage(e, '提交失败，请稍后再试')
     } finally {
       submitting.value = false
     }
@@ -399,7 +405,7 @@ export function useCorrection() {
    * <p>**均可为空** —— 提交按钮恒可用（见 {@link GoneForm} 的硬约束 1）。
    */
   const goneNote = ref('')
-  const goneImages = ref<string[]>([])
+  const goneImages = ref<UgcImageItem[]>([])
 
   /**
    * gone 型提交：载荷**只含** `{type, note?, images?}`，**不带任何差异项**。
@@ -417,7 +423,7 @@ export function useCorrection() {
     submitError.value = ''
     try {
       const note = goneNote.value.trim()
-      const images = goneImages.value.slice(0, GONE_IMAGE_MAX)
+      const images = await submitUgcImages(goneImages.value.slice(0, GONE_IMAGE_MAX))
       await createDishCorrection(dishId.value, {
         type: 'gone',
         // 空值不传（后端允许全不传；传空串会被当作"填了空白"）
@@ -430,7 +436,8 @@ export function useCorrection() {
       goBackTimer = setTimeout(backToHome, 1500)
     } catch (e) {
       handleRateLimit(e)
-      submitError.value = e instanceof Error && e.message ? e.message : '提交失败，请稍后再试'
+      // 请求层已弹过 toast 的错误（网络异常等）不在页内重复展示 —— 否则一次失败出现两条提示
+      if (!isSurfaced(e)) submitError.value = errorMessage(e, '提交失败，请稍后再试')
     } finally {
       submitting.value = false
     }

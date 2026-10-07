@@ -15,7 +15,9 @@
     <Header :title="navTitle" @back="backToHome" />
 
     <scroll-view class="scroll-wrap" scroll-y>
-      <view class="doc">
+      <!-- 协议 / 政策是**连续长文本**，只整体收进**一块** `.module-wrap`（不拆多块：
+           拆开会割裂章节语义）。底色 / 圆角 / 阴影由全局类承担 -->
+      <view class="doc module-wrap">
         <text class="doc-title">{{ title }}</text>
         <text class="doc-meta">{{ meta }}</text>
 
@@ -40,7 +42,7 @@
  * 仅承载外壳、文档排版与正文渲染；返回路径固定为「回首页」（与抽离前两页各自的 `backToHome` 行为一致）。
  *
  * <p><b>为何只有 2 个消费方仍值得抽取</b>（全站唯一的「2 消费方」私有组件，其余私有组件均 1 消费方）：
- * 复用的是**白卡文档排版的 40 行 CSS**——恰是最易漏改、且漏改后两页排版不一致的部分，
+ * 复用的是**文档模块排版的 40 行 CSS**——恰是最易漏改、且漏改后两页排版不一致的部分，
  * 收益大于 2 处各 6 行胶水的成本。
  *
  * <p><b>为何不上提 `components/`</b>：公共目录只收跨页复用组件，本组件仅服务合规文档两页；
@@ -85,22 +87,17 @@ defineProps<{
   min-height: 0;
   /* 去掉 `overflow-y: auto` —— 本容器是 `scroll-view`（滚动由组件实现），
      外挂 CSS 在 H5 会叠出第二根滚动条。 */
-  /* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：文档白卡是滚动区唯一一块，
+  /* 底部 = 呼吸位 + `env(safe-area-inset-bottom)`：文档模块是滚动区唯一一块，
      无安全区时正文末行会被 Home Indicator 压住（同 `my-reviews` 的 `.scroll-wrap` 写法） */
   padding: 0 var(--page-gutter) calc(var(--spacing-md) + var(--spacing-lg) + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
-/* 文档白卡：与列表卡同表面语言（bg-card + radius-card + shadow-card） */
+/* 文档模块：底色 / 圆角 / 阴影 / 内距由全局 `.module-wrap` 承担，此处只管内部排版 */
 .doc {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
-  padding: var(--spacing-lg);
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  box-sizing: border-box;
 }
 .doc-title { font-size: var(--font-title); font-weight: var(--weight-semibold); color: var(--text-primary); }
 .doc-meta { font-size: var(--font-tiny); color: var(--text-tertiary); margin-bottom: var(--spacing-xs); }

@@ -6,8 +6,9 @@ export interface ImageItem {
 </script>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { uploadImage } from '@/api/upload'
+import { resolveImageUrl } from '@/utils/image'
 import { ElMessage } from 'element-plus'
 
 /**
@@ -17,19 +18,30 @@ import { ElMessage } from 'element-plus'
  * 「封面」角标恒在 index 0，非首图提供「设为封面」动作（把该图移到首位），无独立封面标记；
  * 缩略图**仅手柄可拖**（每格左上角 `DragHandle` 发起 HTML5 DnD，无禁用条件，
  * 提交中的并发守卫由表单层 busy 统一控制）；父组件保存时按数组顺序映射为 `imageUrls: string[]` 上送。
+ *
+ * <p>`cover = false` 用于**单图运营位**（A5 Banner）：该处「封面」一词会与「新建 Banner 时上传
+ * Banner 图」的入口语义冲突（见 [列表页模板 §A5](../../../docs/ui/web/列表页模板.md)），
+ * 故关闭角标与「设为封面」动作，只保留「Banner 图」一种说法。
  */
-const props = defineProps<{
-  modelValue: ImageItem[]
-  max?: number
-  ratioHint?: string
-  ariaLabel?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: ImageItem[]
+    max?: number
+    ratioHint?: string
+    ariaLabel?: string
+    /** 是否呈现「封面 = 首图」语义（角标 + 设为封面）；单图运营位传 `false` */
+    cover?: boolean
+  }>(),
+  { cover: true },
+)
 const emit = defineEmits<{ 'update:modelValue': [ImageItem[]] }>()
 
 const uploading = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 /** 起拖的缩略图下标（null = 未在拖拽） */
 const dragIndex = ref<number | null>(null)
+/** 数量上限（缺省 5；满额后隐藏「添加」框而非点击后提示） */
+const maxLimit = computed(() => props.max ?? 5)
 
 async function onPick(e: Event): Promise<void> {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -92,13 +104,13 @@ function onDropThumb(target: number): void {
       @drop="onDropThumb(i)"
       @dragend="dragIndex = null"
     >
-      <img :src="img.url" alt="" />
+      <img :src="resolveImageUrl(img.url)" alt="" />
       <DragHandle
         class="thumb-handle"
         :label="`拖拽排序${ariaLabel ?? '图片'} ${i + 1}`"
         @dragstart="dragIndex = i"
       />
-      <span class="thumb-cover" v-if="i === 0">封面</span>
+      <span class="thumb-cover" v-if="cover && i === 0">封面</span>
       <button
         class="thumb-del"
         type="button"
@@ -109,7 +121,7 @@ function onDropThumb(target: number): void {
       </button>
       <button
         class="thumb-cover-btn"
-        v-if="i !== 0"
+        v-if="cover && i !== 0"
         type="button"
         :aria-label="`将${ariaLabel ?? '图片'} ${i + 1} 设为封面`"
         @click="makeCover(i)"
@@ -120,6 +132,7 @@ function onDropThumb(target: number): void {
     <button
       class="thumb add"
       type="button"
+      v-if="modelValue.length < maxLimit"
       :disabled="uploading"
       :aria-label="ariaLabel ? `添加${ariaLabel}` : '添加图片'"
       @click="inputRef?.click()"

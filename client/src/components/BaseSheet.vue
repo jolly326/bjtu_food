@@ -29,7 +29,7 @@
           <text v-if="title" class="bs-title">{{ title }}</text>
         </view>
         <view v-if="closable" class="bs-close" role="button" aria-label="关闭" hover-class="pressed" @tap.stop="emitClose">
-          <IconSvg name="close" :size="36" :color="COLOR_MAP['text-tertiary']" />
+          <AppIcon name="close" :size="36" :color="COLOR_MAP['text-tertiary']" />
         </view>
       </view>
       <scroll-view v-if="scrollBody" class="bs-body bs-body--scroll" scroll-y>
@@ -44,7 +44,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick, computed, onUnmounted } from 'vue'
-import IconSvg from './IconSvg.vue'
+import AppIcon from './AppIcon.vue'
 import { useSheetFocus } from '@/composables/useSheetFocus'
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -131,7 +131,9 @@ watch(keyboardLiftOn, (on) => {
     keyboardWatching = false
     keyboardHeight.value = 0
   }
-})
+  // immediate：调用方若以 visible=true 挂载（由父级数据直接决定打开），
+  // 不加 immediate 则监听永不注册 ⇒ 键盘避让静默失效（输入框被键盘遮挡）
+}, { immediate: true })
 // 键盘抬起时组件被卸载（如页面返回）⇒ 补注销，避免回调打到已销毁实例
 onUnmounted(() => {
   if (keyboardWatching) uni.offKeyboardHeightChange(onKeyboardHeight)
@@ -207,7 +209,8 @@ function onTouchEnd() {
 /* 底部弹层：统一底部抽屉规范（radius-modal 顶部圆角 + shadow-modal + translateY 抽屉）；z-index 由内联 style 提供 */
 .bs-sheet {
   position: fixed; left: 0; right: 0; bottom: 0;
-  background: var(--bg-card);
+  /* 弹层保留卡片形态（与页面 `.module-wrap` 区分）：暖米半透 `--overlay-panel-bg` */
+  background: var(--overlay-panel-bg);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
   box-shadow: var(--shadow-modal);
   transform: translateY(100%);
@@ -230,7 +233,17 @@ function onTouchEnd() {
 .bs-head { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: var(--spacing-sm) var(--spacing-md); border-bottom: 1rpx solid var(--border-color); flex-shrink: 0; }
 .bs-head-left { display: flex; align-items: center; gap: var(--spacing-2xs); flex: 1; min-width: 0; }
 .bs-title { flex: 1; min-width: 0; font-size: var(--font-subtitle); font-weight: var(--weight-semibold); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bs-close { padding: 0 var(--spacing-xs); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+/* 关闭钮：命中区经 ::after 扩到全站触达基线（视觉尺寸不变） */
+.bs-close { position: relative; padding: 0 var(--spacing-xs); flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+.bs-close::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
+  transform: translate(-50%, -50%);
+}
 /* 按压反馈：关闭钮属「小件」档（图标钮）⇒ 0.6 */
 .bs-close.pressed { opacity: 0.6; }
 

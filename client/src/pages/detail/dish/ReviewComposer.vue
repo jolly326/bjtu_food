@@ -31,7 +31,7 @@
             hover-class="pressed"
             @tap="rating = i"
           >
-            <IconSvg
+            <AppIcon
               :name="i <= rating ? 'star-filled' : 'star'"
               :size="56"
               :color="i <= rating ? COLOR_MAP['star'] : COLOR_MAP['star-empty']"
@@ -46,6 +46,8 @@
       <view class="rc-input-wrap">
         <textarea
           class="rc-input"
+            aria-label="评价内容"
+            :aria-required="true"
           v-model="content"
           maxlength="500"
           auto-height
@@ -57,7 +59,7 @@
         <view class="rc-count">{{ content.length }}/500</view>
       </view>
 
-      <!-- 配图（选填 ≤3 张）：统一 ImagePicker（安检上传）；提交中禁选 -->
+      <!-- 配图（选填 ≤3 张）：统一 ImagePicker（选图时只落云存储，提交时才逐张机审）；提交中禁选 -->
       <view class="rc-field-images">
         <ImagePicker
           ref="imagePickerRef"
@@ -96,10 +98,11 @@ import { UGC_IMAGE_MAX } from '@/constants/ugc'
 import { ref, watch } from 'vue'
 import ActionSheet from '@/components/ActionSheet.vue'
 import BaseSheet from '@/components/BaseSheet.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePicker from '@/components/ImagePicker.vue'
+import { submitUgcImages, type UgcImageItem } from '@/components/ugcImage'
 import { IMAGE_PICK_ACTIONS, isPickSource, type PickSource } from '@/components/imagePickSource'
-// 星色须传**实色**：IconSvg 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
+// 星色须传**实色**：AppIcon 的 color 不解析 var()（data-uri 内为字面量），传 var(...) 恒落近黑
 import { COLOR_MAP } from '@/theme/tokens'
 import { createReview } from '@/api/review'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
@@ -123,8 +126,8 @@ const emit = defineEmits<{
 /* 表单状态 */
 const rating = ref(0)
 const content = ref('')
-/** 配图（COS URL，≤3 张；经 ImagePicker 安检上传） */
-const images = ref<string[]>([])
+/** 配图（≤3 张；两段式：选图落云存储 → 提交时逐张机审转 COS） */
+const images = ref<UgcImageItem[]>([])
 const submitting = ref(false)
 
 // 限频退避（P2-7）：写评价被后端限频时不再当作不可恢复失败 ——
@@ -133,7 +136,7 @@ const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } 
 
 /* 配图来源弹层：ImagePicker 上抛 pick → 本层弹 ActionSheet → 选中后回调 startPick 落地 */
 const pickSheetOpen = ref(false)
-/** ImagePicker 暴露的 startPick（拉起选图 → 压缩校验 → 安检上传） */
+/** ImagePicker 暴露的 startPick（拉起选图 → 压缩校验 → 落云存储） */
 const imagePickerRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
 
 /** ActionSheet 回抛 key（string）→ 收窄为 PickSource 后落地；未知 key 直接忽略 */
@@ -173,8 +176,9 @@ async function onSubmit() {
     const payload = {
       rating: rating.value,
       content: content.value.trim() || undefined,
-      // 配图（≤3 张 COS URL）；违规文本/图片后端 400 message 经此处 toast 直透
-      images: images.value.length ? [...images.value] : undefined,
+      // 配图（≤3 张）；违规文本 / 图片的后端 message 经此处 toast 直透（图片文案带「第 N 张」定位）
+      // 两段式提交：先把已选图逐张送机审转 COS（失败文案带「第 N 张图片」），再随表单上送正式 URL
+      images: images.value.length ? await submitUgcImages(images.value) : undefined,
     }
     // 恒 POST：同一用户对同一菜品的重复提交由服务端覆盖旧评价（端上不区分首评 / 重评）
     await createReview(props.dishId, payload)
@@ -220,14 +224,14 @@ async function onSubmit() {
 
 .rc-input-wrap { position: relative; }
 /* auto-height 上限 320rpx（评审 B1-③）：长文不再无限撑高，超出由 BaseSheet scroll-body 滚动承接 */
-.rc-input { width: 100%; box-sizing: border-box; min-height: 160rpx; max-height: 320rpx; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-lg); background: var(--bg-input); border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; }
+.rc-input { width: 100%; box-sizing: border-box; min-height: 160rpx; max-height: 320rpx; padding: var(--spacing-sm) var(--spacing-md) var(--spacing-lg); background: var(--module-input-bg); border-radius: var(--radius-btn); font-size: var(--font-body); color: var(--text-primary); line-height: 1.5; }
 .rc-ph { color: var(--text-hint); }
 .rc-count { position: absolute; right: var(--spacing-sm); bottom: var(--spacing-sm); font-size: var(--font-aux); color: var(--text-tertiary); }
 
 /* 配图区：正文与提交之间留档位间距（ImagePicker 自身网格） */
 .rc-field-images { margin-top: var(--spacing-md); }
 
-/* 圆角统一到全局主按钮档位 token（--radius-btn，与 AppButton 一致），不再裸 24rpx */
+/* 圆角统一到全局主按钮档位 token（--radius-btn，与 AppButton 一致），不再裸圆角值 */
 .rc-submit { display: flex; align-items: center; justify-content: center; height: var(--tap-target-size); margin-top: var(--spacing-lg); border-radius: var(--radius-btn); background: var(--color-primary); box-shadow: var(--shadow-float); -webkit-tap-highlight-color: transparent; }
 /* 未填档（未选星）：灰底 + 灰字，**不降透明** —— opacity 全站只表「在途」。
    未评分时仍可点：由 onSubmit 兜底提示「请先选择评分」。 */

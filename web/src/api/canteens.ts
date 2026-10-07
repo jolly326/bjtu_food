@@ -11,7 +11,7 @@ export function createCanteen(req: CanteenSaveReq): Promise<CanteenAdminVO> {
   return post<CanteenAdminVO>('/admin/canteens', req)
 }
 
-/** A1 改名（可编辑字段仅 `name`，整体替换） */
+/** A1 编辑（`name` 必填整体替换；`location` / `description` / `images` / `sortOrder` 缺省 = 保持原值） */
 export function updateCanteen(id: number, req: CanteenSaveReq): Promise<null> {
   return put<null>(`/admin/canteens/${id}`, req)
 }

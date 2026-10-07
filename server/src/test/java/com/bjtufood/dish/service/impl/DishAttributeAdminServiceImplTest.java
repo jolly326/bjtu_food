@@ -867,4 +867,118 @@ class DishAttributeAdminServiceImplTest {
         assertThat(service().labelByIdForDimension(2L))
                 .containsOnly(entry(7L, "微辣"), entry(8L, "特辣"));
     }
+
+    // ==================== 系统维度（菜品种类）的定位与保护规则 ====================
+
+    /** 系统维度（菜品种类，`system = 1`）：取值经 `dish.meal_type_id` 引用 */
+    private static DishAttributeDimension systemDim() {
+        DishAttributeDimension d = dimension(5L, "菜品种类", "single", 5);
+        d.setSystem(true);
+        return d;
+    }
+
+    private static Dish dishWithMealType(long id, String attributesJson, long mealTypeId) {
+        Dish d = dish(id, attributesJson);
+        d.setMealTypeId(mealTypeId);
+        return d;
+    }
+
+    @Test
+    @DisplayName("systemDimensionId：取 system = 1 的行；未初始化 → 500（建库未完成，非调用方问题）")
+    void systemDimensionId_resolvesOrFails500() {
+        // 维度查询带 system = 1 过滤（Mockito 不回放条件 ⇒ 桩即过滤结果）
+        when(dimensionMapper.selectList(any())).thenReturn(List.of(systemDim()));
+        assertThat(service().systemDimensionId()).isEqualTo(5L);
+
+        when(dimensionMapper.selectList(any())).thenReturn(List.of());
+        assertRejected(() -> service().systemDimensionId(), 500, "系统维度（菜品种类）未初始化");
+    }
+
+    @Test
+    @DisplayName("listDimensions：系统维度带 system 标记，描述维度为 false")
+    void listDimensions_marksSystemDimension() {
+        when(dimensionMapper.selectList(any())).thenReturn(List.of(singleDim(), systemDim()));
+
+        List<DishDimensionAdminVO> list = service().listDimensions();
+
+        assertThat(list.get(0).getSystem()).isFalse();
+        assertThat(list.get(1).getSystem()).isTrue();
+    }
+
+    @Test
+    @DisplayName("updateDimension：系统维度改取值类型 → 400（恒单值），改名仍放行")
+    void updateDimension_systemTypeChange_rejected400() {
+        when(dimensionMapper.selectList(any())).thenReturn(List.of(systemDim()));
+        when(dimensionMapper.selectById(5L)).thenReturn(systemDim());
+
+        assertRejected(() -> service().updateDimension(5L, "菜品种类", "multi"), 400,
+                "系统维度（菜品种类）的取值类型不可修改");
+        verify(dimensionMapper, never()).updateById(any());
+
+        // 只改名（类型不变）→ 正常落库
+        when(dimensionMapper.updateById(any())).thenReturn(1);
+        service().updateDimension(5L, "菜品种类（大类）", "single");
+
+        DishAttributeDimension patch = capturedPatch(DishAttributeDimension.class, dimensionMapper);
+        assertThat(patch.getName()).isEqualTo("菜品种类（大类）");
+    }
+
+    @Test
+    @DisplayName("deleteDimension：系统维度恒不可删 → 400（其取值被 dish.meal_type_id 引用）")
+    void deleteDimension_system_rejected400() {
+        when(dimensionMapper.selectById(5L)).thenReturn(systemDim());
+
+        assertRejected(() -> service().deleteDimension(5L), 400, "系统维度（菜品种类）不可删除");
+
+        verify(dimensionMapper, never()).deleteById(anyLong());
+        verify(valueMapper, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("系统维度取值：dishCount 按 dish.meal_type_id 统计（attributes 里没有这些 ID）")
+    void systemValues_dishCountComesFromMealTypeColumn() {
+        when(dimensionMapper.selectList(any())).thenReturn(List.of(systemDim()));
+        when(dimensionMapper.selectById(5L)).thenReturn(systemDim());
+        when(valueMapper.selectList(any())).thenReturn(List.of(
+                value(31L, 5L, "套餐盖饭", 1), value(32L, 5L, "面食粉类", 2)));
+        when(dishMapper.selectList(any())).thenReturn(List.of(
+                dishWithMealType(1L, "{\"1\":5}", 32L),
+                dishWithMealType(2L, null, 32L),
+                dish(3L, "{\"1\":5}")));
+
+        List<DishValueAdminVO> values = service().listValues(5L);
+
+        assertThat(values.get(0).getLabel()).isEqualTo("套餐盖饭");
+        assertThat(values.get(0).getDishCount()).isZero();
+        assertThat(values.get(1).getDishCount()).isEqualTo(2L);
+
+        // 种类维度本身也被 2 行菜品使用（只统计 meal_type_id 非空的行）
+        assertThat(service().listDimensions().get(0).getDishCount()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("系统维度取值：被菜品引用时不可删（判据 = dish.meal_type_id）")
+    void deleteSystemValue_referenced_rejected400() {
+        when(dimensionMapper.selectList(any())).thenReturn(List.of(systemDim()));
+        when(dimensionMapper.selectById(5L)).thenReturn(systemDim());
+        when(valueMapper.selectById(32L)).thenReturn(value(32L, 5L, "面食粉类", 2));
+        when(valueMapper.selectList(any())).thenReturn(List.of(
+                value(31L, 5L, "套餐盖饭", 1), value(32L, 5L, "面食粉类", 2)));
+        when(dishMapper.selectList(any())).thenReturn(List.of(dishWithMealType(1L, null, 32L)));
+
+        assertRejected(() -> service().deleteValue(5L, 32L), 400, "仍有 1 个菜品引用该取值，不能删除");
+
+        verify(valueMapper, never()).deleteById(anyLong());
+    }
+
+    @Test
+    @DisplayName("resolveForWrite：携带系统维度（菜品种类）键 → 400（种类只走 mealTypeId，不进 attributes）")
+    void resolveForWrite_systemDimensionKey_rejected400() {
+        when(dimensionMapper.selectById(5L)).thenReturn(systemDim());
+
+        assertRejected(() -> service().resolveForWrite(Map.of("5", 31)), 400,
+                "菜品种类不是描述属性，请用 mealTypeId 提交：5");
+
+        verify(valueMapper, never()).insert(any());
+    }
 }

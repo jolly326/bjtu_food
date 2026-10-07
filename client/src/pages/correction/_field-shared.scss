@@ -11,14 +11,21 @@
  *      手册输入区等）仍留在各自组件内。
  */
 
-/** 下划线字段行：透明底、仅底部 1rpx 细线（禁全包围矩形框）、聚焦由消费方切主色 */
+/**
+ * 输入字段行：浅白半透底 + 圆角、**无边框无线**（团队规范 §3.2 表单输入语言）。
+ *
+ * 88rpx = 44pt（1rpx = 0.5pt）：满足全站触达下限。聚焦由消费方切底色
+ * （底色是模块内唯一的输入边界线索，1.18:1 的底线对低视力不可辨）。
+ */
 @mixin underline {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  /* 88rpx = 44pt（1rpx = 0.5pt）：下划线形态下也满足全站触达下限 */
   height: var(--tap-target-size);
-  border-bottom: 1rpx solid var(--border-color);
+  padding: 0 var(--spacing-md);
+  background: var(--module-input-bg);
+  border: none;
+  border-radius: var(--radius-icon);
   box-sizing: border-box;
-  transition: border-color var(--duration-fast) var(--ease-out);
+  transition: background-color var(--duration-fast) var(--ease-out);
 }

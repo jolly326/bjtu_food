@@ -60,14 +60,15 @@ public class CanteenAdminController {
         return Result.success(canteenService.listAllForAdmin());
     }
 
-    @Operation(summary = "编辑食堂", description = "用途：修改食堂名称（新名重名 → 400）。"
-            + "请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。")
+    @Operation(summary = "编辑食堂", description = "用途：修改食堂信息（name + location / description / images / sortOrder；"
+            + "新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；"
+            + "除 name 外缺省 = 保持原值。")
     @PutMapping("/canteens/{id}")
     public Result<Void> updateCanteen(
             @Parameter(description = "食堂ID", example = "1")
             @PathVariable Long id,
             @Valid @RequestBody CanteenSaveReq req) {
-        canteenService.update(id, req.getName());
+        canteenService.update(id, req);
         return Result.success();
     }
 
@@ -83,10 +84,10 @@ public class CanteenAdminController {
     }
 
     @Operation(summary = "新增食堂", description = "用途：管理端新建食堂。名称应用层查重（重名 400）。"
-            + "请求体只接收 name（CanteenSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。")
+            + "请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内。")
     @PostMapping("/canteens")
     public Result<CanteenAdminVO> createCanteen(@Valid @RequestBody CanteenSaveReq req) {
-        return Result.success(canteenService.createCanteen(req.getName()));
+        return Result.success(canteenService.createCanteen(req));
     }
 
     @Operation(summary = "删除食堂", description = "用途：删除食堂。其下仍有档口 → 400（避免孤儿档口）；不存在 → 4001。")
@@ -99,7 +100,8 @@ public class CanteenAdminController {
     }
 
     @Operation(summary = "新增档口", description = "用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。"
-            + "请求体只接收 canteenId / name / floor / windowNo（StallSaveReq）—— 保留列 / 时间列 / 派生统计不在写入面内。")
+            + "请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images / sortOrder）"
+            + "—— 时间列与派生统计不在写入面内。")
     @PostMapping("/stalls")
     public Result<StallAdminVO> createStall(@Valid @RequestBody StallSaveReq req) {
         return Result.success(stallService.createStall(req));
@@ -163,8 +165,9 @@ public class CanteenAdminController {
         }
     }
 
-    @Operation(summary = "编辑档口", description = "用途：修改档口基础信息（canteenId / name / floor / windowNo）。"
-            + "同食堂下重名 → 400；floor 不在楼层字典 → 400。floor / windowNo 缺省 = 保持原值，windowNo 空串 = 清空。")
+    @Operation(summary = "编辑档口", description = "用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location /"
+            + " description / images / sortOrder 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；"
+            + "windowNo / location / description 空串 = 清空、images 空数组 = 清空。")
     @PutMapping("/stalls/{id}")
     public Result<Void> updateStall(
             @Parameter(description = "档口ID", example = "1")

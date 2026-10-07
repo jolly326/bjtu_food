@@ -6,28 +6,26 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * A6 分类值出参（管理端）。
+ * A6 菜品种类取值出参（管理端；`/admin/dish-categories` 的别名面）。
  *
- * <p><b>`key` 必须出参</b>：视图条件里的 `mealType` 值就是分类键（`dish.meal_type` 的存储值），
- * 条件构建器要据此组装 `{ field: 'mealType', op: '=', value: <key> }` —— 少了它管理端无法构造条件。
+ * <p>= **系统维度（菜品种类）** 下的取值行：`id` 即 `dish.meal_type_id` 的存储值，
+ * `dishCount` = 引用该种类的菜品数（删除保护与列表展示用）。
+ * 同一批行也可经 A4 的取值端点读写，本 VO 只是「种类视角」下的字段收敛。
  */
 @Data
-@Schema(description = "管理端分类值出参")
+@Schema(description = "管理端菜品种类取值出参")
 public class DishCategoryAdminVO {
 
-    @Schema(description = "分类ID")
+    @Schema(description = "取值ID（= dish.meal_type_id 的存储值）")
     private Long id;
 
-    @Schema(description = "分类键（dish.meal_type 的存储值；视图条件引用它；在用后不可改）", example = "noodle")
-    private String key;
-
-    @Schema(description = "分类中文名（可改，改名免费）", example = "面食粉类")
+    @Schema(description = "种类中文名（可改，改名免费）", example = "面食粉类")
     private String label;
 
-    @Schema(description = "顺序（后台下拉 / 列表展示序）")
+    @Schema(description = "组内展示顺序")
     private Integer order;
 
-    @Schema(description = "引用该分类的菜品数（删除前判断）")
+    @Schema(description = "引用该种类的菜品数（删除前判断）")
     private Long dishCount;
 
     @Schema(description = "更新时间")

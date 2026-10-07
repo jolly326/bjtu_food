@@ -8,11 +8,15 @@
  * - `gone`（已经下架）→ 抽屉内展示用户的**补充说明 / 图片 / 反馈人数**，处置动作**仅「下架」**或「驳回」
  *   （🔴 **不提供「删除」**：删除为物理删除且级联删除评价，仅在菜品管理中由管理员主动执行）。
  *
- * <p>分页（页码 + 共 N 条）+ 六态；采纳 / 下架 / 驳回**均向提交人投递站内回执**（**文案由服务端按 `type`
+ * <p>表格**只放基础列**（类型 / 目标菜品 / 提交人 / 状态 / 提交时间）—— 改动项、楼层影响、处理回复与
+ * **处置**都在**处置抽屉**内（同一抽屉两态：`pending` = 处置表单 / 已处理 = 只读详情）。
+ *
+ * <p>采纳 / 下架 / 驳回**均向提交人投递站内回执**（**文案由服务端按 `type`
  * 与「是否部分采纳」分派**，端上只传可选附注，不拼回执正文）。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import {
   adoptCorrection,
@@ -29,10 +33,14 @@ import type {
 } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
+import ImagePreview from '@/components/ImagePreview.vue'
 import StateBox from '@/components/StateBox.vue'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import { resolveImageUrl } from '@/utils/image'
+import DetailMetaRow from '@/components/DetailMetaRow.vue'
+import { useRowAction } from '@/composables/useRowAction'
 
 const fType = ref<CorrectionType | ''>('')
 const fStatus = ref<CorrectionStatus | ''>('')
@@ -71,8 +79,10 @@ const {
   listCorrections({ page: pageNo, pageSize, ...params() }),
 )
 
-/* ==================== 处置抽屉 ==================== */
+/* ==================== 处置 / 详情抽屉 ==================== */
 const open = ref(false)
+/** 当前列表行（决定「待处理 → 处置表单 / 已处理 → 只读详情」） */
+const row = ref<CorrectionAdminVO | null>(null)
 const detail = ref<CorrectionDetailVO | null>(null)
 const detailLoading = ref(false)
 const detailError = ref<string | null>(null)
@@ -90,6 +100,16 @@ const needStallConfirm = ref(false)
 
 /** 当前详情的反馈类型（`field` = 信息有误 / `gone` = 已经下架） */
 const isGone = computed(() => detail.value?.type === 'gone')
+/** 待处理 → 处置表单；已处理 → 只读详情 */
+const isPending = computed(() => row.value?.status === 'pending')
+
+/** 结论文案（`status` + `rejectReason` 派生） */
+const outcomeLabel = computed(() => {
+  const r = row.value
+  if (!r || r.status === 'pending') return '待处理'
+  if (r.status === 'rejected') return r.type === 'gone' ? '已驳回（仍在售）' : '已拒绝'
+  return r.type === 'gone' ? '已下架' : '已采纳'
+})
 
 /**
  * 提交按钮可用性。
@@ -107,14 +127,16 @@ const canSubmit = computed(() => {
 })
 
 /** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
-const busyId = ref<number | null>(null)
+// 抽屉详情加载也占同一把锁（无「动作 / 成功提示 / 刷新」语义，故不进 runRowAction，只借锁与置灰判据）
+const { busyId, isBusy } = useRowAction()
 
-async function openHandle(row: CorrectionAdminVO, mode: 'adopted' | 'rejected'): Promise<void> {
+async function openDetail(target: CorrectionAdminVO): Promise<void> {
   open.value = true
+  row.value = target
   detail.value = null
   detailError.value = null
   detailLoading.value = true
-  outcome.value = mode
+  outcome.value = 'adopted'
   reply.value = ''
   rejectReason.value = ''
   accepted.value = {}
@@ -122,9 +144,9 @@ async function openHandle(row: CorrectionAdminVO, mode: 'adopted' | 'rejected'):
   chosenStallId.value = 0
   createIfMissing.value = false
   needStallConfirm.value = false
-  busyId.value = row.id
+  busyId.value = target.id
   try {
-    const d = await getCorrection(row.id)
+    const d = await getCorrection(target.id)
     detail.value = d
     // `field` 型默认全选（管理员可逐项取消）；`gone` 型无差异项，无可勾选
     for (const diff of d.differences) accepted.value[diff.field] = true
@@ -175,6 +197,7 @@ async function submit(): Promise<void> {
       ElMessage.success(isGone.value ? '已驳回' : '已拒绝')
     }
     open.value = false
+    row.value = null
     await reload()
   } catch (e) {
     // 已处理再处理（400）/ 不存在（4001）/ 被引用 → 后端原文
@@ -182,6 +205,18 @@ async function submit(): Promise<void> {
   } finally {
     submitting.value = false
   }
+}
+
+/* ==================== 配图大图预览（`gone` 型用户佐证） ==================== */
+const previewOpen = ref(false)
+const previewImages = ref<string[]>([])
+const previewIndex = ref(0)
+
+function openPreview(images: string[], index: number): void {
+  if (!images || images.length === 0) return
+  previewImages.value = images
+  previewIndex.value = index
+  previewOpen.value = true
 }
 
 function reset(): void {
@@ -255,65 +290,37 @@ onMounted(() => reloadFirstPage())
             <th>类型</th>
             <th>目标菜品</th>
             <th>提交人</th>
-            <th>改动项 / 反馈数</th>
-            <th>楼层影响</th>
             <th>状态</th>
-            <th>处理回复 / 原因</th>
             <th>提交时间</th>
             <th class="actions">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in items" :key="row.id">
-            <td><StatusTag :status="row.type" kind="correctionType" /></td>
-            <td>{{ row.dishName ?? '菜品已删除' }}</td>
+          <tr v-for="item in items" :key="item.id">
+            <td><StatusTag :status="item.type" kind="correctionType" /></td>
+            <td>{{ item.dishName ?? '菜品已删除' }}</td>
             <!-- 匿名提交 userId = 0 且昵称为空 → 回落「游客」 -->
-            <td>{{ row.userNickname || '游客' }}</td>
-            <!-- `field` 型给「改了几项」，`gone` 型恒 0 项（无可对照差异） -->
-            <td>
-              <template v-if="row.type === 'field'">{{ row.changeCount }} 项</template>
-              <span v-else class="muted">—</span>
-            </td>
-            <!-- 仅含 floor 改动时有连带影响提示 -->
-            <td>
-              <span v-if="row.floorImpact" class="warn">{{ row.floorImpact }}</span>
-              <span v-else class="muted">—</span>
-            </td>
-            <td><StatusTag :status="row.status" kind="correction" /></td>
-            <td>
-              <ClampText :text="row.reply" />
-              <!-- 拒绝原因同属长文本（基线 §1.4）⇒ 走 ClampText，不用单行截断 -->
-              <ClampText
-                v-if="row.rejectReason"
-                class="muted"
-                :text="`原因：${row.rejectReason}`"
-              />
-            </td>
-            <td class="muted">{{ row.createdAt }}</td>
+            <td>{{ item.userNickname || '游客' }}</td>
+            <td><StatusTag :status="item.status" kind="correction" /></td>
+            <td class="muted">{{ formatDateTime(item.createdAt) }}</td>
             <td class="actions">
-              <template v-if="row.status === 'pending'">
-                <button
-                  class="link"
-                  type="button"
-                  :disabled="busyId === row.id"
-                  @click="openHandle(row, 'adopted')"
-                >
-                  {{ row.type === 'gone' ? '下架' : '采纳' }}
-                </button>
-                <button
-                  class="link danger"
-                  type="button"
-                  :disabled="busyId === row.id"
-                  @click="openHandle(row, 'rejected')"
-                >
-                  {{ row.type === 'gone' ? '驳回' : '拒绝' }}
-                </button>
-              </template>
-              <span v-else class="muted">已处理</span>
+              <button
+                class="link"
+                type="button"
+                :disabled="isBusy(item.id)"
+                @click="openDetail(item)"
+              >
+                {{ item.status === 'pending' ? '处理' : '详情' }}
+              </button>
             </td>
           </tr>
         </tbody>
       </table>
+
+      <p class="foot-note">
+        「类型 / 目标菜品 / 提交人 /
+        状态」是快速查阅列；改动项对照、楼层影响、用户佐证与处置入口都在行内「处理 / 详情」内。
+      </p>
 
       <Pager
         :total="total"
@@ -324,8 +331,12 @@ onMounted(() => reloadFirstPage())
       />
     </div>
 
-    <!-- 处置抽屉：`field` = 差异对照（逐项勾选）；`gone` = 反馈佐证（说明 / 图片 / 人数） -->
-    <BaseDrawer :title="isGone ? '处理下架反馈' : '处理反馈'" :open="open" @close="open = false">
+    <!-- 处置 / 详情抽屉 -->
+    <BaseDrawer
+      :title="isPending ? (isGone ? '处理下架反馈' : '处理反馈') : '反馈详情'"
+      :open="open"
+      @close="open = false"
+    >
       <StateBox v-if="detailLoading" status="loading" />
       <StateBox v-else-if="detailError" status="error" :message="detailError" />
       <template v-else-if="detail">
@@ -352,52 +363,32 @@ onMounted(() => reloadFirstPage())
                 <span class="muted">（仅参考，是否下架由人工判断）</span>
               </dd>
             </dl>
-            <div v-if="detail.images?.length" class="thumbs">
-              <img v-for="(img, i) in detail.images" :key="i" :src="img" alt="反馈图片" />
+            <div v-if="detail.images?.length" class="ctx-thumbs" role="group" aria-label="反馈图片">
+              <button
+                v-for="(img, i) in detail.images"
+                :key="i"
+                class="thumb"
+                type="button"
+                :aria-label="`查看第 ${i + 1} 张反馈图片`"
+                @click="openPreview(detail.images, i)"
+              >
+                <img :src="resolveImageUrl(img)" alt="" />
+              </button>
             </div>
           </div>
         </template>
 
-        <div class="field">
-          <label id="corr-outcome-label">处理结论</label>
-          <div class="tag-options" role="radiogroup" aria-labelledby="corr-outcome-label">
-            <button
-              class="tag-option"
-              type="button"
-              role="radio"
-              :aria-checked="outcome === 'adopted'"
-              :class="{ active: outcome === 'adopted' }"
-              @click="outcome = 'adopted'"
-            >
-              {{ isGone ? '下架该菜品' : '采纳' }}
-            </button>
-            <button
-              class="tag-option"
-              type="button"
-              role="radio"
-              :aria-checked="outcome === 'rejected'"
-              :class="{ active: outcome === 'rejected' }"
-              @click="outcome = 'rejected'"
-            >
-              {{ isGone ? '驳回（仍在售）' : '不采纳' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- `gone` 型采纳 = 下架：说明写回影响（可逆，评价保留；本流程不提供删除） -->
-        <p v-if="isGone && outcome === 'adopted'" class="warn note-line">
-          下架仅把该菜品置为「已下架」，可重新上架、评价完整保留；删除请到「菜品管理」由管理员主动执行。
-        </p>
-
-        <!-- `field` 型采纳：逐项勾选（楼层改动会连带同档口其它菜品，单独提示）；
-             表格外包 `.table-wrap` ⇒ 窄屏获得横向滚动兜底 -->
-        <div v-if="outcome === 'adopted' && !isGone" class="field">
-          <label id="corr-adopt-label">采纳项（逐项勾选）</label>
+        <!-- `field` 型差异对照：待处理时可逐项勾选；已处理时只读回放 -->
+        <div v-if="!isGone" class="field">
+          <label id="corr-adopt-label">
+            {{ isPending ? '采纳项（逐项勾选）' : '提交的差异项' }}
+          </label>
+          <!-- 表格外包 `.table-wrap` ⇒ 窄屏获得横向滚动兜底 -->
           <div class="table-wrap">
             <table class="table table--compact" aria-labelledby="corr-adopt-label">
               <thead>
                 <tr>
-                  <th class="pick-col"></th>
+                  <th v-if="isPending" class="pick-col"></th>
                   <th>字段</th>
                   <th>原值</th>
                   <th>提交值</th>
@@ -405,7 +396,7 @@ onMounted(() => reloadFirstPage())
               </thead>
               <tbody>
                 <tr v-for="diff in detail.differences" :key="diff.field">
-                  <td class="pick-col">
+                  <td v-if="isPending" class="pick-col">
                     <input type="checkbox" v-model="accepted[diff.field]" />
                   </td>
                   <td>
@@ -415,70 +406,139 @@ onMounted(() => reloadFirstPage())
                   <td class="muted">{{ diff.oldValue || '—' }}</td>
                   <td>{{ diff.newValue || '—' }}</td>
                 </tr>
+                <tr v-if="!detail.differences.length">
+                  <td :colspan="isPending ? 4 : 3" class="muted">已无待采纳差异项</td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- 档口两段式确认（仅 `field` 型采纳了档口名时才触发） -->
-        <div
-          v-if="outcome === 'adopted' && !isGone && needStallConfirm"
-          class="field stall-confirm"
-        >
-          <label for="corr-stall">档口归属确认</label>
-          <select
-            id="corr-stall"
-            class="form-input"
-            v-model.number="chosenStallId"
-            :disabled="createIfMissing"
+        <!-- 已处理 → 只读结论与回复 -->
+        <div v-if="!isPending" class="detail-meta">
+          <DetailMetaRow k="反馈 ID" num>#{{ detail.id }}</DetailMetaRow>
+          <div class="meta-row">
+            <span class="meta-key">提交人</span>
+            <span class="meta-val">
+              {{ detail.userNickname || '游客' }}
+              <span class="muted"> #{{ detail.userId }}</span>
+            </span>
+          </div>
+          <DetailMetaRow k="处理结论">{{ outcomeLabel }}</DetailMetaRow>
+          <DetailMetaRow k="处理回复">{{ detail.reply || '—' }}</DetailMetaRow>
+          <div class="meta-row" v-if="detail.rejectReason">
+            <DetailMetaRow k="不采纳原因">{{ detail.rejectReason }}</DetailMetaRow>
+          </div>
+          <DetailMetaRow k="提交时间">{{ formatDateTime(detail.createdAt) }}</DetailMetaRow>
+          <DetailMetaRow k="处理时间">{{ formatDateTime(detail.handledAt) }}</DetailMetaRow>
+        </div>
+
+        <!-- 待处理 → 处置表单 -->
+        <template v-else>
+          <div class="field">
+            <label id="corr-outcome-label">处理结论</label>
+            <div class="tag-options" role="radiogroup" aria-labelledby="corr-outcome-label">
+              <button
+                class="tag-option"
+                type="button"
+                role="radio"
+                :aria-checked="outcome === 'adopted'"
+                :class="{ active: outcome === 'adopted' }"
+                @click="outcome = 'adopted'"
+              >
+                {{ isGone ? '下架该菜品' : '采纳' }}
+              </button>
+              <button
+                class="tag-option"
+                type="button"
+                role="radio"
+                :aria-checked="outcome === 'rejected'"
+                :class="{ active: outcome === 'rejected' }"
+                @click="outcome = 'rejected'"
+              >
+                {{ isGone ? '驳回（仍在售）' : '不采纳' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- `gone` 型采纳 = 下架：说明写回影响（可逆，评价保留；本流程不提供删除） -->
+          <p v-if="isGone && outcome === 'adopted'" class="warn note-line">
+            下架仅把该菜品置为「已下架」，可重新上架、评价完整保留；删除请到「菜品管理」由管理员主动执行。
+          </p>
+
+          <!-- 档口两段式确认（仅 `field` 型采纳了档口名时才触发） -->
+          <div
+            v-if="!isGone && outcome === 'adopted' && needStallConfirm"
+            class="field stall-confirm"
           >
-            <option v-for="c in candidates" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
-          <label class="check-line">
-            <input type="checkbox" v-model="createIfMissing" />
-            <span>按提交的档口名新建档口后挂靠</span>
-          </label>
-        </div>
+            <label for="corr-stall">档口归属确认</label>
+            <select
+              id="corr-stall"
+              class="form-input"
+              v-model.number="chosenStallId"
+              :disabled="createIfMissing"
+            >
+              <option v-for="c in candidates" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+            <label class="check-line">
+              <input type="checkbox" v-model="createIfMissing" />
+              <span>按提交的档口名新建档口后挂靠</span>
+            </label>
+          </div>
 
-        <div v-if="outcome === 'rejected'" class="field">
-          <label for="corr-reject-reason">{{
-            isGone ? '仍在售的原因（必填，≤200 字）' : '不采纳原因（必填，≤200 字）'
-          }}</label>
-          <input
-            id="corr-reject-reason"
-            class="form-input"
-            v-model="rejectReason"
-            maxlength="200"
-          />
-        </div>
+          <div v-if="outcome === 'rejected'" class="field">
+            <label for="corr-reject-reason">{{
+              isGone ? '仍在售的原因（必填，≤200 字）' : '不采纳原因（必填，≤200 字）'
+            }}</label>
+            <input
+              id="corr-reject-reason"
+              class="form-input"
+              v-model="rejectReason"
+              maxlength="200"
+            />
+          </div>
 
-        <div class="field">
-          <label for="corr-reply">处理回复（可选，≤600 字）</label>
-          <textarea
-            id="corr-reply"
-            class="form-textarea"
-            v-model="reply"
-            rows="3"
-            maxlength="600"
-            placeholder="随站内回执下发给提交人；留空则用固定文案"
-          />
-          <div class="hint">{{ reply.length }} / 600</div>
-        </div>
+          <div class="field">
+            <label for="corr-reply">处理回复（可选，≤600 字）</label>
+            <textarea
+              id="corr-reply"
+              class="form-textarea"
+              v-model="reply"
+              rows="3"
+              maxlength="600"
+              placeholder="随站内回执下发给提交人；留空则用固定文案"
+            />
+            <div class="hint">{{ reply.length }} / 600</div>
+          </div>
+        </template>
       </template>
 
       <template #actions>
-        <button class="btn-secondary" type="button" @click="open = false">取消</button>
-        <button
-          class="btn-primary"
-          type="button"
-          :disabled="submitting || !canSubmit"
-          v-press
-          @click="submit"
-        >
-          {{ submitting ? '提交中…' : '确认' }}
-        </button>
+        <template v-if="isPending">
+          <button class="btn-secondary" type="button" @click="open = false">取消</button>
+          <button
+            class="btn-primary"
+            type="button"
+            :disabled="submitting || !canSubmit"
+            v-press
+            @click="submit"
+          >
+            {{ submitting ? '提交中…' : '确认' }}
+          </button>
+        </template>
+        <template v-else>
+          <button class="btn-secondary" type="button" @click="open = false">关闭</button>
+        </template>
       </template>
     </BaseDrawer>
+
+    <!-- 反馈图片大图预览：挂载即打开 -->
+    <ImagePreview
+      v-if="previewOpen"
+      :images="previewImages"
+      :index="previewIndex"
+      @close="previewOpen = false"
+    />
   </div>
 </template>
 
@@ -515,10 +575,6 @@ onMounted(() => reloadFirstPage())
 .filters .form-input {
   width: 160px;
 }
-.muted {
-  color: var(--text-muted);
-  font-size: var(--font-sm);
-}
 .warn {
   color: var(--color-warning);
   font-size: var(--font-xs);
@@ -546,33 +602,17 @@ onMounted(() => reloadFirstPage())
 }
 
 /* 用户配图（只读对比，不提供上传 / 删除） */
-.thumbs {
+.ctx-thumbs {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-3);
 }
-.thumbs img {
+.ctx-thumbs img {
   width: 64px;
   height: 64px;
   border-radius: var(--radius-sm);
   object-fit: cover;
-}
-.hint {
-  margin-top: var(--space-1);
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  text-align: right;
-}
-.ctx {
-  background: var(--bg-soft);
-  border-radius: var(--radius);
-  padding: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-.ctx-label {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
 }
 .pick-col {
   width: 32px;
@@ -581,16 +621,5 @@ onMounted(() => reloadFirstPage())
   background: var(--bg-soft);
   border-radius: var(--radius);
   padding: var(--space-3);
-}
-.check-line {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  font-weight: var(--weight-regular);
-}
-.tag-options {
-  display: flex;
-  gap: var(--space-2);
 }
 </style>

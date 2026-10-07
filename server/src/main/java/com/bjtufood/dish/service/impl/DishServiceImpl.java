@@ -107,7 +107,7 @@ public class DishServiceImpl implements DishService {
     private final DishAttributeAdminService attributeAdminService;
 
     /**
-     * 菜品分类值字典（A6）：负责「输入新分类 → 自动登记」与写入前的键规范化。
+     * 菜品种类字典（A6；系统维度取值的别名面）：负责种类取值的存在性校验与中文名回填。
      */
     private final DishCategoryAdminService categoryAdminService;
 
@@ -132,11 +132,11 @@ public class DishServiceImpl implements DishService {
         if (req.getKeyword() != null && req.getKeyword().length() > 30) {
             throw new BusinessException("关键词不能超过 30 字");
         }
-        // 视图解析（查表取展示态 + 按 key 取代码逻辑，PR-06）：空值 = 首个启用视图（按 `sort_order` 升序）；
-        // 未登记 / 逻辑无定义的键 400 报错，不静默降级。
-        // 筛选条件与排序口径由代码常量 DishViewDefs 按 key 决定（见 DishViewResolver 与 DishViewConditions），
-        // API 层不感知 meal_type / 价格等字段，端上也无排序入口。
-        DishFilterView view = viewCatalog.byKey(req.getView());
+        // 视图解析（查表取全部口径，PR-06）：空值 = 首个启用视图（按 `sort_order` 升序）；
+        // 未登记的 ID 400 报错，不静默降级。
+        // 筛选条件与排序口径都存在视图行（见 DishViewResolver 与 DishViewConditions），
+        // API 层不感知 meal_type_id / 价格等字段，端上也无排序入口。
+        DishFilterView view = viewCatalog.byId(req.getView());
         DishListQuery query = DishViewResolver.resolve(view, req.getKeyword(), req.getSeed());
         if (query == null) {
             throw new BusinessException("筛选视图不合法：" + req.getView());
@@ -149,10 +149,10 @@ public class DishServiceImpl implements DishService {
     @Override
     // 表驱动（A6）：视图目录与「enabled / 匹配数为 0 不下发」规则全部收在 DishViewCatalog；
     // **缓存也随之上移**（DISH_VIEWS 由目录持有，写侧显式失效 ⇒ 保存即生效）。
-    // 出参仍是 [{key, label}]，客户端契约不变。
+    // 出参恰 [id, label] 两项：筛选条件与排序口径是服务端资产，端上不感知。
     public List<DishViewVO> listDishViews() {
         return viewCatalog.visible().stream()
-                .map(v -> new DishViewVO(v.getKey(), v.getLabel()))
+                .map(v -> new DishViewVO(v.getId(), v.getLabel()))
                 .toList();
     }
 
@@ -322,7 +322,7 @@ public class DishServiceImpl implements DishService {
                 query == null || !StringUtils.hasText(query.keyword()) ? null : query.keyword().trim());
         // A3：列表走**瘦身列表 VO**（不含 description / attributes / 全量 images）
         IPage<DishAdminListItemVO> result = dishMapper.selectAdminListPage(new Page<>(page, pageSize), effective);
-        // 分类中文名（A6 分类值字典）：列表直接可读，端上零硬编码；字典量级极小，逐页取一次
+        // 种类中文名（A6 种类字典）：列表直接可读，端上零硬编码；字典量级极小，逐页取一次
         Map<Long, String> mealTypeLabels = categoryAdminService.listAll().stream()
                 .collect(Collectors.toMap(DishCategoryAdminVO::getId, DishCategoryAdminVO::getLabel,
                         (a, b) -> a));
@@ -427,8 +427,9 @@ public class DishServiceImpl implements DishService {
                 .and(w -> w.isNull(Dish::getImages).or().apply("JSON_LENGTH(images) = 0"))));
         vo.setWithoutStall(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                 .and(w -> w.isNull(Dish::getStallId).or().eq(Dish::getStallId, 0L))));
+        // 种类缺失 = dish.meal_type_id 为空（系统维度取值的引用列）
         vo.setWithoutCategory(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
-                .isNull(Dish::getMealType)));
+                .isNull(Dish::getMealTypeId)));
         return vo;
     }
 
@@ -490,7 +491,7 @@ public class DishServiceImpl implements DishService {
         copy.setDescription(source.getDescription());
         copy.setImages(source.getImages());
         copy.setAttributes(source.getAttributes());
-        copy.setMealType(source.getMealType());
+        copy.setMealTypeId(source.getMealTypeId());
         // 副本是「半成品」：默认下架，确认内容后再上架（见 A3 备注）
         copy.setStatus(DishConst.STATUS_OFF);
         // 评价 / 浏览量归零、均分置空（副本自带独立评分聚合）
@@ -536,7 +537,7 @@ public class DishServiceImpl implements DishService {
         vo.setRatingCount(dish.getRatingCount());
         vo.setCreatedAt(dish.getCreatedAt());
         vo.setUpdatedAt(dish.getUpdatedAt());
-        vo.setMealTypeId(dish.getMealType());
+        vo.setMealTypeId(dish.getMealTypeId());
         // 出参翻译：库里存的是**取值 ID**（A4）⇒ 统一翻译为中文；找不到对应取值的原样保留
         vo.setAttributes(attributeAdminService.translateForRead(dish.getAttributes()));
         // 归属名称：档口名 + 所属食堂名（管理端编辑回填需要显示，避免再发一次列表请求）
@@ -588,7 +589,7 @@ public class DishServiceImpl implements DishService {
                 .set(Dish::getPrice, req.getPrice())
                 .set(Dish::getOriginalPrice, normalizeDiscount(req.getOriginalPrice(), "原价"))
                 .set(Dish::getDescription, req.getDescription() == null ? "" : req.getDescription())
-                .set(Dish::getMealType, req.getMealTypeId());
+                .set(Dish::getMealTypeId, req.getMealTypeId());
         if (stallId != null) {
             wrapper.set(Dish::getStallId, stallId);
         }
@@ -724,7 +725,7 @@ public class DishServiceImpl implements DishService {
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
 
-        // 描述属性（动态属性模型）：JSON 对象，键 = 维度 ID。
+        // 描述属性（动态属性模型）：JSON 对象，键 = **描述维度** ID（系统维度不接受，见 resolveForWrite）。
         // **值 = 取值 ID**（A4 落地）：入参允许「取值 ID」或「中文名」，中文名同维度内未命中即**自动登记**
         // 为新取值后返回其 ID；未传 = 不修改（NOT_NULL 策略跳过），空对象 = 清空整列。
         if (req.getAttributes() == null) {
@@ -734,14 +735,14 @@ public class DishServiceImpl implements DishService {
             dish.setAttributes(resolved.isEmpty() ? null : JsonMapUtil.toJson(resolved));
         }
 
-        // 菜品分类（入库字段；A6 落地后值域 = `dish_category_value` 表的 id）：
-        // 必须存在于分类值字典（不存在 → 400）；null = 不修改
-        // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过，行内部分更新不会误清分类）。
+        // 菜品种类（入库字段 `meal_type_id`；值域 = 系统维度「菜品种类」下的取值 id）：
+        // 必须属于该系统维度（不属于 → 400）；null = 不修改
+        // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过，行内部分更新不会误清种类）。
         if (req.getMealTypeId() == null) {
-            dish.setMealType(null);
+            dish.setMealTypeId(null);
         } else {
             categoryAdminService.requireExists(req.getMealTypeId());
-            dish.setMealType(req.getMealTypeId());
+            dish.setMealTypeId(req.getMealTypeId());
         }
 
         dish.setStatus(req.getStatus());
@@ -880,7 +881,7 @@ public class DishServiceImpl implements DishService {
      * 纠错采纳的属性合并：<b>以菜品现有 attributes 为基线</b>，只覆盖本次采纳的维度。
      *
      * @param existingJson 菜品当前属性 JSON（可为 null）
-     * @param patch        本次采纳的维度补丁（键 = 维度 ID 字符串）
+     * @param patch        本次采纳的维度补丁（键 = **描述维度** ID 字符串）
      * @return 合并后的属性 JSON 入参对象
      */
     private Map<String, Object> mergeAttributes(String existingJson, Map<String, Object> patch) {

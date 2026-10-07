@@ -2,13 +2,13 @@
   <!-- 16:10 轮播 Banner（docs/ui/client/首页菜品浏览.md §3）
        · 清单来自 `GET /banners`（服务端已按序、只返回启用项）：端上按返回顺序渲染，不排序、不写死 URL 与张数；
        · 多张自动轮播 + 指示点；仅一张不轮播、不显示指示点；
-       · 空数组 / 请求失败 / 单张失败 → 灰底 + 居中**中性 `empty` 占位**（不得用 `dish` 图标冒充）；
+       · 空数组 / 请求失败 / 单张失败 → 透明底 + 居中**中性 `image-broken` 占位**（不得用 `dish` 图标冒充）；
        · 块高由父级下发（H_b），加载中 / 失败**不改变块高**，否则吸顶阈值漂移。 -->
   <view class="home-banner" :style="{ height: `${heightPx}px` }">
     <swiper
       v-if="list.length > 0"
       class="banner-swiper"
-      :autoplay="list.length > 1"
+      :autoplay="list.length > 1 && !reduceMotion"
       :interval="AUTOPLAY_INTERVAL"
       circular
       :indicator-dots="list.length > 1"
@@ -24,12 +24,12 @@
           @error="markBroken(i)"
         />
         <view v-else class="banner-ph">
-          <ImagePlaceholder :size="120" />
+          <ImagePlaceholder :size="120" bare />
         </view>
       </swiper-item>
     </swiper>
     <view v-else class="banner-ph">
-      <ImagePlaceholder :size="120" />
+      <ImagePlaceholder :size="120" bare />
     </view>
   </view>
 </template>
@@ -40,6 +40,9 @@ import * as bannerApi from '@/api/banner'
 import type { Banner } from '@/types/banner'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 import { useBrokenImages } from '@/composables/useBrokenImages'
+import { usePrefersReducedMotion } from '@/composables/usePrefersReducedMotion'
+// 原生 <swiper autoplay> 不受 CSS 媒体查询约束，需在端上按「减少动态效果」偏好关掉自动轮播
+const reduceMotion = usePrefersReducedMotion()
 // 微信原生 <swiper> 的指示点色不接受 var()（同 ImageSwiper 的原生属性限制例外），必须用真实色值
 import {
   SWIPER_INDICATOR_ACTIVE_COLOR,
@@ -95,7 +98,8 @@ onMounted(() => {
   position: relative;
   margin: 0 var(--page-gutter);
   overflow: hidden;
-  background: var(--bg-soft);
+  /* 容器**恒透明**：Banner 未出图 / 破图时不得出现灰色底块（页面壁纸即其底） */
+  background: transparent;
   border-radius: var(--radius-card);
 }
 .banner-swiper {

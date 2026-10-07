@@ -1,5 +1,14 @@
 <template>
-  <view class="review-item" :class="{ 'review-item--flat': flat }" hover-class="pressed">
+  <view
+    class="review-item"
+    :class="{
+      'review-item--flat': flat,
+      'review-item--row-lg': rowPadding === 'lg',
+      'review-item--row-edge': rowPadding === 'edge',
+      'review-item--divided': divided,
+    }"
+    hover-class="pressed"
+  >
     <!-- 作者头像：**仅公开视角**（`MyReviewVO` 不含 `userAvatar`）——本人视角变体不渲染头像列 -->
     <template v-if="!mine">
       <image
@@ -24,13 +33,13 @@
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet（唯一入口，常驻） -->
         <view class="review-more" role="button" aria-label="更多操作" hover-class="pressed" @tap.stop="onMore">
-          <IconSvg name="more-v" :size="28" :color="COLOR_MAP['text-tertiary']" />
+          <AppIcon name="more-v" :size="28" :color="COLOR_MAP['text-tertiary']" />
         </view>
       </view>
       <!-- 第二行：评分（1-5 黄星 + 分值数字）+ 发布时间，小间隙同行 -->
       <view class="review-meta">
         <view v-if="(review.rating || 0) > 0" class="review-stars" role="img" :aria-label="`评分 ${formatRating(review.rating)} 分`">
-          <IconSvg
+          <AppIcon
             v-for="n in starCount"
             :key="n"
             name="star-filled"
@@ -77,9 +86,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
-// 星色须传**实色**：IconSvg 的 color 不解析 var()（走 data-uri，见 IconSvg.vue 的 resolveColor），
+// 星色须传**实色**：AppIcon 的 color 不解析 var()（走 data-uri，见 AppIcon.vue 的 resolveColor），
 // 传 var(...) 会恒落 ICON_FALLBACK_COLOR（近黑）。语义键 'star' = --color-star 同源实色。
 import { COLOR_MAP } from '@/theme/tokens'
 import { getImageUrl, getThumbImageUrl } from '@/utils/image'
@@ -107,6 +116,15 @@ const props = defineProps<{
   mine?: boolean
   /** 菜名行（可选，本人视角列表用）：非空时在 meta 行下展示关联菜品名 */
   dishName?: string
+  /**
+   * 行内距档（`flat` 列表内的行距，**由组件自持**，消费方无需 `:deep` 穿透打补丁）：
+   * `'none'` = 零内距（默认，详情页评价卡自行排版）｜
+   * `'lg'` = `--spacing-lg`（通栏壳内由壳统一裁切、行自带内距时用）｜
+   * `'edge'` = `--spacing-md` + 负 margin 抵消，使分隔线**整条通宽**（菜品详情评价卡内）。
+   */
+  rowPadding?: 'none' | 'lg' | 'edge'
+  /** 条目间是否渲染 `1rpx` 分隔线（`flat` 列表内；首末由消费方裁切 responsibility） */
+  divided?: boolean
 }>()
 
 /* 事件**只有一个出口**：`more`（右上角竖三点）；本人删除 / 他人举报统一由父页 `ActionSheet` 处理。 */
@@ -154,9 +172,9 @@ function onMore() {
 /* 配图网格语言来自共享 partial（与 ImagePicker 同源） */
 @use '../styles/media-grid' as grid;
 
-/* ===== 评价项（口碑卡片：独立卡片 + 圆角 + 阴影）。
+/* ===== 评价项（口碑条目：独立模块 + 圆角 + 阴影）。
    消费方 **2 处**：`DishReviewSection`（传 `flat` ⇒ 嵌在评价卡内的条目）、
-   `my-reviews`（默认**非 flat** ⇒ 独立白卡）。两支形态均在实际使用，**均不得删除**。
+   `my-reviews`（默认**非 flat** ⇒ 独立模块）。两支形态均在实际使用，**均不得删除**。
    口碑层扁平：不设评论/回复/点赞入口，互动仅右上角三点菜单（删除 / 举报）。
    设计要点：卡片层级、touch 物理反馈、层级对比（昵称黑/正文黑/时间灰/操作灰）、星级展示 */
 .review-item {
@@ -164,9 +182,9 @@ function onMore() {
   align-items: flex-start;
   gap: var(--spacing-sm);
   padding: var(--spacing-md);
-  background: var(--bg-card);
+  background: var(--module-bg);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--module-shadow);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: opacity var(--duration-fast) var(--ease-out);
@@ -179,6 +197,20 @@ function onMore() {
   border-radius: var(--radius-none);
   box-shadow: none;
   padding: 0;
+}
+/* 行内距 `lg` 档（`flat` 列表内、行自带内距时）：行距由**组件自持**，
+   消费方无需 `:deep` 穿透打补丁（改这里即可同时生效详情页与我的评价页）。 */
+.review-item--row-lg {
+  padding: var(--spacing-lg);
+}
+/* 条目间分隔线（`divided`）：行内距由上档承担，此处只补 1rpx 结构线 */
+.review-item--divided {
+  border-top: 1rpx solid var(--border-color);
+}
+/* 行内距 `edge` 档：负 margin 抵消内距 ⇒ 分隔线整条通宽（菜品详情评价卡内） */
+.review-item--row-edge {
+  padding: var(--spacing-md);
+  margin: 0 calc(-1 * var(--spacing-md));
 }
 /* 整块按压反馈统一走全局 `.pressed`（App.vue 兜底档，opacity 0.7）——本组件不自持按压覆盖。 */
 

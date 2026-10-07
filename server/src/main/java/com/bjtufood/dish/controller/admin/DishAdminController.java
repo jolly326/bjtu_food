@@ -33,7 +33,7 @@ public class DishAdminController {
     public Result<AdminPageResult<DishAdminListItemVO>> listMyDishes(
             @Parameter(description = "按档口筛选") @RequestParam(required = false) Long stallId,
             @Parameter(description = "按食堂筛选（经档口间接）") @RequestParam(required = false) Long canteenId,
-            @Parameter(description = "按分类筛选（A6 分类值字典的分类 ID）") @RequestParam(required = false) Long mealTypeId,
+            @Parameter(description = "按分类筛选（A6 种类字典的取值 ID）") @RequestParam(required = false) Long mealTypeId,
             @Parameter(description = "按上架状态筛选：on / off；不传 = 全部（含已下架）")
             @RequestParam(required = false) String status,
             @Parameter(description = "关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径）")

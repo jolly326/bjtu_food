@@ -31,7 +31,7 @@
         <text class="ag-text" :class="{ 'ag-text--ph': !hasValue }">{{ summary }}</text>
         <!-- 单 / 多选标注常驻（不随摘要长短消失、不因省略号挪位）：`flex: none` ⇒ 摘要再长也只省略自己 -->
         <text class="ag-tip">{{ valueType === 'single' ? '单选' : '多选' }}</text>
-        <IconSvg name="arrow-down" :size="24" :color="COLOR_MAP['text-tertiary']" />
+        <AppIcon name="arrow-down" :size="24" :color="COLOR_MAP['text-tertiary']" />
       </view>
     </view>
 
@@ -59,11 +59,11 @@
  * `emits: change(dimensionId, selected)` —— **本组件不直接改 props**，一律回抛新数组由父级写回，
  * 保证「表单值唯一真源在父级编排（`useCorrection`）」。
  *
- * 颜色全走语义 token（禁裸 hex）；图标走 `IconSvg`（禁 emoji / 文本当图标）；
+ * 颜色全走语义 token（禁裸 hex）；图标走 `AppIcon`（禁 emoji / 文本当图标）；
  * 事件统一 `@tap`；按压用 hover-class 透明度微降（禁 `transform: scale`）。
  */
 import { computed, nextTick, ref } from 'vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import AttributePickerSheet from './AttributePickerSheet.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -188,10 +188,12 @@ function onSheetUpdate(next: string[]) {
 .ag-text--ph {
   color: var(--text-placeholder);
 }
-/* 单 / 多选标注：最小字档 + 占位灰（信息性、非强调），`flex: none` ⇒ 不参与省略 */
+/* 单 / 多选标注：最小字档 + 三级文字色（**必读标注**，不占用位灰档 ——
+   占位灰 2.27:1 低于 WCAG 正文阈值，且此标注是理解该字段所必需）；
+   `flex: none` ⇒ 不参与省略 */
 .ag-tip {
   flex: none;
   font-size: var(--font-tiny);
-  color: var(--text-placeholder);
+  color: var(--text-subtitle);
 }
 </style>

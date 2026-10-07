@@ -3,8 +3,8 @@ import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
-import HomeContent from '../pages/home/HomeContent.vue'
-import { useDishStore } from '../stores/dish'
+import HomeContent from '@/pages/home/HomeContent.vue'
+import { useDishStore } from '@/stores/dish'
 import { installUni } from './stubs'
 
 /**
@@ -66,7 +66,7 @@ describe('HomeContent 首页列表边界态', () => {
     const { w, store } = mountContent()
     store.homeList.push(dish(1))
     vi.mocked(dishApi.searchDishesPage).mockRejectedValueOnce(new Error('network'))
-    await store.setHomeView('canteen-a')
+    await store.setHomeView(11)
     await nextTick()
 
     const bar = w.find('.home-error-bar')
@@ -86,7 +86,7 @@ describe('HomeContent 首页列表边界态', () => {
     vi.mocked(dishApi.searchDishesPage).mockImplementationOnce(
       () => new Promise((r) => { resolveSwap = r }),
     )
-    const swapping = store.setHomeView('canteen-b')
+    const swapping = store.setHomeView(12)
     await nextTick()
 
     const foot = w.find('.list-foot')

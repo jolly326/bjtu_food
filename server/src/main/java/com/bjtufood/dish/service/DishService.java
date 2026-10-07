@@ -27,18 +27,16 @@ public interface DishService {
     // ==================== 公开接口 ====================
 
     /**
-     * 菜品列表查询（分页+筛选；排序由服务端决定：全部视图按 seed 会话伪随机序）
+     * 菜品列表查询（分页+筛选；筛选与排序由所选视图唯一决定）
      * <p>
-     * 支持参数：keyword / view / seed（K3：{@code canteenId} / {@code minPrice} /
-     * {@code maxPrice} 随「食堂 / 价格筛选全量下线」删除：
-     * 端上无排序入口）。
-     * ：原 {@code mealType} 参数改为通用筛选视图 {@code view}。
-     * 筛选条件与排序口径由所选<b>视图</b>决定（A6：`DishViewCatalog` 查表取展示态 +
-     * `DishViewDefs` 按 `key` 取逻辑 → `DishViewResolver` 解析为 {@code DishListQuery}）：
-     * 视图的 `conditions` 经**字段白名单**翻译为参数化 WHERE（AND 组合）；`sortKind` 决定 ORDER BY。
-     * 推荐视图（`random`）走 {@code CRC32(CONCAT(seed,'-',id)), id}
-     * 稳定伪随机序（同 seed 全序恒定，翻页不重不漏）；其余口径见 {@code DishListQuery.SortKind}。
-     * {@code view} 白名单校验，非法值抛 BusinessException(400)。
+     * 支持参数：keyword / view / seed（{@code canteenId} / {@code minPrice} / {@code maxPrice}
+     * 与排序参数均不接受：食堂 / 价格筛选全量下线，端上无排序入口）。
+     * 视图的 `conditions` 与 `sortKind` 都存 `dish_filter_view`（A6：`DishViewCatalog` 查表 →
+     * `DishViewResolver` 解析为 {@code DishListQuery}）：条件经**字段白名单**翻译为参数化 WHERE
+     * （AND 组合），`sortKind` 决定 ORDER BY。随机序视图（`random`）走
+     * {@code CRC32(CONCAT(seed,'-',id)), id} 稳定伪随机序（同 seed 全序恒定，翻页不重不漏）；
+     * 其余口径见 {@code DishListQuery.SortKind}。
+     * {@code view} 白名单校验（值域 = 视图表），非法值抛 BusinessException(400)。
      * 公开接口只查 status=on 的菜品
      *
      * @param req 查询参数
@@ -49,9 +47,8 @@ public interface DishService {
     /**
      * 首页筛选视图字典（{@code GET /dishes/views} 出参）。
      * <p>
-     * 标签文案与顺序来自视图字典表（唯一真源）；
-     * <b>空类自动隐藏只对「按大类取数」的视图生效</b>（该大类当前无在售菜品即不下发，有菜自动出现），
-     * 其余视图（「为你推荐」等聚合视角）恒下发。
+     * 标签文案与顺序来自视图表（唯一真源）；**空视图自动隐藏**（当前无在售菜品匹配即不下发，
+     * 有菜自动出现），故「为你推荐」等聚合视角同样按匹配数规则下发。
      *
      * @return 可见视图（`enabled` + 匹配数规则；按 `order` 升序），端上按此序渲染标签栏
      */

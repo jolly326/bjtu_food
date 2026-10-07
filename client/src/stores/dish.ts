@@ -50,8 +50,8 @@ export const useDishStore = defineStore('dish', () => {
 
   /** 筛选视图字典（`GET /dishes/views`）：文案 / 顺序 / 子集全由后端下发，端上零写死 */
   const viewList = ref<DishView[]>([])
-  /** 当前选中视图键（`null` = 字典尚未加载，请求不传 `view` ⇒ 服务端落首个启用视图）；端上唯一筛选维度 */
-  const filterView = ref<string | null>(null)
+  /** 当前选中视图 ID（`null` = 字典尚未加载，请求不传 `view` ⇒ 服务端落首个启用视图）；端上唯一筛选维度 */
+  const filterView = ref<number | null>(null)
 
   /** 首页列表（首个启用视图 = 推荐流·会话种子伪随机序（逛）；大类视图 = 该类热度序（找），产品拍板确认保持） */
   const homeList = ref<DishListItem[]>([])
@@ -118,10 +118,10 @@ export const useDishStore = defineStore('dish', () => {
       const list = await dishApi.listDishViews()
       viewList.value = list
       viewLoaded.value = true
-      // 字典首项 = 服务端声明的首个启用视图（如「为你推荐」）；端上不硬编码其 key
+      // 字典首项 = 服务端声明的首个启用视图（如「为你推荐」）；端上不硬编码其 ID
       const [first] = list
-      const fallback = first ? first.key : null
-      if (!filterView.value || !list.some((v) => v.key === filterView.value)) {
+      const fallback = first ? first.id : null
+      if (filterView.value == null || !list.some((v) => v.id === filterView.value)) {
         filterView.value = fallback
       }
     } catch (e) {
@@ -135,12 +135,12 @@ export const useDishStore = defineStore('dish', () => {
   }
 
   /**
-   * 切换筛选视图：写回选中键并重置分页刷新列表。
+   * 切换筛选视图：写回选中 ID 并重置分页刷新列表。
    * **不重置页面滚动位置**（UI 文档 §11.3 边界行为）：因此走 `keepList = true` —— 新数据到手前
    * 旧列表留在屏上（stale-while-revalidate），避免内容塌陷把滚动位置钳到顶部。
    */
-  async function setHomeView(viewKey: string) {
-    filterView.value = viewKey
+  async function setHomeView(viewId: number) {
+    filterView.value = viewId
     await fetchHomeDishes(true, true)
   }
 

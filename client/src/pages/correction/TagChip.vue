@@ -28,7 +28,7 @@
     @tap="emit('pick')"
   >
     <text class="tag-chip-text">{{ label }}</text>
-    <IconSvg v-if="checkable && variant === 'selected'" name="check" :size="24" :color="selectedIconColor" />
+    <AppIcon v-if="checkable && variant === 'selected'" name="check" :size="24" :color="selectedIconColor" />
   </view>
 </template>
 
@@ -37,11 +37,11 @@
  * TagChip —— 候选弹层内的属性标签（选中态 / 候选态）
  *
  * 消费方：仅 `AttributePickerSheet`（候选全览 + 自定义值区）。
- * 颜色全走语义 token（禁裸 hex）；图标走 `IconSvg`（禁 emoji / 文本当图标）；
+ * 颜色全走语义 token（禁裸 hex）；图标走 `AppIcon`（禁 emoji / 文本当图标）；
  * 按压用 hover-class 的透明度微降（禁 transform: scale）。
  */
 import { computed } from 'vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
 const props = withDefaults(defineProps<{
@@ -55,7 +55,7 @@ const props = withDefaults(defineProps<{
    */
   selectedStyle?: 'soft' | 'solid'
   /**
-   * 选中态是否展示**勾选标识**（`IconSvg name="check"`）：弹层内「已选」不能只靠底色表达。
+   * 选中态是否展示**勾选标识**（`AppIcon name="check"`）：弹层内「已选」不能只靠底色表达。
    * 候选态不消费本开关（未选中无需对勾）。
    */
   checkable?: boolean

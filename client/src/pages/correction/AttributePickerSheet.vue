@@ -44,7 +44,7 @@
           hover-stay-time="80"
           @tap="keyword = ''"
         >
-          <IconSvg name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
+          <AppIcon name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
         </view>
       </view>
     </view>
@@ -96,7 +96,7 @@
         hover-stay-time="80"
         @tap="openCustom"
       >
-        <IconSvg name="plus" :size="28" :color="COLOR_MAP['primary-text']" />
+        <AppIcon name="plus" :size="28" :color="COLOR_MAP['primary-text']" />
         <text class="aps-custom-entry-text">手动输入{{ name }}</text>
       </view>
       <view v-else class="aps-custom-box" :class="{ 'aps-custom-box--focus': customFocused }">
@@ -163,11 +163,11 @@
  *
  * 由 `AttributeGroup` 的字段行唤起（**无条件**：候选为空时同样要能进来手动输入）；
  * `BaseSheet` 的 `scroll-body` 承接候选超量内滚（内容贴顶不占空 ⇒ 少量候选不会大片留白）。
- * 颜色全走语义 token；图标走 `IconSvg`；事件统一 `@tap`；按压用 hover-class 透明度微降。
+ * 颜色全走语义 token；图标走 `AppIcon`；事件统一 `@tap`；按压用 hover-class 透明度微降。
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import TagChip from './TagChip.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -331,7 +331,7 @@ function onCustomInput(e: Event) {
 .aps-search-box {
   @include field.underline;
 }
-.aps-search-box--focus { border-bottom-color: var(--color-primary); }
+.aps-search-box--focus { background: var(--bg-soft); }
 .aps-search-input { flex: 1 1 auto; min-width: 0; height: 100%; font-size: var(--font-aux); color: var(--text-primary); }
 .aps-search-ph { color: var(--text-placeholder); }
 /* 清空搜索钮：88rpx 见方（弹层内是独立可点件）；负外边距把它压回输入框右缘内侧，不额外占宽 */
@@ -347,12 +347,13 @@ function onCustomInput(e: Event) {
 }
 .aps-search-clear--pressed { opacity: 0.6; }
 
-/* 引导 / 空态提示：最小字档 + 占位灰（不做成按钮，避免与真入口争注意力） */
+/* 引导 / 空态提示：最小字档 + 三级文字色（**必读说明**，不占用位灰档 ——
+   占位灰 2.27:1 低于 WCAG 正文阈值）；不做成按钮，避免与真入口争注意力 */
 .aps-hint {
   display: block;
   margin-top: var(--spacing-sm);
   font-size: var(--font-tiny);
-  color: var(--text-placeholder);
+  color: var(--text-subtitle);
 }
 
 /* 自定义值区（「已添加」）：与候选区同一 chip 语言，只多一行分组小标题 ⇒ 一眼分清「这不是候选，是我填的」 */
@@ -389,7 +390,7 @@ function onCustomInput(e: Event) {
 .aps-custom-box {
   @include field.underline;
 }
-.aps-custom-box--focus { border-bottom-color: var(--color-primary); }
+.aps-custom-box--focus { background: var(--bg-soft); }
 .aps-custom-input { flex: 1 1 auto; min-width: 0; height: 100%; font-size: var(--font-aux); color: var(--text-primary); }
 .aps-custom-ph { color: var(--text-placeholder); }
 /* 「添加」：视觉高 56rpx，命中区经 ::after 纵向透明扩展撑满 88rpx（不改变视觉尺寸，纯文字钮才够触达） */

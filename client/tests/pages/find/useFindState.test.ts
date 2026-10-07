@@ -28,7 +28,7 @@ vi.mock('@/stores/dish', () => ({
   useDishStore: () => ({ search: searchMock }),
 }))
 
-const { useFindState } = await import('./useFindState')
+const { useFindState } = await import('@/pages/find/useFindState')
 
 beforeEach(() => {
   searchMock.mockReset()

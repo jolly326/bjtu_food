@@ -34,78 +34,70 @@
            （正是用户报的「回搜索界面看不到搜索记录、返回首页重进才显示」）。常驻 + display 切换
            ⇒ 复用同一个已测量实例，不再重建、不再丢内容。 -->
       <scroll-view v-show="!inFilter" class="discover-body" scroll-y>
-        <template>
-          <!-- 搜索记录（首位）
-               ⚠️ Round 27c（间距真因修复）：分组卡的外间距**必须落在页面自己的节点上**。
-               直接给组件传 class（`<CardSection class="discover-card">`）时，小程序端该 class 落进的是
-               **组件宿主节点**，而宿主默认**不是块级盒** ⇒ `margin` 被**静默忽略**（横向全丢、纵向也丢）
-               ⇒ 卡片左右贴屏幕边、两张卡还相贴（页面 wxss 里那条规则看似生效、实际不产生布局）。
-               故改为「外层 `view.discover-card` 承担间距 + 卡壳 `flush` 把自身外边距归零」。 -->
-          <view v-if="historyList.length > 0" class="discover-card">
-            <CardSection flush>
-              <SectionTitle title="搜索记录">
-                <!-- QA-03：破坏性操作补可访问角色与标签（热区见 .history-clear::after） -->
-                <!-- 按压反馈：`<text>` 不支持 `hover-class` ⇒ 外层包 `<view>`（视觉与热区不变） -->
+        <!-- 极简无卡片：发现态两个区块（搜索记录 / 猜你喜欢）各自一块 `.module-wrap`，
+             区块之间**只靠页面留白分组**（容器 flex gap；小程序 WXSS 不支持 `+` 兄弟选择器）。 -->
+        <view class="discover-modules">
+          <!-- 搜索记录（首位） -->
+          <view v-if="historyList.length > 0" class="module-wrap">
+            <SectionTitle title="搜索记录">
+              <!-- QA-03：破坏性操作补可访问角色与标签（热区见 .history-clear::after） -->
+              <!-- 按压反馈：`<text>` 不支持 `hover-class` ⇒ 外层包 `<view>`（视觉与热区不变） -->
+              <view
+                slot="extra"
+                class="section-extra history-clear"
+                role="button"
+                aria-label="清空搜索历史"
+                hover-class="pressed"
+                @tap="clearHistory"
+              >
+                <text class="history-clear-text">清空</text>
+              </view>
+            </SectionTitle>
+            <!-- 搜索记录：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
+            <view class="history-chips">
+              <view
+                v-for="(kw, i) in historyList"
+                :key="kw"
+                class="history-chip"
+                role="button"
+                :aria-label="`搜索 ${kw}`"
+                hover-class="history-chip-pressed"
+                @tap="tapKeyword(kw)"
+              >
+                <text class="history-chip-text">{{ kw }}</text>
                 <view
-                  slot="extra"
-                  class="section-extra history-clear"
+                  class="history-chip-del"
                   role="button"
-                  aria-label="清空搜索历史"
+                  :aria-label="`删除记录 ${kw}`"
                   hover-class="pressed"
-                  @tap="clearHistory"
+                  hover-stop-propagation
+                  @tap.stop="removeHistory(i)"
                 >
-                  <text class="history-clear-text">清空</text>
-                </view>
-              </SectionTitle>
-              <!-- 搜索记录收敛（find-page-layout-restructure 2.6）：缓存上限 4 条、全部直接展示、无「展开/收起」 -->
-              <view class="history-chips">
-                <view
-                  v-for="(kw, i) in historyList"
-                  :key="kw"
-                  class="history-chip"
-                  role="button"
-                  :aria-label="`搜索 ${kw}`"
-                  hover-class="history-chip-pressed"
-                  @tap="tapKeyword(kw)"
-                >
-                  <text class="history-chip-text">{{ kw }}</text>
-                  <view
-                    class="history-chip-del"
-                    role="button"
-                    :aria-label="`删除记录 ${kw}`"
-                    hover-class="pressed"
-                    hover-stop-propagation
-                    @tap.stop="removeHistory(i)"
-                  >
-                    <IconSvg name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
-                  </view>
+                  <AppIcon name="close" :size="24" :color="COLOR_MAP['text-tertiary']" />
                 </view>
               </view>
-            </CardSection>
+            </view>
           </view>
 
           <!-- 猜你喜欢（GET /dishes/for-you）：后端**每次随机**推送在售菜品名（不看热度、不排序、
                不做个性化）；端上按返回渲染、不写死条数与文案；空数组 / 请求失败 → 整块不渲染 -->
-          <view v-if="guessLikeList.length > 0" class="discover-card">
-            <CardSection flush>
-              <SectionTitle title="猜你喜欢" />
-              <view class="history-chips">
-                <view
-                  v-for="(kw) in guessLikeList"
-                  :key="kw.name"
-                  class="history-chip history-chip-hot"
-                  role="button"
-                  :aria-label="`搜索 ${kw.name}`"
-                  hover-class="history-chip-pressed"
-                  @tap="tapKeyword(kw.name, true)"
-                >
-                  <text class="history-chip-text">{{ kw.name }}</text>
-                </view>
+          <view v-if="guessLikeList.length > 0" class="module-wrap">
+            <SectionTitle title="猜你喜欢" />
+            <view class="history-chips">
+              <view
+                v-for="(kw) in guessLikeList"
+                :key="kw.name"
+                class="history-chip history-chip-hot"
+                role="button"
+                :aria-label="`搜索 ${kw.name}`"
+                hover-class="history-chip-pressed"
+                @tap="tapKeyword(kw.name, true)"
+              >
+                <text class="history-chip-text">{{ kw.name }}</text>
               </view>
-            </CardSection>
+            </view>
           </view>
-
-        </template>
+        </view>
       </scroll-view>
 
       <!-- ============ 搜索结果态（仅结果态渲染）============
@@ -183,10 +175,9 @@ import PageWallpaper from '@/components/PageWallpaper.vue'
 import AppTitleBand from '@/components/AppTitleBand.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import SectionTitle from '@/components/SectionTitle.vue'
-import CardSection from '@/components/CardSection.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import DishResultCard from './DishResultCard.vue'
 import { useFindState } from './useFindState'
 import { useDiscover } from './useDiscover'
@@ -262,6 +253,11 @@ onShow(() => {
 <style scoped>
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .find-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; box-sizing: border-box; }
+.find-page { min-height: 0; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口）通常 **大于** `100dvh`（当前视口）；二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
 /* 搜索行宿主（搜索页 UI §2）：标题带下沿 → 搜索行上沿 = --spacing-md（同属「头部单元」）；
    搜索行下沿 → 内容首块 = --spacing-lg（块间）。搜索行左侧 gutter 由 SearchBar 内部自持（与首页同源） */
 .find-search-row { padding-top: var(--spacing-md); padding-bottom: var(--spacing-lg); box-sizing: border-box; }
@@ -275,15 +271,14 @@ onShow(() => {
 /* 底部 = 块间距 + `env(safe-area-inset-bottom)`：本页为非 TabBar 页，
    滚动区末块（分组卡）无安全区时会被 Home Indicator 压住 */
 .discover-body { flex: 1; min-height: 0; padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom)); }
-/* 分组卡外壳（**页面自有节点**，不是组件宿主）：承担每张卡的左右 gutter + 纵向块间距。
-   ⚠️ 间距**必须落在页面自己的节点上**：本类直接传给 `<CardSection>` 时，小程序端该类落进
-   **组件宿主节点**，而宿主默认**不是块级盒** ⇒ `margin` 被**静默忽略**（横向全丢、纵向也丢 ⇒
-   「卡片左右贴屏幕边 + 两张卡相贴」）；故卡壳只传 `flush`（把自身外边距归零，避免双层）。
-   首卡上间距的**唯一来源 = 搜索行下 padding**（UI 文档 §2：块间 `--spacing-lg`），故本类上外边距为 0。
-   ⚠️ 选型理由（实测教训）：小程序 WXSS 支持的选择器仅 `.class / #id / element / element,element / ::after / ::before`
-   —— **不得用通配符 `*`**（实测报 `error at token '*'`），**也不依赖 `+` / `~` 兄弟选择器**；
-   且 uni 本地构建**不校验**这些，只有微信开发者工具会拦。 */
-.discover-card { display: block; margin: 0 var(--page-gutter) var(--spacing-lg); }
+/* 发现态模块容器：**flex column + gap** 承担模块之间的留白（小程序 WXSS 不支持 `+` 兄弟选择器），
+   左右 gutter 在此；首块上间距的唯一来源 = 搜索行下 padding（UI 文档 §2：块间 `--spacing-lg`）。 */
+.discover-modules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: 0 var(--page-gutter);
+}
 /* 结果态滚动容器：
    flex 链占满剩余高度；底部留白随容器自带（末行为结果卡 / `.list-foot`，
    故底部 = 块间距 + `env(safe-area-inset-bottom)`，避免压在 Home Indicator 下） */
@@ -300,33 +295,68 @@ onShow(() => {
   margin: 0 var(--page-gutter) var(--spacing-md);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-lg);
 }
 
 /* 空态 / 失败态**共用宿主**：
-   只承担整屏居中占位与边距，视觉分别由公共 `EmptyState`（卡片变体）/ `RetryBlock` 承担。 */
+   只承担「占满内容区 + 顶部对齐」与边距，视觉分别由公共 `EmptyState`（卡片变体）/ `RetryBlock` 承担。 */
 .state-host {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* 空态 / 失败态**顶部对齐**（不居中）：内容区上方即呈现，避免短文案被推到屏幕中部 */
+  justify-content: flex-start;
   margin: var(--spacing-lg);
   box-sizing: border-box;
 }
-/* 搜索页头部为「输入框 + 结果」，无筛选行 / FilterBar 样式 */
 
-/* 区块通用 */
-.section-extra { flex-shrink: 0; }
-
-/* 历史搜索 */
-/* QA-03 修复：视觉保持轻量小文字链，命中区经 ::after 透明覆盖扩至 ≥88rpx（Apple 44pt 触达下限） */
-/* 「清空」是**破坏性操作**，需可被发现：字号 aux(22rpx) → small(24rpx)、色 tertiary → secondary；
-   视觉仍远弱于分组标题（不抢层级），命中区继续由下方 ::after 扩至 ≥88rpx。 */
-.history-clear { position: relative; padding: var(--spacing-xs) var(--spacing-sm); border-radius: var(--radius-tag); transition: opacity var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; }
-/* 「清空」文案：字号 / 颜色 / 字重挂在本节点上（外层热区只承担命中区与按压） */
-.history-clear-text { font-size: var(--font-small); color: var(--text-secondary); font-weight: var(--weight-medium); }
+/* ---------- 词条 chip（搜索记录 / 猜你喜欢共用）----------
+   两组 chip 同款形态，仅常态底色不同：记录 = 浅底、推荐 = 暖黄底。 */
+.history-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+.history-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2xs);
+  /* 触达基线：chip 视觉高度小于 88rpx 时用 min-height 兜到基线，`::after` 再扩命中盒 */
+  min-height: var(--tap-target-size);
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  -webkit-tap-highlight-color: transparent;
+}
+/* 猜你喜欢 = 暖黄底深棕字（与搜索记录的浅底区分） */
+.history-chip-hot { background: var(--bg-soft-yellow); }
+/* 视觉底色延伸不到命中盒时，用伪元素把热区补齐到触达基线 */
+.history-chip::after,
 .history-clear::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: var(--tap-target-size);
+  transform: translateY(-50%);
+}
+.history-chip,
+.history-clear { position: relative; }
+.history-chip-text { font-size: var(--font-small); color: var(--text-body); }
+.history-chip-hot .history-chip-text { color: var(--text-primary); }
+.history-chip-pressed { opacity: 0.7; }
+/* 单条删除钮：视觉仅 24rpx 图标，靠 `::after` 把热区扩到触达基线 */
+.history-chip-del {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-lg);
+  height: var(--spacing-lg);
+}
+.history-chip-del::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -335,39 +365,12 @@ onShow(() => {
   height: var(--tap-target-size);
   transform: translate(-50%, -50%);
 }
-.history-chips { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); }
-.history-chip {
-  display: inline-flex;
+
+/* 「清空」动作（SectionTitle 右上角 extra 槽）：文字按钮，触达同样由 `::after` 兜底 */
+.section-extra {
+  display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  max-width: 360rpx;
-  /* 放大命中区：上下 sm(32rpx)、左右 lg(48rpx)，字号升至 body；可点词条胶囊与页面内小标签语义区分（content-flow-visual-polish 评审回退） */
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--bg-soft);
-  border-radius: var(--radius-pill);
-  transition: background var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-  /* skill §2 `tap-delay`：消除移动端点击延迟 */
-  touch-action: manipulation;
+  min-height: var(--tap-target-size);
 }
-/* 按压反馈（skill §2 `press-feedback`，CRITICAL 级）：可点元素必须有点按反馈。
-   旧实现只声明了 `transition: background` 却**没有任何按压态** —— 等于「点了完全没反应」。 */
-.history-chip-pressed { background: var(--bg-placeholder); }
-.history-chip-hot.history-chip-pressed { background: var(--bg-soft-orange); }
-.history-chip-text { font-size: var(--font-body); color: var(--text-secondary); font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-chip-del {
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-  line-height: 1;
-  /* 扩大命中区：padding 撑大可点目标，避免仅图标 12px 难点 */
-  padding: var(--spacing-xs);
-  margin: calc(-1 * var(--spacing-xs));
-  border-radius: var(--radius-circle);
-  transition: opacity var(--duration-fast) var(--ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-/* 「猜你喜欢」词条 vs 搜索记录**必须可区分**：推荐词 = 暖黄底 + 深棕字，用于与搜索记录区分 */
-.history-chip-hot { background: var(--bg-soft-yellow); }
-.history-chip-hot .history-chip-text { color: var(--text-body); }
+.history-clear-text { font-size: var(--font-small); color: var(--text-tertiary); }
 </style>

@@ -79,7 +79,7 @@ public class DashboardVO {
         @Schema(description = "未归入档口的菜品数（stall_id = 0）")
         private Long dishesWithoutStall;
 
-        @Schema(description = "分类为空的菜品数（meal_type 为空）")
+        @Schema(description = "种类为空的菜品数（meal_type_id 为空）")
         private Long dishesWithoutCategory;
 
         @Schema(description = "无菜品的档口数（空档口）")

@@ -22,6 +22,6 @@ public class DishHealthVO {
     @Schema(description = "未归入档口的菜品数（stall_id = 0）")
     private Long withoutStall;
 
-    @Schema(description = "分类为空的菜品数（meal_type 为空）")
+    @Schema(description = "种类为空的菜品数（meal_type_id 为空）")
     private Long withoutCategory;
 }

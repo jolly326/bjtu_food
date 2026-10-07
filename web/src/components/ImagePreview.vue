@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useOverlayLayer } from '@/composables/useOverlayLayer'
 
 /**
  * 配图**大图预览**（多图；浮层关闭口径同 [UI 基线 §2.1](../../../docs/ui/web/公共组件与形态基线.md)）。
@@ -33,36 +34,33 @@ function go(delta: number): void {
   current.value = (current.value + delta + total.value) % total.value
 }
 
+/** 浮层层级 + 背景滚动锁与抽屉 / 弹窗同源（挂载即开 ⇒ open 传 null，自管 attach / detach） */
+const layer = useOverlayLayer('preview', null, () => emit('close'))
+
 function onKeydown(e: KeyboardEvent): void {
+  // 捕获阶段拦截：本浮层叠在下层抽屉之上，ESC / 方向键不应再触发下层的关闭
   if (e.key === 'Escape') {
     e.stopPropagation()
-    emit('close')
-  } else if (e.key === 'ArrowLeft') {
-    e.preventDefault()
-    e.stopPropagation()
-    go(-1)
-  } else if (e.key === 'ArrowRight') {
-    e.preventDefault()
-    e.stopPropagation()
-    go(1)
+    return
   }
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+  // 非栈顶时不消费事件（下方浮层的方向键语义与自己无关）
+  if (!layer.isTop()) return
+  e.preventDefault()
+  e.stopPropagation()
+  go(e.key === 'ArrowLeft' ? -1 : 1)
 }
-
-/** 挂载前的背景滚动状态（下层抽屉 / 弹窗可能已置 `hidden`），卸载时**原样还原** */
-let prevOverflow = ''
 
 onMounted(() => {
   current.value =
     Number.isInteger(props.index) && props.index >= 0 && props.index < total.value ? props.index : 0
-  prevOverflow = document.body.style.overflow
-  document.body.style.overflow = 'hidden'
-  // 捕获阶段拦截：本浮层叠在下层抽屉之上，ESC / 方向键不应再触发下层的关闭
+  layer.attach()
   window.addEventListener('keydown', onKeydown, true)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown, true)
-  document.body.style.overflow = prevOverflow
+  layer.detach()
 })
 </script>
 

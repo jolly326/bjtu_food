@@ -3,11 +3,11 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
-import { setupPress } from './directives/press'
+import { setupPress } from '@/directives/press'
 import { setUnauthorizedHandler } from '@/api/http'
 import './styles/shared.css'
-// 显式引入 Element Plus 全量样式，保证 ElMessage / ElMessageBox 等函数式 API 有样式
-// （模板内 el-* 组件仍由 vite 的 ElementPlusResolver 按需解析）。
+// 显式引入 Element Plus 全量样式：**函数式 API（ElMessage / ElMessageBox）的样式不在
+// ElementPlusResolver 的按需注入范围内**（它只处理模板内 el-* 组件），故此处必须全量引入。
 import 'element-plus/dist/index.css'
 
 const app = createApp(App)

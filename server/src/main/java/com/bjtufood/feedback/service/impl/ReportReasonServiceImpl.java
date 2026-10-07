@@ -63,7 +63,7 @@ public class ReportReasonServiceImpl implements ReportReasonService {
     @Transactional(rollbackFor = Exception.class)
     public ReportReasonAdminVO create(String label) {
         String normalizedLabel = normalizeLabel(label);
-        // 标签唯一由应用层保证（label 无唯一索引，与 dish_attribute_value / dish_category_value 同口径）
+        // 标签唯一由应用层保证（label 无唯一索引，与 dish_attribute_value 同口径）
         DuplicateGuard.assertUnique(reportReasonMapper, new LambdaQueryWrapper<ReportReason>()
                 .eq(ReportReason::getLabel, normalizedLabel), "中文标签已存在");
         // 新增默认启用 ⇒ 启用数将达到 count+1，超上限即拒

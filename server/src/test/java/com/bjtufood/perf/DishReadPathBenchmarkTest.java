@@ -102,12 +102,13 @@ class DishReadPathBenchmarkTest {
     private DishAttributeValueMapper valueMapper;
     private DishServiceImpl dishService;
 
-    /** 视图样本（A6）：逻辑（空条件 + `random`）由 DishViewDefs 按 key 提供，表行只给展示态 */
+    /** 视图样本（A6）：条件与排序口径同表存储（空条件 + `random` = 「为你推荐」） */
     private static DishFilterView sampleView() {
         DishFilterView v = new DishFilterView();
         v.setId(1L);
-        v.setKey("recommend");
         v.setLabel("为你推荐");
+        v.setConditions("[]");
+        v.setSortKind("random");
         v.setSortOrder(1);
         v.setEnabled(true);
         return v;
@@ -165,7 +166,7 @@ class DishReadPathBenchmarkTest {
         // 视图目录打桩：A6 后 listDishes 走**查表**取视图行（未登记 → 4001 之前先 400），
         // 故此处桩定一个视图（random + 无条件，即「为你推荐」）
         DishViewCatalog viewCatalog = mock(DishViewCatalog.class);
-        when(viewCatalog.byKey(any())).thenReturn(sampleView());
+        when(viewCatalog.byId(any())).thenReturn(sampleView());
         dishService = new DishServiceImpl(dishMapper, dishViewLogMapper, stallService, publisher, imageUrlUtil,
                 catalog, attributeAdminService, mock(DishCategoryAdminService.class), viewCatalog);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);

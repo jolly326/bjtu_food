@@ -10,6 +10,7 @@ import com.bjtufood.canteen.entity.Stall;
 import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.StallService;
+import com.bjtufood.canteen.support.ImageColumnWriter;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -37,6 +38,9 @@ public class StallServiceImpl implements StallService {
 
     /** 新建档口时未提供有效所属食堂的报错文案（与 web 端「食堂必填」契约一致） */
     private static final String MSG_CANTEEN_REQUIRED = "请选择所属食堂";
+
+    /** `stall.images VARCHAR(1024)` 的字符宽度上限（超长即 400，禁止静默截断） */
+    private static final int IMAGES_JSON_MAX = 1024;
 
     /** 「同食堂下档口重名」的统一报错文案：新增与改名共用同一句，避免同语义两套措辞 */
     private static final String MSG_STALL_NAME_DUPLICATE = "该食堂下已存在同名档口";
@@ -114,7 +118,8 @@ public class StallServiceImpl implements StallService {
                 .eq(Stall::getName, trimmed)
                 .ne(Stall::getId, id), MSG_STALL_NAME_DUPLICATE);
         // 局部实体 + updateById（NOT_NULL 策略）：只写本次提交的可编辑列，
-        // 保留列（images / location / description / sort_order）与时间列原样保留。
+        // 未提交的可选列（含时间列）不带值即不写列 —— 时间列由库的 ON UPDATE CURRENT_TIMESTAMP 维护
+        // （实体时间字段无 fill 注解，见 docs/schema/README.md）。
         Stall patch = new Stall();
         patch.setId(id);
         patch.setCanteenId(req.getCanteenId());
@@ -128,8 +133,32 @@ public class StallServiceImpl implements StallService {
         if (req.getWindowNo() != null) {
             patch.setWindowNo(StringUtils.hasText(req.getWindowNo()) ? req.getWindowNo() : "");
         }
+        applyOptionalFields(patch, req);
         if (id == null || stallMapper.updateById(patch) == 0) {
             throw new BusinessException(4001, "档口不存在");
+        }
+    }
+
+    /**
+     * 写入 4 个可选列（位置 / 描述 / 图片 / 排序位）。
+     * <p>
+     * <b>null = 保持原值</b>（局部实体不带该列 ⇒ updateById 的 NOT_NULL 策略跳过；
+     * 新建时可空列即落 NULL），给值即覆盖（空串 / 空数组表达「清空」）——
+     * 与 {@code floor} / {@code windowNo} 的空值语义同构。
+     */
+    private void applyOptionalFields(Stall entity, StallSaveReq req) {
+        if (req.getLocation() != null) {
+            entity.setLocation(req.getLocation().trim());
+        }
+        if (req.getDescription() != null) {
+            entity.setDescription(req.getDescription().trim());
+        }
+        if (req.getImages() != null) {
+            entity.setImages(ImageColumnWriter.encode(imageUrlUtil, req.getImages(), IMAGES_JSON_MAX,
+                    "档口图片地址过长（序列化后不得超过 " + IMAGES_JSON_MAX + " 字符）"));
+        }
+        if (req.getSortOrder() != null) {
+            entity.setSortOrder(req.getSortOrder());
         }
     }
 
@@ -170,6 +199,7 @@ public class StallServiceImpl implements StallService {
         saved.setFloor(FloorDict.normalize(req.getFloor()));
         // windowNo 为空 / 纯空白 → 落库 NULL（不留空串；出参侧归一为空串，端上无需判空）
         saved.setWindowNo(StringUtils.hasText(req.getWindowNo()) ? req.getWindowNo() : null);
+        applyOptionalFields(saved, req);
         stallMapper.insert(saved);
         return toAdminVO(stallMapper.selectById(saved.getId()), canteen.getName(), BigDecimal.ZERO);
     }
@@ -404,7 +434,6 @@ public class StallServiceImpl implements StallService {
         // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.00 兜底
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
         vo.setSortOrder(stall.getSortOrder());
-        vo.setCreatedAt(stall.getCreatedAt());
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;
     }

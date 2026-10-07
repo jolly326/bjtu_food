@@ -356,7 +356,7 @@ a:focus-visible,
   color: var(--color-error);
 }
 
-/* 列表内容列「附有配图」角标：Picture 图标 + 张数（反馈 / 评价列表共用） */
+/* 列表内容列「附有配图」角标：image 图标 + 张数 */
 .img-flag {
   display: inline-flex;
   align-items: center;
@@ -369,10 +369,6 @@ a:focus-visible,
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
   vertical-align: middle;
-}
-.img-flag .el-icon {
-  width: 12px;
-  height: 12px;
 }
 
 /* 通用按钮（自封装；按压 + hover 走 Token） */
@@ -732,6 +728,153 @@ a:focus-visible,
     --el-mask-color: rgba(0, 0, 0, 0.35);
   }
 }
+/* ============================================================
+ * 详情抽屉内容块（UI 基线 §1.15）
+ * 列表页「基础列 + 详情抽屉」的统一内容件：元信息表 / 文本块 /
+ * 缩略图与大图 / 身份格 / 只读值 / 页脚注。页面 SHALL NOT 自绘。
+ * ============================================================ */
+.muted {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+/* 数值列（金额 / 计数 / 编号）：等宽数字，列内视觉对齐 */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.hint {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+/* 只读值：与可编辑控件的文字档区分（不可点、无边框） */
+.readonly {
+  color: var(--text-secondary);
+  /* 抽屉疏密度整改（基线 §1.15）：长文本区统一舒展行距 + 断行保护 */
+  line-height: var(--line-height-relaxed);
+  overflow-wrap: anywhere;
+}
+/* 只读内容区块（评价原文 / 反馈正文 / 被举报评价）：浅底 + 可断行 */
+.ctx {
+  background: var(--bg-soft);
+  border-radius: var(--radius);
+  /* 内距与下留白放宽到 --space-4 / --space-5：抽屉内区块间距统一由本类承担 */
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.ctx-label {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+.ctx-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  /* 长评价 / 长反馈正文的阅读行距 */
+  line-height: var(--line-height-relaxed);
+}
+/* 详情元信息表：左键右值（键宽固定，值可断行，不撑破抽屉） */
+.detail-meta {
+  display: flex;
+  flex-direction: column;
+  /* 行间距放宽到 --space-3，与 .ctx 的区块留白同档 */
+  gap: var(--space-3);
+}
+.detail-meta .meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: var(--font-sm);
+  line-height: var(--line-height-relaxed);
+}
+.detail-meta .meta-key {
+  flex: none;
+  width: 84px;
+  color: var(--text-muted);
+  /* 标签-值两栏对齐：标签固定列宽 + 右对齐形成列轴，超长标签就地断行不挤占值列 */
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.detail-meta .meta-val {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+/* 表格内缩略图（56px）与抽屉内大图（140px）；缩略图可点开大图 */
+.thumbs {
+  display: flex;
+  gap: var(--space-1);
+}
+.thumbs img {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+.thumb {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.detail-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  /* 与 .ctx / .detail-meta 的区块间距统一到 --space-3 */
+  margin-top: var(--space-3);
+}
+.detail-thumbs img {
+  width: 140px;
+  height: 140px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+/* 身份格：头像 + 昵称合并为一格（表格主标识列与详情抽屉同源） */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  display: block;
+  flex: none;
+}
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-soft);
+  color: var(--text-muted);
+}
+/* 复选行（内联 label + 控件） */
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--weight-regular);
+}
+/* 处置结论的可选标签组（基线 §1.8 的 .tag-option 容器） */
+.tag-options {
+  display: flex;
+  gap: var(--space-2);
+}
+/* 表格下方的口径说明（紧贴表体，与表头同底） */
+.foot-note {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  border-top: 1px solid var(--table-border);
+}
+
 /* EP 弹层/下拉也走半透毛玻璃（§4.5） */
 .el-overlay,
 .el-popper.is-light,

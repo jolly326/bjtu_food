@@ -67,7 +67,7 @@ async function submit(): Promise<void> {
       <div class="brand">
         <div class="brand-logo">食</div>
         <div class="brand-text">
-          <div class="brand-name">食在交大</div>
+          <div class="brand-name">知行食记</div>
           <div class="brand-sub">管理后台</div>
         </div>
       </div>

@@ -1,80 +1,88 @@
 <template>
-  <!-- 意见反馈 · 表单字段区：
+  <!-- 意见反馈 · 表单字段区（极简无卡片：三个区块各自一块 `.module-wrap`，区块间只靠页面留白分组）：
        ① 反馈类型（必填，竖排单选，选中项左侧橙色勾）
        ② 具体描述（必填，≤600 字、字数常显标题行右上角，占位文案随类型切换）
-       ③ 上传截图（选填，≤3 张，与 `UGC_IMAGE_MAX` 同源）
-       表单自身不带卡片壳（白卡由页面 .q-card 提供）。 -->
+       ③ 上传截图（选填，≤3 张，与 `UGC_IMAGE_MAX` 同源） -->
   <view class="fb-form">
     <!-- ① 反馈类型：竖排单选。整行可点，命中区 ≥88rpx -->
-    <view class="field">
-      <text class="field-label">反馈类型<text class="req">*</text></text>
-      <view class="type-list" role="radiogroup" aria-label="反馈类型">
-        <view
-          v-for="t in FEEDBACK_TYPES"
-          :key="t.value"
-          class="type-row"
-          :class="{ 'type-row--on': model.type === t.value }"
-          role="radio"
-          :aria-checked="model.type === t.value ? 'true' : 'false'"
-          :aria-label="t.label"
-          hover-class="type-row-pressed"
-          hover-stay-time="80"
-          @tap="onPick(t.value)"
-        >
-          <!-- 选中标记：左侧橙色勾（纯图形；选中语义由 .type-row--on 与 aria-checked 表达） -->
-          <view class="type-check" :class="{ on: model.type === t.value }" aria-hidden="true">
-            <IconSvg
-              v-if="model.type === t.value"
-              name="check"
-              :size="20"
-              :color="COLOR_MAP['text-white']"
-            />
-          </view>
-          <view class="type-text">
-            <text class="type-label">{{ t.label }}</text>
-            <text v-if="t.hint" class="type-hint">{{ t.hint }}</text>
+    <view class="module-wrap">
+      <view class="field">
+        <text class="field-label">反馈类型<text class="req">*</text></text>
+        <view class="type-list" role="radiogroup" aria-label="反馈类型">
+          <view
+            v-for="t in FEEDBACK_TYPES"
+            :key="t.value"
+            class="type-row"
+            :class="{ 'type-row--on': model.type === t.value }"
+            role="radio"
+            :aria-checked="model.type === t.value ? 'true' : 'false'"
+            :aria-label="t.label"
+            hover-class="type-row-pressed"
+            hover-stay-time="80"
+            @tap="onPick(t.value)"
+          >
+            <!-- 选中标记：左侧橙色勾（纯图形；选中语义由 .type-row--on 与 aria-checked 表达） -->
+            <view class="type-check" :class="{ on: model.type === t.value }" aria-hidden="true">
+              <AppIcon
+                v-if="model.type === t.value"
+                name="check"
+                :size="24"
+                :color="COLOR_MAP['text-white']"
+              />
+            </view>
+            <view class="type-text">
+              <text class="type-label">{{ t.label }}</text>
+              <text v-if="t.hint" class="type-hint">{{ t.hint }}</text>
+            </view>
           </view>
         </view>
+        <text v-if="errors['form.type']" class="field-error" role="alert">{{ errors['form.type'] }}</text>
       </view>
-      <text v-if="errors['form.type']" class="field-error">{{ errors['form.type'] }}</text>
     </view>
 
     <!-- ② 具体描述：上限 600 字、字数常显在标题行右上角；占位随选中类型切换 -->
-    <view class="field">
-      <view class="field-head">
-        <text class="field-label">具体描述<text class="req">*</text></text>
-        <text class="counter">{{ model.content.length }}/{{ CONTENT_MAX }}</text>
+    <view class="module-wrap">
+      <view class="field">
+        <view class="field-head">
+          <text class="field-label">具体描述<text class="req">*</text></text>
+          <text class="counter">{{ model.content.length }}/{{ CONTENT_MAX }}</text>
+        </view>
+        <textarea
+          id="f-form-content"
+          :value="model.content"
+          class="content-input"
+          :class="{ focused }"
+          aria-label="具体描述"
+          :aria-required="true"
+          :aria-invalid="errors['form.content'] ? 'true' : 'false'"
+          :placeholder="placeholder"
+          :maxlength="CONTENT_MAX"
+          :auto-height="true"
+          :cursor-spacing="40"
+          :adjust-position="true"
+          @input="onTextInput"
+          @focus="focused = true"
+          @blur="focused = false"
+        />
+        <text v-if="errors['form.content']" class="field-error" role="alert">{{ errors['form.content'] }}</text>
+        <text v-if="model.type === 'other'" class="field-help">若发现菜品资料有误，请前往对应菜品详情页提交纠错</text>
       </view>
-      <textarea
-        id="f-form-content"
-        :value="model.content"
-        class="content-input"
-        :class="{ focused }"
-        :placeholder="placeholder"
-        :maxlength="CONTENT_MAX"
-        :auto-height="true"
-        :cursor-spacing="40"
-        :adjust-position="true"
-        @input="onTextInput"
-        @focus="focused = true"
-        @blur="focused = false"
-      />
-      <text v-if="errors['form.content']" class="field-error">{{ errors['form.content'] }}</text>
-      <text v-if="model.type === 'other'" class="field-help">若发现菜品资料有误，请前往对应菜品详情页提交纠错</text>
     </view>
 
     <!-- ③ 上传截图（选填，**≤3 张**，上限取 `UGC_IMAGE_MAX`，与服务端 `FeedbackConst.IMAGE_MAX` 同源）；
          破图走统一 ImagePlaceholder -->
-    <view class="field">
-      <text class="field-label">上传截图</text>
-      <ImagePicker
-        ref="imagePickerRef"
-        :model-value="model.images"
-        :max="IMAGE_MAX"
-        :disabled="submitting"
-        @update:model-value="onImagesChange"
-        @pick="emit('pick-image')"
-      />
+    <view class="module-wrap">
+      <view class="field">
+        <text class="field-label">上传截图</text>
+        <ImagePicker
+          ref="imagePickerRef"
+          :model-value="model.images"
+          :max="IMAGE_MAX"
+          :disabled="submitting"
+          @update:model-value="onImagesChange"
+          @pick="emit('pick-image')"
+        />
+      </view>
     </view>
   </view>
 </template>
@@ -82,13 +90,14 @@
 <script setup lang="ts">
 /** IssueForm（feedback 包内私有）：意见反馈页表单字段区（类型 + 描述 + 截图） */
 import ImagePicker from '@/components/ImagePicker.vue'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { ref } from 'vue'
 import { COLOR_MAP } from '@/theme/tokens'
 import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
 import type { PickSource } from '@/components/imagePickSource'
 import { UGC_IMAGE_MAX as IMAGE_MAX } from '@/constants/ugc'
 import { CONTENT_MAX, type FeedbackFormModel } from './useFeedback'
+import type { UgcImageItem } from '@/components/ugcImage'
 
 defineProps<{
   errors: Record<string, string>
@@ -117,7 +126,7 @@ const emit = defineEmits<{
 }>()
 
 /**
- * ImagePicker 的 startPick 中转（拉起选图 → 压缩校验 → 安检上传）。
+ * ImagePicker 的 startPick 中转（拉起选图 → 压缩校验 → 落云存储；机审在提交时）。
  * <p>来源弹层必须在页面根级挂载（本组件位于 scroll-view 内，fixed 层级会被裁剪），
  * 故宿主页拿到来源后再经此透传下去。
  */
@@ -147,8 +156,8 @@ function onTextInput(e: Event) {
 }
 
 /** 截图增删：整值替换经 `update:model` 回抛（禁就地改 prop 对象） */
-function onImagesChange(urls: string[]) {
-  model.value = { ...model.value, images: urls }
+function onImagesChange(items: UgcImageItem[]) {
+  model.value = { ...model.value, images: items }
 }
 </script>
 
@@ -156,10 +165,21 @@ function onImagesChange(urls: string[]) {
 /* 字段级样式（.field / .field-label / .req / .field-error / .content-input / .input-error）统一来自共享 partial */
 @use './form-shared';
 
-/* ===== ① 反馈类型（竖排单选；纯白背景整行可点，选项间细线分隔，无灰卡嵌套） ===== */
+/* 表单容器：**flex column + gap** 承担「模块之间只靠留白分组」（小程序 WXSS 不支持 `+` 兄弟选择器，
+   故用 gap 而非相邻兄弟外边距）；左右 gutter 与上下留白也在此承担，页面不再有大白卡壳。 */
+.fb-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) var(--page-gutter) 0;
+}
+
+/* ===== ① 反馈类型（竖排单选；整行可点，选项间**不用分割线**，靠模块内留白分组） ===== */
 .type-list {
   display: flex;
   flex-direction: column;
+  /* 选项之间用上下内边距分组，替代模块内分割线 */
+  gap: var(--spacing-md);
 }
 .type-row {
   /* 命中区：整行可点（min-height ≥88rpx 命中下限）；不套独立灰色背景块 */
@@ -167,14 +187,10 @@ function onImagesChange(urls: string[]) {
   align-items: flex-start;
   gap: var(--spacing-sm);
   min-height: var(--tap-target-size);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1rpx solid var(--border-color);
+  padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   transition: background var(--duration-fast) var(--ease-out);
-}
-.type-row:last-child {
-  border-bottom: none;
 }
 .type-row-pressed {
   /* iOS 按压质感：瞬时浅灰底，松手恢复，无永久底色（不用 opacity 以免压暗文字）。

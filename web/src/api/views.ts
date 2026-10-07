@@ -1,23 +1,38 @@
-import { get, put } from './http'
+import { del, get, post, put } from './http'
 import { submitSort } from './shared'
-import type { SortItemsReq, DishViewAdminVO, DishViewUpdateReq } from '@/types/common'
+import type {
+  SortItemsReq,
+  DishViewAdminVO,
+  DishViewCreateReq,
+  DishViewUpdateReq,
+} from '@/types/common'
 
 /**
  * A6 首页筛选视图管理（`/admin/dish-views`）。
  *
- * <p>契约真源：[A6-首页筛选视图管理](../../../docs/api/web/views.md)。
- * <p>后台只维护 tab 的**文案 / 顺序 / 显隐**；视图的筛选条件与排序口径属 seed / 代码资产，
- * 新增 / 删除 tab 亦属代码改动 —— 故本模块只有列表 / 修改 / 排序三个端点。
+ * <p>契约真源：[web/views.md](../../../docs/api/web/views.md)。
+ * <p>视图是**纯数据**：文案 / 顺序 / 显隐 / **筛选条件** / **排序口径**全部落库，
+ * 后台可自助新建 / 修改 / 删除，免发版；条件与排序口径受后端白名单约束（不可配 SQL）。
  */
 
-/** 视图列表（按 `order` 升序；不分页） */
+/** 视图列表（按 `order` 升序；不分页；带 `conditions` / `sortKind` / `matchedCount`） */
 export function listViews(): Promise<DishViewAdminVO[]> {
   return get<DishViewAdminVO[]>('/admin/dish-views')
 }
 
-/** 修改视图（仅 `label` / `enabled`；停用「最后一个启用的视图」→ 400） */
+/** 新建视图（默认启用、排最后；`conditions` 为 `[]` 表示不筛选） */
+export function createView(req: DishViewCreateReq): Promise<DishViewAdminVO> {
+  return post<DishViewAdminVO>('/admin/dish-views', req)
+}
+
+/** 修改视图（文案 / 启停 / 条件 / 排序口径整体替换；停用「最后一个启用的视图」→ 400） */
 export function updateView(id: number, req: DishViewUpdateReq): Promise<null> {
   return put<null>(`/admin/dish-views/${id}`, req)
+}
+
+/** 删除视图（删除「最后一个启用的视图」→ 400） */
+export function deleteView(id: number): Promise<null> {
+  return del<null>(`/admin/dish-views/${id}`)
 }
 
 /** 排序（拖拽后整体提交全量行） */

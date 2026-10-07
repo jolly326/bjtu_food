@@ -25,8 +25,6 @@ export const CODE_OK = 200
  * 由**请求层统一**处理：清 token → 跳登录页，页面不渲染列表态（[UI 基线 §1.5 ⑥](../../../docs/ui/web/公共组件与形态基线.md)）。
  */
 export const CODE_UNAUTHORIZED = 401
-/** **403 = 已认证但无权限**（预留：当前无角色区分，实际不会出现）—— 按普通业务错误抛出 */
-export const CODE_FORBIDDEN = 403
 
 // ===== 通用状态枚举（文案以 设计变量.md 的「状态文案总表」为准） =====
 export type OnOffStatus = 'on' | 'off'
@@ -83,12 +81,28 @@ export interface CanteenAdminVO {
   name: string
   /** 其下档口数（删除受阻判据 + 列表展示，联表统计） */
   stallCount: number
+  /** 地点（恒非空串，无为空串） */
+  location: string
+  /** 描述（恒非空串） */
+  description: string
+  /** 图片绝对 URL 数组（有序，首图作封面；无图 `[]`） */
+  images: string[]
+  /** 排序位（食堂列表的排序键：升序；无拖动入口，在详情表单内维护） */
+  sortOrder: number
   updatedAt: string
 }
 
 export interface CanteenSaveReq {
-  /** 名称（1~64 字；应用层查重，重名 400） */
+  /** 名称（1~64 字；应用层查重，重名 400）—— 必填，整体替换 */
   name: string
+  /** 地点（≤128 字；缺省 = 保持原值，空串 = 清空） */
+  location?: string
+  /** 描述（≤512 字；缺省 = 保持原值，空串 = 清空） */
+  description?: string
+  /** 图片（有序，首图作封面；缺省 = 保持原值，`[]` = 清空） */
+  images?: string[]
+  /** 排序位（缺省 = 保持原值） */
+  sortOrder?: number
 }
 
 // ===== A2 档口 =====
@@ -101,6 +115,16 @@ export interface StallAdminVO {
   /** 楼层（受控字典、**值即汉字**：负一层 / 一层 / 二层 / 三层 / 四层） */
   floor: string
   windowNo: string
+  /** 地点（恒非空串，无为空串） */
+  location: string
+  /** 描述（恒非空串） */
+  description: string
+  /** 图片绝对 URL 数组（有序，首图作封面；无图 `[]`） */
+  images: string[]
+  /** 平均评分（实时聚合，2 位小数；无评价按 0.00） */
+  avgRating: number
+  /** 排序位（纠错候选档口列表的排序键；本列表不按其排序，在详情表单内维护） */
+  sortOrder: number
   /** 其下菜品数（删除受阻判据） */
   dishCount: number
   updatedAt: string
@@ -111,6 +135,14 @@ export interface StallSaveReq {
   name: string
   floor?: string
   windowNo?: string
+  /** 地点（≤128 字；缺省 = 保持原值，空串 = 清空） */
+  location?: string
+  /** 描述（≤512 字；缺省 = 保持原值，空串 = 清空） */
+  description?: string
+  /** 图片（有序，首图作封面；缺省 = 保持原值，`[]` = 清空） */
+  images?: string[]
+  /** 排序位（缺省 = 保持原值） */
+  sortOrder?: number
 }
 
 // ===== A3 菜品 =====
@@ -198,6 +230,8 @@ export interface DishDimensionAdminVO {
   id: number
   name: string
   valueType: 'single' | 'multi'
+  /** 是否**系统维度**（true = 菜品种类：取值类型不可改、维度不可删、取值不写入 attributes） */
+  system: boolean
   order: number
   dishCount: number
   valueCount: number
@@ -243,33 +277,73 @@ export interface BannerSaveReq {
   imageUrl: string
 }
 
-// ===== A6 首页筛选视图与分类值 =====
+// ===== A6 首页筛选视图与分类（菜品种类） =====
+
+/** 排序口径白名单（唯一真源 = 后端条件引擎） */
+export type DishSortKind =
+  | 'random'
+  | 'priceAsc'
+  | 'priceDesc'
+  | 'discountDesc'
+  | 'ratingDesc'
+  | 'newest'
+
+/** 筛选条件字段白名单（唯一真源 = 后端条件引擎；操作符随字段而定） */
+export type DishViewField =
+  | 'mealTypeId'
+  | 'discount'
+  | 'price'
+  | 'stallId'
+  | 'canteenId'
+  | 'avgRating'
+  | 'createdAt'
+
+/** 视图筛选条件的一项（`{ field, op, value? , values? }`）—— AND 组合的有限语言 */
+export interface DishViewCondition {
+  field: DishViewField | ''
+  op: string
+  /** 单值（`=` / `>=` / `<=` / `withinDays` 用；`between` 时为下界） */
+  value?: string
+  /** 多值（`in` 用；`between` 时为 [下界, 上界]） */
+  values?: string[]
+}
+
 export interface DishViewAdminVO {
   id: number
-  /** 视图键（端上回传 `view=<key>`；属 seed / 代码资产，后台不可改） */
-  key: string
   /** tab 文案 */
   label: string
   order: number
   enabled: boolean
+  /** 筛选条件（AND；`[]` = 不筛选） */
+  conditions: DishViewCondition[]
+  /** 排序口径 */
+  sortKind: DishSortKind
   /** 当前匹配的在售菜品数（列表展示，兼作「是否生效」的自证） */
   matchedCount: number
   updatedAt: string
 }
 
-/** 视图修改入参：后台只可改 `label` / `enabled`（`key` / 条件 / 排序口径属 seed / 代码资产） */
+/** 视图新建入参（不含 `order` / `enabled`：顺序由拖拽维护、新建即启用） */
+export interface DishViewCreateReq {
+  label: string
+  conditions: DishViewCondition[]
+  sortKind: DishSortKind
+}
+
+/** 视图修改入参：文案 / 启停 / 条件 / 排序口径**整体替换**（缺任一 → 400） */
 export interface DishViewUpdateReq {
   label: string
   enabled: boolean
+  conditions: DishViewCondition[]
+  sortKind: DishSortKind
 }
 
-/** A6 分类值（`dish.meal_type` 存它的 `id`；`key` 是代码锚点，新建缺省由后端自动生成） */
+/** A6 菜品种类（系统维度取值；`dish.meal_type_id` 存它的 `id`，无机器键） */
 export interface DishCategoryAdminVO {
   id: number
-  key: string
   label: string
   order: number
-  /** 引用该分类的菜品数（删除前判断） */
+  /** 引用该种类的菜品数（删除前判断） */
   dishCount: number
   updatedAt: string
 }

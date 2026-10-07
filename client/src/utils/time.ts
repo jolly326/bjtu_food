@@ -5,9 +5,21 @@
  */
 const pad = (n: number): string => String(n).padStart(2, '0')
 
+/**
+ * 把后端契约的时间串归一为可被 `Date` 安全解析的形态。
+ *
+ * <p>契约格式是 `yyyy-MM-dd HH:mm:ss`（见 `docs/api/README.md` 的〈时间〉节），
+ * 而 **iOS / JavaScriptCore 不解析带空格的日期串**（`new Date('2026-10-05 12:09:17')`
+ * 直接得到 `Invalid Date`，Android / 开发者工具却正常）—— 不归一就会出现「只有部分机型
+ * 的时间显示为空」这类最难复现的问题。归一口径：空格式 → ISO 的 `T` 分隔符，已是 ISO 的串原样返回。
+ */
+function normalize(dateStr: string): string {
+  return dateStr.trim().replace(/^(\d{4}-\d{2}-\d{2}) /, '$1T')
+}
+
 export function formatDateTime(dateStr?: string): string {
   if (!dateStr) return ''
-  const d = new Date(dateStr)
+  const d = new Date(normalize(dateStr))
   if (Number.isNaN(d.getTime())) return ''
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
@@ -21,7 +33,7 @@ export function formatDateTime(dateStr?: string): string {
  */
 export function formatDate(dateStr?: string): string {
   if (!dateStr) return ''
-  const d = new Date(dateStr)
+  const d = new Date(normalize(dateStr))
   if (Number.isNaN(d.getTime())) return ''
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }

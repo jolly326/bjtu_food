@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import DishReviewSection from '../pages/detail/dish/DishReviewSection.vue'
+import DishReviewSection from '@/pages/detail/dish/DishReviewSection.vue'
 import { installUni } from './stubs'
-import type { Review } from '../types/review'
+import type { Review } from '@/types/review'
 
 /**
  * `DishReviewSection` 星级筛选条渲染回归测试。
@@ -46,7 +46,7 @@ function mountSection(over: Record<string, unknown> = {}) {
           props: ['title', 'description'],
           template: '<view class="empty-stub">{{ title }}</view>',
         },
-        IconSvg: true,
+        AppIcon: true,
       },
     },
   })

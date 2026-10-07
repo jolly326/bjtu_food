@@ -15,8 +15,8 @@ export const COLOR_MAP = {
   /* 主色「文字档」= 填充档同值（浅底上的主色文字与价格；两档同色、语义不同） */
   'primary-text': '#B4531A',
   /* 主色「图形档亮橙」：仅用于纯图形（标签下划线、TabBar 激活图标等），不作文字 / 填充底 */
-  'primary-bright': '#F5A623',
-  'primary-amber': '#F5A623',
+  'primary-bright': '#B4531A',
+  'primary-amber': '#B4531A',
   /* 主色「橙档」：关键图标 / 重点操作（**不得**作填充底白字 / 正文色，见上取色边界） */
   'primary-orange': '#E67E22',
   /* 轻量高亮 / 推荐角标 / 装饰（**只作浅底**） */
@@ -53,8 +53,8 @@ export const COLOR_MAP = {
         **不达** WCAG AA 4.5:1 —— 本次替换同时修掉该可访问性缺陷。 */
   'text-primary': '#2D1F14',
   'text-title': '#2D1F14',
-  'text-body': '#4A3520',
-  'text-secondary': '#4A3520',
+  'text-body': '#44382E',
+  'text-secondary': '#44382E',
   'text-subtitle': '#7F6A55',
   'text-tertiary': '#7F6A55',
   'text-placeholder': '#B5A594',
@@ -65,9 +65,19 @@ export const COLOR_MAP = {
   'bg-soft-yellow': '#FFF3D6',
   /* 页面底统一走 `.page { background: var(--bg-page) }` + 全站壁纸层，不另设页面私有底色。 */
   'bg-card': '#FFFFFF',
+  /* ===== 极简无卡片 · 模块表面（`.module-wrap`）=====
+     全站「不用大白卡框住全部内容」的模块形态：暖奶米半透底 + 极淡暖棕阴影。
+     α 是唯一旋钮（0.65）；若部分机型发糊，`--module-bg-strong`（0.75）为兜底档（更实、依旧不是死白）。 */
+  'module-bg': 'rgba(255, 250, 243, 0.65)',
+  'module-bg-strong': 'rgba(255, 250, 243, 0.75)',
+  /* 模块内输入项底：比模块底更浅一档，用于区分层级 */
+  'module-input-bg': 'rgba(255, 255, 255, 0.5)',
+  'module-shadow': '0 2rpx 8rpx rgba(180, 155, 125, 0.08)',
+  /* 模态浮层（弹窗）底色：暖米半透，**与页面模块区分**（弹窗保留卡片形态） */
+  'overlay-panel-bg': 'rgba(248, 244, 238, 0.92)',
   'bg-input': '#F7F5F2',
   'bg-soft': '#EDE9E5',
-  'bg-placeholder': '#F0ECE8',
+  'bg-placeholder': '#F2EBE1',
   'border-color': '#E8E3DE',
   'border-bold': '#CBC5BE',
   'overlay-dark-strong': 'rgba(0,0,0,0.6)',
@@ -92,8 +102,7 @@ export const COLOR_MAP = {
   /* 全站页底「纱」（wash）：铺在壁纸之上的**整张**暖白遮罩（纯色、无分段），由
      {@code components/PageWallpaper.vue} 以 `background-color` 消费（全站仅页面级一处壁纸层）。
      `α` 是唯一旋钮：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚（当前 0.7）。
-     色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写 rgba 字面量）。
-     2026-10-01 规范统一：原声明在 App.vue 的非颜色区（**绕过了颜色真源**），现归位至此。 */
+     色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写 rgba 字面量）。 */
   'page-wash': 'rgba(255, 248, 239, 0.7)',
 } as const
 
@@ -157,6 +166,13 @@ export const CSS_VARS: Record<string, string> = {
   '--bg-soft-orange': COLOR_MAP['bg-soft-orange'],
   '--bg-soft-yellow': COLOR_MAP['bg-soft-yellow'],
   '--bg-card': COLOR_MAP['bg-card'],
+  /* 极简无卡片 · 模块表面（`.module-wrap`） */
+  '--module-bg': COLOR_MAP['module-bg'],
+  '--module-bg-strong': COLOR_MAP['module-bg-strong'],
+  '--module-input-bg': COLOR_MAP['module-input-bg'],
+  '--module-shadow': COLOR_MAP['module-shadow'],
+  /* 模态浮层底色（BaseSheet 抽屉等） */
+  '--overlay-panel-bg': COLOR_MAP['overlay-panel-bg'],
   '--bg-input': COLOR_MAP['bg-input'],
   '--bg-soft': COLOR_MAP['bg-soft'],
   '--bg-placeholder': COLOR_MAP['bg-placeholder'],
@@ -193,5 +209,5 @@ export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
 export const MODAL_CONFIRM_DANGER_COLOR = '#C62828'
 // uni.showModal 的 confirmColor。重要操作确认按钮，取「文字档」--color-primary-text 的字面量
 export const MODAL_CONFIRM_PRIMARY_COLOR = '#B4531A'
-// IconSvg 描边兜底色：var() 形态与空值统一落到本常量（见 components/IconSvg.vue）
+// AppIcon 描边兜底色：var() 形态与空值统一落到本常量（见 components/AppIcon.vue）
 export const ICON_FALLBACK_COLOR = '#1C1C1E'

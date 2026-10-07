@@ -113,7 +113,7 @@ const bandStyle = computed(() => ({
   padding-left: var(--page-gutter);
 }
 /* 三处文字（左页面名 / 左「返回」/ 居中页面名）**字号唯一来源**：`--font-title`
-   （与首页「知行食记」同档，2026-09-27 用户裁决；三处视觉完全同级） */
+   （与首页「知行食记」同档；三处视觉完全同级） */
 .band-back-text, .band-title-left, .band-title-center { font-size: var(--font-title); }
 /* 左区 · 页面名称（无返回）：粗体大号 —— 与文档 §1「标题档」同源 */
 .band-title-left {

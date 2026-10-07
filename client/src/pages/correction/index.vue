@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="page correction-page">
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1`） -->
     <PageWallpaper fixed />
@@ -145,6 +145,11 @@ function onPickImageSource(key: string) {
 <style scoped>
 /* 页面根不带底色（底色下沉到全局 `page{}`，否则会盖住负层级壁纸层） */
 .correction-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.correction-page { min-height: 0; }
+/* `min-height: 0` 必需：全局 `.page` 兜底写了 `min-height: 100vh / 100dvh`，而移动端
+   `100vh`（最大视口）通常 **大于** `100dvh`（当前视口）；二者同时存在时 min 胜出
+   ⇒ 页根比可视区高出一截 ⇒ **页面本身**多出一段可滚区（内容并未超屏也会滚）。
+   自带滚动容器的页根必须把 min-height 归零，把高度交给 `height: 100dvh` + 内部 scroll-view。 */
 
 /* 主滚动区：底部 safe-area 避让（提交区随内容滚动，无固定底栏） */
 .scroll-wrap {

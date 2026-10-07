@@ -16,11 +16,21 @@
     <!-- 顶部 6rpx 主色软条纹：通栏贴顶、由卡壳圆角裁切；游客态 transparent（占位保留，两态等高） -->
     <view class="identity-card-bar" />
     <view class="identity-card-body">
-      <view class="identity-card-avatar-wrap">
-        <ImageFallback v-if="avatar" :src="avatar" class="identity-card-avatar" />
-        <view v-else class="identity-card-avatar">
-          <ImagePlaceholder name="user" :size="60" />
-        </view>
+      <!-- 头像盒：**由本页模板内的普通 `view` 定尺并裁圆**。
+           ⚠️ 勿把定尺 class 挂在自定义组件上：mp-weixin 下传给组件的 class 落在**组件宿主节点**，
+           宿主非块级盒 ⇒ width/height 被静默忽略 ⇒ 盒塌成 0 尺寸、头像不可见。
+           破图回退与人形占位同 `ReviewItem` 写法（原生 `image` + `@error`）。 -->
+      <view class="identity-card-avatar">
+        <image
+          v-if="avatarOk && avatar"
+          class="identity-card-avatar-img"
+          :src="getThumbImageUrl(avatar)"
+          mode="aspectFill"
+          role="img"
+          aria-label="头像"
+          @error="avatarOk = false"
+        />
+        <ImagePlaceholder v-else name="user" :size="60" />
       </view>
       <view class="identity-card-meta">
         <text class="identity-card-name">{{ displayNickname(nickname, verified) }}</text>
@@ -28,7 +38,7 @@
       </view>
       <!-- 动作位：两页**均仅认证态渲染**（基线 §三：「游客态两页均不渲染动作位」）
            —— 游客态整段仍可点（无认证拦截），只是不展示入口暗示 -->
-      <IconSvg
+      <AppIcon
         v-if="verified && mode === 'entry'"
         name="arrow"
         :size="28"
@@ -57,9 +67,10 @@
  * · 排版参数走 `styles/_identity-card.scss` 共享 partial（两页同值）；
  * · `mode`：`entry` = 整段可点（`@tap`）、`edit` = 右侧渲染「编辑个人信息」胶囊（`@edit`，仅认证态）。
  */
-import IconSvg from '@/components/IconSvg.vue'
-import ImageFallback from '@/components/ImageFallback.vue'
+import { ref, watch } from 'vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
+import { getThumbImageUrl } from '@/utils/image'
 import { COLOR_MAP } from '@/theme/tokens'
 import { displayNickname, displaySubLine } from '@/utils/userDisplay'
 
@@ -91,6 +102,10 @@ const emit = defineEmits<{
 function onCardTap() {
   if (props.mode === 'entry') emit('tap')
 }
+
+/** 头像加载态：失败回退人形占位（禁裂图）；换图时必须复位，否则新图也永久显示占位 */
+const avatarOk = ref(true)
+watch(() => props.avatar, () => { avatarOk.value = true })
 </script>
 
 <style scoped lang="scss">
@@ -117,11 +132,16 @@ function onCardTap() {
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
 }
-.identity-card-avatar-wrap {
-  flex-shrink: 0;
-}
 .identity-card-avatar {
   @include idcard.avatar;
+  /* 定尺盒内的图片铺满（宿主已是定尺方盒，此处只需填满 + 裁切由盒 overflow 承担） */
+  position: relative;
+  flex-shrink: 0;
+}
+.identity-card-avatar-img {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 .identity-card-meta {
   @include idcard.meta;

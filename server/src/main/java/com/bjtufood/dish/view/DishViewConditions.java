@@ -11,12 +11,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
- * 视图筛选条件引擎 —— **字段 / 操作符 / 值 三层白名单**的唯一真源。
+ * 视图筛选条件引擎 —— **字段 / 操作符 / 值 三层白名单的唯一真源**。
  *
- * <p>契约真源：docs/api/web/views.md 的「筛选字段白名单」与
+ * <p>契约真源：docs/api/web/views.md 的「筛选条件语言」与
  * docs/schema/dish_filter_view.md 的「条件语言是有限语言（安全底线）」。
  *
  * <p><b>为什么必须白名单</b>：开放「可配置 SQL」等于把 ORM 暴露给运营 —— 注入与性能双双失控。
@@ -24,8 +23,9 @@ import java.util.regex.Pattern;
  *
  * <p><b>组合关系只有 AND</b>（一期不支持 OR）。
  *
- * <p>本类同时服务三处：① 管理端列表的 `matchedCount`；② 预览端点的试算；
- * ③ 学生端列表的取数（{@link #toWrapper} 与 {@code DishMapper.xml} 的 {@code <foreach>} 同口径）。
+ * <p>本类同时服务四处：① 管理端列表的 `matchedCount`；② 视图行的条件 JSON 解析（读取）；
+ * ③ 管理端保存时的写入校验与序列化；④ 学生端列表的取数
+ * （{@link #toWrapper} 与 {@code DishMapper.xml} 的 {@code <foreach>} 同口径）。
  */
 public final class DishViewConditions {
 
@@ -34,15 +34,15 @@ public final class DishViewConditions {
     /**
      * 排序口径白名单（`sortKind`）。
      * <p>
-     * 🔴 **无 {@code "heat"}**：MVP 期 7 个视图全部走 {@code random}，无热度排序需求
-     * （见 P0-3 评审）。后期若重启须重新拍板并**必须含浏览量封顶**。
+     * 🔴 **无 {@code "heat"}**：浏览量无上限，参与排序即可被低成本刷量霸榜；
+     * 如需重启热度排序，须重新拍板并**必须含浏览量封顶**。
      */
     public static final Set<String> SORT_KINDS = Set.of(
             "priceAsc", "priceDesc", "discountDesc", "ratingDesc", "newest", "random");
 
     /** 字段 → 允许的操作符（白名单表；**这是新增筛选语义的唯一改动点**）。 */
     private static final Map<String, Set<String>> ALLOWED_OPS = Map.of(
-            "mealType", Set.of("=", "in"),
+            "mealTypeId", Set.of("=", "in"),
             "discount", Set.of("isTrue"),
             "price", Set.of("between", ">=", "<="),
             "stallId", Set.of("=", "in"),
@@ -114,10 +114,24 @@ public final class DishViewConditions {
         return result;
     }
 
-    /** 序列化为 JSON 原文（入库口径；空条件写 NULL 由调用方决定）。 */
+    /**
+     * 校验排序口径（白名单外的值 → `400`）。
+     *
+     * @return 已去空白的排序口径
+     * @throws BusinessException code=400 排序口径不在白名单
+     */
+    public static String requireSortKind(String sortKind) {
+        String kind = sortKind == null ? "" : sortKind.trim();
+        if (!SORT_KINDS.contains(kind)) {
+            throw new BusinessException("排序口径不在白名单：" + sortKind);
+        }
+        return kind;
+    }
+
+    /** 序列化为 JSON 原文（入库口径；`[]` 由调用方落成 `[]` 而非 NULL —— 列 `NOT NULL`）。 */
     public static String toJson(List<DishViewCondition> conditions) {
         if (conditions == null || conditions.isEmpty()) {
-            return null;
+            return "[]";
         }
         try {
             return JSON.writeValueAsString(conditions);
@@ -142,17 +156,8 @@ public final class DishViewConditions {
         }
         for (DishViewCondition c : conditions) {
             switch (c.getField()) {
-                // mealType 条件值 = 分类 `key`（代码锚点）；`dish.meal_type` 存分类 ID ⇒
-                // 经字典表子查询翻译（key 先过白名单正则再入 SQL，无注入面）
-                case "mealType" -> {
-                    if ("in".equals(c.getOp())) {
-                        wrapper.inSql("meal_type", "SELECT id FROM dish_category_value WHERE `key` IN ("
-                                + joinCategoryKeys(c.getValues()) + ")");
-                    } else {
-                        wrapper.inSql("meal_type", "SELECT id FROM dish_category_value WHERE `key` = "
-                                + quoteCategoryKey(c.getValue()));
-                    }
-                }
+                // mealTypeId 条件值 = 种类取值 ID（系统维度「菜品种类」下的取值行）
+                case "mealTypeId" -> applyInOrEq(wrapper, "meal_type_id", c, true);
                 case "stallId" -> applyInOrEq(wrapper, "stall_id", c, true);
                 case "canteenId" -> {
                     if ("in".equals(c.getOp())) {
@@ -184,7 +189,7 @@ public final class DishViewConditions {
     private static void applyInOrEq(QueryWrapper<Dish> wrapper, String column, DishViewCondition c, boolean numeric) {
         if ("in".equals(c.getOp())) {
             if (numeric) {
-                wrapper.inSql(column, "SELECT id FROM stall WHERE id IN (" + joinNumbers(c.getValues()) + ")");
+                wrapper.in(column, numericValues(c.getValues()));
             } else {
                 wrapper.in(column, c.getValues());
             }
@@ -195,27 +200,6 @@ public final class DishViewConditions {
         }
     }
 
-    /** 分类键白名单（与 `dish_category_value.key` 的写入校验同口径）：小写字母 / 数字 / `-` / `_`，1~20 字（种子键 `set_meal` 含下划线） */
-    private static final Pattern CATEGORY_KEY = Pattern.compile("^[a-z0-9_-]{1,20}$");
-
-    /** 分类键入 SQL 前的正则校验 + 单引号包裹（字符集不含引号 ⇒ 无注入面） */
-    private static String quoteCategoryKey(String key) {
-        String v = key == null ? "" : key.trim();
-        if (!CATEGORY_KEY.matcher(v).matches()) {
-            throw new BusinessException("分类键非法：" + key);
-        }
-        return "'" + v + "'";
-    }
-
-    /** 分类键列表 → `('a','b')` 形态（逐个过 {@link #quoteCategoryKey}） */
-    private static String joinCategoryKeys(List<String> values) {
-        List<String> parts = new ArrayList<>(values.size());
-        for (String v : values) {
-            parts.add(quoteCategoryKey(v));
-        }
-        return String.join(",", parts);
-    }
-
     /** `in` / `between` 的取值个数与形态校验（其余在 translate 时按字段类型再校验一次）。 */
     private static void requireValuesWellFormed(String field, String op, DishViewCondition c) {
         if ("in".equals(op) && (c.getValues() == null || c.getValues().isEmpty())) {
@@ -224,9 +208,9 @@ public final class DishViewConditions {
         if ("between".equals(op) && (c.getValues() == null || c.getValues().size() != 2)) {
             throw new BusinessException("between 需要恰好两个取值：" + field);
         }
-        if (Set.of("stallId", "canteenId", "price").contains(field)) {
+        if (Set.of("stallId", "canteenId", "price", "mealTypeId").contains(field)) {
             if ("in".equals(op)) {
-                c.getValues().forEach(v -> requireLong(v));
+                c.getValues().forEach(DishViewConditions::requireLong);
             } else if ("between".equals(op)) {
                 requireLong(c.getValues().get(0));
                 requireLong(c.getValues().get(1));
@@ -246,6 +230,14 @@ public final class DishViewConditions {
         boolean noSingle = c.getValue() == null || c.getValue().isBlank();
         boolean noList = c.getValues() == null || c.getValues().isEmpty();
         return noSingle && noList;
+    }
+
+    private static List<Long> numericValues(List<String> values) {
+        List<Long> numbers = new ArrayList<>(values.size());
+        for (String v : values) {
+            numbers.add(requireLong(v));
+        }
+        return numbers;
     }
 
     private static Long requireLong(String text) {

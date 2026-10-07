@@ -11,11 +11,12 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AppIcon: typeof import('./components/AppIcon.vue')['default']
     BaseDrawer: typeof import('./components/BaseDrawer.vue')['default']
     BaseModal: typeof import('./components/BaseModal.vue')['default']
     ClampText: typeof import('./components/ClampText.vue')['default']
+    DetailMetaRow: typeof import('./components/DetailMetaRow.vue')['default']
     DragHandle: typeof import('./components/DragHandle.vue')['default']
-    ElIcon: typeof import('element-plus/es')['ElIcon']
     ImagePreview: typeof import('./components/ImagePreview.vue')['default']
     ImageUpload: typeof import('./components/ImageUpload.vue')['default']
     ListState: typeof import('./components/ListState.vue')['default']

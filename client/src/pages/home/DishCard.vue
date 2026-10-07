@@ -1,5 +1,5 @@
 <template>
-  <view class="dish-card" :aria-label="`${dish.name}，${dish.price}元`" hover-class="dish-card-pressed" @tap="handleClick" role="button" tabindex="0">
+  <view class="dish-card module-wrap" :aria-label="`${dish.name}，${dish.price}元`" hover-class="dish-card-pressed" @tap="handleClick" role="button" tabindex="0">
     <view class="card-image">
       <image
         v-if="imgSrc && imgOk"
@@ -28,7 +28,7 @@
            星尺寸 34rpx：星形自带视觉留白，口径 = 评分文字（28rpx）+ 6rpx 光学补偿 -->
       <view class="card-meta">
         <view class="card-rating" role="img" :aria-label="`评分 ${formatRating(dish.rating)} 分`">
-          <IconSvg name="star-filled" :size="34" :color="COLOR_MAP.star" class="star-icon" />
+          <AppIcon name="star-filled" :size="32" :color="COLOR_MAP.star" class="star-icon" />
           <text class="rating-text">{{ formatRating(dish.rating) }}</text>
         </view>
         <text class="card-price">¥{{ formatPrice(dish.price) }}</text>
@@ -43,7 +43,7 @@ import type { DishListItem } from '@/types/dish'
 import { getThumbImageUrl } from '@/utils/image'
 import { formatPrice } from '@/utils/money'
 import { formatRating } from '@/utils/dish'
-import IconSvg from '@/components/IconSvg.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 import { COLOR_MAP } from '@/theme/tokens'
 
@@ -80,13 +80,11 @@ function handleClick() {
 .dish-card {
   width: 100%;
   min-width: 0;
-  /* 表面：白卡 + 品牌淡色柔和投影（tab-pages-visual-unify）——
-     页面层级由「浅米灰底 — 白卡 — 内容 — 强调」四层结构承担。
-     overflow:hidden 保留：顶部图片贴齐卡片上缘，需裁进圆角；
+  /* 极简无卡片：底色 / 圆角 / 阴影由全局 `.module-wrap` 承担；
+     `padding: 0` 是**图片贴边卡片**的登记例外（顶部大图必须贴齐卡片上缘，内距由 `.card-info` 自持）。
+     `overflow: hidden` 保留：顶部图片需裁进圆角；
      同时规避微信 WXSS「border-radius + background」圆角外侧背景方角残留。 */
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
+  padding: 0;
   overflow: hidden;
   transition: opacity var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
@@ -121,7 +119,7 @@ function handleClick() {
   justify-content: center;
 }
 /* 星：黄色实心（--color-star，星色不随主色换肤）；取色走 COLOR_MAP 真源实色（data-uri 不解析 var）。
-   `flex-shrink: 0` 必须有（flex 行内不被压缩）；图标尺寸/行高由 IconSvg 自持，此处不再重复声明。 */
+   `flex-shrink: 0` 必须有（flex 行内不被压缩）；图标尺寸/行高由 AppIcon 自持，此处不再重复声明。 */
 .star-icon {
   flex-shrink: 0;
 }
