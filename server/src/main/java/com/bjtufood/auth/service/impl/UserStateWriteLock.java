@@ -10,9 +10,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * 按 userId 串行化「账号状态写（DB）+ TokenBlacklist 写」的临界区。
  * <p>
  * <b>为何需要</b>：管理员状态变更（{@code UserServiceImpl#updateStatus}：写 {@code user.status}
- * 后同步 {@link com.bjtufood.auth.config.TokenBlacklist}）与账号注销
- * （{@code AuthServiceImpl#deleteAccount}：写 {@code status='deleted'} 后拉黑）都写<b>同一行</b>的
- * {@code status} 列并写黑名单。两组写若交错，终态可能是「DB 为 {@code active}，而该 userId 仍在拉黑中」——
+ * 后同步 {@link com.bjtufood.auth.config.TokenBlacklist}）、解绑邮箱
+ * （{@code UserServiceImpl#unbindEmail}：写 {@code bind_email}）与账号注销
+ * （{@code AccountCloser#close}：写 {@code status='deleted'} 后拉黑）都写<b>同一行</b>的
+ * 状态 / 绑定列并写黑名单。两组写若交错，终态可能是「DB 为 {@code active}，而该 userId 仍在拉黑中」——
  * 此时该用户连重新登录换到的新 token 也会被 {@code JwtAuthFilter} 按 userId 判定为已失效而一律 401，
  * 且只能等服务重启（内存黑名单清空）或 7 天窗口过期才自愈。
  * <p>
@@ -32,7 +33,7 @@ public class UserStateWriteLock {
      * 在 {@code userId} 的临界区内执行 {@code action}；{@code action} 抛出的异常原样向外传播。
      * <p>
      * {@code userId} 为 {@code null} 时无可串行的对象，直接执行（调用方既有的空值语义不受影响，
-     * 如 {@code updateStatus} 的 4001「用户不存在」、{@code deleteAccount} 的 401「请先登录」）。
+     * 如 {@code updateStatus} 的 4001「用户不存在」、{@code AccountCloser#close} 的 401「请先登录」）。
      */
     public void run(Long userId, Runnable action) {
         if (userId == null) {

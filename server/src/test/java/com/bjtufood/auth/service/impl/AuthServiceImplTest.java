@@ -78,10 +78,10 @@ class AuthServiceImplTest {
     /**
      * 构造器参数顺序须与 {@code AuthServiceImpl} 的 final 字段声明顺序逐字一致。
      * <p>
-     * D1：{@code AuthServiceImpl} 新增 {@code VerifyCodePersister} 依赖（字段声明在
-     * {@code AuthProfilePersister} 之后），此处按同序传入真实实现——
-     * 与 {@code AuthProfilePersister} 同理：本类断言的是 userMapper 上的可见行为，
-     * 用真实 Persister 包裹 mock mapper 才能让断言原样落在 mock 上（事务边界是代理行为，单测中不生效）。
+     * {@code AuthServiceImpl} 的写库职责分别收敛在 {@code AuthProfilePersister} /
+     * {@code VerifyCodePersister} / {@code AccountCloser} 三个独立 Bean，此处按同序传入真实实现——
+     * 本类断言的是 userMapper / codeMapper 上的可见行为，用真实协作者包裹 mock mapper
+     * 才能让断言原样落在 mock 上（事务边界是代理行为，单测中不生效）。
      */
     private AuthServiceImpl service() {
         return service(new VerifyCodeAttemptGuard(), userStateWriteLock);
@@ -97,10 +97,12 @@ class AuthServiceImplTest {
 
     /** 指定临界区组件：验证「注销与管理员启停共用同一把 userId 锁」的用例需自建实例并与持锁线程共用 */
     private AuthServiceImpl service(VerifyCodeAttemptGuard guard, UserStateWriteLock lock) {
+        AccountCloser accountCloser =
+                new AccountCloser(userMapper, codeMapper, eventPublisher, tokenBlacklist, lock);
         return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper),
                 new VerifyCodePersister(codeMapper, userMapper, passwordEncoder, eventPublisher),
-                codeMapper, emailCodeService, jwtUtil, wechatService, eventPublisher, imageUrlUtil,
-                localSensitiveFilter, contentSecurityService, tokenBlacklist, lock, guard);
+                emailCodeService, jwtUtil, wechatService, imageUrlUtil,
+                localSensitiveFilter, contentSecurityService, accountCloser, guard);
     }
 
     /** 待校验的验证码记录（codeHash 为占位值：匹配与否由 PasswordEncoder mock 决定） */

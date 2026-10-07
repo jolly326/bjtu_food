@@ -44,6 +44,48 @@ public class WechatProperties {
     private String cloudEnv = "";
 
     /**
+     * 微信开放接口基址（环境变量 {@code WECHAT_API_BASE_URL}，默认取 {@link WechatApiConst#DEFAULT_API_BASE} 公网 HTTPS）。
+     * <p>
+     * 微信云托管容器内经<b>公网 HTTPS</b> 调用开放接口会被平台 WAF 拦截（{@code 412 Precondition Failed}，
+     * multipart 上传必现，2026-10-07 线上实测）；把基址切到云托管内网通道 {@code http://api.weixin.qq.com} 即规避。
+     */
+    private String apiBaseUrl = WechatApiConst.DEFAULT_API_BASE;
+
+    /**
+     * 内网调用开关（环境变量 {@code WECHAT_INTERNAL_CALL}，默认 {@code false}）。
+     * <p>
+     * {@code true} = 基址指向云托管内网通道：平台按容器身份<b>自动注入鉴权</b>，
+     * 出网 URL 不拼 {@code access_token}、也不获取 token（见 {@link #appendAccessToken()}）。
+     */
+    private boolean internalCall = false;
+
+    /** 把 {@link WechatApiConst} 的公网完整 URL 重写为「配置基址 + path」（全部微信出网 URL 的唯一出口） */
+    public String api(String publicUrl) {
+        return apiBaseUrl + publicUrl.substring(WechatApiConst.DEFAULT_API_BASE.length());
+    }
+
+    /** 出网 URL 是否需要拼 {@code access_token}（内网调用由平台自动注入鉴权，不拼、也不取 token） */
+    public boolean appendAccessToken() {
+        return !internalCall;
+    }
+
+    public boolean isInternalCall() {
+        return internalCall;
+    }
+
+    public void setInternalCall(boolean internalCall) {
+        this.internalCall = internalCall;
+    }
+
+    public String getApiBaseUrl() {
+        return apiBaseUrl;
+    }
+
+    public void setApiBaseUrl(String apiBaseUrl) {
+        this.apiBaseUrl = apiBaseUrl;
+    }
+
+    /**
      * 微信凭据是否已配置（<b>唯一判据</b>）。
      * <p>
      * 未配置（本地开发 / 测试环境）时，各调用方按既有产品口径<b>跳过</b>依赖微信凭据的检测放行；

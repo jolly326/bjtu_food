@@ -134,6 +134,9 @@ public class SecurityConfig {
 
                 // 3. 请求权限配置
                 .authorizeHttpRequests(auth -> auth
+                        // CORS 预检（OPTIONS）：不携带凭证且无副作用，全局放行——任一受保护路径的预检
+                        // 若落到 authenticated() 会返回 401 且不含 CORS 头，浏览器判定「跨域被拦」
+                        .requestMatchers(mvcMatchers(HttpMethod.OPTIONS, "/**")).permitAll()
                         // 任意方法放行的公开接口（鉴权/文档）
                         .requestMatchers(mvcMatchers(PUBLIC_ANY_METHOD)).permitAll()
                         // 仅 GET 放行的公开浏览接口（游客免登录浏览全部公开内容）

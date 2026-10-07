@@ -9,7 +9,10 @@ import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.auth.constant.UserConst;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.dto.UserBriefVO;
+import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.entity.User;
+import com.bjtufood.auth.event.UserAccountClosedEvent;
+import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -20,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,10 +38,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -73,16 +80,25 @@ class UserServiceImplTest {
     }
 
     private final UserMapper userMapper = mock(UserMapper.class);
+    private final EmailVerificationCodeMapper codeMapper = mock(EmailVerificationCodeMapper.class);
     private final ImageUrlUtil imageUrlUtil = mock(ImageUrlUtil.class);
     private final TokenBlacklist tokenBlacklist = mock(TokenBlacklist.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     /**
      * 真实实例（非 mock）：{@code updateStatus} 的并发语义就是本组件的临界区语义，
      * 打桩会让「禁用 + 启用交错」的用例失去意义。状态写用例各自另建实例，避免用例间共享锁状态。
      */
     private final UserStateWriteLock userStateWriteLock = new UserStateWriteLock();
+    /**
+     * 真实实现（非 mock）包裹 mock mapper：管理端 {@code deleteAccount} 的行为断言
+     * （匿名化写库 / 发事件 / 拉黑）都落在 AccountCloser 的真实执行路径上。
+     */
+    private final AccountCloser accountCloser =
+            new AccountCloser(userMapper, codeMapper, eventPublisher, tokenBlacklist, userStateWriteLock);
 
     private UserServiceImpl service() {
-        return new UserServiceImpl(userMapper, imageUrlUtil, tokenBlacklist, userStateWriteLock);
+        return new UserServiceImpl(userMapper, codeMapper, imageUrlUtil, tokenBlacklist,
+                userStateWriteLock, accountCloser);
     }
 
     private static User user(Long id, String status, String bindEmail) {
@@ -281,7 +297,11 @@ class UserServiceImplTest {
         UserMapper mapper = mock(UserMapper.class);
         // 真实现（非 mock）：断言对象就是最终拉黑状态
         TokenBlacklist blacklist = new TokenBlacklist();
-        UserServiceImpl svc = new UserServiceImpl(mapper, imageUrlUtil, blacklist, new UserStateWriteLock());
+        UserStateWriteLock lock = new UserStateWriteLock();
+        UserServiceImpl svc = new UserServiceImpl(mapper, mock(EmailVerificationCodeMapper.class),
+                imageUrlUtil, blacklist, lock,
+                new AccountCloser(mapper, mock(EmailVerificationCodeMapper.class),
+                        mock(ApplicationEventPublisher.class), blacklist, lock));
 
         // 假 user 行（替代真库，使交错可被确定性构造）
         AtomicReference<String> dbStatus = new AtomicReference<>(UserConst.STATUS_ACTIVE);
@@ -342,5 +362,107 @@ class UserServiceImplTest {
         assertThat(blacklist.isUserRevoked(1L))
                 .as("终态 DB=active 时该 userId 不得仍在拉黑中（若「DB 写 + 黑名单写」未同临界区，此处会为 true）")
                 .isFalse();
+    }
+
+    // ==================== unbindEmail：管理端解绑认证邮箱 ====================
+
+    @Test
+    @DisplayName("unbindEmail：用户不存在 → 4001「用户不存在」，零副作用")
+    void unbindEmailRejectsMissingUser() {
+        when(userMapper.selectById(9L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service().unbindEmail(9L))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
+
+        verify(userMapper, never()).update(any(), any());
+        verifyNoInteractions(codeMapper);
+    }
+
+    @Test
+    @DisplayName("unbindEmail：目标未绑定邮箱（bind_email 为空，含已注销账号）→ 400，不写库")
+    void unbindEmailRejectsUnboundUser() {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, UserConst.STATUS_ACTIVE, null));
+
+        assertThatThrownBy(() -> service().unbindEmail(1L))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getMessage())
+                        .isEqualTo("该用户未绑定邮箱"));
+
+        verify(userMapper, never()).update(any(), any());
+        verifyNoInteractions(codeMapper);
+    }
+
+    @Test
+    @DisplayName("unbindEmail：正常解绑 → 只置空 bind_email 一列（不改 status / username / openid），并清理该邮箱验证码")
+    void unbindEmailClearsBindEmailColumnOnly() {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, UserConst.STATUS_ACTIVE, "20240001@bjtu.edu.cn"));
+        AtomicReference<Wrapper<User>> captured = new AtomicReference<>();
+        when(userMapper.update(isNull(), any())).thenAnswer(inv -> {
+            captured.set(inv.getArgument(1));
+            return 1;
+        });
+
+        service().unbindEmail(1L);
+
+        AbstractWrapper<?, ?, ?> wrapper = (AbstractWrapper<?, ?, ?>) captured.get();
+        assertThat(wrapper.getSqlSet())
+                .as("解绑必须是列级更新且只动 bind_email：认证态判据唯一，其余列（status / 账号标识 / 微信绑定）不属于解绑语义")
+                .contains("bind_email=")
+                .doesNotContain("status=")
+                .doesNotContain("username")
+                .doesNotContain("openid")
+                .doesNotContain("nickname");
+        assertThat(wrapper.getParamNameValuePairs().values())
+                .as("SET 片段只含 NULL（bind_email 置空），不带其它新值参数")
+                .containsNull();
+        // 残留验证码清理：表无 user_id 列，按绑定邮箱匹配删除（与注销同口径）
+        verify(codeMapper).delete(any());
+    }
+
+    // ==================== deleteAccount：管理端删除账号（代注销） ====================
+
+    @Test
+    @DisplayName("deleteAccount：用户不存在 → 4001「用户不存在」（区别于本人自注销的 401 不泄露口径）")
+    void adminDeleteAccountRejectsMissingUser() {
+        when(userMapper.selectById(9L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service().deleteAccount(9L))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
+
+        verify(userMapper, never()).update(any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @ParameterizedTest(name = "status={0}")
+    @ValueSource(strings = {"deleted", "disabled"})
+    @DisplayName("deleteAccount：终态保护 —— 已注销 / 已禁用账号拒绝注销（与本人口径一致），不写库")
+    void adminDeleteAccountRejectsTerminalStates(String status) {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, status, "a@bjtu.edu.cn"));
+
+        assertThatThrownBy(() -> service().deleteAccount(1L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getMessage())
+                        .isEqualTo("deleted".equals(status) ? "账号已注销" : "账号已被禁用，无法注销"));
+
+        verify(userMapper, never()).update(any(), any());
+        verify(tokenBlacklist, never()).revokeUser(1L);
+    }
+
+    @Test
+    @DisplayName("deleteAccount：正常注销 → 匿名化写库 + 发 UserAccountClosedEvent + userId 维度拉黑（无 token 明文可拉黑）")
+    void adminDeleteAccountAnonymizesPublishesEventAndBlacklists() {
+        User u = user(1L, UserConst.STATUS_ACTIVE, "a@bjtu.edu.cn");
+        u.setEmail("legacy@bjtu.edu.cn");
+        when(userMapper.selectById(1L)).thenReturn(u);
+
+        service().deleteAccount(1L);
+
+        verify(userMapper).update(any(), any());
+        // UserAccountClosedEvent 是单参 record（不继承 ApplicationEvent）→ captor 必须用 Object 重载
+        ArgumentCaptor<Object> evt = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(evt.capture());
+        assertThat(evt.getValue()).isInstanceOf(UserAccountClosedEvent.class);
+        // 管理端拿不到对方 token：仅 userId 维度拉黑（token 维度入参为 null，由黑名单自身安全跳过）
+        verify(tokenBlacklist).revokeUser(1L);
+        verify(tokenBlacklist, never()).revoke(anyString());
     }
 }

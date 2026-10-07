@@ -7,14 +7,16 @@
  *
  * <p>要点：分页（`AdminPageResult`，**页码 + 共 N 条**）；筛选 = 关键词 + 状态；
  * **认证态不单独出字段** —— 按 `bindEmail` 是否为空派生（空串 = 未认证，管理端 VO 恒非空串）；
- * 状态列恒用 `StatusTag`（`kind="user"`）；禁用 / 启用为行内文字动作 ——
- * **禁用**走二次确认（文案写明影响面），**启用**直接执行（无二次确认）；提交中该行动作置灰。
+ * 状态列恒用 `StatusTag`（`kind="user"`）；行内文字动作 = `禁用 / 启用` → `解绑邮箱`（仅已认证行）→
+ * `删除账号`（`.link.danger`，恒最后）——
+ * **禁用 / 解绑 / 删除**均走二次确认（文案写明影响面），**启用**直接执行（无二次确认）；
+ * 提交中该行动作置灰。
  */
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
 import { fail } from '@/utils/error'
-import { listUsers, setUserStatus } from '@/api/users'
+import { deleteUserAccount, listUsers, setUserStatus, unbindUserEmail } from '@/api/users'
 import type { UserAdminVO, UserListParams, UserStatus } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
 import ListState from '@/components/ListState.vue'
@@ -52,6 +54,24 @@ const {
 /** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
 const busyId = ref<number | null>(null)
 
+/** 行动作公共骨架：busyId 置灰 → 执行 → 成功提示 → `reload()`（留在当前页） */
+async function runRowAction(
+  row: UserAdminVO,
+  action: () => Promise<null>,
+  successMessage: string,
+): Promise<void> {
+  busyId.value = row.id
+  try {
+    await action()
+    ElMessage.success(successMessage)
+    await reload()
+  } catch (e) {
+    fail(e)
+  } finally {
+    busyId.value = null
+  }
+}
+
 async function toggle(row: UserAdminVO): Promise<void> {
   const disabled = row.status !== 'disabled'
   if (disabled) {
@@ -64,16 +84,35 @@ async function toggle(row: UserAdminVO): Promise<void> {
       return
     }
   }
-  busyId.value = row.id
+  await runRowAction(
+    row,
+    () => setUserStatus(row.id, { status: disabled ? 'disabled' : 'active' }),
+    disabled ? '已禁用' : '已启用',
+  )
+}
+
+async function unbindEmail(row: UserAdminVO): Promise<void> {
   try {
-    await setUserStatus(row.id, { status: disabled ? 'disabled' : 'active' })
-    ElMessage.success(disabled ? '已禁用' : '已启用')
-    await reload()
-  } catch (e) {
-    fail(e)
-  } finally {
-    busyId.value = null
+    await confirmDelete(
+      `解绑后：该用户立即回落为未认证状态，无法发表评价与反馈，需重新邮箱认证恢复；登录与已发表内容不受影响。确认解绑「${row.nickname || row.id}」的认证邮箱 ${row.bindEmail}？`,
+      { title: '解绑邮箱', confirmText: '解绑' },
+    )
+  } catch {
+    return
   }
+  await runRowAction(row, () => unbindUserEmail(row.id), '已解绑')
+}
+
+async function deleteAccount(row: UserAdminVO): Promise<void> {
+  try {
+    await confirmDelete(
+      `注销后：账号立即失效且不可恢复——无法再登录，微信与邮箱解绑，昵称显示为「已注销用户」；已发表内容保留且照旧公开可见。确认注销「${row.nickname || row.id}」？`,
+      { title: '删除账号', confirmText: '注销' },
+    )
+  } catch {
+    return
+  }
+  await runRowAction(row, () => deleteUserAccount(row.id), '已注销')
 }
 
 function reset(): void {
@@ -147,15 +186,35 @@ onMounted(() => reloadFirstPage())
             <td class="muted">{{ row.createdAt }}</td>
             <td class="muted">{{ row.updatedAt || '—' }}</td>
             <td class="actions">
-              <button
-                v-if="row.status !== 'deleted'"
-                class="link"
-                type="button"
-                :disabled="busyId === row.id"
-                @click="toggle(row)"
-              >
-                {{ row.status === 'disabled' ? '启用' : '禁用' }}
-              </button>
+              <template v-if="row.status !== 'deleted'">
+                <button
+                  class="link"
+                  type="button"
+                  :disabled="busyId === row.id"
+                  @click="toggle(row)"
+                >
+                  {{ row.status === 'disabled' ? '启用' : '禁用' }}
+                </button>
+                <!-- 解绑邮箱：仅已认证行（bindEmail 非空 = 认证态唯一判据） -->
+                <button
+                  v-if="row.bindEmail"
+                  class="link"
+                  type="button"
+                  :disabled="busyId === row.id"
+                  @click="unbindEmail(row)"
+                >
+                  解绑邮箱
+                </button>
+                <!-- 删除账号：不可逆终态，恒最后 -->
+                <button
+                  class="link danger"
+                  type="button"
+                  :disabled="busyId === row.id"
+                  @click="deleteAccount(row)"
+                >
+                  删除账号
+                </button>
+              </template>
               <span v-else class="muted">—</span>
             </td>
           </tr>
