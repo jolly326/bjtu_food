@@ -80,13 +80,32 @@ a,
 .link,
 .tab,
 .nav-item,
+/* 可选标签（单选/多选的选项按钮）：处置抽屉选结论、筛选区选值。
+   此前只有 transition、**没有任何视觉声明** ⇒ 实际渲染为浏览器默认按钮，
+   与基线 §1.8 登记的「胶囊底 + 描边 + 选中态主色描边」完全不符。 */
 .tag-option {
+  /* 触达下限：与既有 .btn-* 档（50px）一致 */
+  min-height: 50px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  cursor: pointer;
   transition:
     transform var(--duration-fast) var(--ease-out),
     background var(--duration-base) var(--ease-out),
     border-color var(--duration-base) var(--ease-out),
     color var(--duration-base) var(--ease-out),
     box-shadow var(--duration-base) var(--ease-out);
+}
+/* 选中态：主色描边 + 主色文字（不用实底 —— 实底会把「可选」读成「已执行」） */
+.tag-option.active,
+.tag-option[aria-checked='true'] {
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: var(--weight-medium);
 }
 /* 卡片类：按压 + hover 抬升都走 transform/box-shadow（§4.5 物理材质感） */
 .card,
@@ -220,7 +239,7 @@ a:focus-visible,
   border: 2px solid var(--border-color);
   border-top-color: var(--color-primary);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin var(--duration-spin) var(--ease-linear) infinite;
 }
 @keyframes spin {
   to {
@@ -230,7 +249,7 @@ a:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   /* !important：胜过下方全局降级块的 0.01ms——spin 停转会误导为「卡死」，须降速而非停转 */
   .spin {
-    animation-duration: 1.4s !important;
+    animation-duration: var(--duration-spin-slow) !important;
     /* 全局降级块会把 iteration-count 压成 1（转一圈即停，误导为「卡死」），此处必须夺回无限循环 */
     animation-iteration-count: infinite !important;
   }
@@ -611,9 +630,9 @@ a:focus-visible,
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
+    animation-duration: var(--duration-suppress) !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.18s !important;
+    transition-duration: var(--duration-reduced) !important;
     scroll-behavior: auto !important;
   }
   .btn-primary:active,
@@ -643,7 +662,7 @@ a:focus-visible,
   .drawer,
   .drawer-overlay {
     transform: none !important;
-    transition: opacity 0.18s ease !important;
+    transition: opacity var(--duration-base) var(--ease-out) !important;
   }
 }
 
@@ -753,6 +772,62 @@ a:focus-visible,
   line-height: var(--line-height-relaxed);
   overflow-wrap: anywhere;
 }
+
+/* ---- 列表页筛选区（全局唯一实现）----
+   此前 7 个列表页各写一份**逐字相同**的 `.filters`（scoped 无法复用），
+   改一次筛选区要动 7 个文件 ⇒ 收敛到此处。 */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+/* 已选筛选条件回显：让管理员一眼看出「当前结果被什么条件筛出来的」，
+   此前 7 个页面都没有，只能靠自己回忆刚才填过什么。 */
+.filters-active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  /* 与上方筛选控件区拉开一档，形成「输入区 / 已生效条件」两层 */
+  margin-top: calc(-1 * var(--space-2));
+  padding-top: var(--space-3);
+  border-top: 1rpx dashed var(--border-color);
+}
+.filters-active-label {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+/* 单个条件标签：浅底胶囊 + 可点删除叉 */
+.filters-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-1) 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+.filters-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 命中区扩到可点下限，视觉仍为小叉 */
+  width: var(--space-4);
+  height: var(--space-4);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+}
+.filters-chip button:hover {
+  color: var(--text-primary);
+}
 /* 只读内容区块（评价原文 / 反馈正文 / 被举报评价）：浅底 + 可断行 */
 .ctx {
   background: var(--bg-soft);
@@ -773,12 +848,80 @@ a:focus-visible,
   /* 长评价 / 长反馈正文的阅读行距 */
   line-height: var(--line-height-relaxed);
 }
+
+/* ---- 详情抽屉「信息分组」容器 ----
+   抽屉字段数多（最多 13 个）时，全部同权重竖排会让管理员失去结构感。
+   本容器给每个语义组一个标题 + 组内两栏网格，把「核心信息 / 经营属性 / 描述」等
+   逻辑块在视觉上切开。组间留白由本类承担，页面不再逐个写 margin。 */
+.detail-group {
+  margin-bottom: var(--space-6);
+}
+.detail-group:last-child {
+  margin-bottom: 0;
+}
+.detail-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 组标题与组内首行拉开一档，形成"标题 / 内容"的呼吸 */
+  margin-bottom: var(--space-3);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  /* 全小写标签式组标题：视觉上低于抽屉标题、高于字段值 */
+  text-transform: uppercase;
+}
+/* 组标题左侧短竖条：提供"从这里开始是一组"的视觉锚点，不占用横向空间 */
+.detail-group-title::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 1em;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  opacity: 0.6;
+}
 /* 详情元信息表：左键右值（键宽固定，值可断行，不撑破抽屉） */
 .detail-meta {
   display: flex;
   flex-direction: column;
   /* 行间距放宽到 --space-3，与 .ctx 的区块留白同档 */
   gap: var(--space-3);
+}
+/* 两栏网格变体：抽屉宽 640px，单列会让右侧约 500px 闲置。
+   字段按重要性分两栏排布，短字段并排、长字段用 `.meta-row--span` 占满整行。 */
+.detail-meta--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* 列间距略大于行间距，形成清晰的纵向分栏轴 */
+  column-gap: var(--space-6);
+  row-gap: var(--space-3);
+}
+.detail-meta--grid .meta-row--span {
+  grid-column: 1 / -1;
+}
+/* 窄抽屉（条件构建器）降为单列：两栏在窄宽度下会把标签轴压到不可读 */
+@media (max-width: 680px) {
+  .detail-meta--grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* 强调档：标签与值上下堆叠、值放大 —— 用于评分 / 价格等核心指标，
+   避免它们与「创建时间」这类元数据共享同一视觉权重 */
+.detail-meta .meta-row--emphasis {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.detail-meta .meta-row--emphasis .meta-key {
+  width: auto;
+  text-align: left;
+}
+.detail-meta .meta-row--emphasis .meta-val {
+  font-size: var(--font-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  line-height: 1.25;
 }
 .detail-meta .meta-row {
   display: flex;

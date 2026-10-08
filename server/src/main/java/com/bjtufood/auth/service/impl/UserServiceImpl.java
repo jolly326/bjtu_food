@@ -14,6 +14,7 @@ import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.UserService;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.auth.support.AuthStateUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -137,9 +139,12 @@ public class UserServiceImpl implements UserService {
         // 同一 userId 的注销路径（AccountCloser#close）持有同一把锁，故「启用 vs 注销」亦不交错。
         userStateWriteLock.run(id, () -> {
             // 存在性校验（契约 4001「用户不存在」）；读与后续写同处临界区，避免读到的现状事后被推翻
-            if (userMapper.selectById(id) == null) {
+            User current = userMapper.selectById(id);
+            if (current == null) {
                 throw new BusinessException(4001, "用户不存在");
             }
+            // 审计变更前后值：启停是账号能力边界的跃迁，快照使「谁把谁禁用了」可精确追溯
+            AuditSnapshot.before(current);
             // 说明：管理端单一管理员模型（无角色区分），用户状态变更不做「禁止操作自身 / 越权」判定；
             // /admin/** 整体由 AdminAuthFilter 的管理端 JWT 校验保护。
             // 只写 status 一列（不整行回写）：整行回写会把昵称 / 头像等列一并写回，
@@ -156,6 +161,9 @@ public class UserServiceImpl implements UserService {
             } else {
                 tokenBlacklist.restoreUser(id);
             }
+            // 变更后快照（before 已在改动前序列化，此处覆盖新状态不影响已登记的旧值）
+            current.setStatus(status);
+            AuditSnapshot.after(current);
         });
     }
 
@@ -187,14 +195,36 @@ public class UserServiceImpl implements UserService {
             // 未认证账号无可解绑对象（已注销账号的 bind_email 恒为 NULL，同样命中此处）
             throw new BusinessException("该用户未绑定邮箱");
         }
+        // 审计变更前后值：解绑邮箱会让账号从「已认证」回落「游客」，是能力边界的跃迁
+        AuditSnapshot.before(user);
         // 必须用 LambdaUpdateWrapper 显式 set NULL：updateById 默认 NOT_NULL 策略对 null 字段不写列
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, id)
                 .set(User::getBindEmail, null));
+        user.setBindEmail(null);
+        AuditSnapshot.after(user);
         // 残留验证码清理（与注销同口径）：表无 user_id 列，按 email 匹配删除，
         // 避免残留验证码在他端被消费
         emailVerificationCodeMapper.delete(new LambdaQueryWrapper<EmailVerificationCode>()
                 .eq(EmailVerificationCode::getEmail, bindEmail));
+        // 邮箱换绑即吊销既有 token：认证态是「绑定邮箱」派生出来的，换绑改变了这个账号的能力边界，
+        // 换绑前签发的 token 携带的是旧身份语义 —— 一律作废，由静默登录换发新 token。
+        tokenBlacklist.revokeUser(id);
+    }
+
+    @Override
+    public void kickSessions(Long id) {
+        // 「人工踢下线」：不改任何账号列，只让该 userId 的**全部**已签发 token 立即失效。
+        // 临界区与启停 / 解绑 / 注销一致 —— 避免与并发的状态写交错出「刚踢又被恢复」的中间态。
+        userStateWriteLock.run(id, () -> {
+            User current = userMapper.selectById(id);
+            if (current == null) {
+                throw new BusinessException(4001, "用户不存在");
+            }
+            // 踢下线不改任何账号列，但它是**影响该用户会话**的动作 ⇒ 记下对象现状便于事后核对对象是否正确
+            AuditSnapshot.before(current);
+            tokenBlacklist.revokeUser(id);
+        });
     }
 
     @Override
@@ -261,6 +291,11 @@ public class UserServiceImpl implements UserService {
         // 这里按 user.status 实时判定，非 active 一律拒绝 UGC 写操作。
         if (!UserConst.STATUS_ACTIVE.equals(user.getStatus())) {
             throw new BusinessException(403, "账号已被禁用");
+        }
+        // 限言：违规累积处置的中间档 —— 写端点一律 403，**读不受限**。
+        // 判据是「到期时刻是否在未来」，故到期后无需任何人工动作即自动恢复。
+        if (user.getMutedUntil() != null && user.getMutedUntil().isAfter(LocalDateTime.now())) {
+            throw new BusinessException(403, "账号已被限制发言，请稍后再试");
         }
         if (!AuthStateUtil.isVerified(user.getBindEmail())) {
             // 使用细分的业务码 4031 标识「未认证邮箱」，与普通权限拒绝（code=403）区分，

@@ -42,7 +42,6 @@ class AdminAuthFilterTest {
     /** 受控配置对象 */
     private static AdminProperties props() {
         AdminProperties p = new AdminProperties();
-        p.setToken("legacy-admin-token");
         p.getJwt().setSecret(SECRET);
         p.getJwt().setExpirationSeconds(3600L);
         return p;
@@ -50,7 +49,18 @@ class AdminAuthFilterTest {
 
     /** 被测过滤器（账号回查桩：恒返回启用账号） */
     private AdminAuthFilter filter() {
-        return new AdminAuthFilter(new AdminJwtUtil(props()), accountService(true), new IpRateLimiter());
+        return new AdminAuthFilter(new AdminJwtUtil(props()), accountService(true), new IpRateLimiter(),
+                auditRecorder());
+    }
+
+    /**
+     * 审计记录器（真实实例 + 打桩其依赖）：本测试只关心鉴权与限频两条主线，
+     * 审计写入落到 mock 的 Mapper 上，不触碰数据库。
+     */
+    private static com.bjtufood.common.audit.AdminAuditRecorder auditRecorder() {
+        return new com.bjtufood.common.audit.AdminAuditRecorder(
+                org.mockito.Mockito.mock(com.bjtufood.common.audit.mapper.AdminAuditLogMapper.class),
+                org.mockito.Mockito.mock(com.bjtufood.common.alert.SecurityAlertNotifier.class));
     }
 
     /** 账号回查桩：{@code enabled=true} 返回启用账号，否则停用账号（TD-25 凭证吊销用例） */
@@ -70,6 +80,21 @@ class AdminAuthFilterTest {
             public void touchLastLogin(Long accountId) {
                 // no-op
             }
+
+            @Override
+            public void bindTotpSecret(Long accountId, String secret) {
+                // no-op
+            }
+
+            @Override
+            public void clearTotpSecret(Long accountId) {
+                // no-op
+            }
+
+            @Override
+            public void updatePassword(Long accountId, String passwordHash) {
+                // no-op
+            }
         };
     }
 
@@ -78,6 +103,8 @@ class AdminAuthFilterTest {
         a.setId(1L);
         a.setUsername("kingdo404");
         a.setStatus(enabled ? "on" : "off");
+        // 凭证版本须与 token 内嵌值一致，否则按「改密后旧凭证」拒绝
+        a.setCredentialVersion(1);
         return a;
     }
 
@@ -104,7 +131,7 @@ class AdminAuthFilterTest {
 
     /** 造一个 token（与 filter() 用同一份密钥配置） */
     private String token() {
-        return new AdminJwtUtil(props()).createToken(1L, "kingdo404");
+        return new AdminJwtUtil(props()).createToken(1L, "kingdo404", 1);
     }
 
     /**
@@ -234,7 +261,8 @@ class AdminAuthFilterTest {
     @Test
     @DisplayName("TD-25：停用账号的已签发 token → 401（停用即刻生效，链路不得到达）")
     void disabledAccountTokenIsUnauthorized() throws ServletException, IOException {
-        AdminAuthFilter f = new AdminAuthFilter(new AdminJwtUtil(props()), accountService(false), new IpRateLimiter());
+        AdminAuthFilter f = new AdminAuthFilter(new AdminJwtUtil(props()), accountService(false), new IpRateLimiter(),
+                auditRecorder());
         MockHttpServletRequest req = authed("/admin/dishes");
         MockHttpServletResponse resp = new MockHttpServletResponse();
         boolean[] reachedChain = {false};

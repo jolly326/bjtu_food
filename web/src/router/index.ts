@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { fetchMe } from '@/api/auth'
-import { hasToken } from '@/api/session'
+import { hasToken, setRole } from '@/api/session'
 
 /**
- * 路由表（**13 项菜单** + 登录页，口径见 [UI 基线 §1.1](../../../docs/ui/web/公共组件与形态基线.md)）。
+ * 路由表（**14 项菜单** + 登录页，口径见 [UI 基线 §1.1](../../../docs/ui/web/公共组件与形态基线.md)）。
  *
  * <p>菜单按业务域分 5 组（运营 / 场所 / 内容 / 互动 / 账号），分组定义在 `AdminLayout.vue`；
  * 本表只维护「路径 ↔ 组件 ↔ 页标题」——**菜品分类值**等挂在页面内的二级入口不占菜单项。
@@ -102,6 +102,12 @@ const router = createRouter({
           meta: { title: '用户管理' },
         },
         {
+          path: 'alerts',
+          name: 'alerts',
+          component: () => import('@/views/AlertsView.vue'),
+          meta: { title: '安全告警' },
+        },
+        {
           path: 'report-reasons',
           name: 'report-reasons',
           component: () => import('@/views/ReportReasonsView.vue'),
@@ -130,7 +136,9 @@ async function verifySession(): Promise<boolean> {
   if (!hasToken()) return false
   if (sessionVerified) return true
   try {
-    await fetchMe()
+    const me = await fetchMe()
+    // 角色只随 /me 回填（登录响应不带角色）：供端上按角色隐显入口，不参与任何安全判定
+    setRole(me.role)
     sessionVerified = true
     return true
   } catch {

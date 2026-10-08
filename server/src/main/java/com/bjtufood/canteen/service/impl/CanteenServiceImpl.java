@@ -9,6 +9,7 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.canteen.support.ImageColumnWriter;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -87,9 +88,12 @@ public class CanteenServiceImpl implements CanteenService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteCanteen(Long id) {
-        if (id == null || canteenMapper.selectById(id) == null) {
+        Canteen current = id == null ? null : canteenMapper.selectById(id);
+        if (current == null) {
             throw new BusinessException(4001, "食堂不存在");
         }
+        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
+        AuditSnapshot.before(current);
         // 删除受阻：其下仍有档口时禁止删除（避免孤儿档口，见 A1 错误码节）
         long stallCount = stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getCanteenId, id));

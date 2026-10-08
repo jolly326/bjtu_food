@@ -32,4 +32,19 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     public void touchLastLogin(Long accountId) {
         adminAccountMapper.touchLastLogin(accountId, LocalDateTime.now());
     }
+
+    @Override
+    public void bindTotpSecret(Long accountId, String secret) {
+        adminAccountMapper.updateTotpSecret(accountId, secret);
+    }
+
+    @Override
+    public void clearTotpSecret(Long accountId) {
+        adminAccountMapper.clearTotpSecret(accountId);
+    }
+
+    @Override
+    public void updatePassword(Long accountId, String passwordHash) {
+        adminAccountMapper.updatePassword(accountId, passwordHash, LocalDateTime.now());
+    }
 }

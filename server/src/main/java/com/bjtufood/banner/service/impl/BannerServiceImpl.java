@@ -7,6 +7,7 @@ import com.bjtufood.banner.entity.Banner;
 import com.bjtufood.banner.mapper.BannerMapper;
 import com.bjtufood.banner.service.BannerService;
 import com.bjtufood.common.dto.SortItem;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -120,9 +121,13 @@ public class BannerServiceImpl implements BannerService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
-        if (id == null || bannerMapper.deleteById(id) == 0) {
+        Banner current = id == null ? null : bannerMapper.selectById(id);
+        if (current == null) {
             throw new BusinessException(4001, "Banner 不存在");
         }
+        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
+        AuditSnapshot.before(current);
+        bannerMapper.deleteById(id);
     }
 
     /** 图片地址规范化：trim；空白 / 超列宽 → 400 */

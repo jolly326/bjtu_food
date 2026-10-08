@@ -12,6 +12,7 @@ import com.bjtufood.auth.service.UserService;
 import com.bjtufood.wechat.service.WechatService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
+import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.auth.support.JwtUtil;
 import com.bjtufood.auth.support.VerifyCodeAttemptGuard;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
@@ -57,6 +58,12 @@ public class AuthServiceImpl implements AuthService {
      * 刻意放在 final 字段**末尾**：{@code AuthServiceImplTest} 按字段声明顺序显式调用全参构造器。
      */
     private final VerifyCodeAttemptGuard verifyCodeAttemptGuard;
+    /**
+     * 全局吊销（学生端 token 黑名单）：邮箱换绑是**身份语义变更**，换绑前的 token 一律作废。
+     * <p>
+     * 同样刻意放在 final 字段**末尾**（构造器参数顺序与既有测试一致）。
+     */
+    private final TokenBlacklist tokenBlacklist;
 
     @Override
     public void createEmailCode(String username) {
@@ -126,6 +133,11 @@ public class AuthServiceImpl implements AuthService {
         // 四步同生共死——否则会出现「邮箱已释放但业务数据没迁移」的中间态（数据悬在新旧两账号之间）。
         // 各步实现与判据见 VerifyCodePersister#applyVerifiedBinding。
         verifyCodePersister.applyVerifiedBinding(current, email);
+
+        // 🔴 邮箱换绑后吊销该 userId 的全部既有 token：换绑改变了账号的身份语义
+        //    （可能伴随游客与历史学号账号之间的数据归属迁移），旧 token 携带的是迁移前的身份。
+        //    端上收到 401 后会走静默登录换发新 token，用户无感。
+        tokenBlacklist.revokeUser(userId);
 
         return toUserInfo(current);
     }

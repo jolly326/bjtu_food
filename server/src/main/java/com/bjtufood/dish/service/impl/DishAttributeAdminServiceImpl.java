@@ -2,6 +2,7 @@ package com.bjtufood.dish.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.dto.SortItem;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.JsonMapUtil;
@@ -155,6 +156,8 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (current == null) {
             throw new BusinessException(4001, "维度不存在");
         }
+        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
+        AuditSnapshot.before(current);
         if (isSystem(current)) {
             // 其取值被 dish.meal_type_id 引用，删维度会留下悬空种类
             throw new BusinessException("系统维度（菜品种类）不可删除");
@@ -232,6 +235,8 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (used > 0) {
             throw new BusinessException("仍有 " + used + " 个菜品引用该取值，不能删除");
         }
+        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
+        AuditSnapshot.before(valueMapper.selectById(valueId));
         valueMapper.deleteById(valueId);
     }
 

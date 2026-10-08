@@ -9,27 +9,27 @@
     }"
     hover-class="pressed"
   >
-    <!-- 作者头像：**仅公开视角**（`MyReviewVO` 不含 `userAvatar`）——本人视角变体不渲染头像列 -->
-    <template v-if="!mine">
-      <image
-        v-if="avatarOk && authorAvatar"
-        class="review-avatar"
-        :src="getThumbImageUrl(authorAvatar)"
-        mode="aspectFill"
-        lazy-load
-        role="img"
-        :aria-label="`${authorNickname}的头像`"
-        @error="avatarOk = false"
-      />
-      <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${authorNickname}的头像`">
-        <!-- 头像占位：保留人形语义（「无用户」≠「图片损坏」），底色与全站占位同源 -->
-        <ImagePlaceholder name="user" :size="32" />
-      </view>
-    </template>
+    <!-- 作者头像：两个视角共用同一渲染路径。
+         公开视角取评价自带作者；本人视角 `MyReviewVO` 不含作者字段 ⇒ 取当前登录用户资料，
+         使「我的评价」与菜品详情评价的**结构完全一致**（同列、同字号、同占位）。 -->
+    <image
+      v-if="avatarOk && displayAvatar"
+      class="review-avatar"
+      :src="getThumbImageUrl(displayAvatar)"
+      mode="aspectFill"
+      lazy-load
+      role="img"
+      :aria-label="`${displayNickname}的头像`"
+      @error="avatarOk = false"
+    />
+    <view v-else class="review-avatar review-avatar-empty" role="img" :aria-label="`${displayNickname}的头像`">
+      <!-- 头像占位：保留人形语义（「无用户」≠「图片损坏」），底色与全站占位同源 -->
+      <ImagePlaceholder name="user" :size="32" />
+    </view>
     <view class="review-body">
-      <view class="review-head" :class="{ 'review-head--mine': mine }">
-        <view v-if="!mine" class="review-head-left">
-          <text class="review-nickname">{{ authorNickname }}</text>
+      <view class="review-head">
+        <view class="review-head-left">
+          <text class="review-nickname">{{ displayNickname }}</text>
         </view>
         <!-- 右上角竖三点：举报（他人）/ 删除（本人）收进 ActionSheet（唯一入口，常驻） -->
         <view class="review-more" role="button" aria-label="更多操作" hover-class="pressed" @tap.stop="onMore">
@@ -94,6 +94,7 @@ import { COLOR_MAP } from '@/theme/tokens'
 import { getImageUrl, getThumbImageUrl } from '@/utils/image'
 import { useBrokenImages } from '@/composables/useBrokenImages'
 import { formatRating } from '@/utils/dish'
+import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/time'
 import type { Review, MyReview } from '@/types/review'
 import { ANONYMOUS_AUTHOR } from '@/constants/copy'
@@ -133,6 +134,15 @@ const emit = defineEmits<{
 }>()
 
 const avatarOk = ref(true)
+
+/**
+ * 本人视角的身份补齐：`MyReviewVO` 不含作者字段（「我的评价」页恒为本人、渲染即冗余），
+ * 但**头像与昵称仍要展示** —— 取当前登录用户资料，使本页与菜品详情评价的版式完全一致。
+ * 未登录 / 资料未回填时回落空串 ⇒ 走 `ImagePlaceholder` 头像占位 + 「用户」昵称。
+ */
+const userStore = useUserStore()
+const displayAvatar = computed(() => (props.mine ? userStore.userInfo?.avatar || '' : authorAvatar.value))
+const displayNickname = computed(() => (props.mine ? userStore.userInfo?.nickname || ANONYMOUS_AUTHOR : authorNickname.value))
 
 /**
  * 作者标识（**仅公开视角下发**；本人视角恒为本人、零信息 ⇒ 不渲染头像 / 昵称）。
@@ -251,8 +261,6 @@ function onMore() {
   display: flex;
   align-items: center;
 }
-/* 本人视角变体：无昵称行时头行仍须有高度承载右上「竖三点」（该钮为绝对定位、不参与行高） */
-.review-head--mine { min-height: 64rpx; }
 /* 头部第一行：昵称，右侧预留三点按钮空间 */
 .review-head-left {
   flex: 1;

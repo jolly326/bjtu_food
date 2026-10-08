@@ -99,7 +99,7 @@ function handleClick() {
   /* 固定 3:2 比例容器（由 4:3 收矮，把视觉重心让给文字信息；§6.2 第 1 段：占卡片高 ≈52–55%，
      介于设计建议的 4:3 与 16:10 之间）；未加载（占位）与加载后（图片）高度一致，消除瀑布流重排卡顿（CLS=0） */
   aspect-ratio: 3 / 2;
-  background: var(--bg-soft);
+  background: var(--bg-placeholder);
   overflow: hidden;
 }
 .card-img {

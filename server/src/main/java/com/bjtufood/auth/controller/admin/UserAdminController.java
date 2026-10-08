@@ -74,6 +74,22 @@ public class UserAdminController {
     }
 
     @Operation(
+            summary = "踢下线（吊销该用户全部 token）",
+            description = "用途：确认 token 被滥用 / 需要强制重新登录时的止损动作 —— "
+                    + "不改动账号任何列（状态、绑定邮箱、内容归属均保持不变），只让该 userId 已签发的**全部** token 立即失效。"
+                    + "区别：禁用（PUT /{id}/status）会让用户连登录都进不去；踢下线只要求重新登录（小程序静默登录自动换发新 token）。"
+                    + "目标不存在返回 4001「用户不存在」。",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content())
+    )
+    @PostMapping("/{id}/kick")
+    public Result<Void> kickSessions(
+            @Parameter(description = "用户ID", example = "1")
+            @PathVariable Long id) {
+        userService.kickSessions(id);
+        return Result.success();
+    }
+
+    @Operation(
             summary = "删除账号（注销）",
             description = "用途：管理端代用户注销 —— 与本人 DELETE /auth/account 完全同口径："
                     + "匿名化（昵称→已注销用户、username→deleted_{id}、avatar/email/openid/bind_email→NULL、status→deleted），"

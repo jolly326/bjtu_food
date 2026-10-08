@@ -11,6 +11,7 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.canteen.support.ImageColumnWriter;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -207,9 +208,12 @@ public class StallServiceImpl implements StallService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteStall(Long id) {
-        if (id == null || stallMapper.selectById(id) == null) {
+        Stall current = id == null ? null : stallMapper.selectById(id);
+        if (current == null) {
             throw new BusinessException(4001, "档口不存在");
         }
+        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
+        AuditSnapshot.before(current);
         stallMapper.deleteById(id);
     }
 

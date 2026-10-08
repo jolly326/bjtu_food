@@ -1,6 +1,7 @@
 package com.bjtufood.dish.controller;
 
 import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.ratelimit.IdEnumerationGuard;
 import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
@@ -30,6 +31,8 @@ public class DishController {
 
     private final DishService dishService;
     private final IpRateLimiter ipRateLimiter;
+    /** ID 枚举 / 蜜罐探针检测（限频压速率，本闸压「按 id 顺序把数据慢慢捞走」） */
+    private final IdEnumerationGuard idEnumerationGuard;
 
     /** IP 限频：同 IP 每分钟 ≤30 次（浏览详情是高频正常行为，阈值须宽松到用户无感） */
     private static final IpRateLimiter.Rule RULE_VIEW_PER_MINUTE = new IpRateLimiter.Rule(30, 60_000L);
@@ -65,6 +68,7 @@ public class DishController {
     )
     @GetMapping("/dishes")
     public Result<PageResult<DishListItemVO>> listDishes(@ModelAttribute DishQueryReq req) {
+        checkListViewIpRateLimit();
         return Result.success(PageResult.of(dishService.listDishes(req)));
     }
 
@@ -98,8 +102,25 @@ public class DishController {
             @Parameter(description = "菜品ID", example = "1")
             @PathVariable Long id) {
         checkViewIpRateLimit();
+        String clientIp = ClientIpUtil.resolveCurrent();
+        // 已被判定为枚举/爬取的来源：临时限流（到期自动解除，不封账号）
+        long blockedSeconds = idEnumerationGuard.blockedSeconds(clientIp);
+        if (blockedSeconds > 0) {
+            throw new BusinessException("操作过于频繁，请 " + blockedSeconds + " 秒后再试");
+        }
+        DishDetailVO detail;
+        try {
+            detail = dishService.getDishDetail(id);
+        } catch (BusinessException e) {
+            // 4001 = 资源不存在 ⇒ 计一次蜜罐探针（正常路径几乎不会命中不存在的 id）
+            if (e.getCode() == 4001) {
+                idEnumerationGuard.recordNotFound(clientIp, id);
+            }
+            throw e;
+        }
+        idEnumerationGuard.recordAccess(clientIp, id);
         // 计数随详情成功响应发生（service 内成功路径执行）
-        return Result.success(dishService.getDishDetail(id));
+        return Result.success(detail);
     }
     @Operation(
             summary = "菜品描述属性编辑态选项（按菜现有维度）",
@@ -130,6 +151,23 @@ public class DishController {
      * 但可挡住脚本级刷量。接入层防护放 Controller（非业务逻辑），计数仍归 {@code DishService}。
      * 写法对齐既有先例 {@code FeedbackController#checkIpRateLimit}。
      */
+    /** 列表读限频（IP 维度）：60/分 · 600/时 —— 防脚本高频翻页把列表全量拉走 */
+    private static final IpRateLimiter.Rule RULE_LIST_PER_MINUTE = new IpRateLimiter.Rule(60, 60_000L);
+
+    private static final IpRateLimiter.Rule RULE_LIST_PER_HOUR = new IpRateLimiter.Rule(600, 3_600_000L);
+
+    /**
+     * 列表读限频（IP 维度 60/分 · 600/时）：与详情限频同口径 —— 挡的是「高频翻页整表拉走」。
+     * 正常浏览（含主动翻页）远低于此，用户无感。
+     */
+    private void checkListViewIpRateLimit() {
+        long waitSeconds = ipRateLimiter.tryAcquire(
+                "dish-list", ClientIpUtil.resolveCurrent(), RULE_LIST_PER_MINUTE, RULE_LIST_PER_HOUR);
+        if (waitSeconds > 0) {
+            throw new BusinessException("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+        }
+    }
+
     private void checkViewIpRateLimit() {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "dish-detail", ClientIpUtil.resolveCurrent(), RULE_VIEW_PER_MINUTE, RULE_VIEW_PER_HOUR);

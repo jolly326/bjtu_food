@@ -59,6 +59,24 @@ public class User {
     @Schema(description = "已认证绑定邮箱（可空；非空即已认证，认证状态唯一真源）")
     private String bindEmail;
 
+    /**
+     * 累计违规次数（机审 {@code risky} 命中 + 举报成立）。
+     * <p>
+     * 达阈值触发梯度处置（见 {@code ViolationConst}）：警告 → 限言 24 小时 → 限言 7 天 → 封禁。
+     * 处置过程另留痕于 {@code user_violation}（只追加），本列只是「当前档位的判据」。
+     */
+    @Schema(description = "累计违规次数")
+    private Integer violationCount;
+
+    /**
+     * 限言到期时刻：处于未来 = 限言中（**全部写端点 403，读不受限**）。
+     * <p>
+     * 与 {@code status} 分开：限言是「临时不能发言」而不是「账号被禁用」，
+     * 用 status 表达会让限言到期后无法自动恢复（且会连读一起挡掉）。
+     */
+    @Schema(description = "限言到期时刻（未来时刻=限言中）")
+    private LocalDateTime mutedUntil;
+
     /** 创建时间（DB 时钟：INSERT 由 `DEFAULT CURRENT_TIMESTAMP` 写入，应用层不写、不填充） */
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

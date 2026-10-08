@@ -80,14 +80,15 @@ function onPick(value: DishProblemType) {
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-sm);
   background: var(--module-bg);
-  border: 1rpx solid var(--border-color);
+  /* 无描边（团队规范：容器禁用描边，靠底色 + 圆角表达边界） */
+  border: none;
   border-radius: var(--radius-card);
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 .opt--pressed { background: var(--bg-soft); }
-/* 选中态（形态基线）：浅橙底 + 主色描边（描边加粗不位移 —— 已含 border 占位） */
-.opt--on { border-width: 2rpx; border-color: var(--color-primary); background: var(--color-primary-soft); }
+/* 选中态：主色浅底 + **左侧主色竖条**（不用描边，避免与「容器无描边」冲突且不引发布局位移） */
+.opt--on { background: var(--color-primary-soft); box-shadow: inset var(--spacing-2xs) 0 0 var(--color-primary); }
 .opt--disabled { opacity: 0.6; }
 
 .texts { display: flex; flex-direction: column; gap: var(--spacing-2xs); flex: 1; min-width: 0; }

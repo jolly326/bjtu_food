@@ -110,13 +110,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理 IllegalArgumentException（非法参数）
+     * 处理 IllegalArgumentException（非法参数）。
+     * <p>
+     * 🔴 <b>不向客户端回显原始 message</b>：它属内部非法参数，消息里可能带枚举值、字段名、
+     * 内部约束等信息，等于给攻击者提供结构探测线索（原始 message 只入日志）。
+     * 需要给端上可读提示的场景一律走 {@link BusinessException}（受控文案）。
      */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("非法参数: {}", e.getMessage());
-        return Result.badRequest(e.getMessage());
+        return Result.badRequest("请求参数不合法");
     }
 
     /**

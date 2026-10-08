@@ -34,10 +34,13 @@ import java.nio.charset.StandardCharsets;
  * 5. 启用 @PreAuthorize 注解（方法级别权限控制）
  * <p>
  * 公开接口白名单（无需登录）：
- * - POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
+ * - 认证类：POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端：仅 POST /admin/auth/login 公开（否则登录请求自身被拦、必 401）；其余 /admin/** 由 AdminAuthFilter 校验管理端 JWT
- * - GET /banners（首页顶部轮播图，；/** 无写接口）
- * - GET /dishes、GET /dishes/{id}、GET /dishes/views、GET /dishes/{id}/attributes、GET /dishes/for-you、GET /dishes/{id}/reviews（菜品只读浏览）；POST /dishes/{id}/correction（菜品信息纠错提交，IP 限频兜底在 Controller 层）
+ * - 只读浏览：GET /dishes/**（列表 / 详情 / 筛选视图 / 属性 / 猜你喜欢 / 评价列表）、GET /banners（首页轮播）
+ * - 只读字典：GET /report-reasons（举报原因枚举）
+ * <p>
+ * 🔴 <b>用户写入口（意见反馈 / 举报评价 / 菜品问题反馈）一律需登录</b>：UGC 写请求必须可绑定账号 ——
+ * 否则匿名脚本可无 token 直接灌库，且既无法归因、也无法按账号维度限频（只能按 IP，换 IP 即绕过）。
  */
 @Configuration
 @EnableWebSecurity
@@ -80,18 +83,13 @@ public class SecurityConfig {
             "/auth/wechat-login",
             "/auth/email-code",
             "/auth/verify-email",
-            // 反馈提交（PUB：产品决策「反馈不登录也能用」）
-            "/feedback",
-            // 举报原因字典（PUB：举报免认证，端上举报弹层实时拉取）
-            // 举报原因字典是「举报原因」的枚举，不属「反馈提交」写入口的子资源
+            // 举报原因字典（PUB：只读枚举，端上举报弹层实时拉取）
             "/report-reasons",
-            // 评价举报提交（PUB：举报免认证，游客可提交；RESTful 子资源）
-            "/reviews/*/report",
-            // 菜品信息纠错提交（PUB：匿名允许，对齐 feedback 提交口径；IP 限频在 Controller 层）
-            "/dishes/*/correction",
             // 管理端账密登录（TD-19）：🔴 **必须在白名单内** —— 否则登录请求自身先被鉴权拦，
             //    表现为「登录永远 401」，功能完全不可用。/admin/auth/me 与其余 /admin/** 需 token。
+            //    第二步（动态口令）同理：端上此时持有第二因子票据而非访问 token。
             "/admin/auth/login",
+            "/admin/auth/login/mfa",
             // SpringDoc Swagger UI 文档
             "/swagger-ui/**",
             "/v3/api-docs/**",

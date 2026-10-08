@@ -33,4 +33,27 @@ public interface AdminAccountService {
      * @param accountId 账号 ID
      */
     void touchLastLogin(Long accountId);
+
+    /**
+     * 绑定 / 重绑 TOTP 密钥（MFA 启用）。
+     *
+     * @param accountId 账号 ID
+     * @param secret    Base32 密钥
+     */
+    void bindTotpSecret(Long accountId, String secret);
+
+    /**
+     * 解绑 TOTP 密钥（MFA 停用）。
+     *
+     * @param accountId 账号 ID
+     */
+    void clearTotpSecret(Long accountId);
+
+    /**
+     * 改密：写新哈希 + 改密时刻，并自增凭证版本（既有 token 全部立即失效）。
+     *
+     * @param accountId    账号 ID
+     * @param passwordHash 新口令的 BCrypt 哈希
+     */
+    void updatePassword(Long accountId, String passwordHash);
 }

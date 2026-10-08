@@ -85,10 +85,15 @@ spring:
             enable: false
           socketFactoryClass: javax.net.ssl.SSLSocketFactory
 
-  # ---------- Jackson 日期序列化 ----------
+  # ---------- Jackson 序列化 / 反序列化 ----------
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss   # 日期格式
     time-zone: Asia/Shanghai           # 时区
+    deserialization:
+      # 拒绝请求体中的未声明字段（防字段注入：攻击者塞入 userId / status / isAdmin 等，
+      # 试探服务端是否误把 body 当权威值）。端上类型由后端 VO 经 SpringDoc 导出
+      # （openapi.json → api.d.ts），契约一致性由 check:contract 保证。
+      fail-on-unknown-properties: true
 
 # ---------- MyBatis-Plus 配置 ----------
 mybatis-plus:
@@ -106,9 +111,10 @@ mybatis-plus:
 
 # ---------- JWT 配置 ----------
 jwt:
-  # JWT 签名密钥：生产/云端必须从环境变量 JWT_SECRET 注入强随机密钥，禁止明文入库。
-  # 本地开发默认值仅供调试，切勿直接用于生产。
-  secret: ${JWT_SECRET:BjtuFoodDevSecretKey2024ChangeMe}
+  # JWT 签名密钥：一律从环境变量 JWT_SECRET 注入强随机密钥，禁止明文入库、禁止保留任何可用的默认值。
+  # 未配置 / 短于 32 字节 / 命中开发示例值 ⇒ 启动即失败（fail-fast，见 JwtUtil#validateSecretOnStartup）。
+  # 本地开发：在 server/.env 中配置 JWT_SECRET。
+  secret: ${JWT_SECRET:}
   # Token 过期时间：7 天（604800000ms）。
   # 小程序端过期后经静默登录自动换取新 token；注销/禁用仍可通过 TokenBlacklist 立即失效。
   expiration: 604800000
@@ -162,3 +168,11 @@ cos:
   secret-id: ${COS_SECRET_ID:}
   secret-key: ${COS_SECRET_KEY:}
   region: ${COS_REGION:}
+
+# ---------- 安全告警 ----------
+# 安全事件实时告警推送地址（飞书 / 企业微信机器人 Webhook）。
+# 未配置 ⇒ 告警通道不启用（启动 WARN 提示，不阻断启动）；真值只经环境变量注入，不入库不入仓。
+alert:
+  webhook-url: ${ALERT_WEBHOOK_URL:}
+  # 机器人「签名校验」密钥（未配置则不签名）。飞书自定义机器人开启签名校验后，请求须带 timestamp + sign
+  webhook-secret: ${ALERT_WEBHOOK_SECRET:}

@@ -9,10 +9,14 @@ const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080/api/v1'
 
 export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 
-// 兜底防线：生产构建若未注入 VITE_API_BASE_URL（如 .env.production 缺失 / 被清空），会静默回落到
-// 本地默认基址（明文 http、指向 127.0.0.1）⇒ H5 生产请求不可达 / MP 路径前缀异常。此处显式告警便于定位。
+// 兜底防线（fail-closed）：生产构建若未注入 VITE_API_BASE_URL，必须**硬失败**而非静默回落到
+// 明文 http 的本地默认基址 —— 否则 H5 生产包会把 `Authorization: Bearer <token>` 发往 127.0.0.1，
+// 遭中间人截获重放。dev 联调仍可用 localhost 默认值，不受影响。
 if (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL) {
-  console.warn('[config] 未配置 VITE_API_BASE_URL，已回落到默认基址（仅本地联调可用）：', DEFAULT_API_BASE_URL)
+  throw new Error(
+    '[config] 生产构建必须注入 VITE_API_BASE_URL（且须为 https）。' +
+      '未配置会拒绝启动，以防 token 经明文 HTTP 外泄。请在 .env.production / CI 注入。',
+  )
 }
 
 /** 微信云托管环境 ID（callContainer 的 `config.env`） */

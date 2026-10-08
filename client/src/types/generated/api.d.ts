@@ -249,14 +249,14 @@ export interface paths {
   "/reviews/{id}/report": {
     /**
      * 举报评价
-     * @description PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
+     * @description 🔑 需登录。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
      */
     post: operations["report"];
   };
   "/feedback": {
     /**
      * 提交反馈
-     * @description PUB。游客与登录用户均可提交；写入 user_feedback，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+     * @description 🔑 需登录。写入 user_feedback（type=suggestion，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
      */
     post: operations["submitFeedback"];
   };
@@ -315,11 +315,18 @@ export interface paths {
      */
     post: operations["createEmailCode"];
   };
+  "/admin/users/{id}/kick": {
+    /**
+     * 踢下线（吊销该用户全部 token）
+     * @description 用途：确认 token 被滥用 / 需要强制重新登录时的止损动作 —— 不改动账号任何列（状态、绑定邮箱、内容归属均保持不变），只让该 userId 已签发的**全部** token 立即失效。区别：禁用（PUT /{id}/status）会让用户连登录都进不去；踢下线只要求重新登录（小程序静默登录自动换发新 token）。目标不存在返回 4001「用户不存在」。
+     */
+    post: operations["kickSessions"];
+  };
   "/admin/upload": {
     /**
      * 上传图片（multipart）
      * @description 用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
-     * 鉴权：请求头 X-Admin-Token 必须等于环境变量 ADMIN_TOKEN（未配置即 fail-closed 403）。
+     * 鉴权：请求头 Authorization: Bearer <管理端 JWT>（由 AdminAuthFilter 校验，未带 / 失效即 401）。
      * 测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
      * 限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
      * 返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
@@ -450,12 +457,47 @@ export interface paths {
      */
     post: operations["create_3"];
   };
+  "/admin/auth/password": {
+    /**
+     * 修改管理员口令
+     * @description 需带 token，并提供当前口令。强度要求：≥12 位且含大写 / 小写 / 数字 / 符号中至少三类。🔴 改密即刻自增凭证版本 ⇒ **既有 token 全部失效**；响应回一个新 token 供本端续用，其余端需重新登录。
+     */
+    post: operations["changePassword"];
+  };
+  "/admin/auth/mfa/setup": {
+    /**
+     * 初始化动态口令绑定
+     * @description 返回待绑定密钥与 otpauth URI（此时**尚未落库**，中途放弃不影响账号）。录入认证器后带口令调 /admin/auth/mfa/enable 完成绑定。
+     */
+    post: operations["setupMfa"];
+  };
+  "/admin/auth/mfa/enable": {
+    /**
+     * 确认绑定动态口令
+     * @description 校验认证器口令后落库密钥，并**一次性下发**恢复码（服务端仅存哈希）。绑定完成后登录须走两步。
+     */
+    post: operations["enableMfa"];
+  };
+  "/admin/auth/mfa/disable": {
+    /**
+     * 停用动态口令
+     * @description 🔴 需同时提供当前口令与动态口令（或一枚恢复码）—— 停用 MFA 会降低账号防护，只认 token 会让 token 盗用方顺手摘掉第二因子。
+     */
+    post: operations["disableMfa"];
+  };
   "/admin/auth/login": {
     /**
-     * 管理员账密登录
-     * @description 公开端点。账号密码正确后签发管理端 JWT（默认 24h 有效）。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。同 IP 限频 5/分 · 20/时。
+     * 管理员账密登录（第一步）
+     * @description 公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；已绑定 ⇒ 返回 mfaRequired=true 与短时票据 mfaTicket，须再调 /admin/auth/login/mfa。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
      */
     post: operations["login"];
+  };
+  "/admin/auth/login/mfa": {
+    /**
+     * 管理员登录第二步（动态口令）
+     * @description 公开端点。携带第一步返回的 mfaTicket 与认证器动态口令（或一枚恢复码）。校验失败计入账号锁定计数；票据 5 分钟有效且不能作为访问凭证。
+     */
+    post: operations["loginWithMfa"];
   };
   "/report-reasons": {
     /**
@@ -585,9 +627,16 @@ export interface paths {
   "/admin/auth/me": {
     /**
      * 读取当前登录的管理员
-     * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效。
+     * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 mfaEnabled / passwordAging 给出安全提示。
      */
     get: operations["me"];
+  };
+  "/admin/alerts": {
+    /**
+     * 安全告警记录
+     * @description 用途：分页回看安全告警（登录成功 / 登录失败达阈值 / 动态口令启停 / 口令修改 / 审计写入失败 / 违规累积处置 / 爬取检测），支持按类型与级别筛选。记录只追加，无修改与删除入口。测试示例：/admin/alerts?page=1&pageSize=20&severity=critical
+     */
+    get: operations["listAlerts"];
   };
   "/reviews/{id}": {
     /**
@@ -1816,9 +1865,9 @@ export interface components {
       message?: string;
       data?: components["schemas"]["BannerAdminVO"];
     };
-    AdminLoginReq: {
-      username: string;
-      password: string;
+    PasswordChangeReq: {
+      oldPassword: string;
+      newPassword: string;
     };
     /** @description 数据 */
     AdminLoginVO: {
@@ -1826,6 +1875,8 @@ export interface components {
       username?: string;
       /** Format: int64 */
       expiresIn?: number;
+      mfaRequired?: boolean;
+      mfaTicket?: string;
     };
     /** @description 统一响应结果 */
     ResultAdminLoginVO: {
@@ -1841,6 +1892,61 @@ export interface components {
        */
       message?: string;
       data?: components["schemas"]["AdminLoginVO"];
+    };
+    /** @description 数据 */
+    MfaSetupVO: {
+      secret?: string;
+      otpAuthUri?: string;
+    };
+    /** @description 统一响应结果 */
+    ResultMfaSetupVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["MfaSetupVO"];
+    };
+    MfaEnableReq: {
+      secret: string;
+      code: string;
+    };
+    /** @description 数据 */
+    MfaEnableVO: {
+      recoveryCodes?: string[];
+    };
+    /** @description 统一响应结果 */
+    ResultMfaEnableVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["MfaEnableVO"];
+    };
+    MfaDisableReq: {
+      password: string;
+      code: string;
+    };
+    AdminLoginReq: {
+      username: string;
+      password: string;
+    };
+    MfaLoginReq: {
+      mfaTicket: string;
+      code: string;
     };
     /** @description 举报原因字典项 */
     ReportReasonVO: {
@@ -3086,6 +3192,9 @@ export interface components {
     AdminMeVO: {
       username?: string;
       lastLoginAt?: string;
+      role?: string;
+      mfaEnabled?: boolean;
+      passwordAging?: boolean;
     };
     /** @description 统一响应结果 */
     ResultAdminMeVO: {
@@ -3101,6 +3210,55 @@ export interface components {
        */
       message?: string;
       data?: components["schemas"]["AdminMeVO"];
+    };
+    /** @description 管理端分页响应结果（含总数） */
+    AdminPageResultSecurityAlertVO: {
+      /** @description 当前页数据列表 */
+      records?: components["schemas"]["SecurityAlertVO"][];
+      /**
+       * Format: int64
+       * @description 总条数
+       */
+      total?: number;
+    };
+    /** @description 统一响应结果 */
+    ResultAdminPageResultSecurityAlertVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResultSecurityAlertVO"];
+    };
+    /** @description 安全告警记录 */
+    SecurityAlertVO: {
+      /**
+       * Format: int64
+       * @description 告警记录 ID
+       */
+      id?: number;
+      /** @description 告警类型键（可据此筛选） */
+      alertType?: string;
+      /** @description 告警类型中文标签 */
+      alertTypeLabel?: string;
+      /** @description 级别键：info 提示 / warn 警告 / critical 严重 */
+      severity?: string;
+      /** @description 级别中文标签 */
+      severityLabel?: string;
+      /** @description 告警标题 */
+      title?: string;
+      /** @description 告警明细（脱敏） */
+      detail?: string;
+      /** @description 来源 IP（无 Web 上下文时为空串） */
+      sourceIp?: string;
+      /** @description 发生时间（yyyy-MM-dd HH:mm:ss） */
+      createdAt?: string;
     };
   };
   responses: never;
@@ -4921,7 +5079,7 @@ export interface operations {
   };
   /**
    * 举报评价
-   * @description PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
+   * @description 🔑 需登录。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
    */
   report: {
     parameters: {
@@ -4973,7 +5131,7 @@ export interface operations {
   };
   /**
    * 提交反馈
-   * @description PUB。游客与登录用户均可提交；写入 user_feedback，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+   * @description 🔑 需登录。写入 user_feedback（type=suggestion，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
    */
   submitFeedback: {
     requestBody: {
@@ -5340,9 +5498,61 @@ export interface operations {
     };
   };
   /**
+   * 踢下线（吊销该用户全部 token）
+   * @description 用途：确认 token 被滥用 / 需要强制重新登录时的止损动作 —— 不改动账号任何列（状态、绑定邮箱、内容归属均保持不变），只让该 userId 已签发的**全部** token 立即失效。区别：禁用（PUT /{id}/status）会让用户连登录都进不去；踢下线只要求重新登录（小程序静默登录自动换发新 token）。目标不存在返回 4001「用户不存在」。
+   */
+  kickSessions: {
+    parameters: {
+      path: {
+        /**
+         * @description 用户ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody?: {
+      content: {
+        "*/*": never;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
    * 上传图片（multipart）
    * @description 用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
-   * 鉴权：请求头 X-Admin-Token 必须等于环境变量 ADMIN_TOKEN（未配置即 fail-closed 403）。
+   * 鉴权：请求头 Authorization: Bearer <管理端 JWT>（由 AdminAuthFilter 校验，未带 / 失效即 401）。
    * 测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
    * 限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
    * 返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
@@ -6297,13 +6507,223 @@ export interface operations {
     };
   };
   /**
-   * 管理员账密登录
-   * @description 公开端点。账号密码正确后签发管理端 JWT（默认 24h 有效）。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。同 IP 限频 5/分 · 20/时。
+   * 修改管理员口令
+   * @description 需带 token，并提供当前口令。强度要求：≥12 位且含大写 / 小写 / 数字 / 符号中至少三类。🔴 改密即刻自增凭证版本 ⇒ **既有 token 全部失效**；响应回一个新 token 供本端续用，其余端需重新登录。
+   */
+  changePassword: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordChangeReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultAdminLoginVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 初始化动态口令绑定
+   * @description 返回待绑定密钥与 otpauth URI（此时**尚未落库**，中途放弃不影响账号）。录入认证器后带口令调 /admin/auth/mfa/enable 完成绑定。
+   */
+  setupMfa: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultMfaSetupVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 确认绑定动态口令
+   * @description 校验认证器口令后落库密钥，并**一次性下发**恢复码（服务端仅存哈希）。绑定完成后登录须走两步。
+   */
+  enableMfa: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MfaEnableReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultMfaEnableVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 停用动态口令
+   * @description 🔴 需同时提供当前口令与动态口令（或一枚恢复码）—— 停用 MFA 会降低账号防护，只认 token 会让 token 盗用方顺手摘掉第二因子。
+   */
+  disableMfa: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MfaDisableReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 管理员账密登录（第一步）
+   * @description 公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；已绑定 ⇒ 返回 mfaRequired=true 与短时票据 mfaTicket，须再调 /admin/auth/login/mfa。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
    */
   login: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["AdminLoginReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultAdminLoginVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 管理员登录第二步（动态口令）
+   * @description 公开端点。携带第一步返回的 mfaTicket 与认证器动态口令（或一枚恢复码）。校验失败计入账号锁定计数；票据 5 分钟有效且不能作为访问凭证。
+   */
+  loginWithMfa: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MfaLoginReq"];
       };
     };
     responses: {
@@ -7037,7 +7457,7 @@ export interface operations {
   };
   /**
    * 读取当前登录的管理员
-   * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效。
+   * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 mfaEnabled / passwordAging 给出安全提示。
    */
   me: {
     responses: {
@@ -7045,6 +7465,54 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultAdminMeVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 安全告警记录
+   * @description 用途：分页回看安全告警（登录成功 / 登录失败达阈值 / 动态口令启停 / 口令修改 / 审计写入失败 / 违规累积处置 / 爬取检测），支持按类型与级别筛选。记录只追加，无修改与删除入口。测试示例：/admin/alerts?page=1&pageSize=20&severity=critical
+   */
+  listAlerts: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+        /** @description 告警类型键（如 LOGIN_LOCKOUT）；不传 = 全部 */
+        alertType?: string;
+        /** @description 级别键：info / warn / critical；不传 = 全部 */
+        severity?: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultAdminPageResultSecurityAlertVO"];
         };
       };
       /** @description Bad Request */

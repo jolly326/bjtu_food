@@ -29,6 +29,14 @@ public interface ReviewService {
     boolean existsVisibleById(Long id);
 
     /**
+     * 取评价作者的 userId（供 feedback 域「举报成立」时定位被处置内容的作者）。
+     *
+     * @param id 评价 ID
+     * @return 作者 userId；评价不存在返回 {@code null}
+     */
+    Long findAuthorId(Long id);
+
+    /**
      * 获取菜品评价列表
      * <p>
      * 只返回 is_hidden=0 的评价；排序唯一为发表时间倒序（created_at DESC），不提供排序参数。

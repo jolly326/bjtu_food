@@ -43,7 +43,7 @@ public class ReportController {
     private static final IpRateLimiter.Rule RULE_PER_HOUR = new IpRateLimiter.Rule(10, 3_600_000L);
 
     @Operation(summary = "举报评价",
-            description = "PUB。对指定评价提交举报（结构化原因单选为准，文本可空）。"
+            description = "🔑 需登录。对指定评价提交举报（结构化原因单选为准，文本可空）。"
                     + "写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。"
                     + "同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。"
                     + "测试示例：POST /reviews/3/report {\"reasonId\":1}")
@@ -52,12 +52,17 @@ public class ReportController {
             @Parameter(description = "被举报的评价ID", example = "3")
             @PathVariable Long id,
             @Valid @RequestBody ReportReq req) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        // 双维度滥用防护（IP × 账号，任一超限即拒）：账号维度使「换 IP 刷举报」同样被拦
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "review-report", ClientIpUtil.resolveCurrent(), RULE_PER_MINUTE, RULE_PER_HOUR);
+        if (waitSeconds == 0L) {
+            waitSeconds = ipRateLimiter.tryAcquire(
+                    "review-report:user", String.valueOf(userId), RULE_PER_MINUTE, RULE_PER_HOUR);
+        }
         if (waitSeconds > 0) {
             throw new BusinessException("提交过于频繁，请 " + waitSeconds + " 秒后再试");
         }
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
         feedbackService.report(userId, id, req);
         return Result.success();
     }

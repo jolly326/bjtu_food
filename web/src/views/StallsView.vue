@@ -7,9 +7,11 @@
  * 排序位与**全部操作**（编辑 / 删除）都在**详情抽屉**内（同一抽屉两态：查看 ⇄ 编辑）；
  * 楼层为**下拉（楼层字典，值即汉字）**；删除受阻（其下仍有菜品 → `400` 原文透出）。
  */
+import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { resolveImageUrl } from '@/utils/image'
 import DetailMetaRow from '@/components/DetailMetaRow.vue'
@@ -195,6 +197,31 @@ function openPreview(images: string[], index: number): void {
   previewOpen.value = true
 }
 
+/** 重置筛选（提为具名函数，供「重置」与回显的「清空」共用） */
+function resetFilters(): void {
+  filterCanteenId.value = ''
+  void load()
+}
+
+/** 已生效筛选条件（供 `ActiveFilters` 回显；下拉存的是 id，回显映射为食堂名） */
+const activeFilters = computed(() => {
+  const out: { key: string; label: string; value: string }[] = []
+  const id = filterCanteenId.value === '' ? 0 : Number(filterCanteenId.value)
+  if (id) {
+    out.push({
+      key: 'canteen',
+      label: '食堂',
+      value: canteens.value.find((c) => c.id === id)?.name ?? `#${id}`,
+    })
+  }
+  return out
+})
+
+/** 清除单个筛选条件并重查 */
+function clearFilter(key: string): void {
+  if (key === 'canteen') resetFilters()
+}
+
 onMounted(async () => {
   // 依赖数据（食堂下拉）与列表并行：依赖失败不阻塞列表
   listCanteens()
@@ -217,18 +244,9 @@ onMounted(async () => {
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
       <button class="btn-primary" type="button" v-press @click="load">查询</button>
-      <button
-        class="btn-secondary"
-        type="button"
-        @click="
-          () => {
-            filterCanteenId = ''
-            load()
-          }
-        "
-      >
-        重置
-      </button>
+      <button class="btn-secondary" type="button" @click="resetFilters">重置</button>
+      <!-- 已生效筛选条件回显：让管理员一眼看出当前结果被什么条件筛出（可点单个清除） -->
+      <ActiveFilters :items="activeFilters" @remove="clearFilter" @clear="resetFilters" />
     </div>
 
     <!-- 六态：① 加载 ⑥ 会话失效 ② 错误 ③ 空 ④ 有数据 -->
@@ -279,7 +297,7 @@ onMounted(async () => {
     <!-- 详情 / 编辑抽屉（同一抽屉两态） -->
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
-      <template v-if="mode === 'view'">
+      <template v-if="mode === 'view' && canWrite()">
         <div class="field">
           <label id="st-images-label">档口图片 · {{ current?.images.length ?? 0 }} 张</label>
           <div
@@ -302,38 +320,48 @@ onMounted(async () => {
           <div v-else class="muted">暂无图片（点「编辑」上传）</div>
         </div>
 
-        <div class="detail-meta">
-          <DetailMetaRow k="档口 ID" num>#{{ current?.id }}</DetailMetaRow>
-          <DetailMetaRow k="档口名">{{ current?.name }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">所属食堂</span>
-            <span class="meta-val">
-              {{ current?.canteenName || '—' }}
-              <span class="muted">#{{ current?.canteenId }}</span>
-            </span>
+        <!-- 分组：位置信息（经营判断的核心）→ 基本信息 → 经营指标与时间 -->
+        <div class="detail-group">
+          <div class="detail-group-title">位置信息</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="档口名">{{ current?.name }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">所属食堂</span>
+              <span class="meta-val">
+                {{ current?.canteenName || '—' }}
+                <span class="muted">#{{ current?.canteenId }}</span>
+              </span>
+            </div>
+            <DetailMetaRow k="楼层">{{ current?.floor || '—' }}</DetailMetaRow>
+            <DetailMetaRow k="窗口号">{{ current?.windowNo || '—' }}</DetailMetaRow>
+            <DetailMetaRow k="地点" span>{{ current?.location || '—' }}</DetailMetaRow>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">楼层</span>
-            <span class="meta-val">
-              {{ current?.floor || '—' }}
-              <span class="muted">（改动影响该档口下所有菜品的位置展示）</span>
-            </span>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">经营指标</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="菜品数" num emphasis>{{ current?.dishCount }}</DetailMetaRow>
+            <DetailMetaRow k="平均评分" num emphasis>
+              {{ current?.avgRating?.toFixed(2) ?? '0.00' }}
+            </DetailMetaRow>
           </div>
-          <DetailMetaRow k="窗口号">{{ current?.windowNo || '—' }}</DetailMetaRow>
-          <DetailMetaRow k="地点">{{ current?.location || '—' }}</DetailMetaRow>
-          <DetailMetaRow k="描述">{{ current?.description || '—' }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">排序位</span>
-            <span class="meta-val num">
-              {{ current?.sortOrder }}
-              <span class="muted">（纠错候选档口列表按它升序）</span>
-            </span>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">其他</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="档口 ID" num>#{{ current?.id }}</DetailMetaRow>
+            <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">排序位</span>
+              <span class="meta-val num">
+                {{ current?.sortOrder }}
+                <span class="muted">（纠错候选档口列表按它升序）</span>
+              </span>
+            </div>
+            <DetailMetaRow k="描述">{{ current?.description || '—' }}</DetailMetaRow>
           </div>
-          <DetailMetaRow k="菜品数" num>{{ current?.dishCount }}</DetailMetaRow>
-          <DetailMetaRow k="平均评分" num>{{
-            current?.avgRating?.toFixed(2) ?? '0.00'
-          }}</DetailMetaRow>
-          <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
         </div>
       </template>
 
@@ -414,11 +442,18 @@ onMounted(async () => {
       </template>
 
       <template #actions>
-        <template v-if="mode === 'view'">
-          <button class="link" type="button" :disabled="isBusy(current?.id)" @click="startEdit">
+        <template v-if="mode === 'view' && canWrite()">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="startEdit"
+          >
             编辑
           </button>
           <button
+            v-if="canDelete()"
             class="link danger"
             type="button"
             :disabled="isBusy(current?.id)"
@@ -447,13 +482,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
+/* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
   width: 160px;
 }

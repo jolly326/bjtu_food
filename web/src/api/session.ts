@@ -17,6 +17,14 @@
 const TOKEN_KEY = 'admin_token'
 /** 登录名的存储键（仅用于端上回显，不参与鉴权） */
 const USERNAME_KEY = 'admin_username'
+/**
+ * 角色的存储键。
+ *
+ * <p>只用于**端上隐显入口**（体验），**绝不参与任何判定** —— 真正的门控在服务端
+ * （`AdminAuthFilter` 按 HTTP 方法 + 角色判定），改动本值最多让按钮该显示的不显示，
+ * 不会让越权请求通过。
+ */
+const ROLE_KEY = 'admin_role'
 
 /** 取管理端 JWT；无登录态返回 `null` */
 export function getToken(): string | null {
@@ -33,19 +41,32 @@ export function getUsername(): string | null {
   return sessionStorage.getItem(USERNAME_KEY)
 }
 
+/** 取当前角色原值；未登录 / 未取到返回 `null`（由 `utils/permissions` 归一为只读） */
+export function getRole(): string | null {
+  return sessionStorage.getItem(ROLE_KEY)
+}
+
+/** 单写角色（登录响应不带角色，由 `GET /admin/auth/me` 回填） */
+export function setRole(role: string | undefined | null): void {
+  if (role) sessionStorage.setItem(ROLE_KEY, role)
+  else sessionStorage.removeItem(ROLE_KEY)
+}
+
 /** 登录成功后落盘：token 供后续请求携带，登录名供身份区回显 */
-export function setSession(token: string, username: string): void {
+export function setSession(token: string, username: string, role?: string): void {
   sessionStorage.setItem(TOKEN_KEY, token)
   sessionStorage.setItem(USERNAME_KEY, username)
+  setRole(role)
 }
 
 /**
  * 清登录态。
  *
- * <p>🔴 **token 与登录名必须同清**：只清 token 会留下「已登录」的假象，
- * 侧栏会继续显示上一任管理员的名字。
+ * <p>🔴 **token / 登录名 / 角色必须同清**：只清 token 会留下「已登录」的假象，
+ * 侧栏会继续显示上一任管理员的名字与角色。
  */
 export function clearSession(): void {
   sessionStorage.removeItem(TOKEN_KEY)
   sessionStorage.removeItem(USERNAME_KEY)
+  sessionStorage.removeItem(ROLE_KEY)
 }

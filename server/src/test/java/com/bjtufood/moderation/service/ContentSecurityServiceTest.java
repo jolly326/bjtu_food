@@ -66,7 +66,9 @@ class ContentSecurityServiceTest {
         wechatProperties.setAppid("wx-appid");
         wechatProperties.setSecret("wx-secret");
         tokenProvider = new WechatAccessTokenProviderImpl(restTemplate, wechatProperties);
-        contentSecurityService = new ContentSecurityServiceImpl(restTemplate, tokenProvider, wechatProperties);
+        // 违规累积入口以 mock 注入：本用例聚焦机审判定与拦截，账号维度的累积规则另有其归属
+        contentSecurityService = new ContentSecurityServiceImpl(restTemplate, tokenProvider, wechatProperties,
+                org.mockito.Mockito.mock(com.bjtufood.auth.service.UserViolationService.class));
     }
 
     private void expectStableToken() {
@@ -232,12 +234,12 @@ class ContentSecurityServiceTest {
     }
 
     @Test
-    @DisplayName("openid 为空（历史学号账号边界）→ 跳过检测放行 PASS，不发起任何网络请求")
-    void shouldSkipWhenOpenidMissing() {
+    @DisplayName("openid 为空 → fail-closed 拒绝（不再跳过放行），且不发起任何网络请求")
+    void shouldRejectWhenOpenidMissing() {
         // 无任何 expectation：若发起请求 MockRestServiceServer 会直接抛异常
-        SecSuggest suggest = contentSecurityService.checkText(null, "一份番茄炒蛋", 2);
-
-        assertThat(suggest).isEqualTo(SecSuggest.PASS);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> contentSecurityService.checkText(null, "一份番茄炒蛋", 2))
+                .isInstanceOf(com.bjtufood.common.exception.BusinessException.class);
         server.verify();
     }
 

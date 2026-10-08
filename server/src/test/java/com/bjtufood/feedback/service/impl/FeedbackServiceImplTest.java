@@ -76,6 +76,9 @@ class FeedbackServiceImplTest {
     private final ReviewService reviewService = mock(ReviewService.class);
     /** 举报原因字典真源（`report_reason` 表） */
     private final ReportReasonService reportReasonService = mock(ReportReasonService.class);
+    /** 违规累积入口（举报成立时给被举报内容作者计数；规则本身另有其归属，此处只关心是否被调用） */
+    private final com.bjtufood.auth.service.UserViolationService userViolationService =
+            mock(com.bjtufood.auth.service.UserViolationService.class);
 
     /**
      * 构造器参数顺序须与 {@code FeedbackServiceImpl} 的 final 字段声明顺序逐字一致（@RequiredArgsConstructor）。
@@ -86,7 +89,7 @@ class FeedbackServiceImplTest {
     private FeedbackServiceImpl service() {
         return new FeedbackServiceImpl(feedbackMapper, new FeedbackPersister(feedbackMapper), userService, dishService,
                 localSensitiveFilter, notificationService, reportReasonService, contentSecurityService, imageUrlUtil,
-                reviewService);
+                reviewService, userViolationService);
     }
 
     /** 本地词库默认原样返回（不脱敏），便于断言落库值 */

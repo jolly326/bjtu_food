@@ -10,9 +10,11 @@
  * `BaseDrawer`，抽屉内给**评价全文**（不截断）+ **大尺寸配图**（点击同样看原图）+ 元信息，
  * 底部复用行内的「隐藏 / 恢复显示 / 删除」（提交中沿用 `busyId` 置灰）。
  */
-import { onMounted, ref } from 'vue'
+import ActiveFilters from '@/components/ActiveFilters.vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { deleteReview, listReviews, setReviewHidden } from '@/api/reviews'
@@ -184,6 +186,32 @@ function reset(): void {
   reloadFirstPage()
 }
 
+/**
+ * 已生效筛选条件（供 `ActiveFilters` 回显；空值不进列表）。
+ *
+ * ⚠️ `fHidden` 是 `boolean | ''`：**`false`（显示中）也是有效筛选值**，
+ * 故判空必须用 `!== ''` 而非真值判断，否则「显示中」这一档永远不显示。
+ */
+const activeFilters = computed(() => {
+  const out: { key: string; label: string; value: string }[] = []
+  if (fKeyword.value.trim())
+    out.push({ key: 'keyword', label: '评价内容', value: fKeyword.value.trim() })
+  if (fDishId.value.trim()) out.push({ key: 'dish', label: '菜品 ID', value: fDishId.value.trim() })
+  if (fUserId.value.trim()) out.push({ key: 'user', label: '用户 ID', value: fUserId.value.trim() })
+  if (fHidden.value !== '')
+    out.push({ key: 'hidden', label: '状态', value: fHidden.value ? '已隐藏' : '显示中' })
+  return out
+})
+
+/** 清除单个筛选条件并重查 */
+function clearFilter(key: string): void {
+  if (key === 'keyword') fKeyword.value = ''
+  if (key === 'dish') fDishId.value = ''
+  if (key === 'user') fUserId.value = ''
+  if (key === 'hidden') fHidden.value = ''
+  reloadFirstPage()
+}
+
 onMounted(() => reloadFirstPage())
 </script>
 
@@ -217,6 +245,8 @@ onMounted(() => reloadFirstPage())
       </select>
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
+      <!-- 已生效筛选条件回显 -->
+      <ActiveFilters :items="activeFilters" @remove="clearFilter" @clear="reset" />
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
@@ -295,6 +325,7 @@ onMounted(() => reloadFirstPage())
                 详情
               </button>
               <button
+                v-if="canWrite()"
                 class="link"
                 type="button"
                 :disabled="isBusy(row.id)"
@@ -303,6 +334,7 @@ onMounted(() => reloadFirstPage())
                 {{ row.hidden ? '恢复显示' : '隐藏' }}
               </button>
               <button
+                v-if="canDelete()"
                 class="link danger"
                 type="button"
                 :disabled="isBusy(row.id)"
@@ -347,55 +379,70 @@ onMounted(() => reloadFirstPage())
         </div>
       </div>
 
-      <div class="detail-meta">
-        <DetailMetaRow k="评价 ID" num>#{{ current?.id }}</DetailMetaRow>
-        <div class="meta-row">
-          <span class="meta-key">作者</span>
-          <span class="meta-val">
-            <!-- 头像与表格同源：无头像走统一占位（灰底 + 人形符） -->
-            <span class="user-cell">
-              <img v-if="current?.userAvatar" :src="current.userAvatar" class="avatar" alt="" />
-              <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
-              <span>
-                {{ current?.userNickname || '游客'
-                }}<span class="muted"> #{{ current?.userId }}</span>
+      <!-- 分组：对象（作者 / 菜品）→ 治理信息（评分 / 状态 / 时间） -->
+      <div class="detail-group">
+        <div class="detail-group-title">评价对象</div>
+        <div class="detail-meta detail-meta--grid">
+          <div class="meta-row">
+            <span class="meta-key">作者</span>
+            <span class="meta-val">
+              <!-- 头像与表格同源：无头像走统一占位（灰底 + 人形符） -->
+              <span class="user-cell">
+                <img v-if="current?.userAvatar" :src="current.userAvatar" class="avatar" alt="" />
+                <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
+                <span>
+                  {{ current?.userNickname || '游客'
+                  }}<span class="muted"> #{{ current?.userId }}</span>
+                </span>
               </span>
             </span>
-          </span>
-        </div>
-        <div class="meta-row">
-          <span class="meta-key">菜品</span>
-          <span class="meta-val">
-            {{ current?.dishName ?? '菜品已删除'
-            }}<span class="muted"> #{{ current?.dishId }}</span>
-          </span>
-        </div>
-        <div class="meta-row">
-          <span class="meta-key">评分</span>
-          <span class="meta-val num">
-            <span class="rating-cell">
-              <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                /></svg
-              >{{ current?.rating }}
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">菜品</span>
+            <span class="meta-val">
+              {{ current?.dishName ?? '菜品已删除'
+              }}<span class="muted"> #{{ current?.dishId }}</span>
             </span>
-          </span>
+          </div>
         </div>
-        <div class="meta-row">
-          <span class="meta-key">状态</span>
-          <span class="meta-val">
-            <StatusTag :status="current?.hidden ? 'hidden' : 'visible'" kind="review" />
-          </span>
-        </div>
-        <DetailMetaRow k="发表时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
-        <div class="meta-row" v-if="current && current.hidden && current.hiddenNote">
-          <DetailMetaRow k="隐藏附注">{{ current.hiddenNote }}</DetailMetaRow>
+      </div>
+
+      <div class="detail-group">
+        <div class="detail-group-title">治理信息</div>
+        <div class="detail-meta detail-meta--grid">
+          <div class="meta-row">
+            <span class="meta-key">评分</span>
+            <span class="meta-val num">
+              <span class="rating-cell">
+                <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                  /></svg
+                >{{ current?.rating }}
+              </span>
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">状态</span>
+            <span class="meta-val">
+              <StatusTag :status="current?.hidden ? 'hidden' : 'visible'" kind="review" />
+            </span>
+          </div>
+          <DetailMetaRow k="评价 ID" num>#{{ current?.id }}</DetailMetaRow>
+          <DetailMetaRow k="发表时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
+          <div
+            v-if="current && current.hidden && current.hiddenNote"
+            class="meta-row meta-row--span"
+          >
+            <span class="meta-key">隐藏附注</span>
+            <span class="meta-val">{{ current.hiddenNote }}</span>
+          </div>
         </div>
       </div>
 
       <template #actions>
         <button
+          v-if="canWrite()"
           class="link"
           type="button"
           :disabled="isBusy(current?.id)"
@@ -404,6 +451,7 @@ onMounted(() => reloadFirstPage())
           {{ current?.hidden ? '恢复显示' : '隐藏' }}
         </button>
         <button
+          v-if="canDelete()"
           class="link danger"
           type="button"
           :disabled="isBusy(current?.id)"
@@ -457,13 +505,7 @@ onMounted(() => reloadFirstPage())
 </template>
 
 <style scoped>
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
+/* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
   width: 150px;
 }
