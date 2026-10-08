@@ -41,6 +41,15 @@ public class AdminJwtUtil {
     /** HMAC-SHA 算法的密钥长度硬要求：短于此长度 {@code Keys.hmacShaKeyFor} 直接抛异常 */
     private static final int MIN_SECRET_BYTES = 32;
 
+    /** 第二因子票据的有效期（秒）：够完成「打开认证器 → 输入 6 位口令」，短到泄露也几乎无用 */
+    private static final long MFA_TICKET_TTL_SECONDS = 300L;
+
+    /** 第二因子票据标记：带此声明的 token <b>不得</b>作为访问凭证（过滤器 fail-closed） */
+    private static final String CLAIM_MFA_PENDING = "mfaPending";
+
+    /** 凭证版本声明：与 {@code admin_account.credential_version} 比对，改密即让旧 token 全部失效 */
+    private static final String CLAIM_CREDENTIAL_VERSION = "cv";
+
     public AdminJwtUtil(AdminProperties adminProperties) {
         this.adminProperties = adminProperties;
     }
@@ -66,7 +75,7 @@ public class AdminJwtUtil {
                             + "当前 " + secret.getBytes(StandardCharsets.UTF_8).length + " 字节");
         }
         // 预热：构建一次 Key 并做一次签名/验签往返，把密钥构造问题拦在启动期
-        String probe = createToken(0L, "probe");
+        String probe = createToken(0L, "probe", 1);
         parseAndValidate(probe);
         log.info("管理端 JWT 密钥校验通过（有效期 {} 秒）", adminProperties.getJwt().getExpirationSeconds());
     }
@@ -90,20 +99,64 @@ public class AdminJwtUtil {
     /**
      * 签发管理端 token。
      *
-     * @param accountId 管理员账号 ID（写入 {@code sub}）
-     * @param username  登录名（写入 {@code username}，仅供端上展示）
+     * @param accountId         管理员账号 ID（写入 {@code sub}）
+     * @param username          登录名（写入 {@code username}，仅供端上展示）
+     * @param credentialVersion 账号当前凭证版本（写入 {@code cv}）—— 改密后与库中现值不再相等，
+     *                          既有 token 随即失效
      * @return 紧凑序列化 JWT
      */
-    public String createToken(Long accountId, String username) {
+    public String createToken(Long accountId, String username, Integer credentialVersion) {
         long ttlMillis = adminProperties.getJwt().getExpirationSeconds() * 1000L;
         Date now = new Date();
         return Jwts.builder()
                 .subject(String.valueOf(accountId))
                 .claim("username", username)
+                .claim(CLAIM_CREDENTIAL_VERSION, credentialVersion)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + ttlMillis))
                 .signWith(getKey())
                 .compact();
+    }
+
+    /**
+     * 签发第二因子票据（MFA 第一步通过后）。
+     *
+     * <p>🔴 <b>票据不是 token</b>：它带着 {@code mfaPending} 标记，{@code AdminAuthFilter}
+     * 见到该标记一律 401。有效期仅 {@value #MFA_TICKET_TTL_SECONDS} 秒，
+     * 作用只有「把第一步的结论带到第二步」。
+     *
+     * @param accountId 管理员账号 ID
+     * @return 紧凑序列化 JWT（含 {@code mfaPending=true}）
+     */
+    public String createMfaTicket(Long accountId) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(String.valueOf(accountId))
+                .claim(CLAIM_MFA_PENDING, true)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + MFA_TICKET_TTL_SECONDS * 1000L))
+                .signWith(getKey())
+                .compact();
+    }
+
+    /**
+     * 该 token 是否为「仅用于第二因子」的票据。
+     *
+     * @param claims 已校验的载荷
+     * @return true = 是票据（不得作为访问凭证）
+     */
+    public boolean isMfaTicket(Claims claims) {
+        return Boolean.TRUE.equals(claims.get(CLAIM_MFA_PENDING, Boolean.class));
+    }
+
+    /**
+     * 取 token 内嵌的凭证版本快照。
+     *
+     * @param claims 已校验的载荷
+     * @return 凭证版本；缺失返回 {@code null}（调用方 fail-closed 拒绝）
+     */
+    public Integer getCredentialVersion(Claims claims) {
+        return claims.get(CLAIM_CREDENTIAL_VERSION, Integer.class);
     }
 
     /**

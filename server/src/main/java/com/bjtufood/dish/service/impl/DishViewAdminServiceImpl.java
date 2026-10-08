@@ -2,6 +2,7 @@ package com.bjtufood.dish.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.dto.SortItem;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.dish.dto.DishViewAdminVO;
@@ -87,6 +88,8 @@ public class DishViewAdminServiceImpl implements DishViewAdminService {
         if (Boolean.TRUE.equals(current.getEnabled())) {
             requireOtherEnabledExists(id, "不允许删除最后一个启用的视图");
         }
+        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
+        AuditSnapshot.before(current);
         viewMapper.deleteById(id);
         viewCatalog.invalidateViews();
     }

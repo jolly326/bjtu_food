@@ -1,5 +1,6 @@
 package com.bjtufood.moderation.service.impl;
 
+import com.bjtufood.auth.service.UserViolationService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.moderation.dto.SecSuggest;
 import com.bjtufood.moderation.service.ContentSecurityService;
@@ -8,8 +9,10 @@ import com.bjtufood.wechat.config.WechatProperties;
 import com.bjtufood.wechat.service.WechatAccessTokenProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -42,7 +45,8 @@ import java.util.function.Supplier;
  *   <li>图片以 errcode 判定：0=通过，87014=违规，其余=调用失败 fail-closed；</li>
  *   <li>risky 统一在本服务拦截为 400「内容包含违规信息，请修改后重试」，文案不散落调用方；</li>
  *   <li>上游不可达/调用失败 fail-closed（500），保证入库内容必过审核（产品定稿「全部 UGC 过检」）；</li>
- *   <li>openid 为空（历史学号账号边界）跳过检测放行（报告已备案）。</li>
+ *   <li>凭据未配置 / openid 为空一律 <b>fail-closed</b>：<b>不存在「跳过检测放行」的绕过口</b> ——
+ *       生产缺凭据 ⇒ 启动即失败（{@link #validateOnStartup}）；运行时缺任一前置条件 ⇒ 拒绝入库。</li>
  * </ul>
  * <p>
  * 职责边界（架构收口 P0-B / P1-A）：
@@ -77,12 +81,30 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     private final WechatProperties wechatProperties;
 
     /**
+     * 违规累积入口（机审 {@code risky} 命中时按 openid 给账号记一次违规）。
+     * <p>
+     * 依赖 auth 域的**接口契约**（非实现类）：内容域只负责「判定为违规」，
+     * 「违规如何累积、累积到几档怎么处置」是账号域的规则。
+     */
+    private final UserViolationService userViolationService;
+
+    /**
+     * 激活的 profile（逗号分隔，取自 {@code spring.profiles.active}）。
+     * <p>
+     * 仅用于「内容安全检测在生产必须可用」的 fail-fast 判定：生产缺凭据属部署漏配，
+     * 必须启动即失败，而不是「启动成功但静默放行未检测内容」。
+     */
+    @Value("${spring.profiles.active:}")
+    private String activeProfiles;
+
+    /**
      * Spring 装配入口：注入凭据提供方，RestTemplate 走默认超时配置。
      * 保留单参构造的「可注入语义」，便于测试整体替换依赖。
      */
     @Autowired
-    public ContentSecurityServiceImpl(WechatAccessTokenProvider tokenProvider, WechatProperties wechatProperties) {
-        this(defaultRestTemplate(), tokenProvider, wechatProperties);
+    public ContentSecurityServiceImpl(WechatAccessTokenProvider tokenProvider, WechatProperties wechatProperties,
+                                      UserViolationService userViolationService) {
+        this(defaultRestTemplate(), tokenProvider, wechatProperties, userViolationService);
     }
 
     /**
@@ -90,10 +112,39 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
      * 生产装配走 {@link #ContentSecurityServiceImpl(WechatAccessTokenProvider, WechatProperties)}。
      */
     public ContentSecurityServiceImpl(RestTemplate restTemplate, WechatAccessTokenProvider tokenProvider,
-                                      WechatProperties wechatProperties) {
+                                      WechatProperties wechatProperties,
+                                      UserViolationService userViolationService) {
         this.restTemplate = restTemplate;
         this.tokenProvider = tokenProvider;
         this.wechatProperties = wechatProperties;
+        this.userViolationService = userViolationService;
+    }
+
+    /**
+     * 启动校验：**生产环境必须可用内容安全检测**。
+     * <p>
+     * 🔴 生产缺微信凭据 = 全部 UGC 无法送检，属合规事故级别问题 ⇒ 启动即失败（fail-fast），
+     * 绝不「启动成功、运行时静默放行未检测内容」。
+     */
+    @PostConstruct
+    void validateOnStartup() {
+        if (isProduction() && !tokenProvider.isConfigured()) {
+            throw new IllegalStateException(
+                    "生产环境未配置微信凭据（WECHAT_APPID / WECHAT_SECRET）：内容安全检测不可用，拒绝启动");
+        }
+    }
+
+    /** 是否运行在生产 profile（唯一用途见 {@link #validateOnStartup}） */
+    private boolean isProduction() {
+        if (!StringUtils.hasText(activeProfiles)) {
+            return false;
+        }
+        for (String profile : activeProfiles.split(",")) {
+            if ("prod".equals(profile.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -115,15 +166,20 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
 
     @Override
     public SecSuggest detectText(String openid, String content, int scene) {
-        // 边界 1：微信凭据未配置（本地开发/测试环境）→ 跳过内容安全检测放行（生产必须配置，部署检查项）
+        // 🔴 fail-closed：凭据未配置。生产环境已在启动期阻断（validateOnStartup），
+        //    此处再显式判一次生产分支，杜绝「部署漏配 ⇒ 静默放行未检测内容」。
         if (!tokenProvider.isConfigured()) {
-            log.debug("微信内容安全检测未配置，跳过文本内容安全检测（scene={}）", scene);
+            if (isProduction()) {
+                log.error("生产环境微信内容安全检测不可用（凭据未配置），拒绝写入（scene={}）", scene);
+                throw new IllegalStateException("内容安全检测不可用");
+            }
+            log.warn("微信内容安全检测未配置，跳过检测（仅限非生产环境，scene={}）", scene);
             return SecSuggest.PASS;
         }
-        // 边界 2：历史学号账号无 openid，msgSecCheck v2 无法调用 → 跳过内容安全检测放行（产品登记边界）
+        // 🔴 fail-closed：无 openid 即无法调用 msgSecCheck v2 ⇒ 拒绝入库，绝不放行
         if (!StringUtils.hasText(openid)) {
-            log.debug("当前用户无 openid（历史学号账号），跳过文本内容安全检测（scene={}）", scene);
-            return SecSuggest.PASS;
+            log.warn("送检缺 openid，无法完成内容安全检测，拒绝写入（scene={}）", scene);
+            throw new BusinessException(400, "内容暂时无法校验，请稍后再试");
         }
         if (!StringUtils.hasText(content)) {
             // 空文本无可检内容，直接放行（纯图 UGC 场景）
@@ -166,9 +222,27 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     public SecSuggest checkText(String openid, String content, int scene) {
         SecSuggest suggest = detectText(openid, content, scene);
         if (suggest == SecSuggest.RISKY) {
+            recordViolationQuietly(openid);
             throw new BusinessException(400, "内容包含违规信息，请修改后重试");
         }
         return suggest;
+    }
+
+    /**
+     * 给账号记一次违规累积（**尽力而为**）。
+     * <p>
+     * 🔴 <b>不得影响主判定</b>：计数失败（数据库抖动等）绝不能让「内容违规」这一既有结论
+     * 变成 500 —— 那会把一次明确拦截变成一次不明故障，且用户重试仍会被拦。
+     * 故此处吞掉异常并记 ERROR 留痕（计数丢失比误报故障轻得多）。
+     *
+     * @param openid 违规内容提交者的 openid（为空=历史学号账号，无法定位，跳过）
+     */
+    private void recordViolationQuietly(String openid) {
+        try {
+            userViolationService.recordModerationHit(openid);
+        } catch (Exception e) {
+            log.error("[VIOLATION] 违规累积计数失败（不影响本次拦截）：{}", e.getClass().getSimpleName(), e);
+        }
     }
 
     /**
@@ -258,7 +332,11 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
             throw new BusinessException(400, "图片超过 1MB 限制，请压缩后重试");
         }
         if (!tokenProvider.isConfigured()) {
-            log.debug("微信内容安全检测未配置，跳过图片内容安全检测");
+            if (isProduction()) {
+                log.error("生产环境微信内容安全检测不可用（凭据未配置），拒绝图片入库");
+                throw new IllegalStateException("内容安全检测不可用");
+            }
+            log.warn("微信内容安全检测未配置，跳过图片检测（仅限非生产环境）");
             return;
         }
         // BE-06：整段（取 token → 请求 → 判 errcode）纳入重试包装，

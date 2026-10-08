@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
+import com.bjtufood.auth.service.UserViolationService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.feedback.constant.FeedbackConst;
@@ -31,6 +32,7 @@ import com.bjtufood.notification.dto.NotificationCmd;
 import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.notification.util.NotificationUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,6 +44,7 @@ import java.util.Map;
 /**
  * 用户反馈服务实现
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FeedbackServiceImpl implements FeedbackService {
@@ -67,6 +70,11 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final ImageUrlUtil imageUrlUtil;
     /** 跨域只读契约：举报目标（评价）存在性与可见性校验（方案 B 举报子资源） */
     private final ReviewService reviewService;
+    /**
+     * 跨域写入契约：举报成立 ⇒ 给被举报内容作者记一次违规累积（规则在账号域，
+     * 本域只负责「举报被判定成立」这一事实的转达）。
+     */
+    private final UserViolationService userViolationService;
 
     /**
      * 提交反馈。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
@@ -368,6 +376,29 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedbackMapper.updateById(feedback);
         // 处理结果回执（携带处理结论与不采纳原因）：向「可归属」提交人（提交时带 userId 的登录态，含游客）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason, hiddenThisTime);
+        // 举报**成立**（结论为通过/已处理）⇒ 给被举报内容作者记一次违规累积：
+        // 「不采纳」不是违规，故只在非 rejected 时计数。
+        if (!rejected && FeedbackConst.TYPE_REPORT.equals(feedback.getType())
+                && feedback.getRelatedId() != null) {
+            recordReportUpheldQuietly(feedback.getRelatedId());
+        }
+    }
+
+    /**
+     * 举报成立 ⇒ 违规累积计数（**尽力而为**）。
+     * <p>
+     * 🔴 计数失败不得影响处置结果本身：管理端已经点了「通过」，若因账号域写库抖动
+     * 让整个处置回滚，管理员会看到「处置失败」而实际结论无从判断 —— 计数丢失远比这轻。
+     *
+     * @param reviewId 被举报评价的 ID
+     */
+    private void recordReportUpheldQuietly(Long reviewId) {
+        try {
+            userViolationService.recordReportUpheld(reviewService.findAuthorId(reviewId));
+        } catch (Exception e) {
+            log.error("[VIOLATION] 举报成立的违规累积计数失败（不影响处置结论）：{}",
+                    e.getClass().getSimpleName(), e);
+        }
     }
 
     /**

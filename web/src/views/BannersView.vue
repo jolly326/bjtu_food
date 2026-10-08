@@ -12,6 +12,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { useReorder } from '@/composables/useReorder'
@@ -232,7 +233,7 @@ onMounted(() => load())
     <!-- 详情 / 编辑抽屉（同一抽屉两态） -->
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
-      <template v-if="mode === 'view'">
+      <template v-if="mode === 'view' && canWrite()">
         <div class="field">
           <label id="bn-image-label">Banner 图（点击看大图）</label>
           <div
@@ -253,23 +254,33 @@ onMounted(() => load())
           <div v-else class="muted">暂无图片（点「编辑」上传）</div>
         </div>
 
-        <div class="detail-meta">
-          <DetailMetaRow k="Banner ID" num>#{{ current?.id }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">顺序</span>
-            <span class="meta-val num">
-              {{ current?.order }}
-              <span class="muted">（升序；在卡片列表上拖拽调整）</span>
-            </span>
+        <!-- 分组：投放信息（顺序 / 状态并列）→ 标识与时间 -->
+        <div class="detail-group">
+          <div class="detail-group-title">投放信息</div>
+          <div class="detail-meta detail-meta--grid">
+            <div class="meta-row">
+              <span class="meta-key">顺序</span>
+              <span class="meta-val num">
+                {{ current?.order }}
+                <span class="muted">（升序；在卡片列表上拖拽调整）</span>
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">状态</span>
+              <span class="meta-val"
+                ><StatusTag :status="current?.status ?? 'off'" kind="onoff"
+              /></span>
+            </div>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">状态</span>
-            <span class="meta-val"
-              ><StatusTag :status="current?.status ?? 'off'" kind="onoff"
-            /></span>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">标识与时间</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="Banner ID" num>#{{ current?.id }}</DetailMetaRow>
+            <DetailMetaRow k="创建时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
+            <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
           </div>
-          <DetailMetaRow k="创建时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
-          <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
         </div>
       </template>
 
@@ -289,8 +300,14 @@ onMounted(() => load())
       </template>
 
       <template #actions>
-        <template v-if="mode === 'view'">
-          <button class="link" type="button" :disabled="isBusy(current?.id)" @click="startEdit">
+        <template v-if="mode === 'view' && canWrite()">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="startEdit"
+          >
             编辑
           </button>
           <button
@@ -302,6 +319,7 @@ onMounted(() => load())
             {{ current?.status === 'on' ? '停用' : '启用' }}
           </button>
           <button
+            v-if="canDelete()"
             class="link danger"
             type="button"
             :disabled="isBusy(current?.id)"

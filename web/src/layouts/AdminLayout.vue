@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getUsername } from '@/api/session'
+import { fetchMe } from '@/api/auth'
+import { roleLabel } from '@/utils/permissions'
+import AccountSecurityDialog from '@/components/AccountSecurityDialog.vue'
 
 /**
  * 管理后台外壳（左侧栏 + 内容区）。
@@ -9,7 +12,7 @@ import { getUsername } from '@/api/session'
  * —— **账密登录，无个人页**：🔴 前端不持有口令，底部身份区回显**登录响应下发的 username**
  * （不是静态文案）。
  *
- * <p>导航 **5 组 / 13 项，按业务域分组**（运营 / 场所 / 内容 / 互动 / 账号）——
+ * <p>导航 **5 组 / 14 项，按业务域分组**（运营 / 场所 / 内容 / 互动 / 账号）——
  * 分组口径见 [UI 基线 §1.1](../../../docs/ui/web/公共组件与形态基线.md)：
  * 同一个「域」的菜单放一起（一所食堂的档口归「场所」、菜品与它引用的字典归「内容」、
  * 一切 UGC 与治理字典归「互动」），避免按「主数据 / 治理 / 配置」这类**实现视角**切分。
@@ -26,7 +29,36 @@ interface NavGroup {
 /** 身份区显示名：取登录时回签的 username；取不到则兜底「管理员」 */
 const displayName = computed(() => getUsername() || '管理员')
 
-/** 导航分组（5 组 / 13 项，按业务域） */
+/** 角色展示名（口径见 utils/permissions：未知 / 缺失一律按只读展示） */
+const roleName = ref(roleLabel())
+
+/** 动态口令是否已启用（端上据此展示「绑定」还是「停用」） */
+const mfaEnabled = ref(false)
+
+/** 口令是否已超期（>180 天）⇒ 顶部提示改密，**不强制踢出** */
+const passwordAging = ref(false)
+
+/** 账号安全弹窗（改密 / 动态口令） */
+const securityOpen = ref(false)
+
+/**
+ * 补齐身份区与安全提示所需的信息。
+ *
+ * <p>角色与安全状态只有 `GET /admin/auth/me` 会下发，而路由守卫那次调用只用于「验活」、
+ * 不回传数据 —— 故此处按需再取一次（管理端单人低频，一次额外请求可接受）。
+ */
+onMounted(async () => {
+  try {
+    const me = await fetchMe()
+    roleName.value = roleLabel()
+    mfaEnabled.value = !!me.mfaEnabled
+    passwordAging.value = !!me.passwordAging
+  } catch {
+    // 401 由请求层统一清 token 并跳登录页；此处不重复处置
+  }
+})
+
+/** 导航分组（5 组 / 14 项，按业务域） */
 const groups: NavGroup[] = [
   {
     title: '运营',
@@ -60,7 +92,10 @@ const groups: NavGroup[] = [
   },
   {
     title: '账号',
-    items: [{ to: '/users', label: '用户管理' }],
+    items: [
+      { to: '/users', label: '用户管理' },
+      { to: '/alerts', label: '安全告警' },
+    ],
   },
 ]
 </script>
@@ -88,17 +123,29 @@ const groups: NavGroup[] = [
 
       <div class="sidebar-foot">
         <div class="admin-name">{{ displayName }}</div>
-        <div class="admin-role">已登录</div>
+        <div class="admin-role">{{ roleName }}</div>
+        <button class="security-link" type="button" @click="securityOpen = true">账号安全</button>
       </div>
     </aside>
 
     <main class="content" id="main-content">
+      <!-- 口令超期：提示改密，不阻断操作（真源 secur/web/防爆破与限流.md §3） -->
+      <div v-if="passwordAging" class="aging-notice" role="status">
+        当前口令已使用超过 180 天，建议尽快在「账号安全」中修改。
+      </div>
       <RouterView v-slot="{ Component }">
         <transition name="view-fade" mode="out-in">
           <component :is="Component" />
         </transition>
       </RouterView>
     </main>
+
+    <AccountSecurityDialog
+      :open="securityOpen"
+      :mfa-enabled="mfaEnabled"
+      @close="securityOpen = false"
+      @mfa-changed="mfaEnabled = $event"
+    />
   </div>
 </template>
 
@@ -202,6 +249,31 @@ const groups: NavGroup[] = [
 .admin-role {
   font-size: var(--font-xs);
   color: var(--text-muted);
+}
+.security-link {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary-text);
+  font-size: var(--font-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.security-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+.aging-notice {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  background: var(--color-primary-bg);
+  color: var(--color-primary-text);
+  font-size: var(--font-sm);
 }
 
 .content {

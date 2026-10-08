@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActiveFilters: typeof import('./components/ActiveFilters.vue')['default']
     AppIcon: typeof import('./components/AppIcon.vue')['default']
     BaseDrawer: typeof import('./components/BaseDrawer.vue')['default']
     BaseModal: typeof import('./components/BaseModal.vue')['default']

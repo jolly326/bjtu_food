@@ -177,6 +177,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         FeedbackServiceImpl.class,
         // 举报原因字典（A7 表驱动）：FeedbackServiceImpl 依赖其 isSubmittable 做提交白名单
         ReportReasonServiceImpl.class,
+        // 管理端操作审计（AdminAuthFilter 构造依赖）：装配真实记录器 + 打桩其 Mapper 与告警通道
+        com.bjtufood.common.audit.AdminAuditRecorder.class,
         // 反馈落库事务 Bean
         FeedbackPersister.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
@@ -201,7 +203,7 @@ class SmokeApiTest {
         jwt.setSecret("SmokeApiTestAdminJwtSecret_0123456789ABC");
         jwt.setExpirationSeconds(3600L);
         props.setJwt(jwt);
-        return "Bearer " + new AdminJwtUtil(props).createToken(1L, "smoke-admin");
+        return "Bearer " + new AdminJwtUtil(props).createToken(1L, "smoke-admin", 1);
     }
 
     /**
@@ -216,6 +218,10 @@ class SmokeApiTest {
         AdminAccount account = new AdminAccount();
         account.setId(1L);
         account.setStatus("on");
+        // 凭证版本与 adminBearer() 内嵌值一致（改密后版本自增 ⇒ 旧 token 失效）
+        account.setCredentialVersion(1);
+        // 全权角色：默认桩按 super（写 / 删除均放行），RBAC 用例在自身内部覆盖为受限角色
+        account.setRole("super");
         org.mockito.Mockito.lenient().when(adminAccountService.findById(1L)).thenReturn(account);
     }
 
@@ -247,6 +253,15 @@ class SmokeApiTest {
     /** 管理员账号（TD-16）：切片不连库，登录 / 登录态用例按需打桩 */
     @MockBean
     private AdminAccountService adminAccountService;
+    /** MFA 第二因子（AdminAuthController 构造依赖）：切片只验证登录两步契约，动态口令判定打桩 */
+    @MockBean
+    private com.bjtufood.auth.service.AdminMfaService adminMfaService;
+    /** 违规累积入口（FeedbackServiceImpl 构造依赖）：账号维度规则另有其归属，此处打桩 */
+    @MockBean
+    private com.bjtufood.auth.service.UserViolationService userViolationService;
+    /** ID 枚举检测（DishController / ReviewController 构造依赖）：打桩避免测试间按 IP 互相污染计数 */
+    @MockBean
+    private com.bjtufood.common.ratelimit.IdEnumerationGuard idEnumerationGuard;
     @MockBean
     private DishService dishService;
     @MockBean
@@ -255,6 +270,15 @@ class SmokeApiTest {
     private UploadService uploadService;
     @MockBean
     private IpRateLimiter ipRateLimiter;
+    /** 管理端账号维度登录防护（AdminAuthController 构造依赖）：打桩使锁定 / 退避判定恒为「无」 */
+    @MockBean
+    private com.bjtufood.auth.support.LoginAttemptGuard loginAttemptGuard;
+    /** 安全告警通道：打桩，避免测试真的发起 HTTP 推送 */
+    @MockBean
+    private com.bjtufood.common.alert.SecurityAlertNotifier securityAlertNotifier;
+    /** 审计写入依赖的 Mapper：切片不连库，打桩 */
+    @MockBean
+    private com.bjtufood.common.audit.mapper.AdminAuditLogMapper adminAuditLogMapper;
     /** @RequireVerified 切面按 user.bind_email（认证态唯一判据）实时判定，打桩避免查库 */
     @MockBean
     private UserMapper userMapper;
@@ -453,6 +477,7 @@ class SmokeApiTest {
         // 方案 B后 /feedback 仅接受纯反馈三类（bug/suggestion/other）；
         // 历史遗留类型 issue（及 report/error/add）均不在写白名单 → 400
         mockMvc.perform(post("/feedback")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"issue\",\"content\":\"历史类型禁新增\"}"))
                 .andExpect(status().isOk())
@@ -465,6 +490,7 @@ class SmokeApiTest {
         // 注：bug/suggestion/error/other 已随「意见反馈页改单表单 + 4 类型」放开为可写，
         // 原用例以 bug 断言 400 的写法已随规格变更失效，改用仍禁新增的 add，保住「白名单外必须 400」的防回归意图。
         mockMvc.perform(post("/feedback")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"add\",\"content\":\"历史类型禁新增\"}"))
                 .andExpect(status().isOk())
@@ -484,6 +510,7 @@ class SmokeApiTest {
                 .thenThrow(new BusinessException(400, "内容包含违规信息，请修改后重试"));
 
         mockMvc.perform(post("/feedback")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"other\",\"content\":\"违规内容\"}"))
                 .andExpect(status().isOk())
@@ -495,14 +522,13 @@ class SmokeApiTest {
     }
 
     @Test
-    void submitFeedback_guestOther_persistsAndReturns200() throws Exception {
+    void submitFeedback_loggedIn_persistsWithCurrentUser() throws Exception {
         when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // 请求体故意携带已退役的 contact 字段：
-        // FeedbackReq.contact 已删除，Jackson 忽略未知字段，请求应正常落库且不含联系方式语义
         mockMvc.perform(post("/feedback")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"other\",\"content\":\"希望增加素食档口\",\"contact\":\"2024001@bjtu.edu.cn\"}"))
+                        .content("{\"type\":\"other\",\"content\":\"希望增加素食档口\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
@@ -510,8 +536,32 @@ class SmokeApiTest {
         verify(feedbackMapper).insert(captor.capture());
         Feedback saved = captor.getValue();
         Assertions.assertEquals("other", saved.getType());
-        // 游客反馈：不信任前端 userId，登录态缺失即 null
-        Assertions.assertNull(saved.getUserId());
+        // 归属只认 JWT：写请求一律绑定当前登录用户，不信任请求体
+        Assertions.assertEquals(USER_ID, saved.getUserId());
+    }
+
+    /**
+     * 未携带凭证 ⇒ 401：反馈 / 举报 / 菜品问题反馈一律需登录，
+     * 匿名请求不再可写（否则脚本可无 token 灌库且无法归因、无法按账号限频）。
+     */
+    @Test
+    void submitFeedback_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/feedback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"other\",\"content\":\"匿名灌库尝试\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
+    }
+
+    /** 请求体携带**未声明字段** ⇒ 400（全局开启拒绝未知字段，封堵字段注入试探） */
+    @Test
+    void submitFeedback_unknownField_returns400() throws Exception {
+        mockMvc.perform(post("/feedback")
+                        .header("Authorization", studentToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"other\",\"content\":\"字段注入试探\",\"userId\":999}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     /**
@@ -526,6 +576,7 @@ class SmokeApiTest {
         // 举报原因白名单查表（A7）：原因 ID 1 存在且启用 ⇒ selectCount > 0
         when(reportReasonMapper.selectCount(any())).thenReturn(1L);
         mockMvc.perform(post("/reviews/3/report")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reasonId\":1}"))
                 .andExpect(status().isOk())
@@ -545,6 +596,7 @@ class SmokeApiTest {
     void reportReview_missingReason_returns400() throws Exception {
         // 举报原因**必选**：DTO @NotBlank 在进入 Controller 方法体前拦截 → HTTP 400 + body code=400
         mockMvc.perform(post("/reviews/3/report")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -556,6 +608,7 @@ class SmokeApiTest {
         // 原因 ID 不在字典白名单 → 400（PR-06：非法入参必须报错，杜绝脏值入库）
         when(reviewService.existsVisibleById(3L)).thenReturn(true);
         mockMvc.perform(post("/reviews/3/report")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reasonId\":999}"))
                 .andExpect(status().isOk())
@@ -568,6 +621,7 @@ class SmokeApiTest {
         // 被举报评价不存在 / 不可见 → 4001（RESTful 子资源：父资源缺失即 4001）
         when(reviewService.existsVisibleById(3L)).thenReturn(false);
         mockMvc.perform(post("/reviews/3/report")
+                        .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reasonId\":1}"))
                 .andExpect(status().isOk())
@@ -611,6 +665,22 @@ class SmokeApiTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(401))
                 .andExpect(jsonPath("$.message").value(ADMIN_TOKEN_INVALID_MESSAGE));
+    }
+
+    /** RBAC：只读角色执行写操作 → 403（门控在服务端强制，与前端隐显入口无关） */
+    @Test
+    void adminWriteWithViewerRole_returns403() throws Exception {
+        AdminAccount viewer = new AdminAccount();
+        viewer.setId(1L);
+        viewer.setStatus("on");
+        viewer.setCredentialVersion(1);
+        viewer.setRole("viewer");
+        org.mockito.Mockito.lenient().when(adminAccountService.findById(1L)).thenReturn(viewer);
+
+        mockMvc.perform(multipart("/admin/upload").file(jpegFile())
+                        .header(ADMIN_AUTH_HEADER, adminBearer()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403));
     }
 
     @Test
@@ -762,6 +832,7 @@ class SmokeApiTest {
         account.setUsername("kingdo404");
         account.setPasswordHash(passwordEncoder.encode("S3cret-passw0rd"));
         account.setStatus("on");
+        account.setCredentialVersion(1);
         when(adminAccountService.findByUsername("kingdo404")).thenReturn(account);
 
         mockMvc.perform(post("/admin/auth/login")
@@ -773,6 +844,75 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.username").value("kingdo404"))
                 .andExpect(jsonPath("$.data.expiresIn").value(3600))
                 .andExpect(jsonPath("$.data.password").doesNotExist());
+    }
+
+    /**
+     * MFA 两步登录的**安全属性**：第一步不签发 token（只给票据）、票据不得充当访问凭证、
+     * 第二步校验通过才发 token。
+     *
+     * <p>第三条最容易被改坏 —— 若票据能被当作访问凭证，第二因子就完全失效，
+     * 而功能测试（「能登录成功」）依然全绿。
+     */
+    @Test
+    void adminLogin_withMfaIssuesTicketOnly_thenSecondStepIssuesToken() throws Exception {
+        AdminAccount account = new AdminAccount();
+        account.setId(7L);
+        account.setUsername("kingdo404");
+        account.setPasswordHash(passwordEncoder.encode("S3cret-passw0rd"));
+        account.setStatus("on");
+        account.setCredentialVersion(1);
+        // 已绑定 MFA（密钥仅用于判断「是否已绑定」，校验逻辑由 AdminMfaService 打桩）
+        account.setTotpSecret("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+        when(adminAccountService.findByUsername("kingdo404")).thenReturn(account);
+        when(adminAccountService.findById(7L)).thenReturn(account);
+
+        String loginBody = mockMvc.perform(post("/admin/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"kingdo404\",\"password\":\"S3cret-passw0rd\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.mfaRequired").value(true))
+                .andReturn().getResponse().getContentAsString();
+        // 第一步绝不签发访问 token（只发票据）
+        Assertions.assertNull(com.jayway.jsonpath.JsonPath.read(loginBody, "$.data.token"));
+        String ticket = com.jayway.jsonpath.JsonPath.read(loginBody, "$.data.mfaTicket");
+        Assertions.assertNotNull(ticket);
+
+        // 票据不得作为访问凭证
+        mockMvc.perform(get("/admin/auth/me").header(ADMIN_AUTH_HEADER, "Bearer " + ticket))
+                .andExpect(status().isUnauthorized());
+
+        // 动态口令错误 ⇒ 401（会话未建立）
+        when(adminMfaService.verifySecondFactor(eq(7L), anyString(), anyString())).thenReturn(false);
+        mockMvc.perform(post("/admin/auth/login/mfa")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mfaTicket\":\"" + ticket + "\",\"code\":\"000000\"}"))
+                .andExpect(status().isUnauthorized());
+
+        // 动态口令正确 ⇒ 200 + 真正的访问 token
+        when(adminMfaService.verifySecondFactor(eq(7L), anyString(), anyString())).thenReturn(true);
+        mockMvc.perform(post("/admin/auth/login/mfa")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mfaTicket\":\"" + ticket + "\",\"code\":\"123456\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.token").isNotEmpty())
+                .andExpect(jsonPath("$.data.mfaRequired").value(false));
+    }
+
+    /** 改密后旧 token 立即失效（凭证版本比对），既有 401 处置不变 */
+    @Test
+    void adminTokenWithStaleCredentialVersion_isUnauthorized() throws Exception {
+        AdminAccount account = new AdminAccount();
+        account.setId(7L);
+        account.setUsername("kingdo404");
+        account.setStatus("on");
+        // 库中版本已自增（如改密后），token 内仍是旧版本
+        account.setCredentialVersion(2);
+        when(adminAccountService.findById(7L)).thenReturn(account);
+
+        mockMvc.perform(get("/admin/auth/me")
+                        .header(ADMIN_AUTH_HEADER, "Bearer " + adminJwtUtil.createToken(7L, "kingdo404", 1)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
     }
 
     /**
@@ -788,10 +928,11 @@ class SmokeApiTest {
         account.setUsername("kingdo404");
         account.setStatus("on");
         account.setLastLoginAt(LocalDateTime.of(2026, 10, 5, 9, 30, 15));
+        account.setCredentialVersion(1);
         when(adminAccountService.findById(7L)).thenReturn(account);
 
         mockMvc.perform(get("/admin/auth/me")
-                        .header("Authorization", "Bearer " + adminJwtUtil.createToken(7L, "kingdo404")))
+                        .header("Authorization", "Bearer " + adminJwtUtil.createToken(7L, "kingdo404", 1)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.username").value("kingdo404"))

@@ -42,14 +42,15 @@ public class FeedbackController {
     private static final IpRateLimiter.Rule RULE_PER_HOUR = new IpRateLimiter.Rule(10, 3_600_000L);
 
     /**
-     * 提交反馈（PUB：游客与登录用户均可使用，产品决策「反馈不登录也能用」）。
-     * 登录用户带 userId；游客 userId 为 null（管理员端可见，昵称显示为空）。
+     * 提交反馈（🔑 需登录）：写请求绑定账号 —— 可归因、可按账号维度限频。
      */
-    @Operation(summary = "提交反馈", description = "PUB。游客与登录用户均可提交；写入 user_feedback，status=pending。同 IP 每分钟 ≤2 条、每小时 ≤10 条。")
+    @Operation(summary = "提交反馈",
+            description = "🔑 需登录。写入 user_feedback（type=suggestion，status=pending）。"
+                    + "同 IP 每分钟 ≤2 条、每小时 ≤10 条。")
     @PostMapping("/feedback")
     public Result<Void> submitFeedback(@Valid @RequestBody FeedbackReq req) {
-        checkIpRateLimit();
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
+        Long userId = SecurityUtil.getCurrentUserId();
+        checkRateLimit(userId);
         feedbackService.submit(userId, req);
         return Result.success();
     }
@@ -73,9 +74,19 @@ public class FeedbackController {
      * IP 维度滥用防护：POST /feedback 为 permitAll 公开写入口，无频控可被脚本无限灌库；
      * 接入层防护放 Controller（非业务逻辑），参数校验与业务仍归 FeedbackService。
      */
-    private void checkIpRateLimit() {
+    /**
+     * 双维度滥用防护（**IP × 账号**，任一超限即拒）。
+     * <p>
+     * 🔴 账号维度是**换 IP 也绕不过**的那一道：写请求已绑定账号，同一账号在多个 IP 上
+     * 灌库同样会被拦；纯 IP 维度在代理池 / 多出口面前形同虚设。
+     */
+    private void checkRateLimit(Long userId) {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "feedback", ClientIpUtil.resolveCurrent(), RULE_PER_MINUTE, RULE_PER_HOUR);
+        if (waitSeconds == 0L) {
+            waitSeconds = ipRateLimiter.tryAcquire(
+                    "feedback:user", String.valueOf(userId), RULE_PER_MINUTE, RULE_PER_HOUR);
+        }
         if (waitSeconds > 0) {
             throw new BusinessException("提交过于频繁，请 " + waitSeconds + " 秒后再试");
         }

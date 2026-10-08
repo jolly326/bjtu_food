@@ -13,6 +13,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { useReorder } from '@/composables/useReorder'
@@ -340,45 +341,55 @@ onMounted(() => load())
     <!-- 详情 / 编辑 / 取值（同一抽屉三态） -->
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
-      <template v-if="mode === 'view'">
-        <div class="detail-meta">
-          <div class="meta-row">
-            <span class="meta-key">维度 ID</span>
-            <span class="meta-val num">
-              #{{ current?.id }}
-              <span class="muted">（= 菜品 attributes 的键）</span>
-            </span>
+      <template v-if="mode === 'view' && canWrite()">
+        <!-- 分组：定义（两栏）→ 引用计数（决定能否删除，并列强调） -->
+        <div class="detail-group">
+          <div class="detail-group-title">定义</div>
+          <div class="detail-meta detail-meta--grid">
+            <div class="meta-row">
+              <span class="meta-key">维度名</span>
+              <span class="meta-val">
+                {{ current?.name }}
+                <span v-if="current?.system" class="sys-tag">系统</span>
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">取值类型</span>
+              <span class="meta-val">
+                {{ current?.valueType === 'single' ? '单选' : '多选' }}
+                <span v-if="current?.system" class="muted">（系统维度恒单值，不可改）</span>
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">维度 ID</span>
+              <span class="meta-val num">
+                #{{ current?.id }}
+                <span class="muted">（= 菜品 attributes 的键）</span>
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">顺序</span>
+              <span class="meta-val num">
+                {{ current?.order }}
+                <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
+              </span>
+            </div>
+            <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">维度名</span>
-            <span class="meta-val">
-              {{ current?.name }}
-              <span v-if="current?.system" class="sys-tag">系统</span>
-            </span>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">引用计数</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="取值数" num emphasis>{{ current?.valueCount }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">关联菜品</span>
+              <span class="meta-val num">
+                {{ current?.dishCount }}
+                <span class="muted">（被引用时不可删除维度）</span>
+              </span>
+            </div>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">取值类型</span>
-            <span class="meta-val">
-              {{ current?.valueType === 'single' ? '单选' : '多选' }}
-              <span v-if="current?.system" class="muted">（系统维度恒单值，不可改）</span>
-            </span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-key">顺序</span>
-            <span class="meta-val num">
-              {{ current?.order }}
-              <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
-            </span>
-          </div>
-          <DetailMetaRow k="取值数" num>{{ current?.valueCount }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">关联菜品</span>
-            <span class="meta-val num">
-              {{ current?.dishCount }}
-              <span class="muted">（被引用时不可删除维度）</span>
-            </span>
-          </div>
-          <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
         </div>
       </template>
 
@@ -495,6 +506,7 @@ onMounted(() => load())
                       改名
                     </button>
                     <button
+                      v-if="canDelete()"
                       class="link danger"
                       type="button"
                       :disabled="busyValueId === v.id"
@@ -511,14 +523,27 @@ onMounted(() => load())
       </template>
 
       <template #actions>
-        <template v-if="mode === 'view'">
-          <button class="link" type="button" :disabled="isBusy(current?.id)" @click="openValues">
+        <template v-if="mode === 'view' && canWrite()">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="openValues"
+          >
             管理取值
           </button>
-          <button class="link" type="button" :disabled="isBusy(current?.id)" @click="startEdit">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="startEdit"
+          >
             编辑
           </button>
           <button
+            v-if="canDelete()"
             class="link danger"
             type="button"
             :disabled="isBusy(current?.id) || systemDimension"

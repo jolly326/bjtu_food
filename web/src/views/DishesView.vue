@@ -12,9 +12,11 @@
  * <p>**菜品种类字典**（系统维度取值，`dish.meal_type_id` 的取值域）的维护入口挂在本页分类下拉旁
  * （分类抽屉），不单设菜单项 —— 与 [web/categories.md](../../../docs/api/web/categories.md) 的入口口径一致。
  */
+import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import {
@@ -478,6 +480,43 @@ function reset(): void {
   reloadFirstPage()
 }
 
+/* ---- 已生效筛选条件回显（`ActiveFilters`）----
+   下拉筛选项存的是 id，直接回显会让管理员看到「食堂 = 3」这类无意义值 ⇒
+   先按下拉选项的 label 映射为名称，映射不到时回落 `#id`（仍比裸 id 可辨认）。 */
+const canteenLabel = (id: number): string =>
+  canteens.value.find((c) => c.id === id)?.name ?? `#${id}`
+const stallLabel = (id: number): string => stalls.value.find((s) => s.id === id)?.name ?? `#${id}`
+const categoryLabel = (id: number): string =>
+  categories.value.find((c) => c.id === id)?.label ?? `#${id}`
+
+const activeFilters = computed(() => {
+  const out: { key: string; label: string; value: string }[] = []
+  if (fKeyword.value.trim())
+    out.push({ key: 'keyword', label: '菜品名', value: fKeyword.value.trim() })
+  if (fCanteenId.value)
+    out.push({ key: 'canteen', label: '食堂', value: canteenLabel(fCanteenId.value) })
+  if (fStallId.value) out.push({ key: 'stall', label: '档口', value: stallLabel(fStallId.value) })
+  if (fMealTypeId.value)
+    out.push({ key: 'category', label: '分类', value: categoryLabel(fMealTypeId.value) })
+  if (fStatus.value)
+    out.push({
+      key: 'status',
+      label: '状态',
+      value: fStatus.value === 'on' ? '在售' : '已下架',
+    })
+  return out
+})
+
+/** 清除单个筛选条件并重查 */
+function clearFilter(key: string): void {
+  if (key === 'keyword') fKeyword.value = ''
+  if (key === 'canteen') fCanteenId.value = 0
+  if (key === 'stall') fStallId.value = 0
+  if (key === 'category') fMealTypeId.value = 0
+  if (key === 'status') fStatus.value = ''
+  reloadFirstPage()
+}
+
 onMounted(async () => {
   // 依赖数据（下拉）失败不阻塞列表
   try {
@@ -538,6 +577,8 @@ onMounted(async () => {
       </select>
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
+      <!-- 已生效筛选条件回显：让管理员一眼看出当前结果被什么条件筛出（可点单个清除） -->
+      <ActiveFilters :items="activeFilters" @remove="clearFilter" @clear="reset" />
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
@@ -628,51 +669,71 @@ onMounted(async () => {
           <div v-else class="muted">暂无配图</div>
         </div>
 
-        <div class="detail-meta">
-          <DetailMetaRow k="菜品 ID" num>#{{ detail.id }}</DetailMetaRow>
-          <DetailMetaRow k="名称">{{ detail.name }}</DetailMetaRow>
-          <DetailMetaRow k="现价" num>{{ formatYuan(detail.price) }}</DetailMetaRow>
-          <DetailMetaRow k="原价" num>{{
-            detail.originalPrice == null ? '—（无折扣）' : formatYuan(detail.originalPrice)
-          }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">分类</span>
-            <span class="meta-val">
-              {{ detail.mealTypeLabel || '—' }}<span class="muted"> #{{ detail.mealTypeId }}</span>
-            </span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-key">归属</span>
-            <span class="meta-val">
-              {{ detail.canteenName }} / {{ detail.stallName
-              }}<span class="muted"> #{{ detail.stallId }}</span>
-            </span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-key">状态</span>
-            <span class="meta-val"><StatusTag :status="detail.status" kind="dish" /></span>
-          </div>
-          <DetailMetaRow k="描述">{{ detail.description || '—' }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">描述属性</span>
-            <span class="meta-val">
-              <template v-if="attributeRows.length">
-                <span v-for="attr in attributeRows" :key="attr.label" class="attr-line">
-                  {{ attr.label }}：{{ attr.value }}
-                </span>
-              </template>
-              <span v-else class="muted">未设置</span>
-            </span>
-          </div>
-          <div class="meta-row">
-            <span class="meta-key">评分</span>
-            <span class="meta-val num">
+        <!-- 分组：核心指标（评分 / 价格并列强调）→ 基本信息（两栏）→ 描述与属性（整行） -->
+        <div class="detail-group">
+          <div class="detail-group-title">核心指标</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="评分" emphasis>
               {{ detail.avgRating ?? '—' }}
-              <span class="muted">（{{ detail.ratingCount }} 条评价）</span>
-            </span>
+              <span class="muted">（{{ detail.ratingCount }} 条）</span>
+            </DetailMetaRow>
+            <DetailMetaRow k="现价" num emphasis>{{ formatYuan(detail.price) }}</DetailMetaRow>
           </div>
-          <DetailMetaRow k="创建时间">{{ formatDateTime(detail.createdAt) }}</DetailMetaRow>
-          <DetailMetaRow k="更新时间">{{ formatDateTime(detail.updatedAt) }}</DetailMetaRow>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">基本信息</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="名称">{{ detail.name }}</DetailMetaRow>
+            <DetailMetaRow k="菜品 ID" num>#{{ detail.id }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">分类</span>
+              <span class="meta-val">
+                {{ detail.mealTypeLabel || '—'
+                }}<span class="muted"> #{{ detail.mealTypeId }}</span>
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">状态</span>
+              <span class="meta-val"><StatusTag :status="detail.status" kind="dish" /></span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">归属</span>
+              <span class="meta-val">
+                {{ detail.canteenName }} / {{ detail.stallName
+                }}<span class="muted"> #{{ detail.stallId }}</span>
+              </span>
+            </div>
+            <DetailMetaRow k="原价" num>
+              {{ detail.originalPrice == null ? '—（无折扣）' : formatYuan(detail.originalPrice) }}
+            </DetailMetaRow>
+          </div>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">描述与属性</div>
+          <div class="detail-meta">
+            <DetailMetaRow k="描述">{{ detail.description || '—' }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">描述属性</span>
+              <span class="meta-val">
+                <template v-if="attributeRows.length">
+                  <span v-for="attr in attributeRows" :key="attr.label" class="attr-line">
+                    {{ attr.label }}：{{ attr.value }}
+                  </span>
+                </template>
+                <span v-else class="muted">未设置</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">时间</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="创建时间">{{ formatDateTime(detail.createdAt) }}</DetailMetaRow>
+            <DetailMetaRow k="更新时间">{{ formatDateTime(detail.updatedAt) }}</DetailMetaRow>
+          </div>
         </div>
       </template>
 
@@ -769,17 +830,41 @@ onMounted(async () => {
       </template>
 
       <template #actions>
-        <template v-if="mode === 'view' && detail">
-          <button class="link" type="button" :disabled="isBusy(detail.id)" @click="startEdit">
+        <template v-if="mode === 'view' && canWrite() && detail">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(detail.id)"
+            @click="startEdit"
+          >
             编辑
           </button>
-          <button class="link" type="button" :disabled="isBusy(detail.id)" @click="openCopy">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(detail.id)"
+            @click="openCopy"
+          >
             复制
           </button>
-          <button class="link" type="button" :disabled="isBusy(detail.id)" @click="toggle">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(detail.id)"
+            @click="toggle"
+          >
             {{ detail.status === 'on' ? '下架' : '上架' }}
           </button>
-          <button class="link danger" type="button" :disabled="isBusy(detail.id)" @click="remove">
+          <button
+            v-if="canDelete()"
+            class="link danger"
+            type="button"
+            :disabled="isBusy(detail.id)"
+            @click="remove"
+          >
             删除
           </button>
         </template>
@@ -883,13 +968,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
+/* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
   width: 150px;
 }

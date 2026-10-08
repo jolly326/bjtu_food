@@ -572,3 +572,35 @@ export interface UserStatusReq {
   /** `disabled` = 禁用；`active` = 启用（恢复 `active`）；启停类端点统一用 `status` 字符串枚举 */
   status: 'active' | 'disabled'
 }
+
+// ===== 管理端安全告警 =====
+/** 告警级别键（与后端 `AlertType.Severity` 对齐） */
+export type AlertSeverity = 'info' | 'warn' | 'critical'
+
+export interface SecurityAlertVO {
+  id: number
+  /** 告警类型键（后端枚举名，如 `LOGIN_LOCKOUT`） */
+  alertType: string
+  /** 类型中文标签（**写入时快照**，不随枚举重命名变化） */
+  alertTypeLabel: string
+  /** 级别键：`info` 提示 / `warn` 警告 / `critical` 严重 */
+  severity: AlertSeverity | string
+  /** 级别中文标签（写入时快照） */
+  severityLabel: string
+  title: string
+  /** 明细（脱敏；无明细为空串） */
+  detail: string
+  /** 来源 IP（无 Web 上下文时为空串） */
+  sourceIp: string
+  /** 发生时间（`yyyy-MM-dd HH:mm:ss`） */
+  createdAt: string
+}
+
+export interface AlertListParams {
+  page?: number
+  pageSize?: number
+  /** 告警类型键；空串 / 不传 = 全部 */
+  alertType?: string
+  /** 级别键；空串 / 不传 = 全部 */
+  severity?: AlertSeverity | ''
+}

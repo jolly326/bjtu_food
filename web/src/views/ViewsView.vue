@@ -15,6 +15,7 @@ import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { useReorder } from '@/composables/useReorder'
 import { createView, deleteView, listViews, sortViews, updateView } from '@/api/views'
 import { listCategories } from '@/api/categories'
@@ -466,35 +467,47 @@ onMounted(async () => {
     <!-- 详情 / 编辑抽屉（同一抽屉两态） -->
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
-      <template v-if="mode === 'view' && current">
-        <div class="detail-meta">
-          <DetailMetaRow k="视图 ID" num>#{{ current.id }}</DetailMetaRow>
-          <DetailMetaRow k="tab 文案">{{ current.label }}</DetailMetaRow>
-          <DetailMetaRow k="筛选条件">{{ describeConditions(current.conditions) }}</DetailMetaRow>
-          <DetailMetaRow k="排序口径">{{
-            SORT_KIND_OPTIONS.find((o) => o.value === current?.sortKind)?.label ?? current.sortKind
-          }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">顺序</span>
-            <span class="meta-val num">
-              {{ current.order }}
-              <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
-            </span>
+      <template v-if="mode === 'view' && canWrite() && current">
+        <!-- 分组：投放信息（两栏）→ 筛选与排序（长文本整行） -->
+        <div class="detail-group">
+          <div class="detail-group-title">投放信息</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="tab 文案">{{ current.label }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">状态</span>
+              <span class="meta-val">
+                <StatusTag :status="current.enabled ? 'on' : 'off'" kind="onoff" />
+              </span>
+            </div>
+            <DetailMetaRow k="视图 ID" num>#{{ current.id }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">顺序</span>
+              <span class="meta-val num">
+                {{ current.order }}
+                <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">匹配菜品</span>
+              <span class="meta-val num">
+                {{ current.matchedCount }}
+                <span class="muted">（为 0 时客户端不显示该 tab）</span>
+              </span>
+            </div>
+            <DetailMetaRow k="更新时间">{{ formatDateTime(current.updatedAt) }}</DetailMetaRow>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">状态</span>
-            <span class="meta-val">
-              <StatusTag :status="current.enabled ? 'on' : 'off'" kind="onoff" />
-            </span>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">筛选与排序</div>
+          <div class="detail-meta">
+            <!-- 筛选条件是整段表达式，长文本占满整行（不进两栏网格） -->
+            <DetailMetaRow k="筛选条件">{{ describeConditions(current.conditions) }}</DetailMetaRow>
+            <DetailMetaRow k="排序口径">{{
+              SORT_KIND_OPTIONS.find((o) => o.value === current?.sortKind)?.label ??
+              current.sortKind
+            }}</DetailMetaRow>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">匹配菜品</span>
-            <span class="meta-val num">
-              {{ current.matchedCount }}
-              <span class="muted">（为 0 时客户端不显示该 tab）</span>
-            </span>
-          </div>
-          <DetailMetaRow k="更新时间">{{ formatDateTime(current.updatedAt) }}</DetailMetaRow>
         </div>
       </template>
 
@@ -577,8 +590,14 @@ onMounted(async () => {
       </template>
 
       <template #actions>
-        <template v-if="mode === 'view' && current">
-          <button class="link" type="button" :disabled="isBusy(current.id)" @click="startEdit">
+        <template v-if="mode === 'view' && canWrite() && current">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current.id)"
+            @click="startEdit"
+          >
             编辑
           </button>
           <button
@@ -590,6 +609,7 @@ onMounted(async () => {
             {{ current.enabled ? '停用' : '启用' }}
           </button>
           <button
+            v-if="canDelete()"
             class="link danger"
             type="button"
             :disabled="isBusy(current.id)"

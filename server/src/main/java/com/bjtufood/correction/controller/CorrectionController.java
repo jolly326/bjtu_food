@@ -61,20 +61,24 @@ public class CorrectionController {
             @Parameter(description = "反馈体 {**type**(必填: field|gone), name?, price?, canteenName?, stallName?, "
                     + "floor?, attributes?, images?, note?}；field 型只传改动项，gone 型仅用 note/images（选填）")
             @Valid @RequestBody DishCorrectionReq req) {
-        checkIpRateLimit();
-        Long userId = SecurityUtil.getCurrentUserIdOrNull();
+        Long userId = SecurityUtil.getCurrentUserId();
+        checkRateLimit(userId);
         correctionService.submit(userId, id, req);
         return Result.success();
     }
 
     /**
-     * IP 维度滥用防护（对齐 {@code FeedbackController#checkIpRateLimit}）：
-     * POST /dishes/{id}/correction 为 permitAll 公开写入口，接入层频控放 Controller（非业务逻辑），
+     * 双维度滥用防护（**IP × 账号**，任一超限即拒）：写请求已绑定账号，
+     * 账号维度使「换 IP 刷纠错」同样被拦。接入层频控放 Controller（非业务逻辑），
      * 参数校验与业务仍归 {@code CorrectionService}。
      */
-    private void checkIpRateLimit() {
+    private void checkRateLimit(Long userId) {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "dish-correction", ClientIpUtil.resolveCurrent(), RULE_PER_MINUTE, RULE_PER_HOUR);
+        if (waitSeconds == 0L) {
+            waitSeconds = ipRateLimiter.tryAcquire(
+                    "dish-correction:user", String.valueOf(userId), RULE_PER_MINUTE, RULE_PER_HOUR);
+        }
         if (waitSeconds > 0) {
             throw new BusinessException("提交过于频繁，请 " + waitSeconds + " 秒后再试");
         }

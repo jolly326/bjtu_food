@@ -12,8 +12,10 @@
  * <p>**启停保留为行级快速动作**（高频、可逆）；「解绑邮箱」「删除账号」属编辑 / 删除类 ⇒ 一律进
  * **详情抽屉**（🔴 管理端**不代改**昵称 / 头像等资料，故详情只读、无「编辑」）。
  */
+import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { deleteUserAccount, listUsers, setUserStatus, unbindUserEmail } from '@/api/users'
 import type { UserAdminVO, UserListParams, UserStatus } from '@/types/common'
@@ -153,6 +155,28 @@ function reset(): void {
   reloadFirstPage()
 }
 
+/** 已生效筛选条件（供 `ActiveFilters` 回显；空值不进列表） */
+const activeFilters = computed(() => {
+  const out: { key: string; label: string; value: string }[] = []
+  if (fKeyword.value.trim())
+    out.push({ key: 'keyword', label: '关键词', value: fKeyword.value.trim() })
+  if (fStatus.value)
+    out.push({
+      key: 'status',
+      label: '状态',
+      value:
+        fStatus.value === 'active' ? '正常' : fStatus.value === 'disabled' ? '已禁用' : '已注销',
+    })
+  return out
+})
+
+/** 清除单个筛选条件并重查 */
+function clearFilter(key: string): void {
+  if (key === 'keyword') fKeyword.value = ''
+  if (key === 'status') fStatus.value = ''
+  reloadFirstPage()
+}
+
 onMounted(() => reloadFirstPage())
 </script>
 
@@ -175,6 +199,8 @@ onMounted(() => reloadFirstPage())
       </select>
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
+      <!-- 已生效筛选条件回显 -->
+      <ActiveFilters :items="activeFilters" @remove="clearFilter" @clear="reset" />
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
@@ -220,7 +246,13 @@ onMounted(() => reloadFirstPage())
             <td class="actions">
               <template v-if="row.status !== 'deleted'">
                 <!-- 启停：行级快速动作（高频、可逆，见 §C2 差异节） -->
-                <button class="link" type="button" :disabled="isBusy(row.id)" @click="toggle(row)">
+                <button
+                  v-if="canWrite()"
+                  class="link"
+                  type="button"
+                  :disabled="isBusy(row.id)"
+                  @click="toggle(row)"
+                >
                   {{ row.status === 'disabled' ? '启用' : '禁用' }}
                 </button>
                 <button
@@ -263,31 +295,41 @@ onMounted(() => reloadFirstPage())
         </div>
       </div>
 
-      <div class="detail-meta">
-        <DetailMetaRow k="用户 ID" num>#{{ current?.id }}</DetailMetaRow>
-        <DetailMetaRow k="账号">{{ current?.username }}</DetailMetaRow>
-        <div class="meta-row">
-          <span class="meta-key">状态</span>
-          <span class="meta-val">
-            <StatusTag :status="current?.status ?? 'active'" kind="user" />
-          </span>
+      <!-- 分组：账号标识 → 绑定与认证 → 时间 -->
+      <div class="detail-group">
+        <div class="detail-group-title">账号标识</div>
+        <div class="detail-meta detail-meta--grid">
+          <DetailMetaRow k="账号">{{ current?.username }}</DetailMetaRow>
+          <DetailMetaRow k="用户 ID" num>#{{ current?.id }}</DetailMetaRow>
+          <div class="meta-row">
+            <span class="meta-key">状态</span>
+            <span class="meta-val">
+              <StatusTag :status="current?.status ?? 'active'" kind="user" />
+            </span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">微信绑定</span>
+            <span class="meta-val">
+              {{ current?.wechatBound ? '已绑定' : '未绑定' }}
+              <span class="muted">（仅布尔标识，不回显 openid）</span>
+            </span>
+          </div>
         </div>
-        <div class="meta-row">
-          <span class="meta-key">微信绑定</span>
-          <span class="meta-val">
-            {{ current?.wechatBound ? '已绑定' : '未绑定' }}
-            <span class="muted">（仅布尔标识，不回显 openid）</span>
-          </span>
+      </div>
+
+      <div class="detail-group">
+        <div class="detail-group-title">认证与时间</div>
+        <div class="detail-meta detail-meta--grid">
+          <div class="meta-row">
+            <span class="meta-key">认证邮箱</span>
+            <span class="meta-val">
+              <template v-if="current?.bindEmail">{{ current.bindEmail }}</template>
+              <span v-else class="muted">未认证</span>
+            </span>
+          </div>
+          <DetailMetaRow k="注册时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
+          <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
         </div>
-        <div class="meta-row">
-          <span class="meta-key">认证邮箱</span>
-          <span class="meta-val">
-            <template v-if="current?.bindEmail">{{ current.bindEmail }}</template>
-            <span v-else class="muted">未认证</span>
-          </span>
-        </div>
-        <DetailMetaRow k="注册时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
-        <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
       </div>
 
       <p class="foot-note">
@@ -296,7 +338,13 @@ onMounted(() => reloadFirstPage())
 
       <template #actions>
         <template v-if="!isDeleted">
-          <button class="link" type="button" :disabled="isBusy(current?.id)" @click="detailToggle">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="detailToggle"
+          >
             {{ current?.status === 'disabled' ? '启用' : '禁用' }}
           </button>
           <button
@@ -309,6 +357,7 @@ onMounted(() => reloadFirstPage())
             解绑邮箱
           </button>
           <button
+            v-if="canDelete()"
             class="link danger"
             type="button"
             :disabled="isBusy(current?.id)"
@@ -324,13 +373,7 @@ onMounted(() => reloadFirstPage())
 </template>
 
 <style scoped>
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
+/* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
   width: 180px;
 }

@@ -82,11 +82,18 @@
   --duration-base: 200ms;
   --duration-slow: 300ms;
   --duration-drawer: 400ms;
+  /* 旋转指示（.spin）两档：常速 + 降级速。reduced-motion 下**降速而非停转** —— 停转会误导为「卡死」 */
+  --duration-spin: 700ms;
+  --duration-spin-slow: 1400ms;
+  /* prefers-reduced-motion 全局降级：动画压到「近乎不播放」（业界惯用终止值），过渡保留极短档 */
+  --duration-suppress: 0.01ms;
+  --duration-reduced: 180ms;
 
   /* ===== 缓动曲线（禁止 ease-in） ===== */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-linear: linear; /* 匀速（旋转指示：匀速才读作「持续转」） */
   --press-scale: 0.97;
 
   /* ===== 焦点环（全站统一） ===== */

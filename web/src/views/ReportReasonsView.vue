@@ -11,6 +11,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { useReorder } from '@/composables/useReorder'
 import {
@@ -252,31 +253,41 @@ onMounted(() => load())
     <!-- 详情 / 改名抽屉（同一抽屉两态） -->
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
-      <template v-if="mode === 'view'">
-        <div class="detail-meta">
-          <DetailMetaRow k="原因 ID" num>#{{ current?.id }}</DetailMetaRow>
-          <DetailMetaRow k="中文标签">{{ current?.label }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">顺序</span>
-            <span class="meta-val num">
-              {{ current?.order }}
-              <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
-            </span>
+      <template v-if="mode === 'view' && canWrite()">
+        <!-- 分组：投放信息（顺序 / 状态并列）→ 引用与标识 -->
+        <div class="detail-group">
+          <div class="detail-group-title">投放信息</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="中文标签">{{ current?.label }}</DetailMetaRow>
+            <div class="meta-row">
+              <span class="meta-key">状态</span>
+              <span class="meta-val">
+                <StatusTag :status="current?.status ?? 'off'" kind="onoff" />
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">顺序</span>
+              <span class="meta-val num">
+                {{ current?.order }}
+                <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
+              </span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">引用举报</span>
+              <span class="meta-val num">
+                {{ current?.feedbackCount }}
+                <span class="muted">（被引用时不可删除，请改用「停用」）</span>
+              </span>
+            </div>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">状态</span>
-            <span class="meta-val">
-              <StatusTag :status="current?.status ?? 'off'" kind="onoff" />
-            </span>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">标识与时间</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="原因 ID" num>#{{ current?.id }}</DetailMetaRow>
+            <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
           </div>
-          <div class="meta-row">
-            <span class="meta-key">引用举报</span>
-            <span class="meta-val num">
-              {{ current?.feedbackCount }}
-              <span class="muted">（被引用时不可删除，请改用「停用」）</span>
-            </span>
-          </div>
-          <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
         </div>
       </template>
 
@@ -296,7 +307,7 @@ onMounted(() => load())
       </template>
 
       <template #actions>
-        <template v-if="mode === 'view'">
+        <template v-if="mode === 'view' && canWrite()">
           <button class="link" type="button" :disabled="isBusy(current?.id)" @click="startRename">
             改名
           </button>
@@ -309,6 +320,7 @@ onMounted(() => load())
             {{ current?.status === 'on' ? '停用' : '启用' }}
           </button>
           <button
+            v-if="canDelete()"
             class="link danger"
             type="button"
             :disabled="isBusy(current?.id)"

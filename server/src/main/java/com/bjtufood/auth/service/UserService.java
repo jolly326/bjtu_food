@@ -115,6 +115,18 @@ public interface UserService {
      */
     void deleteAccount(Long id);
 
+    /**
+     * 人工踢下线（{@code POST /admin/users/{id}/kick}）—— 不改动账号任何列，
+     * 只让该 userId 的**全部**已签发 token 立即失效（含被盗用中的那一份）。
+     * <p>
+     * <b>为什么需要独立端点</b>：确认「token 被滥用」后的止损动作，不应被迫用「禁用账号」来实现 ——
+     * 禁用会让正常用户完全无法使用（连登录都进不去），而踢下线只要求重新登录取新 token。
+     *
+     * @param id 用户ID
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 用户不存在
+     */
+    void kickSessions(Long id);
+
     // ==================== 跨域只读契约（P0-1 分层约束） ====================
 
     /**

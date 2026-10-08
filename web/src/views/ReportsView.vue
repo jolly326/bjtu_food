@@ -9,10 +9,12 @@
  *
  * <p>处置抽屉含**「同时隐藏被举报评价」复选**（默认勾选；评价已隐藏时**置灰且不可改**）。
  */
+import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
+import { canWrite } from '@/utils/permissions'
 import { handleFeedback, listFeedbacks } from '@/api/feedbacks'
 import type { AdminPage, FeedbackListParams, FeedbackStatus, ReportAdminVO } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
@@ -133,6 +135,27 @@ function reset(): void {
   reloadFirstPage()
 }
 
+/** 已生效筛选条件（供 `ActiveFilters` 回显；空值不进列表） */
+const activeFilters = computed(() => {
+  const out: { key: string; label: string; value: string }[] = []
+  if (fStatus.value) {
+    out.push({
+      key: 'status',
+      label: '状态',
+      value: fStatus.value === 'pending' ? '待处理' : '已处理',
+    })
+  }
+  if (fReason.value.trim()) out.push({ key: 'reason', label: '原因', value: fReason.value.trim() })
+  return out
+})
+
+/** 清除单个筛选条件并重查（值已变，`@change` / 手动查询同一路径） */
+function clearFilter(key: string): void {
+  if (key === 'status') fStatus.value = ''
+  if (key === 'reason') fReason.value = ''
+  reloadFirstPage()
+}
+
 onMounted(() => reloadFirstPage())
 </script>
 
@@ -154,6 +177,8 @@ onMounted(() => reloadFirstPage())
       />
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
+      <!-- 已生效筛选条件回显：让管理员一眼看出当前结果被什么条件筛出（可点单个清除） -->
+      <ActiveFilters :items="activeFilters" @remove="clearFilter" @clear="reset" />
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
@@ -183,7 +208,7 @@ onMounted(() => reloadFirstPage())
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
-              <button class="link" type="button" @click="openHandle(row)">
+              <button v-if="canWrite()" class="link" type="button" @click="openHandle(row)">
                 {{ row.status === 'pending' ? '处置' : '详情' }}
               </button>
             </td>
@@ -244,23 +269,33 @@ onMounted(() => reloadFirstPage())
         </div>
       </div>
 
-      <!-- 已处理 → 只读结论 -->
-      <div v-if="!isPending" class="detail-meta">
-        <DetailMetaRow k="举报 ID" num>#{{ current?.id }}</DetailMetaRow>
-        <div class="meta-row">
-          <span class="meta-key">举报人</span>
-          <span class="meta-val">
-            {{ current?.userNickname || '游客' }}
-            <span class="muted"> #{{ current?.userId }}</span>
-          </span>
+      <!-- 已处理 → 只读结论（分两组：处理结果 / 提交与处理时间） -->
+      <div v-if="!isPending" class="detail-group">
+        <div class="detail-group-title">处理结果</div>
+        <div class="detail-meta detail-meta--grid">
+          <DetailMetaRow k="处理结论" span>{{ outcomeLabel }}</DetailMetaRow>
+          <div class="meta-row meta-row--span">
+            <span class="meta-key">举报人</span>
+            <span class="meta-val">
+              {{ current?.userNickname || '游客' }}
+              <span class="muted"> #{{ current?.userId }}</span>
+            </span>
+          </div>
+          <DetailMetaRow k="回复举报人" span>{{ current?.reply || '—' }}</DetailMetaRow>
+          <div v-if="current?.rejectReason" class="meta-row meta-row--span">
+            <span class="meta-key">不成立原因</span>
+            <span class="meta-val">{{ current.rejectReason }}</span>
+          </div>
         </div>
-        <DetailMetaRow k="处理结论">{{ outcomeLabel }}</DetailMetaRow>
-        <DetailMetaRow k="回复举报人">{{ current?.reply || '—' }}</DetailMetaRow>
-        <div class="meta-row" v-if="current?.rejectReason">
-          <DetailMetaRow k="不成立原因">{{ current.rejectReason }}</DetailMetaRow>
+      </div>
+
+      <div v-if="!isPending" class="detail-group">
+        <div class="detail-group-title">时间与标识</div>
+        <div class="detail-meta detail-meta--grid">
+          <DetailMetaRow k="举报 ID" num>#{{ current?.id }}</DetailMetaRow>
+          <DetailMetaRow k="提交时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
+          <DetailMetaRow k="处理时间">{{ formatDateTime(current?.handledAt) }}</DetailMetaRow>
         </div>
-        <DetailMetaRow k="提交时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
-        <DetailMetaRow k="处理时间">{{ formatDateTime(current?.handledAt) }}</DetailMetaRow>
       </div>
 
       <!-- 待处理 → 处置表单 -->
@@ -340,13 +375,7 @@ onMounted(() => reloadFirstPage())
 </template>
 
 <style scoped>
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
+/* 筛选区内控件定宽（`.filters` 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
   width: 200px;
 }

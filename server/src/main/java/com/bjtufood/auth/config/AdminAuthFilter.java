@@ -3,10 +3,13 @@ package com.bjtufood.auth.config;
 import com.bjtufood.auth.entity.AdminAccount;
 import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.support.AdminJwtUtil;
+import com.bjtufood.common.audit.AdminAuditRecorder;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,7 +29,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -80,7 +85,36 @@ public class AdminAuthFilter extends OncePerRequestFilter {
      */
     private final IpRateLimiter ipRateLimiter;
 
+    /**
+     * 操作审计写入点：{@code /admin/**} 下的**写操作**（POST / PUT / DELETE / PATCH）落库。
+     * <p>
+     * 覆盖范围由「路径前缀 + HTTP 方法」判定 —— 新增写端点自动纳入，不存在「忘了挂审计」的漏挂面。
+     * 审计写入失败不阻塞业务（见 {@link AdminAuditRecorder}）。
+     */
+    private final AdminAuditRecorder adminAuditRecorder;
+
     private static final Logger log = LoggerFactory.getLogger(AdminAuthFilter.class);
+
+    /** User-Agent 头名（审计留痕用） */
+    private static final String USER_AGENT_HEADER = "User-Agent";
+
+    /** 角色取值（与 {@code admin_account.role} 一致） */
+    private static final String ROLE_SUPER = "super";
+
+    private static final String ROLE_OPERATOR = "operator";
+
+    private static final String ROLE_VIEWER = "viewer";
+
+    /** 只读方法（{@code viewer} 仅允许这些） */
+    private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
+
+    /**
+     * 写操作的 **token（adminId）维度**限频：20/分。
+     * <p>
+     * 阈值依据：管理端写操作是「一次改一条」的低频人工动作，正常使用**远低于** 20/分；
+     * 而脚本批量删改会瞬间突破该值 —— 这正是「token 泄露后被滥用」的可观测信号。
+     */
+    private static final IpRateLimiter.Rule RULE_ADMIN_WRITE_PER_MINUTE = new IpRateLimiter.Rule(20, 60_000L);
 
     /** {@code /admin/**} 的 IP 限频规则（阈值按单人使用放宽，见 {@code P0-4 §4.7.4}） */
     private static final IpRateLimiter.Rule RULE_ADMIN_PER_MINUTE = new IpRateLimiter.Rule(60, 60_000L);
@@ -113,6 +147,24 @@ public class AdminAuthFilter extends OncePerRequestFilter {
      * 那是 Spring Security 授权层的白名单，而本过滤器在其<b>之前</b>执行 —— 两处白名单缺一不可。
      */
     private static final String LOGIN_PATH = "/admin/auth/login";
+
+    /**
+     * <b>登录第二步</b>（绑定 MFA 的账号）。
+     *
+     * <p>与 {@link #LOGIN_PATH} 同理：此时端上持有的是**第二因子票据**而非访问 token，
+     * 若不在白名单内则必 401 ⇒ 绑定 MFA 的账号**永远登录不上**。
+     */
+    private static final String MFA_LOGIN_PATH = "/admin/auth/login/mfa";
+
+    /**
+     * <b>自助端点前缀</b>：{@code /admin/auth/**} 下作用于「当前登录者本人」的端点
+     * （MFA 绑定 / 停用、改密）。
+     *
+     * <p>这类端点**跳过角色门控**：只读角色同样需要能绑定第二因子、能改自己的口令 ——
+     * 卡住它们等于让低权限账号长期停留在「只有一层口令」的状态，与安全目标相反。
+     * 但它们仍要求有效 token（走完整验签与账号状态回查）。
+     */
+    private static final String SELF_SERVICE_PREFIX = "/admin/auth/";
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -173,7 +225,9 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         // 🔴 白名单：登录端点自身还没有 token，照常校验必 401 ⇒「登录总是失败」。
         //    放行位置在**限频之后** —— /admin/** 全域 60/分 对登录同样成立，
         //    登录另有 5/分 · 20/时 的专属限频（在 Controller 内），两道各管各的，互不替代。
-        if (LOGIN_PATH.equals(applicationPath(request))) {
+        //    第二步（票据）同理：端上此时持有的还不是访问 token。
+        String appPath = applicationPath(request);
+        if (LOGIN_PATH.equals(appPath) || MFA_LOGIN_PATH.equals(appPath)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -185,12 +239,20 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         }
 
         Long accountId;
+        Claims claims;
         try {
             // 🔴 取账号 ID 必须与验签同处一个 try：parseAndValidate 只保证「签名有效、未过期」，
             //    不保证 sub 可解析；畸形 sub（非数字 / 缺失）会在 getAccountId 抛
             //    IllegalArgumentException（NumberFormatException 的子类），留在 try 之外会冒泡成 500，
             //    而它本质上与「token 无效」是同一件事 ⇒ 同分支返回 401。
-            accountId = adminJwtUtil.getAccountId(adminJwtUtil.parseAndValidate(token));
+            claims = adminJwtUtil.parseAndValidate(token);
+            // 🔴 第二因子票据不得充当访问凭证：它只是「第一步已通过」的证明，
+            //    若在此被接受，等于第二因子形同虚设。
+            if (adminJwtUtil.isMfaTicket(claims)) {
+                onAuthFailure(response, clientIp, request, "第二因子票据不可作为访问凭证");
+                return;
+            }
+            accountId = adminJwtUtil.getAccountId(claims);
         } catch (JwtException | IllegalArgumentException e) {
             // 🔴 不回显异常细节（可能泄露签名算法 / 密钥长度等信息），统一归为「凭证无效」
             onAuthFailure(response, clientIp, request, "凭证无效或已过期");
@@ -205,14 +267,68 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             return;
         }
 
+        // 🔴 凭证版本比对（改密即失效）：token 内嵌签发时的凭证版本，与库中现值不一致
+        //    ⇒ 该 token 属于「改密前的旧凭证」，一律 401。缺该声明同样拒绝（fail-closed）。
+        Integer tokenVersion = adminJwtUtil.getCredentialVersion(claims);
+        if (tokenVersion == null || !tokenVersion.equals(account.getCredentialVersion())) {
+            onAuthFailure(response, clientIp, request, "凭证版本已失效（口令已变更）");
+            return;
+        }
+
+        // 🔴 角色门控（服务端强制，与前端隐显解耦）：viewer 只读；DELETE 仅 super。
+        //    前端按角色隐显入口只是体验优化 —— 绕过前端直接调接口同样在此被拦。
+        //    自助端点（改密 / MFA 绑定停用）例外：作用于本人账号，与角色无关。
+        String role = normalizeRole(account.getRole());
+        String httpMethodOfRequest = request.getMethod() == null
+                ? "" : request.getMethod().toUpperCase(Locale.ROOT);
+        boolean selfService = appPath != null && appPath.startsWith(SELF_SERVICE_PREFIX);
+        if (!selfService) {
+            if (ROLE_VIEWER.equals(role) && !READ_METHODS.contains(httpMethodOfRequest)) {
+                onForbidden(response, clientIp, request, "角色为只读，不可执行写操作");
+                return;
+            }
+            if ("DELETE".equals(httpMethodOfRequest) && !ROLE_SUPER.equals(role)) {
+                onForbidden(response, clientIp, request, "删除操作需要超级管理员权限");
+                return;
+            }
+        }
+
+        // 🔴 token 维度写限频：IP 闸管不住「同一来源下 token 被脚本滥用」——
+        //    管理端「读多写极少」，写操作单独收紧既不误伤本人，又能当场掐断脚本批量删改。
+        if (!READ_METHODS.contains(httpMethodOfRequest)) {
+            long writeWaitSeconds = ipRateLimiter.tryAcquire("admin-api:write",
+                    String.valueOf(accountId), RULE_ADMIN_WRITE_PER_MINUTE);
+            if (writeWaitSeconds > 0) {
+                log.warn("[ALERT] 管理端写操作被 token 维度限频：adminId={} method={} path={} ip={}",
+                        accountId, httpMethodOfRequest, request.getRequestURI(), clientIp);
+                writeJson(response, HttpStatus.TOO_MANY_REQUESTS.value(),
+                        Result.error("操作过于频繁，请 " + writeWaitSeconds + " 秒后再试"));
+                return;
+            }
+        }
+
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                accountId, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+                accountId, null,
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                        new SimpleGrantedAuthority("ROLE_ADMIN_" + role.toUpperCase(Locale.ROOT)))));
         clearFailure(clientIp);
+        String httpMethod = request.getMethod();
         try {
             filterChain.doFilter(request, response);
         } finally {
             // 无状态体系：请求结束必须清理，避免容器线程复用导致认证残留
             SecurityContextHolder.clearContext();
+            // 操作审计：写操作落库（读请求不落，避免审计表被浏览类请求刷爆）。
+            // 变更前后值快照由 Service 侧登记在本线程上下文中，此处取走并落库（取走即清除）。
+            if (adminAuditRecorder.isAuditable(httpMethod)) {
+                String result = response.getStatus() < 400 ? "success" : "fail:" + response.getStatus();
+                String[] snapshot = AuditSnapshot.take();
+                adminAuditRecorder.record(accountId, httpMethod, applicationPath(request), result,
+                        clientIp, request.getHeader(USER_AGENT_HEADER), snapshot[0], snapshot[1]);
+            } else {
+                // 读请求：清掉可能残留的登记（容器线程复用，绝不跨请求带出）
+                AuditSnapshot.clear();
+            }
         }
     }
 
@@ -248,6 +364,37 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         }
         writeJson(response, HttpStatus.UNAUTHORIZED.value(),
                 Result.unauthorized("管理端登录已失效，请重新登录"));
+    }
+
+    /**
+     * 角色不足：**403** + WARN 留痕。
+     *
+     * <p>🔴 用 <b>403</b> 而非 401 —— 401 会让端上「清 token 跳登录页」，而此处身份**有效**、
+     * 仅权限不足；用 401 会把用户无谓地踢出登录（属错误处置）。403 对端上是「提示无权限」，
+     * 不触发重新登录。
+     *
+     * <p>越权尝试本身是**安全信号**：一律 WARN（含角色之外的路径与来源 IP），便于事后检索。
+     */
+    private void onForbidden(HttpServletResponse response, String clientIp,
+                             HttpServletRequest request, String reason) throws IOException {
+        log.warn("[ALERT] 管理端越权尝试（{}）：method={} path={} ip={}",
+                reason, request.getMethod(), request.getRequestURI(), clientIp);
+        writeJson(response, HttpStatus.FORBIDDEN.value(), Result.forbidden("无权限执行该操作"));
+    }
+
+    /**
+     * 角色归一化：**未知 / 空值一律按只读（{@code viewer}）处理**（fail-closed）——
+     * 角色数据异常时宁可少给权限，绝不多给。
+     */
+    private static String normalizeRole(String role) {
+        if (role == null) {
+            return ROLE_VIEWER;
+        }
+        String normalized = role.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case ROLE_SUPER, ROLE_OPERATOR -> normalized;
+            default -> ROLE_VIEWER;
+        };
     }
 
     /**

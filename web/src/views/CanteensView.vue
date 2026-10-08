@@ -13,6 +13,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
+import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { resolveImageUrl } from '@/utils/image'
 import DetailMetaRow from '@/components/DetailMetaRow.vue'
@@ -232,7 +233,7 @@ onMounted(() => load())
     <!-- 详情 / 编辑抽屉（同一抽屉两态） -->
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
-      <template v-if="mode === 'view'">
+      <template v-if="mode === 'view' && canWrite()">
         <div class="field">
           <label id="ct-images-label">食堂图片 · {{ current?.images.length ?? 0 }} 张</label>
           <div
@@ -255,20 +256,30 @@ onMounted(() => load())
           <div v-else class="muted">暂无图片（点「编辑」上传）</div>
         </div>
 
-        <div class="detail-meta">
-          <DetailMetaRow k="食堂 ID" num>#{{ current?.id }}</DetailMetaRow>
-          <DetailMetaRow k="名称">{{ current?.name }}</DetailMetaRow>
-          <DetailMetaRow k="地点">{{ current?.location || '—' }}</DetailMetaRow>
-          <DetailMetaRow k="描述">{{ current?.description || '—' }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">排序位</span>
-            <span class="meta-val num">
-              {{ current?.sortOrder }}
-              <span class="muted">（升序，越小越靠前）</span>
-            </span>
+        <!-- 分组：基本信息（两栏）→ 说明与排序 -->
+        <div class="detail-group">
+          <div class="detail-group-title">基本信息</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="名称">{{ current?.name }}</DetailMetaRow>
+            <DetailMetaRow k="档口数" num emphasis>{{ current?.stallCount }}</DetailMetaRow>
+            <DetailMetaRow k="食堂 ID" num>#{{ current?.id }}</DetailMetaRow>
+            <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
+            <DetailMetaRow k="地点" span>{{ current?.location || '—' }}</DetailMetaRow>
           </div>
-          <DetailMetaRow k="档口数" num>{{ current?.stallCount }}</DetailMetaRow>
-          <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
+        </div>
+
+        <div class="detail-group">
+          <div class="detail-group-title">说明与排序</div>
+          <div class="detail-meta">
+            <div class="meta-row">
+              <span class="meta-key">排序位</span>
+              <span class="meta-val num">
+                {{ current?.sortOrder }}
+                <span class="muted">（升序，越小越靠前）</span>
+              </span>
+            </div>
+            <DetailMetaRow k="描述">{{ current?.description || '—' }}</DetailMetaRow>
+          </div>
         </div>
       </template>
 
@@ -328,11 +339,18 @@ onMounted(() => load())
       </template>
 
       <template #actions>
-        <template v-if="mode === 'view'">
-          <button class="link" type="button" :disabled="isBusy(current?.id)" @click="startEdit">
+        <template v-if="mode === 'view' && canWrite()">
+          <button
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="startEdit"
+          >
             编辑
           </button>
           <button
+            v-if="canDelete()"
             class="link danger"
             type="button"
             :disabled="isBusy(current?.id)"

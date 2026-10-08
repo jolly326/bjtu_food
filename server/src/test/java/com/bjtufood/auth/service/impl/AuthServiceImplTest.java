@@ -102,7 +102,7 @@ class AuthServiceImplTest {
         return new AuthServiceImpl(userService, userMapper, new AuthProfilePersister(userMapper),
                 new VerifyCodePersister(codeMapper, userMapper, passwordEncoder, eventPublisher),
                 emailCodeService, jwtUtil, wechatService, imageUrlUtil,
-                localSensitiveFilter, contentSecurityService, accountCloser, guard);
+                localSensitiveFilter, contentSecurityService, accountCloser, guard, tokenBlacklist);
     }
 
     /** 待校验的验证码记录（codeHash 为占位值：匹配与否由 PasswordEncoder mock 决定） */

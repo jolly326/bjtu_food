@@ -168,7 +168,7 @@ function goToDetail(dish: { id: number }) {
   margin-top: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-card);
-  background: var(--bg-soft);
+  background: var(--module-bg);
   text-align: center;
   -webkit-tap-highlight-color: transparent;
 }

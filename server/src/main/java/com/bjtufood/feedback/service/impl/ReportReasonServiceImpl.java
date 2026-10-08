@@ -2,6 +2,7 @@ package com.bjtufood.feedback.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.bjtufood.common.dto.SortItem;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.SortReorderUtil;
@@ -142,6 +143,8 @@ public class ReportReasonServiceImpl implements ReportReasonService {
             // 删掉会让历史举报翻不出中文 ⇒ 下线一律用停用
             throw new BusinessException("该原因已被 " + used + " 条举报引用，不能删除（可改为停用）");
         }
+        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
+        AuditSnapshot.before(current);
         reportReasonMapper.deleteById(id);
     }
 

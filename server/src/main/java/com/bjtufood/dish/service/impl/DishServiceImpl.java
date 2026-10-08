@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.service.StallService;
+import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -645,6 +646,8 @@ public class DishServiceImpl implements DishService {
         if (dish == null) {
             throw new BusinessException("菜品不存在");
         }
+        // 审计变更前值：物理删除 + 级联删评价不可逆，快照是误删后重建的唯一依据
+        AuditSnapshot.before(dish);
         // 级联清理该菜品下的全部评价（BE-108）：发布领域事件，由 review 域监听器删除评价行，
         // dish 域不持有 review 表知识（P0-1）。同步监听 → 仍在本次事务内执行，失败一并回滚。
         eventPublisher.publishEvent(new DishDeletedEvent(id));

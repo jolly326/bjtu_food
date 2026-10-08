@@ -25,6 +25,10 @@
           :aria-label="r.label"
           @tap="selected = r.id"
         >
+          <!-- 选中标记：橙色勾（纯图形；选中语义由 aria-checked 表达） -->
+          <view class="rp-check" aria-hidden="true">
+            <AppIcon v-if="selected === r.id" name="check" :size="24" :color="COLOR_MAP['primary']" />
+          </view>
           <text class="rp-option-text">{{ r.label }}</text>
         </view>
       </view>
@@ -53,6 +57,8 @@
 import { ref, watch } from 'vue'
 import BaseSheet from '@/components/BaseSheet.vue'
 import ContentButton from '@/components/ContentButton.vue'
+import AppIcon from '@/components/AppIcon.vue'
+import { COLOR_MAP } from '@/theme/tokens'
 import { listReportReasons, type ReportReason } from '@/api/feedback'
 
 const props = defineProps<{
@@ -105,21 +111,42 @@ function onSubmit() {
   color: var(--text-tertiary);
   padding-bottom: var(--spacing-sm);
 }
-/* 原因单选列表：整行热区，选中态主色文字 + 浅底 */
+/* 原因单选列表：整行热区（≥44pt）+ **左侧橙色勾**表达选中（不只靠底色，便于色觉障碍与读屏辨认） */
 .rp-list {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  /* 选项之间靠留白分组，不用分割线（团队规范） */
+  gap: var(--spacing-sm);
 }
 .rp-option {
-  padding: var(--spacing-sm) var(--spacing-sm);
-  /* 6A（裁决）：圆角归档到全局档位 —— 原裸值 12rpx 不在标度内 */
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: var(--tap-target-size);
+  padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-btn);
-  margin-bottom: var(--spacing-2xs);
-  background: var(--bg-soft);
+  /* 弹层内控件底走浅白半透档（与属性弹层 / 纠错表单字段行同源），不用冷灰 */
+  background: var(--module-input-bg);
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 .rp-option.on {
   background: var(--color-primary-soft);
+  box-shadow: inset var(--spacing-2xs) 0 0 var(--color-primary);
+}
+/* 选中标记：橙色勾（纯图形，选中语义同时由 aria-checked 表达） */
+.rp-check {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-lg);
+  height: var(--spacing-lg);
 }
 .rp-option-text {
+  flex: 1;
+  min-width: 0;
   font-size: var(--font-body);
   color: var(--text-body);
 }
@@ -135,6 +162,12 @@ function onSubmit() {
   padding: var(--spacing-md) 0;
   text-align: center;
 }
-/* 提交钮：底色 / 圆角 / 触达 / 禁用 / 在途各档全部由公共 `ContentButton` 承担，此处只留上间距 */
-.rp-submit { margin-top: var(--spacing-sm); }
+/* 提交钮：底色 / 圆角 / 触达 / 禁用 / 在途各档全部由公共 `ContentButton` 承担。
+   弹层内为**整幅主操作** ⇒ 覆盖内容宽为通栏（`ContentButton` 默认 inline-flex），
+   并与上方选项列表拉开一组间距（40rpx 规范档）。 */
+.rp-submit {
+  display: flex;
+  width: 100%;
+  margin-top: var(--spacing-module);
+}
 </style>

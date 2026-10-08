@@ -14,6 +14,7 @@
  * <p>采纳 / 下架 / 驳回**均向提交人投递站内回执**（**文案由服务端按 `type`
  * 与「是否部分采纳」分派**，端上只传可选附注，不拼回执正文）。
  */
+import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/datetime'
@@ -226,6 +227,37 @@ function reset(): void {
   reloadFirstPage()
 }
 
+/**
+ * 已生效筛选条件（供 `ActiveFilters` 回显）。
+ * `fType` 同时驱动顶部 Tab，清掉它即回到「全部」Tab —— 行为一致。
+ */
+const activeFilters = computed(() => {
+  const out: { key: string; label: string; value: string }[] = []
+  if (fType.value)
+    out.push({
+      key: 'type',
+      label: '类型',
+      value: TYPE_TABS.find((t) => t.value === fType.value)?.label ?? fType.value,
+    })
+  if (fStatus.value)
+    out.push({
+      key: 'status',
+      label: '状态',
+      value:
+        fStatus.value === 'pending' ? '待处理' : fStatus.value === 'adopted' ? '已采纳' : '已拒绝',
+    })
+  if (fDishId.value.trim()) out.push({ key: 'dish', label: '菜品 ID', value: fDishId.value.trim() })
+  return out
+})
+
+/** 清除单个筛选条件并重查 */
+function clearFilter(key: string): void {
+  if (key === 'type') fType.value = ''
+  if (key === 'status') fStatus.value = ''
+  if (key === 'dish') fDishId.value = ''
+  reloadFirstPage()
+}
+
 /** 切换问题类型 Tab：改筛选条件并回到第一页（单一 handler —— 模板内联多语句会导致构建失败） */
 function pickType(value: CorrectionType | '') {
   fType.value = value
@@ -272,6 +304,8 @@ onMounted(() => reloadFirstPage())
       />
       <button class="btn-primary" type="button" v-press @click="reloadFirstPage">查询</button>
       <button class="btn-secondary" type="button" @click="reset">重置</button>
+      <!-- 已生效筛选条件回显：让管理员一眼看出当前结果被什么条件筛出（可点单个清除） -->
+      <ActiveFilters :items="activeFilters" @remove="clearFilter" @clear="reset" />
     </div>
 
     <!-- 六态：① 加载 ② 错误 ③ 空 ④ 有数据 ⑤ 分页 ⑥ 会话失效 -->
@@ -415,22 +449,32 @@ onMounted(() => reloadFirstPage())
         </div>
 
         <!-- 已处理 → 只读结论与回复 -->
-        <div v-if="!isPending" class="detail-meta">
-          <DetailMetaRow k="反馈 ID" num>#{{ detail.id }}</DetailMetaRow>
-          <div class="meta-row">
-            <span class="meta-key">提交人</span>
-            <span class="meta-val">
-              {{ detail.userNickname || '游客' }}
-              <span class="muted"> #{{ detail.userId }}</span>
-            </span>
+        <div v-if="!isPending" class="detail-group">
+          <div class="detail-group-title">处理结果</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="处理结论" span>{{ outcomeLabel }}</DetailMetaRow>
+            <div class="meta-row meta-row--span">
+              <span class="meta-key">提交人</span>
+              <span class="meta-val">
+                {{ detail.userNickname || '游客' }}
+                <span class="muted"> #{{ detail.userId }}</span>
+              </span>
+            </div>
+            <DetailMetaRow k="处理回复" span>{{ detail.reply || '—' }}</DetailMetaRow>
+            <div v-if="detail.rejectReason" class="meta-row meta-row--span">
+              <span class="meta-key">不采纳原因</span>
+              <span class="meta-val">{{ detail.rejectReason }}</span>
+            </div>
           </div>
-          <DetailMetaRow k="处理结论">{{ outcomeLabel }}</DetailMetaRow>
-          <DetailMetaRow k="处理回复">{{ detail.reply || '—' }}</DetailMetaRow>
-          <div class="meta-row" v-if="detail.rejectReason">
-            <DetailMetaRow k="不采纳原因">{{ detail.rejectReason }}</DetailMetaRow>
+        </div>
+
+        <div v-if="!isPending" class="detail-group">
+          <div class="detail-group-title">时间与标识</div>
+          <div class="detail-meta detail-meta--grid">
+            <DetailMetaRow k="反馈 ID" num>#{{ detail.id }}</DetailMetaRow>
+            <DetailMetaRow k="提交时间">{{ formatDateTime(detail.createdAt) }}</DetailMetaRow>
+            <DetailMetaRow k="处理时间">{{ formatDateTime(detail.handledAt) }}</DetailMetaRow>
           </div>
-          <DetailMetaRow k="提交时间">{{ formatDateTime(detail.createdAt) }}</DetailMetaRow>
-          <DetailMetaRow k="处理时间">{{ formatDateTime(detail.handledAt) }}</DetailMetaRow>
         </div>
 
         <!-- 待处理 → 处置表单 -->
@@ -565,13 +609,7 @@ onMounted(() => reloadFirstPage())
   font-weight: var(--weight-medium);
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-}
+/* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
   width: 160px;
 }

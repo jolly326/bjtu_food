@@ -1,8 +1,12 @@
 package com.bjtufood.review.controller;
 
 import com.bjtufood.common.annotation.RequireVerified;
+import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.ratelimit.IdEnumerationGuard;
+import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.PageResult;
 import com.bjtufood.common.result.Result;
+import com.bjtufood.common.utils.ClientIpUtil;
 import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.review.dto.ReviewCreatedVO;
 import com.bjtufood.review.dto.ReviewReq;
@@ -37,6 +41,27 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
+    /** IP 维度限频器（与其余写入口同一实现） */
+    private final IpRateLimiter ipRateLimiter;
+
+    /** ID 枚举 / 蜜罐探针检测（按 id 顺序遍历评价列表的脚本指纹） */
+    private final IdEnumerationGuard idEnumerationGuard;
+
+    /** 写评价限频：IP 维度 2/分 · 10/时（与其余 UGC 写入口同口径） */
+    private static final IpRateLimiter.Rule WRITE_PER_MINUTE = new IpRateLimiter.Rule(2, 60_000L);
+
+    private static final IpRateLimiter.Rule WRITE_PER_HOUR = new IpRateLimiter.Rule(10, 3_600_000L);
+
+    /** 列表读限频（IP 维度）：60/分 · 600/时 —— 防脚本高频翻页拉走评价 */
+    private static final IpRateLimiter.Rule READ_PER_MINUTE = new IpRateLimiter.Rule(60, 60_000L);
+
+    private static final IpRateLimiter.Rule READ_PER_HOUR = new IpRateLimiter.Rule(600, 3_600_000L);
+
+    /** 写评价限频：账号维度 3/分 · 20/时（略宽，避免误伤真实高频用户） */
+    private static final IpRateLimiter.Rule WRITE_USER_PER_MINUTE = new IpRateLimiter.Rule(3, 60_000L);
+
+    private static final IpRateLimiter.Rule WRITE_USER_PER_HOUR = new IpRateLimiter.Rule(20, 3_600_000L);
+
     @Operation(
             summary = "菜品评价列表（时间倒序，可按星级筛选）",
             description = """
@@ -55,7 +80,28 @@ public class ReviewController {
             @RequestParam(defaultValue = "20") int pageSize,
             @Parameter(description = "按星级筛选（1~5；不传 = 全部）", example = "5")
             @RequestParam(required = false) Integer rating) {
-        return Result.success(PageResult.of(reviewService.listByDishId(id, page, pageSize, rating)));
+        checkReadRateLimit();
+        String clientIp = ClientIpUtil.resolveCurrent();
+        long blockedSeconds = idEnumerationGuard.blockedSeconds(clientIp);
+        if (blockedSeconds > 0) {
+            throw new BusinessException("操作过于频繁，请 " + blockedSeconds + " 秒后再试");
+        }
+        PageResult<ReviewVO> pageResult = PageResult.of(reviewService.listByDishId(id, page, pageSize, rating));
+        // 存在性在此不可判定（无评价 ≠ 无该菜）⇒ 只喂「顺序遍历」判据，不计蜜罐探针
+        idEnumerationGuard.recordAccess(clientIp, id);
+        return Result.success(pageResult);
+    }
+
+    /**
+     * 列表读限频（IP 维度 60/分 · 600/时）：评价是核心 UGC 资产，
+     * 该闸防的是「脚本高频翻页把评价全量拉走」，与写入口的写限频各管一段。
+     */
+    private void checkReadRateLimit() {
+        long waitSeconds = ipRateLimiter.tryAcquire(
+                "reviews-list", ClientIpUtil.resolveCurrent(), READ_PER_MINUTE, READ_PER_HOUR);
+        if (waitSeconds > 0) {
+            throw new BusinessException("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+        }
     }
 
     @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userNickname/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
@@ -89,7 +135,26 @@ public class ReviewController {
             @PathVariable Long id,
             @Valid @RequestBody ReviewReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
+        checkWriteRateLimit(userId);
         return Result.success(new ReviewCreatedVO(reviewService.submitReview(userId, id, req)));
+    }
+
+    /**
+     * 双维度滥用防护（**IP × 账号**，任一超限即拒）。
+     * <p>
+     * 🔴 账号维度是换 IP 也绕不过的那一道：同一账号在多个 IP 上刷评价同样被拦。
+     * 账号维度阈值**刻意略宽于 IP 维度** —— 评价是核心表达，避免误伤真实高频用户。
+     */
+    private void checkWriteRateLimit(Long userId) {
+        long waitSeconds = ipRateLimiter.tryAcquire(
+                "review-submit", ClientIpUtil.resolveCurrent(), WRITE_PER_MINUTE, WRITE_PER_HOUR);
+        if (waitSeconds == 0L) {
+            waitSeconds = ipRateLimiter.tryAcquire("review-submit:user",
+                    String.valueOf(userId), WRITE_USER_PER_MINUTE, WRITE_USER_PER_HOUR);
+        }
+        if (waitSeconds > 0) {
+            throw new BusinessException("提交过于频繁，请 " + waitSeconds + " 秒后再试");
+        }
     }
 
     @Operation(summary = "删除自己的评价", description = "用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。", security = @SecurityRequirement(name = "bearerAuth"))

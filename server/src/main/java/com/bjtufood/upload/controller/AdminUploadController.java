@@ -20,10 +20,10 @@ import org.springframework.web.multipart.MultipartFile;
 /**
  * 管理端图片上传（multipart 直传）。
  * <p>
- * 归入 {@code /admin/**} 命名空间 → 由 {@code AdminAuthFilter} 统一按口令
- * {@code X-Admin-Token} 守卫（不声明 bearerAuth：本端点不接受学生 JWT）。
+ * 归入 {@code /admin/**} 命名空间 → 由 {@code AdminAuthFilter} 按**管理端 JWT**
+ * （{@code Authorization: Bearer <token>}）统一守卫；不接受学生 JWT。
  */
-@Tag(name = "07. 图片上传（管理端）", description = "管理端菜品图上传（multipart）。鉴权：管理端口令 X-Admin-Token。")
+@Tag(name = "07. 图片上传（管理端）", description = "管理端菜品图上传（multipart）。鉴权：管理端 JWT（Authorization: Bearer）。")
 @RestController
 @RequestMapping("/admin/upload")
 @RequiredArgsConstructor
@@ -36,7 +36,7 @@ public class AdminUploadController {
             summary = "上传图片（multipart）",
             description = """
                     用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
-                    鉴权：请求头 X-Admin-Token 必须等于环境变量 ADMIN_TOKEN（未配置即 fail-closed 403）。
+                    鉴权：请求头 Authorization: Bearer <管理端 JWT>（由 AdminAuthFilter 校验，未带 / 失效即 401）。
                     测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
                     限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
                     返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
