@@ -20,8 +20,10 @@ const UPLOAD_TIMEOUT_MS = 15000
 /**
  * 上传本地图片至微信云存储，返回 `cloud://` 文件 ID。
  * - cloud:// 无需 uploadFile 合法域名白名单，`<image>` 原生支持直接显示；
- * - **UGC 配图两段式链路的第一步**：只落微信云存储（fileID 供提交时送后端机审 + 转存 COS），
- *   用户取消提交时不会在 COS 留下孤儿对象；未提交的 fileID 由云存储 `ugc/` 前缀的生命周期规则过期清理。
+ * - **提交链路的第一步**：本地临时路径 → 微信云存储 fileID（供第二步送后端机审 + 转存 COS）。
+ *   UGC 配图**只在用户确认提交后才调本函数**（见 `components/ugcImage.ts`）——
+ *   选图阶段图片留在本地临时文件，故「挑完不提交」在云存储桶里零占用；
+ *   头像链路是例外（选图即传，见 {@link uploadAvatarImage}）。
  */
 export function uploadToCloud(tempFilePath: string): Promise<{ fileId: string }> {
   let result!: Promise<{ fileId: string }>
@@ -73,10 +75,10 @@ export function uploadToCloud(tempFilePath: string): Promise<{ fileId: string }>
 }
 
 /**
- * UGC 配图两段式链路的**第二步**：微信云存储 fileID → 后端内容安检（机审）→ 转存 COS → 返回正式 URL。
+ * UGC 配图提交链路的**第二步**：微信云存储 fileID → 后端内容安检（机审）→ 转存 COS → 返回正式 URL。
  *
- * <p>端点只接受微信云存储 fileID，故选图时必须先落云存储（本步不可省）；但**提交前不调本端点**，
- * 避免用户取消提交时在 COS 产生孤儿对象。
+ * <p>端点只接受微信云存储 fileID，故必须先走 {@link uploadToCloud}；但两步**都发生在提交时**，
+ * 提交前不产生任何云存储 / COS 写入。
  */
 export function uploadCloudImage(fileId: string): Promise<UploadedImage> {
   return post<UploadResultVO>('/upload/cloud-image', { fileId })

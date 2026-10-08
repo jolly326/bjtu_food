@@ -91,7 +91,7 @@ export function buildCorrectionDiff(
   if (form.canteenName.trim() !== baseline.canteenName) payload.canteenName = form.canteenName.trim()
   if (form.floor.trim() !== baseline.floor) payload.floor = form.floor.trim()
   if (form.stallName.trim() !== baseline.stallName) payload.stallName = form.stallName.trim()
-  // 配图按**正式 URL** 有序比对（两段式：未过机审的项 url 为空，不参与提交）
+  // 配图按**正式 URL** 有序比对（提交前的项 url 为空 —— 未上云未机审，不参与提交）
   const images = ugcItemUrls(form.images)
   if (!sameList(images, baseline.images)) payload.images = images.filter(Boolean)
   const attrs: Record<string, string | string[]> = {}

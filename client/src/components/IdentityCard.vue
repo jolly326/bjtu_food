@@ -65,7 +65,7 @@
  *
  * · 文案口径（昵称兜底「食客 / 游客」、副行「校园邮箱 / 未完成校园认证」）由 `utils/userDisplay` 单点派生；
  * · 排版参数走 `styles/_identity-card.scss` 共享 partial（两页同值）；
- * · `mode`：`entry` = 整段可点（`@tap`）、`edit` = 右侧渲染「编辑个人信息」胶囊（`@edit`，仅认证态）。
+ * · `mode`：`entry` = 整段可点（发 `enter`）、`edit` = 右侧渲染「编辑个人信息」胶囊（`@edit`，仅认证态）。
  */
 import { ref, watch } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -94,13 +94,13 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   /** `entry` 模式整段点击 */
-  (e: 'tap'): void
+  (e: 'enter'): void
   /** `edit` 模式点「编辑个人信息」 */
   (e: 'edit'): void
 }>()
 
 function onCardTap() {
-  if (props.mode === 'entry') emit('tap')
+  if (props.mode === 'entry') emit('enter')
 }
 
 /** 头像加载态：失败回退人形占位（禁裂图）；换图时必须复位，否则新图也永久显示占位 */

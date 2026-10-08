@@ -64,7 +64,7 @@ export interface CorrectionFormModel {
   /** 楼层（契约 `DishCorrectionReq.floor`；归属档口，仅楼层改动也算有效改动） */
   floor: string
   stallName: string
-  /** 配图（两段式：预填项已有正式 URL；新加项提交时才过机审拿 URL） */
+  /** 配图（预填项已有正式 URL；新加项在提交时才上云 + 机审拿 URL） */
   images: UgcImageItem[]
   attributes: AttributeEditor[]
 }
@@ -377,7 +377,7 @@ export function useCorrection() {
     submitting.value = true
     submitError.value = ''
     try {
-      // 两段式提交：先把新增配图逐张送机审转 COS（失败文案带「第 N 张图片」，此时不改表单）。
+      // 提交链路：先把新增配图逐张「上云存储 → 送机审转 COS」（失败文案带「第 N 张图片」，此时不改表单）。
       // 必须在算 diff **之前**做 —— 新加的图此刻还没有正式 URL，不过机审就会被 diff 判为
       // 「图片有改动」却交不出任何新 URL，产生一次无意义的空改动提交。
       if (form.images.length) await submitUgcImages(form.images)

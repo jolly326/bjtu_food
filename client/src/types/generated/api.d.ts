@@ -280,7 +280,7 @@ export interface paths {
   "/dishes/{id}/correction": {
     /**
      * 提交菜品问题反馈
-     * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤5 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+     * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
      */
     post: operations["submitCorrection"];
   };
@@ -1211,7 +1211,7 @@ export interface components {
       attributes?: {
         [key: string]: Record<string, never>;
       };
-      /** @description 菜品图片 URL 列表（field 型：改动后的完整数组，≤5 张 / gone 型：选填补充，≤3 张；均可不传） */
+      /** @description 菜品图片 URL 列表（field 型：改动后的完整数组，≤3 张 / gone 型：选填补充，≤3 张；均可不传） */
       images?: string[];
       /**
        * @description 补充说明（≤200 字；**仅 gone 型**可选填，field 型传入 → 400）
@@ -5293,7 +5293,7 @@ export interface operations {
   };
   /**
    * 提交菜品问题反馈
-   * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤5 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+   * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
    */
   submitCorrection: {
     parameters: {

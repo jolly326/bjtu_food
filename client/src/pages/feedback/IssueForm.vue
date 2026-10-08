@@ -126,7 +126,7 @@ const emit = defineEmits<{
 }>()
 
 /**
- * ImagePicker 的 startPick 中转（拉起选图 → 压缩校验 → 落云存储；机审在提交时）。
+ * ImagePicker 的 startPick 中转（拉起选图 → 本地压缩校验 → 只留本地临时路径；上云与机审在提交时）。
  * <p>来源弹层必须在页面根级挂载（本组件位于 scroll-view 内，fixed 层级会被裁剪），
  * 故宿主页拿到来源后再经此透传下去。
  */

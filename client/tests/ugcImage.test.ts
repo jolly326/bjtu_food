@@ -1,13 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const uploadCloudImage = vi.fn()
-vi.mock('@/api/upload', () => ({ uploadCloudImage: (id: string) => uploadCloudImage(id) }))
+const uploadToCloud = vi.fn()
+vi.mock('@/api/upload', () => ({
+  uploadCloudImage: (id: string) => uploadCloudImage(id),
+  uploadToCloud: (p: string) => uploadToCloud(p),
+}))
 
 import { toUgcItems, ugcItemUrls, ugcIndexErrorMessage, submitUgcImages } from '@/components/ugcImage'
 import type { UgcImageItem } from '@/components/ugcImage'
 
 function pending(index: number): UgcImageItem {
   return { preview: '/tmp/x.jpg', fileId: 'cloud://file-' + index, url: '' }
+}
+
+/** 选图阶段的真实形态：**只有本地临时路径**，fileId 尚未产生 */
+function localPending(index: number): UgcImageItem {
+  return { preview: '/tmp/local-' + index + '.jpg', fileId: '', url: '' }
 }
 
 describe('toUgcItems / ugcItemUrls', () => {
@@ -36,9 +45,39 @@ describe('ugcIndexErrorMessage · 逐张定位文案', () => {
   })
 })
 
-describe('submitUgcImages · 提交时机审', () => {
+describe('submitUgcImages · 提交时才上云 + 逐张机审', () => {
   beforeEach(() => {
     uploadCloudImage.mockReset()
+    uploadToCloud.mockReset()
+  })
+
+  it('选图阶段的本地项：先上传云存储拿 fileID，再送机审（顺序即「提交才上云」）', async () => {
+    uploadToCloud.mockResolvedValueOnce({ fileId: 'cloud://new-1' })
+    uploadCloudImage.mockResolvedValueOnce({ url: 'https://cdn/1.jpg' })
+    const items = [localPending(1)]
+
+    const urls = await submitUgcImages(items)
+
+    expect(uploadToCloud.mock.calls.map((x) => x[0])).toEqual(['/tmp/local-1.jpg'])
+    expect(uploadCloudImage.mock.calls.map((x) => x[0])).toEqual(['cloud://new-1'])
+    expect(urls).toEqual(['https://cdn/1.jpg'])
+    expect(items[0]).toEqual({ preview: 'https://cdn/1.jpg', fileId: '', url: 'https://cdn/1.jpg' })
+  })
+
+  it('上云失败按「第 N 张图片」定位并中止，不调机审端点', async () => {
+    uploadToCloud.mockRejectedValueOnce(new Error('上传超时，请重试'))
+
+    await expect(submitUgcImages([localPending(2)])).rejects.toThrow('第 1 张图片上传超时，请重试')
+    expect(uploadCloudImage).not.toHaveBeenCalled()
+  })
+
+  it('已有 fileId 的项不重复上云（提交中途重试只补未完成那张）', async () => {
+    uploadCloudImage.mockResolvedValueOnce({ url: 'https://cdn/2.jpg' })
+
+    await submitUgcImages([pending(2)])
+
+    expect(uploadToCloud).not.toHaveBeenCalled()
+    expect(uploadCloudImage).toHaveBeenCalledTimes(1)
   })
 
   it('逐张送审并就地回填正式 URL，返回顺序与选择顺序一致', async () => {

@@ -74,11 +74,11 @@ public class DishCorrectionReq {
      * 菜品图片 URL 列表。
      * <p>
      * <b>type=field</b>：改动后的<b>完整</b>图片数组（经 {@code POST /upload/cloud-image} 转存的 COS 绝对地址），
-     * <b>≤5 张</b>（纠错需多张佐证）；
+     * <b>≤3 张</b>（与全站 UGC 配图同档）；
      * <b>type=gone</b>：<b>选填补充</b>，<b>≤3 张</b>（用户路过拍一张当前窗口即可）。
      * 上限按 type 分派校验，见 {@code CorrectionServiceImpl}。
      */
-    @Schema(description = "菜品图片 URL 列表（field 型：改动后的完整数组，≤5 张 / gone 型：选填补充，≤3 张；均可不传）")
+    @Schema(description = "菜品图片 URL 列表（field 型：改动后的完整数组，≤3 张 / gone 型：选填补充，≤3 张；均可不传）")
     private List<String> images;
 
     /**

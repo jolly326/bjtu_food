@@ -1,23 +1,28 @@
 /**
- * UGC 配图「两段式上传」的数据模型与提交编排（评价 / 意见反馈 / 菜品纠错三处共用）。
+ * UGC 配图的数据模型与**提交时**的上传编排（评价 / 意见反馈 / 菜品纠错三处共用）。
  *
- * 为什么两段式：后端 `POST /upload/cloud-image` 做内容安检（机审）并把图转存到 COS。
- * 若在选图时就调该端点，用户挑完图不提交就离开，COS 里就会留下永不被引用的孤儿对象。故拆成两段：
- * 选图时只调 `wx.cloud.uploadFile` 拿 fileID（该端点只收云存储 fileID，这一步不能省），预览走本地临时路径、
- * 不调任何后端端点；提交时才逐张调该端点（机审 + 转存 COS），拿到正式 URL 后随表单上送。
+ * <p><b>上传只在「用户确认提交」后发生</b>；提交前图片只存在于**本地临时文件**：
+ * <ol>
+ *   <li><b>选图</b>（{@link ImagePicker.startPick}）：本地压缩 + 尺寸/大小校验 → 追加本地临时路径。
+ *       <b>不写微信云存储、不调任何后端端点</b> ⇒ 用户挑完不提交，云存储桶零写入、无孤儿对象；</li>
+ *   <li><b>提交</b>（本模块 {@link submitUgcImages}）：逐张「`wx.cloud.uploadFile` 拿 fileID →
+ *       `POST /upload/cloud-image`（内容安检 + 转存 COS）」，拿到正式 URL 后随表单上送。</li>
+ * </ol>
  *
- * 未提交的 fileID 由运维侧清理：微信云存储控制台对 `ugc/` 前缀配 7 天生命周期规则自动过期删除（零代码）。
+ * <p><b>为何不把上云放在选图时</b>：`wx.cloud.uploadFile` 一旦调用即在云存储桶留下对象，
+ * 用户放弃提交就成为永不引用的垃圾（云存储侧的 `ugc/` 生命周期规则只作兜底）——
+ * 既浪费空间又占配额。改为「提交才上云」后，桶内对象与「已提交内容」一一对应。
  *
- * 本模块是纯逻辑（无组件、无响应式），可被单测完整覆盖；平台调用由 `api/upload.ts` 承担。
+ * <p>本模块是纯逻辑（无组件、无响应式），可被单测完整覆盖；平台调用由 `api/upload.ts` 承担。
  */
-import { uploadCloudImage } from '@/api/upload'
+import { uploadCloudImage, uploadToCloud } from '@/api/upload'
 import { errorMessage } from '@/utils/error'
 
 /**
  * 一张 UGC 配图的完整状态。
  *
- * - `preview`：缩略图 / 预览地址 —— 选图后是本地临时路径，提交成功后是正式 URL；
- * - `fileId`：微信云存储 fileID（提交时送后端机审）；预填项与已成功项为空；
+ * - `preview`：缩略图 / 预览地址 —— 选图后是**本地临时路径**，提交成功后是正式 URL；
+ * - `fileId`：微信云存储 fileID，**提交时才产生**（送后端机审）；预填项与已成功项为空；
  * - `url`：后端正式 URL；只有它非空，才表示这张图已经过机审并落到 COS。
  */
 export interface UgcImageItem {
@@ -49,9 +54,10 @@ export function ugcIndexErrorMessage(index: number, raw: string): string {
 }
 
 /**
- * 提交时把配图项解析为正式 URL 列表（逐张送机审，任一张失败即中止）。
+ * 提交时把配图项解析为正式 URL 列表：**逐张「上云存储 → 送机审 → 转存 COS」**，任一张失败即中止。
  *
- * 已成功的项就地回填 `url`，用户点重试时只传剩余未成功的张，不会重复机审已过的图。
+ * 这是图片**第一次离开本地**的时机：用户点提交前，云存储桶与 COS 都没有它的任何痕迹。
+ * 已成功的项就地回填 `url`，用户点重试时只传剩余未成功的张，不会重复上传 / 机审已过的图。
  *
  * 失败时抛 `Error`，message 已含「第 N 张图片」定位信息，由调用方 toast 直透。
  */
@@ -64,6 +70,12 @@ export async function submitUgcImages(items: UgcImageItem[]): Promise<string[]> 
       continue
     }
     try {
+      // 提交链路内的第一次云写入：本地临时路径 → 微信云存储 fileID（用户未提交时桶内零占用）
+      if (!item.fileId) {
+        const { fileId } = await uploadToCloud(item.preview)
+        if (!fileId) throw new Error('上传失败，请重试')
+        item.fileId = fileId
+      }
       const res = await uploadCloudImage(item.fileId)
       if (!res.url) throw new Error('上传失败，请重试')
       item.url = res.url

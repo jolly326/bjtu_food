@@ -19,9 +19,8 @@ page {
      层级「微件/标签 < 控件 < 面板 < 弹层」，取值落在 4pt 栅格，观感圆润、柔和（真源 设计变量.md §2.1）。 */
   --radius-none: 0;
   --radius-xs: 24rpx;
-  --radius-tag: 24rpx;
-  --radius-card: 20rpx;
-  --radius-modal: 24rpx;
+  --radius-card: 40rpx;
+  --radius-modal: 56rpx;
   --radius-btn: 32rpx;
   --radius-icon: 32rpx;
   /* 全圆胶囊（搜索框/筛选 chip/进度条/小标签），统一全圆角 */

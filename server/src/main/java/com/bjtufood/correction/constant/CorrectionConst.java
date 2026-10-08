@@ -26,8 +26,9 @@ public interface CorrectionConst {
     /**
      * {@code type=gone} 配图上限（张）。
      * <p>
-     * 与 {@link #IMAGE_MAX}（field 型 5 张）**刻意不同**：gone 是「可选补充」而非「改动项佐证」，
-     * 用户只是路过拍一张当前窗口，1~3 张足够表达「变成了别的菜 / 换窗口了」。
+     * 与 {@link #IMAGE_MAX} 同为 3 张：gone 是「可选补充」，field 是「改动项佐证」，
+     * 但两者都属 UGC 配图，**统一按全站 UGC 上限 3 张**执行（见
+     * {@code com.bjtufood.upload.image.UgcImageValidator#MAX_IMAGES}），不再按 type 分档。
      */
     int GONE_IMAGE_MAX = 3;
 
@@ -72,12 +73,13 @@ public interface CorrectionConst {
     int FLOOR_MAX_LENGTH = 16;
 
     /**
-     * 纠错配图上限（张）。
+     * 纠错（{@code type=field}）配图上限（张）= 3。
      * <p>
-     * 纠错要说明「现场是什么样」，常需「菜品 + 价签 + 档口牌」多张佐证，3 张不够用 ⇒
-     * 与评价 / 反馈的 UGC 口径**脱钩**（后两者为 3，见 `FeedbackConst`）。
+     * 与评价 / 反馈 / gone 型**同档**：UGC 配图统一按全站上限 3 张执行（见
+     * {@code com.bjtufood.upload.image.UgcImageValidator#MAX_IMAGES}）——
+     * 「同一种图片行为、不同上限」只会让口径难以解释，3 张已足够表达「菜品 + 价签 + 档口牌」。
      */
-    int IMAGE_MAX = 5;
+    int IMAGE_MAX = 3;
 
     /** 不采纳原因最大长度（schema dish_correction.reject_reason VARCHAR(200)，与 feedback 口径一致） */
     int REJECT_REASON_MAX_LENGTH = 200;
