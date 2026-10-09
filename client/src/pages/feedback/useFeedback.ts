@@ -28,7 +28,7 @@ export interface FeedbackFormModel {
   type: FeedbackType | ''
   /** 具体描述（必填，≤600 字） */
   content: string
-  /** 截图（选填，≤3 张；两段式：选图落云存储 → 提交时逐张机审转 COS） */
+  /** 截图（选填，≤3 张；选图只落本地 → 提交时才上云 + 逐张机审转 COS） */
   images: UgcImageItem[]
 }
 
@@ -158,7 +158,7 @@ export function useFeedback() {
         toastInfo(`内容不能超过${CONTENT_MAX}字`)
         return
       }
-      // 两段式提交：先把已选截图逐张送机审转 COS（失败文案带「第 N 张图片」），再随表单上送正式 URL
+      // 提交链路：先把已选截图逐张「上云存储 → 送机审转 COS」（失败文案带「第 N 张图片」），再随表单上送正式 URL
       const images = await submitUgcImages(form.images)
       await createFeedback({
         type: form.type as FeedbackType,

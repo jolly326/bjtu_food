@@ -23,8 +23,6 @@ import type { AlertSeverity, SecurityAlertVO } from '@/types/common'
 const TYPE_OPTIONS = [
   { key: 'LOGIN_SUCCESS', label: '登录成功' },
   { key: 'LOGIN_LOCKOUT', label: '登录失败达阈值' },
-  { key: 'MFA_ENABLED', label: '动态口令启用' },
-  { key: 'MFA_DISABLED', label: '动态口令停用' },
   { key: 'PASSWORD_CHANGED', label: '口令修改' },
   { key: 'AUDIT_WRITE_FAILURE', label: '审计写入失败' },
   { key: 'VIOLATION_PENALTY', label: '违规累积处置' },

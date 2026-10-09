@@ -93,9 +93,12 @@ desktop.ini
 # Codex local agent config (not project source)
 .codex/
 
-# ---------- 文档与过程性材料（不入库） ----------
-# 仓库只收源码：需求 / 设计 / 契约文档与开发过程材料一律不入库，由本地维护。
-docs/
+# ---------- 文档与过程性材料 ----------
+# `docs/` 是项目**设计真源**（schema / api / func / ui / secur / perf）⇒ **必须入库跟踪**
+# （2026-10-09 拍板）。理由：真源需可 diff、可回滚 —— 未受版本控制时，一次批量替换把多篇
+# 真源文本写坏却无从 `git checkout`，只能逐字手工复原（已发生）。入库后随时可追溯与回滚。
+# ⚠️ 入库即公开：**文档内不得出现任何凭据**（口令 / token / Webhook 地址 / 密钥），
+#    一律经环境变量与 `server/.env`（已忽略）流转。
 openspec/
 
 # Editor directories and files

@@ -21,9 +21,12 @@ import { computed } from 'vue'
  * **零消费的图标键不登记**：新增图标时连同消费点一起登记进 §1.14 的键表。
  */
 
-/** 单个图标的官方几何（路径；`fill: true` = 同套几何的主轮廓填色变体） */
+/** 单个图标的官方几何（路径 + 圆；`fill: true` = 同套几何的主轮廓填色变体）
+ *  **圆与路径同源**（48 网格 / 描边 2 / 圆头圆角），与学生端 `AppIcon.vue` 的 `IconGeometry` 一致。 */
 interface IconGeometry {
   path: string[]
+  /** 圆形子路径（头像、拖拽点等）；与 `path` 共用同一套描边口径 */
+  circle?: Array<{ cx: number; cy: number; r: number }>
   fill?: boolean
 }
 
@@ -36,8 +39,43 @@ const IMAGE: IconGeometry = {
   ],
 }
 
+/** 头像 / 用户（认证与资料场景的「人」语义；几何与学生端同源） */
+const USER: IconGeometry = {
+  path: ['M42 44C42 34.0589 33.9411 26 24 26C14.0589 26 6 34.0589 6 44'],
+  circle: [{ cx: 24, cy: 12, r: 8 }],
+}
+
+/** 线性星（未选中态 / 图标键位） */
+const STAR_LINE: IconGeometry = {
+  path: [
+    'M23.9986 5L17.8856 17.4776L4 19.4911L14.0589 29.3251L11.6544 43L23.9986 36.4192L36.3454 43L33.9586 29.3251L44 19.4911L30.1913 17.4776L23.9986 5Z',
+  ],
+}
+
+/** 实心星（评分语义专用；`fill: true` ⇒ 不描边） */
+const STAR_FILL: IconGeometry = { path: STAR_LINE.path, fill: true }
+
+/** 拖拽手柄：6 点（48 网格内两行三列），与内容图标同套描边口径 */
+const DRAG: IconGeometry = {
+  path: [],
+  circle: [
+    { cx: 18, cy: 14, r: 2.6 },
+    { cx: 30, cy: 14, r: 2.6 },
+    { cx: 18, cy: 24, r: 2.6 },
+    { cx: 30, cy: 24, r: 2.6 },
+    { cx: 18, cy: 34, r: 2.6 },
+    { cx: 30, cy: 34, r: 2.6 },
+  ],
+}
+
 /** 图标键 → 官方几何（唯一真源，与学生端 `AppIcon.vue` 的 `ICONS` 同源） */
-const ICONS: Record<string, IconGeometry> = { image: IMAGE }
+const ICONS: Record<string, IconGeometry> = {
+  image: IMAGE,
+  user: USER,
+  star: STAR_LINE,
+  'star-filled': STAR_FILL,
+  drag: DRAG,
+}
 
 const props = withDefaults(
   defineProps<{
@@ -68,7 +106,11 @@ const inner = computed(() => {
   const paint = g.fill
     ? `fill="${props.color}" stroke="none"`
     : `fill="none" stroke="${props.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`
-  return g.path.map((d) => `<path d="${d}" ${paint}/>`).join('')
+  const paths = g.path.map((d) => `<path d="${d}" ${paint}/>`).join('')
+  const circles = (g.circle || [])
+    .map((c) => `<circle cx="${c.cx}" cy="${c.cy}" r="${c.r}" ${paint}/>`)
+    .join('')
+  return paths + circles
 })
 </script>
 

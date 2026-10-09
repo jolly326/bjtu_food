@@ -136,7 +136,9 @@ function onTap() {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 行内基线对齐：同行不同字号文本底部齐平（口径见 styles/_baseline-row.scss） */
+@use '../../styles/baseline-row' as baseline;
 /* 极简无卡片：底色 / 圆角 / 阴影 / 内距全部由全局 `.module-wrap` 承担，本类只负责内部排版 */
 .dish-result-card {
   display: flex;
@@ -201,8 +203,8 @@ function onTap() {
 
 /* ③ 底行：左评分 / 右价格 —— 两者**同字号**（--font-h3 36rpx，星画布 36rpx）；
    评分组不渲染时价格仍靠右（price-group margin-left:auto） */
-.meta-row { display: flex; align-items: center; gap: var(--spacing-sm); }
-.rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+.meta-row { display: flex; @include baseline.baseline-row; gap: var(--spacing-sm); }
+.rating-group { flex: none; display: inline-flex; align-items: baseline; gap: var(--spacing-2xs); }
 /* 星图标宿主节点（<AppIcon> 自定义组件，未开 virtualHost）显式定为 36rpx 方形 flex 盒 ⇒
    内部图标在宿主内精确居中，与行盒/基线解耦（同 SearchBar .search-bar-icon 的 Round 20b 方案；
    否则星与数字会随继承字体度量上下错位 —— Round 21c 实测）。 */

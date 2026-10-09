@@ -81,15 +81,7 @@ class AdminAuthFilterTest {
                 // no-op
             }
 
-            @Override
-            public void bindTotpSecret(Long accountId, String secret) {
-                // no-op
-            }
 
-            @Override
-            public void clearTotpSecret(Long accountId) {
-                // no-op
-            }
 
             @Override
             public void updatePassword(Long accountId, String passwordHash) {

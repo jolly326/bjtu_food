@@ -1,5 +1,5 @@
 <template>
-  <view class="page profile-edit-page">
+  <view class="page profile-edit-page" :style="{ '--kb-px': keyboardHeight + 'px' }">
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
     <PageWallpaper fixed />
     <Header title="个人信息" @back="backToHome" />
@@ -23,6 +23,7 @@
         <!-- 昵称：可改行取全站表单**下划线语言** —— 本行 1rpx 底线即输入项底线，聚焦转主色 -->
         <view class="info-row info-row--field" :class="{ 'is-focused': nicknameFocused }">
           <text class="info-label">昵称</text>
+          <!-- 键盘避让：`:adjust-position="false"` 关掉整页上顶，改由底部操作栏按键盘高度自行抬升（防双位移） -->
           <input
             v-model="nickname"
             class="nickname-input"
@@ -30,6 +31,7 @@
             :aria-required="true"
             placeholder="请输入昵称"
             maxlength="20"
+            :adjust-position="false"
             placeholder-class="input-placeholder"
             @focus="nicknameFocused = true"
             @blur="nicknameFocused = false"
@@ -44,15 +46,17 @@
       </view>
     </scroll-view>
 
-    <!-- 保存（固定底部，与其他表单页一致） -->
-    <view class="submit-bar">
-      <AppButton text="保存" type="primary" :disabled="!dirty" :loading="saving" @press="save" />
+    <!-- 主操作**常驻底部**（基线 §1.1 通则：页头恒不承载业务操作）：
+         外层热区承接「置灰态点击」——`AppButton` 在禁用 / 在途时不 emit press，由这里兜底提示。 -->
+    <view class="submit-bar" @tap="onSaveAreaTap">
+      <AppButton text="保存" :disabled="!canSave" :loading="saving" @press="onSavePress" />
     </view>
+
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { getThumbImageUrl } from '@/utils/image'
@@ -61,12 +65,28 @@ import { uploadAvatarImage } from '@/api/upload'
 import { backToHome } from '@/utils/back'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
-import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
+import AppButton from '@/components/AppButton.vue'
 // 图标色须传**实色**（AppIcon 的 color 不解析 var()，data-uri 内为字面量，传 var(...) 恒落近黑）
 import { COLOR_MAP } from '@/theme/tokens'
 import { EMPTY_FIELD_TEXT } from '@/constants/copy'
+
+/* ===== 键盘避让（基线 §1.7 ①：固定底栏页必声明） =====
+   微信对 `position: fixed` 底栏的默认顶起表现不稳定，故显式接管：监听键盘高度 →
+   底栏 `bottom` 抬到键盘之上（页面根的 `--kb-px`）、滚动区底部留白同步加高；
+   昵称输入框同步 `:adjust-position="false"`，避免「整页上顶 + 本条抬升」双位移。 */
+const keyboardHeight = ref(0)
+/** 键盘高度回调：`uni` 事件参数按结构类型收窄（与 BaseSheet 的 keyboardLift 同源） */
+function onKeyboardHeight(res: { height?: number }) {
+  keyboardHeight.value = res?.height ?? 0
+}
+/** 监听注册标记（`off` 必须与 `on` 成对） */
+let keyboardWatching = false
+onMounted(() => {
+  uni.onKeyboardHeightChange(onKeyboardHeight)
+  keyboardWatching = true
+})
 
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
@@ -106,6 +126,11 @@ let navTimer: ReturnType<typeof setTimeout> | null = null
 onUnload(() => {
   if (navTimer) clearTimeout(navTimer)
   navTimer = null
+  // 键盘监听与注册成对注销：页面返回 / 重进不得残留回调
+  if (keyboardWatching) {
+    uni.offKeyboardHeightChange(onKeyboardHeight)
+    keyboardWatching = false
+  }
 })
 
 /**
@@ -158,9 +183,24 @@ async function save() {
     saving.value = false
   }
 }
+/** 可保存 = 有改动且不在途（驱动底部操作栏内 `AppButton` 的禁用档） */
+const canSave = computed(() => dirty.value && !saving.value)
+
+/** 底栏「保存」按下：`AppButton` 在禁用 / 在途时不 emit ⇒ 此处只处理可点路径 */
+function onSavePress() {
+  save()
+}
+
+/** 底栏外层热区：承接「置灰态点击」的可见反馈（点击不静默失效；在途由按钮自身忽略点击） */
+function onSaveAreaTap() {
+  if (saving.value) return
+  if (!dirty.value) toastInfo('没有可保存的改动')
+}
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 常驻底部操作条：唯一实现见 styles/_action-bar.scss */
+@use '../../styles/action-bar' as action;
 /* 页面根不带底色：底色下沉到全局 `page{}`，否则会盖住负层级壁纸层 */
 .profile-edit-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 .profile-edit-page { min-height: 0; }
@@ -171,7 +211,8 @@ async function save() {
 /* Round 26 修复：① 补 `min-height: 0` —— flex 子项默认 `min-height: auto` ⇒ 不收缩 ⇒ 内容把容器撑高 ⇒
    与页根形成双层滚动（多余滚动 + 底部空白）；② 去掉 `overflow-y: auto` —— 本容器是 `scroll-view`，
    滚动由组件内部实现，外挂 CSS 只会在 H5 叠出第二根滚动条。 */
-.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg)); }
+/* 底部内距 = 操作条等高 + 安全区 + 键盘高度（键盘弹起时内容不被底栏 / 键盘遮住） */
+.scroll-wrap { flex: 1; min-height: 0; padding: var(--spacing-md) 0 calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg) + var(--kb-px, 0px)); }
 /* 信息模块：底色 / 圆角 / 阴影 / 内距由全局 `.module-wrap` 承担。
    行间**不设分割线**，改用 flex gap 留白区分（昵称行除外 —— 它的底线是输入控件自身边界）。 */
 .info-card {
@@ -205,13 +246,13 @@ async function save() {
 .info-value { font-size: var(--font-body); color: var(--text-secondary); }
 /* 邮箱较长：允许右对齐但自动换行不溢出 */
 .info-value-email { max-width: 62%; text-align: right; word-break: break-all; }
-/* 保存按钮：固定底部（与其他表单页一致）。底色取暖奶米半透档
-   （`--module-bg-strong`，此处需托住滚动内容故比页面模块略实）；不设顶部分割线，靠上投影分隔。 */
+/* ===== 保存：**常驻底部操作栏**（基线 §1.1 通则：页头恒不承载业务操作） ===== */
 .submit-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-action-bar);
-  padding: var(--spacing-md);
-  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
-  background: var(--module-bg-strong);
-  box-shadow: var(--shadow-bar-soft);
+  @include action.action-bar;
+  /* 键盘抬起时整条抬到键盘之上（`--kb-px` 由页面根按键盘高度写入）；收起归零，不残留悬空 */
+  bottom: var(--kb-px, 0px);
+  /* 左右与页面 gutter 同轴（上下内距由 mixin 承担） */
+  padding-left: var(--page-gutter);
+  padding-right: var(--page-gutter);
 }
 </style>

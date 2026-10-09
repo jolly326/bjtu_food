@@ -5,8 +5,8 @@
        · "内嵌" = 按钮与胶囊等高（`align-self: stretch`）、四周只留 `--spacing-xs` 内距，
          看起来像胶囊右端的一颗内胆；不再有「左胶囊 + 右独立按钮」两颗并列。
        · ❗️**不做下拉箭头**（用户明确不要）。
-       · `mode="entry"`（首页）：整条胶囊（含内嵌按钮）都是「进搜索页」入口（`@tap`）；
-       · `mode="input"`（搜索页）：胶囊内为可输入框（点击即聚焦），按钮提交（`@search`），有值时可清除。
+       · `mode="entry"`（首页）：整条胶囊（含内嵌按钮）都是「进搜索页」入口（发 `enter`）；
+             · `mode="input"`（搜索页）：胶囊内为可输入框（点击即聚焦），按钮提交（`@search`），有值时可清除。
        高度取 `--search-bar-height`（96rpx ≈ 48px）；触控目标 ≥ 88rpx 由整条胶囊自身满足，
        故不再需要 `::after` 扩展热区（整条胶囊自身满足触控目标）。 -->
   <view class="search-bar-host">
@@ -89,8 +89,11 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  /** entry 模式：点击胶囊 / 内嵌按钮（进搜索页） */
-  (e: 'tap'): void
+  /** entry 模式：点击胶囊 / 内嵌按钮（进搜索页）。
+   *  ⚠️ 事件名**不得用 `tap`** —— 小程序 `tap` 是会跨自定义组件边界冒泡的原生事件：
+   *  组件 emit 出的 `tap` 与页面 `@tap` 绑定的原生冒泡**各触发一次** ⇒ 首页点搜索框会双跳。
+   *  （回归门禁：`npm run check:events`，扫描全组件 emit 名与原生名交集） */
+  (e: 'enter'): void
   /** 提交搜索（input 模式回车 / 点按钮；entry 模式下与 tap 同义） */
   (e: 'search'): void
   (e: 'update:modelValue', value: string): void
@@ -99,7 +102,7 @@ const emit = defineEmits<{
 
 function onBarTap() {
   // entry：整条胶囊是入口；input：交给原生 input 聚焦，不额外处理
-  if (props.mode === 'entry') emit('tap')
+  if (props.mode === 'entry') emit('enter')
 }
 /**
  * 内嵌「搜索」按钮：**`entry` 模式与胶囊同义**（进搜索页 → 发 `tap`），
@@ -109,7 +112,7 @@ function onBarTap() {
 function onButtonTap() {
   // 提交中拦下重复点击（skill §2 loading-buttons）；空词禁用态同样不提交（禁用必须可见）
   if (props.searching || props.disabled) return
-  if (props.mode === 'entry') emit('tap')
+  if (props.mode === 'entry') emit('enter')
   else emit('search')
 }
 

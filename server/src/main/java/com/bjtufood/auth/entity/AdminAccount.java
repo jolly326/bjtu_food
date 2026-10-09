@@ -51,25 +51,6 @@ public class AdminAccount {
     private LocalDateTime lastLoginAt;
 
     /**
-     * TOTP 密钥（Base32）。
-     * <p>
-     * 🔴 {@code null} = **未绑定 MFA**（登录只走账密一步）；非空 = 已绑定，
-     * 账密校验通过后还必须通过第二因子才签发 token。
-     * <p>
-     * 该值等同于第二因子本身，<b>不出现在任何 VO / 日志</b>；仅在绑定流程中
-     * 以 otpauth URI 形态下发一次（供认证器扫码）。
-     */
-    private String totpSecret;
-
-    /**
-     * 已用过的最后一个 TOTP 时间步（防重放）。
-     * <p>
-     * 同一时间步内认证器产出的口令是同一个 —— 截获到「刚用过」的口令即可在窗口内重放。
-     * 故校验通过后以「条件自增」把它推进到当前步，下一步校验要求命中步严格大于它。
-     */
-    private Long totpLastStep;
-
-    /**
      * 凭证版本：token 内嵌该值的快照，{@code AdminAuthFilter} 逐请求与库中现值比对。
      * <p>
      * 🔴 <b>改密即自增</b> ⇒ 所有既有 token 立即失效（含被盗用的那份），
@@ -88,8 +69,4 @@ public class AdminAccount {
         return "on".equals(status);
     }
 
-    /** 是否已绑定 MFA（第二因子） */
-    public boolean isMfaEnabled() {
-        return totpSecret != null && !totpSecret.isBlank();
-    }
 }

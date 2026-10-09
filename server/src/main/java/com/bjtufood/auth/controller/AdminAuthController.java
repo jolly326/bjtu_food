@@ -3,15 +3,9 @@ package com.bjtufood.auth.controller;
 import com.bjtufood.auth.dto.AdminLoginReq;
 import com.bjtufood.auth.dto.AdminLoginVO;
 import com.bjtufood.auth.dto.AdminMeVO;
-import com.bjtufood.auth.dto.MfaDisableReq;
-import com.bjtufood.auth.dto.MfaEnableReq;
-import com.bjtufood.auth.dto.MfaEnableVO;
-import com.bjtufood.auth.dto.MfaLoginReq;
-import com.bjtufood.auth.dto.MfaSetupVO;
 import com.bjtufood.auth.dto.PasswordChangeReq;
 import com.bjtufood.auth.entity.AdminAccount;
 import com.bjtufood.auth.service.AdminAccountService;
-import com.bjtufood.auth.service.AdminMfaService;
 import com.bjtufood.auth.support.AdminJwtUtil;
 import com.bjtufood.auth.support.LoginAttemptGuard;
 import com.bjtufood.auth.support.PasswordPolicy;
@@ -41,23 +35,21 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-
 /**
  * 管理端鉴权端点（TD-19 / TD-21 · P0-4）。
  *
  * <p>口令不下发到前端，由服务端验证后签发**短期可吊销**的 JWT（设计见
  * {@code docs/secur/web/登录与凭证.md}）。绑定 MFA 的账号须走两步：
- * {@code /login}（账密）→ {@code /login/mfa}（动态口令）。
  *
- * <p>🔴 <b>{@code POST /admin/auth/login} 与 {@code POST /admin/auth/login/mfa} 必须在鉴权白名单内</b>
+ * <p>🔴 <b>{@code POST /admin/auth/login} 必须在鉴权白名单内</b>
  * （见 {@code SecurityConfig#PUBLIC_ANY_METHOD} 与 {@code AdminAuthFilter}）——
  * 否则这两步自身先被拦，<b>功能完全不可用</b>（表现为「登录总是 401」）。
  *
- * <p>{@code /mfa/**} 与 {@code /password} 是**自助端点**：作用于当前登录者本人的账号，
- * 故 {@code AdminAuthFilter} 对其跳过「按角色判定」这一步（只读角色同样需要能绑定第二因子、
- * 能改自己的口令），但仍要求有效 token。
+ * <p>{@code /password} 是**自助端点**：作用于当前登录者本人的账号，
+ * 故 {@code AdminAuthFilter} 对其跳过「按角色判定」这一步（只读角色同样需要能改自己的口令），但仍要求有效 token。
+
  */
-@Tag(name = "管理端鉴权", description = "管理员账密登录（+ 动态口令第二步）、MFA 绑定 / 停用、改密。login 与 login/mfa 为公开端点，其余 /admin/** 需带 Authorization: Bearer <token>。")
+@Tag(name = "管理端鉴权", description = "管理员账密登录、改密。login 为公开端点，其余 /admin/** 需带 Authorization: Bearer <token>。")
 @RestController
 @RequestMapping("/admin/auth")
 @RequiredArgsConstructor
@@ -65,7 +57,6 @@ public class AdminAuthController {
 
     private final AdminAccountService adminAccountService;
 
-    private final AdminMfaService adminMfaService;
 
     private final AdminJwtUtil adminJwtUtil;
 
@@ -82,7 +73,7 @@ public class AdminAuthController {
      */
     private final LoginAttemptGuard loginAttemptGuard;
 
-    /** 安全告警通道（登录失败达阈值 / 登录成功 / MFA 与口令变更） */
+    /** 安全告警通道（登录失败达阈值 / 登录成功 / 口令变更） */
     private final SecurityAlertNotifier securityAlertNotifier;
 
     /**
@@ -106,7 +97,6 @@ public class AdminAuthController {
     private static final String LOGIN_FAILED_MESSAGE = "账号或密码错误";
 
     /** 第二因子失败提示（此时账密已被证明，不存在账号枚举风险） */
-    private static final String MFA_FAILED_MESSAGE = "动态口令错误";
 
     /** 口令超期提示阈值（天）：超过即提示改密，<b>不强制踢出</b> */
     private static final long PASSWORD_AGING_DAYS = 180L;
@@ -114,8 +104,7 @@ public class AdminAuthController {
     @PostMapping("/login")
     @Operation(summary = "管理员账密登录（第一步）",
             description = "公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；"
-                    + "已绑定 ⇒ 返回 mfaRequired=true 与短时票据 mfaTicket，须再调 /admin/auth/login/mfa。"
-                    + "失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。"
+                                + "失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。"
                     + "双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。")
     public Result<AdminLoginVO> login(@Valid @RequestBody AdminLoginReq req) {
         String username = req.getUsername();
@@ -152,110 +141,11 @@ public class AdminAuthController {
             throw new UnauthorizedException(LOGIN_FAILED_MESSAGE);
         }
 
-        // 已绑定 MFA：本步**不签发 token**，只给短时票据（票据带 mfaPending 标记，不能当 token 用）。
         // 失败计数此时**不清零** —— 第二因子没通过就等于这次登录没成功，
         // 否则「知道口令」的一方可以把爆破第二因子的额度刷成无限。
-        if (account.isMfaEnabled()) {
-            AdminLoginVO vo = new AdminLoginVO();
-            vo.setMfaRequired(true);
-            vo.setMfaTicket(adminJwtUtil.createMfaTicket(account.getId()));
-            return Result.success(vo);
-        }
 
         loginAttemptGuard.clear(username);
         return Result.success(issueToken(account, clientIp));
-    }
-
-    @PostMapping("/login/mfa")
-    @Operation(summary = "管理员登录第二步（动态口令）",
-            description = "公开端点。携带第一步返回的 mfaTicket 与认证器动态口令（或一枚恢复码）。"
-                    + "校验失败计入账号锁定计数；票据 5 分钟有效且不能作为访问凭证。")
-    public Result<AdminLoginVO> loginWithMfa(@Valid @RequestBody MfaLoginReq req) {
-        String clientIp = ClientIpUtil.resolveCurrent();
-        long waitSeconds = ipRateLimiter.tryAcquire(
-                "admin-login", clientIp, LOGIN_PER_MINUTE, LOGIN_PER_HOUR);
-        if (waitSeconds > 0) {
-            throw new BusinessException("登录过于频繁，请 " + waitSeconds + " 秒后再试");
-        }
-
-        Long accountId;
-        try {
-            Claims claims = adminJwtUtil.parseAndValidate(req.getMfaTicket());
-            // 🔴 票据只能用于本端点：访问凭证（无 mfaPending 标记）送到这里同样拒绝，
-            //    两级凭证不通用，避免「拿 token 当票据」绕过第二因子。
-            if (!adminJwtUtil.isMfaTicket(claims)) {
-                throw new UnauthorizedException("登录已失效，请重新登录");
-            }
-            accountId = adminJwtUtil.getAccountId(claims);
-        } catch (JwtException | IllegalArgumentException e) {
-            throw new UnauthorizedException("登录已失效，请重新登录");
-        }
-
-        AdminAccount account = adminAccountService.findById(accountId);
-        // 票据有效期内账号被停用 / 解绑 MFA ⇒ 一律按「会话未建立」处理
-        if (account == null || !account.isActive() || !account.isMfaEnabled()) {
-            throw new UnauthorizedException("登录已失效，请重新登录");
-        }
-
-        if (!adminMfaService.verifySecondFactor(account.getId(), account.getTotpSecret(), req.getCode())) {
-            recordLoginFailure(account.getUsername(), clientIp);
-            // 401 而非 403：端上据 401 判定「会话未建立」并退回登录第一步
-            throw new UnauthorizedException(MFA_FAILED_MESSAGE);
-        }
-
-        loginAttemptGuard.clear(account.getUsername());
-        return Result.success(issueToken(account, clientIp));
-    }
-
-    @PostMapping("/mfa/setup")
-    @Operation(summary = "初始化动态口令绑定",
-            description = "返回待绑定密钥与 otpauth URI（此时**尚未落库**，中途放弃不影响账号）。"
-                    + "录入认证器后带口令调 /admin/auth/mfa/enable 完成绑定。")
-    public Result<MfaSetupVO> setupMfa() {
-        AdminAccount account = requireCurrentAccount();
-        if (account.isMfaEnabled()) {
-            throw new BusinessException("已绑定动态口令，请先停用后再重新绑定");
-        }
-        return Result.success(adminMfaService.createSetup(account.getUsername()));
-    }
-
-    @PostMapping("/mfa/enable")
-    @Operation(summary = "确认绑定动态口令",
-            description = "校验认证器口令后落库密钥，并**一次性下发**恢复码（服务端仅存哈希）。"
-                    + "绑定完成后登录须走两步。")
-    public Result<MfaEnableVO> enableMfa(@Valid @RequestBody MfaEnableReq req) {
-        AdminAccount account = requireCurrentAccount();
-        if (account.isMfaEnabled()) {
-            throw new BusinessException("已绑定动态口令，请先停用后再重新绑定");
-        }
-        List<String> recoveryCodes = adminMfaService.confirmSetup(
-                account.getId(), req.getSecret().trim(), req.getCode());
-        securityAlertNotifier.notify(AlertType.MFA_ENABLED, "管理端启用动态口令（MFA）",
-                "username=" + account.getUsername() + " · 来源 IP=" + ClientIpUtil.resolveCurrent());
-        MfaEnableVO vo = new MfaEnableVO();
-        vo.setRecoveryCodes(recoveryCodes);
-        return Result.success(vo);
-    }
-
-    @PostMapping("/mfa/disable")
-    @Operation(summary = "停用动态口令",
-            description = "🔴 需同时提供当前口令与动态口令（或一枚恢复码）—— "
-                    + "停用 MFA 会降低账号防护，只认 token 会让 token 盗用方顺手摘掉第二因子。")
-    public Result<Void> disableMfa(@Valid @RequestBody MfaDisableReq req) {
-        AdminAccount account = requireCurrentAccount();
-        if (!account.isMfaEnabled()) {
-            throw new BusinessException("当前未绑定动态口令");
-        }
-        if (!passwordEncoder.matches(req.getPassword(), account.getPasswordHash())) {
-            throw new BusinessException("当前密码不正确");
-        }
-        if (!adminMfaService.verifySecondFactor(account.getId(), account.getTotpSecret(), req.getCode())) {
-            throw new BusinessException("动态口令校验失败");
-        }
-        adminMfaService.disable(account.getId());
-        securityAlertNotifier.notify(AlertType.MFA_DISABLED, "管理端停用动态口令（MFA）",
-                "username=" + account.getUsername() + " · 来源 IP=" + ClientIpUtil.resolveCurrent());
-        return Result.success();
     }
 
     @PostMapping("/password")
@@ -294,7 +184,7 @@ public class AdminAuthController {
     @GetMapping("/me")
     @Operation(summary = "读取当前登录的管理员",
             description = "需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，"
-                    + "并据 role 隐显入口、据 mfaEnabled / passwordAging 给出安全提示。")
+                    + "并据 role 隐显入口、据 passwordAging 给出安全提示。")
     public Result<AdminMeVO> me() {
         // 走到这里说明 AdminAuthFilter 已完成「取 token → 去 Bearer 前缀 → 验签 → 判过期 → 比对凭证版本」，
         // 并把账号 ID 作为 principal 放进了 SecurityContext —— 此处不重复验签，按 ID 回查账号即可。
@@ -304,7 +194,6 @@ public class AdminAuthController {
         vo.setRole(account.getRole());
         LocalDateTime lastLoginAt = account.getLastLoginAt();
         vo.setLastLoginAt(lastLoginAt == null ? null : TIME_FORMATTER.format(lastLoginAt));
-        vo.setMfaEnabled(account.isMfaEnabled());
         vo.setPasswordAging(isPasswordAging(account));
         return Result.success(vo);
     }

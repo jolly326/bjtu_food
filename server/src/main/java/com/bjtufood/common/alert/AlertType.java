@@ -26,10 +26,8 @@ public enum AlertType {
     LOGIN_LOCKOUT("登录失败达阈值", Severity.CRITICAL),
 
     /** 管理端启用动态口令 */
-    MFA_ENABLED("动态口令启用", Severity.WARN),
 
     /** 管理端停用动态口令（防护降级，需知悉） */
-    MFA_DISABLED("动态口令停用", Severity.WARN),
 
     /** 管理端口令修改（既有 token 全部失效） */
     PASSWORD_CHANGED("口令修改", Severity.WARN),

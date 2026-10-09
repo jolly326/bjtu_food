@@ -24,7 +24,7 @@
           :bind-email="bindEmail"
           :avatar="userInfo?.avatar"
           :verified="isVerified"
-          @tap="onUserCardTap"
+          @enter="onUserCardTap"
         />
 
         <!-- 功能宫格（模块 A 内第 2 段）：一行 3 格（意见反馈 / 系统通知 / 身份认证），每格整格热区；

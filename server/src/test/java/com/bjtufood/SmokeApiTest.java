@@ -253,9 +253,6 @@ class SmokeApiTest {
     /** 管理员账号（TD-16）：切片不连库，登录 / 登录态用例按需打桩 */
     @MockBean
     private AdminAccountService adminAccountService;
-    /** MFA 第二因子（AdminAuthController 构造依赖）：切片只验证登录两步契约，动态口令判定打桩 */
-    @MockBean
-    private com.bjtufood.auth.service.AdminMfaService adminMfaService;
     /** 违规累积入口（FeedbackServiceImpl 构造依赖）：账号维度规则另有其归属，此处打桩 */
     @MockBean
     private com.bjtufood.auth.service.UserViolationService userViolationService;
@@ -846,57 +843,6 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.password").doesNotExist());
     }
 
-    /**
-     * MFA 两步登录的**安全属性**：第一步不签发 token（只给票据）、票据不得充当访问凭证、
-     * 第二步校验通过才发 token。
-     *
-     * <p>第三条最容易被改坏 —— 若票据能被当作访问凭证，第二因子就完全失效，
-     * 而功能测试（「能登录成功」）依然全绿。
-     */
-    @Test
-    void adminLogin_withMfaIssuesTicketOnly_thenSecondStepIssuesToken() throws Exception {
-        AdminAccount account = new AdminAccount();
-        account.setId(7L);
-        account.setUsername("kingdo404");
-        account.setPasswordHash(passwordEncoder.encode("S3cret-passw0rd"));
-        account.setStatus("on");
-        account.setCredentialVersion(1);
-        // 已绑定 MFA（密钥仅用于判断「是否已绑定」，校验逻辑由 AdminMfaService 打桩）
-        account.setTotpSecret("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
-        when(adminAccountService.findByUsername("kingdo404")).thenReturn(account);
-        when(adminAccountService.findById(7L)).thenReturn(account);
-
-        String loginBody = mockMvc.perform(post("/admin/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"kingdo404\",\"password\":\"S3cret-passw0rd\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.mfaRequired").value(true))
-                .andReturn().getResponse().getContentAsString();
-        // 第一步绝不签发访问 token（只发票据）
-        Assertions.assertNull(com.jayway.jsonpath.JsonPath.read(loginBody, "$.data.token"));
-        String ticket = com.jayway.jsonpath.JsonPath.read(loginBody, "$.data.mfaTicket");
-        Assertions.assertNotNull(ticket);
-
-        // 票据不得作为访问凭证
-        mockMvc.perform(get("/admin/auth/me").header(ADMIN_AUTH_HEADER, "Bearer " + ticket))
-                .andExpect(status().isUnauthorized());
-
-        // 动态口令错误 ⇒ 401（会话未建立）
-        when(adminMfaService.verifySecondFactor(eq(7L), anyString(), anyString())).thenReturn(false);
-        mockMvc.perform(post("/admin/auth/login/mfa")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mfaTicket\":\"" + ticket + "\",\"code\":\"000000\"}"))
-                .andExpect(status().isUnauthorized());
-
-        // 动态口令正确 ⇒ 200 + 真正的访问 token
-        when(adminMfaService.verifySecondFactor(eq(7L), anyString(), anyString())).thenReturn(true);
-        mockMvc.perform(post("/admin/auth/login/mfa")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mfaTicket\":\"" + ticket + "\",\"code\":\"123456\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.token").isNotEmpty())
-                .andExpect(jsonPath("$.data.mfaRequired").value(false));
-    }
 
     /** 改密后旧 token 立即失效（凭证版本比对），既有 401 处置不变 */
     @Test

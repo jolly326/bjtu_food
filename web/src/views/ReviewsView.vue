@@ -11,6 +11,7 @@
  * 底部复用行内的「隐藏 / 恢复显示 / 删除」（提交中沿用 `busyId` 置灰）。
  */
 import ActiveFilters from '@/components/ActiveFilters.vue'
+import AppIcon from '@/components/AppIcon.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmDelete } from '@/utils/confirm'
@@ -279,18 +280,22 @@ onMounted(() => reloadFirstPage())
               <!-- 评价者主标识：头像（32×32 圆形）+ 昵称，占位范式与 UsersView 同源 -->
               <div class="user-cell">
                 <img v-if="row.userAvatar" :src="row.userAvatar" class="avatar" alt="" />
-                <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
+                <span v-else class="avatar avatar-placeholder" aria-hidden="true">
+                  <AppIcon name="user" :size="16" color="var(--text-muted)" />
+                </span>
                 <span>{{ row.userNickname || '游客' }}</span>
               </div>
             </td>
-            <!-- 评分格：内联 SVG 星形图标（--color-star）在数字前（SHALL NOT 用文本「★」拼贴；
-                 数字沿用 .num 等宽列） -->
+            <!-- 评分格：星形图标（`star-filled`，--color-star）在数字前，走公共 `AppIcon`
+                 （SHALL NOT 自绘 svg / 用文本「★」拼贴；数字沿用 .num 等宽列） -->
             <td class="num">
               <span class="rating-cell">
-                <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                  /></svg
+                <AppIcon
+                  name="star-filled"
+                  :size="13"
+                  class="rating-star"
+                  color="var(--color-star)"
+                />
                 >{{ row.rating }}
               </span>
             </td>
@@ -389,7 +394,9 @@ onMounted(() => reloadFirstPage())
               <!-- 头像与表格同源：无头像走统一占位（灰底 + 人形符） -->
               <span class="user-cell">
                 <img v-if="current?.userAvatar" :src="current.userAvatar" class="avatar" alt="" />
-                <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
+                <span v-else class="avatar avatar-placeholder" aria-hidden="true">
+                  <AppIcon name="user" :size="16" color="var(--text-muted)" />
+                </span>
                 <span>
                   {{ current?.userNickname || '游客'
                   }}<span class="muted"> #{{ current?.userId }}</span>
@@ -414,10 +421,12 @@ onMounted(() => reloadFirstPage())
             <span class="meta-key">评分</span>
             <span class="meta-val num">
               <span class="rating-cell">
-                <svg class="rating-star" viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                  /></svg
+                <AppIcon
+                  name="star-filled"
+                  :size="13"
+                  class="rating-star"
+                  color="var(--color-star)"
+                />
                 >{{ current?.rating }}
               </span>
             </span>
@@ -516,11 +525,9 @@ onMounted(() => reloadFirstPage())
   align-items: center;
   gap: var(--space-1);
 }
+/* 星形图标：走公共 `AppIcon`（内联 svg，尺寸由 `size` 决定），此处只负责对齐与防压 */
 .rating-star {
-  width: 12px;
-  height: 12px;
   flex: none;
-  fill: var(--color-star);
 }
 .thumbs img {
   width: 56px;

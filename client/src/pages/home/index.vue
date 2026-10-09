@@ -74,7 +74,7 @@
 
           <!-- 搜索行：与搜索页同源（`SearchBar`）
                —— 左搜索胶囊 + 右独立「搜索」按钮，均为进搜索页的入口 -->
-          <SearchBar mode="entry" @tap="goToSearch" />
+          <SearchBar mode="entry" @enter="goToSearch" />
 
           <!-- 横向筛选视图标签栏：与搜索区同属本吸顶容器（一个组件）；
                标签集合与文案完全来自字典（GET /dishes/views）。 -->

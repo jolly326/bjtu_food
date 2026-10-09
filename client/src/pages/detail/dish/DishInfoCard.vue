@@ -123,11 +123,14 @@ const dims = computed(() => {
    `useDishPage.onCorrectDishInfo` 跳独立反馈页（`correctionUrl(dishId)`，免认证、游客可直达）。 */
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 行内基线对齐：同行不同字号文本（菜名 / 价格 / 弱化入口）底部齐平 —— 口径见 styles/_baseline-row.scss */
+@use '../../../styles/baseline-row' as baseline;
+
 /* ===== 模块垂直节奏（唯一来源）：除简介下方那条分隔线外，全部用留白区分 —— 不加任何额外分割线 ===== */
 
-/* ① 名称行（flex 横向、**垂直居中**）：菜名（≤2 行截断）+「菜品有问题?」入口（价格左侧）+ 价格组 */
-.title-row { display: flex; align-items: center; gap: var(--spacing-sm); }
+/* ① 名称行（flex 横向、**基线对齐**）：菜名（≤2 行截断）+「菜品有问题?」入口（价格左侧）+ 价格组 */
+.title-row { display: flex; @include baseline.baseline-row; gap: var(--spacing-sm); }
 .dish-name {
   flex: 1 1 auto;
   min-width: 0;
@@ -148,12 +151,14 @@ const dims = computed(() => {
 }
 /* 「菜品有问题?」入口：文字 + 线性小图标、**视觉权重压低**（图标与文字同色 `--text-tertiary`），
    位于价格左侧；命中区经 ::after **仅纵向**扩至 ≥88rpx（a11y 44pt 下限）。
-   按压反馈 = opacity 微降（**禁 `transform: scale`** —— 全站红线）。 */
+   按压反馈 = opacity 微降（**禁 `transform: scale`** —— 全站红线）。
+   🔴 自身也取**基线对齐**：入口文字要与菜名 / 价格落在同一条基线上，
+   垂直居中会让它「飘在两行菜名中间」且上下各留一段空白（这正是本次修掉的观感问题）。 */
 .correct-entry {
   position: relative;
   flex: 0 0 auto;
   display: inline-flex;
-  align-items: center;
+  @include baseline.baseline-row;
   gap: var(--spacing-3xs);
   -webkit-tap-highlight-color: transparent;
 }
@@ -166,16 +171,18 @@ const dims = computed(() => {
   height: var(--tap-target-size);
   transform: translateY(-50%);
 }
-.correct-icon { flex: none; width: 24rpx; height: 24rpx; display: flex; align-items: center; justify-content: center; }
+.correct-icon { flex: none; width: 24rpx; height: 24rpx; display: flex; align-items: flex-end; justify-content: center; }
 .correct-text { font-size: var(--font-aux); color: var(--text-tertiary); line-height: 1.2; white-space: nowrap; }
 .correct-entry--pressed { opacity: 0.6; }
 .price-group { flex: 0 0 auto; display: flex; align-items: baseline; gap: var(--spacing-xs); }
-.price-text { font-size: var(--font-h2); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; }
+/* 价格与菜名**同档字号**（`--font-title`）：详情页的价格是本页主决策信息，
+   与菜名同级才不显得「标题大字 + 旁注小字」；列表卡的价格仍保留小字层级（那是列表的扫描性设计）。 */
+.price-text { font-size: var(--font-title); font-weight: var(--weight-semibold); color: var(--color-price); font-variant-numeric: tabular-nums; line-height: 1.2; }
 .origin-price { font-size: var(--font-aux); color: var(--text-tertiary); text-decoration: line-through; font-variant-numeric: tabular-nums; }
 
-/* ② 评分（左）/ 位置（右）同行：左评分靠左、右位置靠右，单行不折 */
-.meta-row { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
-.rating-group { flex: none; display: inline-flex; align-items: center; gap: var(--spacing-2xs); }
+/* ② 评分（左）/ 位置（右）同行：单行不折；同样取**基线对齐**（口径同名称行） */
+.meta-row { display: flex; @include baseline.baseline-row; justify-content: space-between; gap: var(--spacing-sm); margin-top: var(--spacing-md); }
+.rating-group { flex: none; display: inline-flex; align-items: baseline; gap: var(--spacing-2xs); }
 /* 星图标宿主（<AppIcon> 自定义组件）显式定为 30rpx 方形 flex 盒 ⇒ 与数字精确同行居中
    （同 Round 20b / 21d 的方案；否则星会随继承字体度量上下错位） */
 .rating-star {
@@ -189,7 +196,7 @@ const dims = computed(() => {
 .rating-num { font-size: var(--font-body); font-weight: var(--weight-semibold); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 /* 右侧位置：定位图标 + 「食堂 · 楼层 · 档口」，超长省略 */
-.loc-group { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: var(--spacing-xs); }
+.loc-group { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; justify-content: flex-end; gap: var(--spacing-xs); }
 .loc-icon {
   flex: none;
   width: 26rpx;

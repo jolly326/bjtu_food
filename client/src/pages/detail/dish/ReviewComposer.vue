@@ -59,7 +59,7 @@
         <view class="rc-count">{{ content.length }}/500</view>
       </view>
 
-      <!-- 配图（选填 ≤3 张）：统一 ImagePicker（选图时只落云存储，提交时才逐张机审）；提交中禁选 -->
+      <!-- 配图（选填 ≤3 张）：统一 ImagePicker（选图只落本地，提交时才上云 + 逐张机审）；提交中禁选 -->
       <view class="rc-field-images">
         <ImagePicker
           ref="imagePickerRef"
@@ -126,7 +126,7 @@ const emit = defineEmits<{
 /* 表单状态 */
 const rating = ref(0)
 const content = ref('')
-/** 配图（≤3 张；两段式：选图落云存储 → 提交时逐张机审转 COS） */
+/** 配图（≤3 张；选图只落本地 → 提交时才上云 + 逐张机审转 COS） */
 const images = ref<UgcImageItem[]>([])
 const submitting = ref(false)
 
@@ -136,7 +136,7 @@ const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } 
 
 /* 配图来源弹层：ImagePicker 上抛 pick → 本层弹 ActionSheet → 选中后回调 startPick 落地 */
 const pickSheetOpen = ref(false)
-/** ImagePicker 暴露的 startPick（拉起选图 → 压缩校验 → 落云存储） */
+/** ImagePicker 暴露的 startPick（拉起选图 → 本地压缩校验，只留本地临时路径） */
 const imagePickerRef = ref<{ startPick: (source: PickSource) => void } | null>(null)
 
 /** ActionSheet 回抛 key（string）→ 收窄为 PickSource 后落地；未知 key 直接忽略 */
@@ -177,7 +177,7 @@ async function onSubmit() {
       rating: rating.value,
       content: content.value.trim() || undefined,
       // 配图（≤3 张）；违规文本 / 图片的后端 message 经此处 toast 直透（图片文案带「第 N 张」定位）
-      // 两段式提交：先把已选图逐张送机审转 COS（失败文案带「第 N 张图片」），再随表单上送正式 URL
+      // 提交链路：先把已选图逐张「上云存储 → 送机审转 COS」（失败文案带「第 N 张图片」），再随表单上送正式 URL
       images: images.value.length ? await submitUgcImages(images.value) : undefined,
     }
     // 恒 POST：同一用户对同一菜品的重复提交由服务端覆盖旧评价（端上不区分首评 / 重评）

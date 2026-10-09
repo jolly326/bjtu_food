@@ -23,18 +23,20 @@
         @pick-image="pickSheetOpen = true"
       />
 
-      <!-- 提交反馈（表单最下方，随内容滚动）：
-           外层热区承接「置灰态点击」——AppButton 在 disabled 时不 emit press，由这里兜底 toast -->
-      <view class="submit-area" @tap="onSubmitAreaTap">
-        <!-- 处理承诺：48 小时内处理（不得暗示提交即生效） -->
-        <AppButton
-          :text="submitButtonText"
-          :disabled="!canSubmit"
-          :loading="submitting"
-          @press="submit"
-        />
-      </view>
+
     </scroll-view>
+
+    <!-- 主操作**常驻底部**（长表单通则，见 styles/_action-bar.scss）：
+         内容长于一屏时按钮若随内容滚动，用户必须滚到底才能提交 —— 那是功能可达性问题。
+         外层热区承接「置灰态点击」：AppButton 在 disabled 时不 emit press，由这里兜底 toast。 -->
+    <view class="submit-bar" @tap="onSubmitAreaTap">
+      <AppButton
+        :text="submitButtonText"
+        :disabled="!canSubmit"
+        :loading="submitting"
+        @press="submit"
+      />
+    </view>
 
     <!-- 配图来源弹层（拍照 / 从相册选择）：**必须挂在 scroll-view 之外**（小程序 scroll-view 内
          fixed 层级会被压扁/裁剪）。动作项取共享真源 imagePickSource，两处宿主页不各写一份。 -->
@@ -95,7 +97,9 @@ function onPickImageSource(key: string) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 常驻底部操作条：唯一实现见 styles/_action-bar.scss */
+@use '../../styles/action-bar' as action;
 /* 页面底不再声明私有底色：壁纸层（`<PageWallpaper fixed />`）铺满视口，
    底色回退到全局 `.page { background: var(--bg-page) }` */
 .feedback-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
@@ -110,7 +114,8 @@ function onPickImageSource(key: string) {
   flex: 1;
   min-height: 0;
   /* 滚动由 scroll-view 组件内部实现，外挂 CSS `overflow-y` 只会叠出第二根滚动条 */
-  padding-bottom: env(safe-area-inset-bottom);
+  /* 为常驻底部操作条预留等高内距（否则末尾模块被条遮住） */
+  padding-bottom: calc(var(--action-bar-height) + env(safe-area-inset-bottom) + var(--spacing-lg));
   box-sizing: border-box;
 }
 
@@ -118,9 +123,11 @@ function onPickImageSource(key: string) {
    不再有大白卡把三段内容框在一起：区块自身是 `.module-wrap`，区块之间靠页面留白分组
    （`.fb-form` 的上下留白与左右 gutter 见 `IssueForm.vue`；模块间距由本表单容器的 flex gap 承担）。 */
 
-/* ===== 提交反馈（**不放进任何模块容器**，直接位于页面底部） ===== */
-.submit-area {
-  /* 顶部大留白把按钮与表单模块在视觉上分开；左右 --page-gutter 与模块边线同轴 */
-  padding: var(--spacing-xl) var(--page-gutter) var(--spacing-lg);
+/* ===== 提交反馈：**常驻底部操作条**（不放进任何模块容器） ===== */
+.submit-bar {
+  @include action.action-bar;
+  /* 左右与页面 gutter 同轴（操作条自身的上下内距由 mixin 承担） */
+  padding-left: var(--page-gutter);
+  padding-right: var(--page-gutter);
 }
 </style>

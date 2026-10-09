@@ -22,9 +22,16 @@ body {
   color: var(--text-primary);
 }
 
-/* ===== 默认隐藏滚动条（保留滚动功能），视觉更干净 ===== */
+/* ===== 默认隐藏滚动条（保留滚动功能），视觉更干净 =====
+   口径：**页面内一切可滚动容器**都必须登记在此 —— 漏登记一个，它就会用浏览器默认的
+   白灰窄条贴到内容右侧（深色控制台里尤其刺眼）。
+   ⚠️ 新增可滚动容器（`overflow-y: auto`）时必须同步登记，否则会出现「某处滚动条突然变白」。
+   已登记：页面根 / 内容区 / 表格容器 / 顶栏导航 / **管理端侧栏导航（`.nav`）** / 抽屉 / 对话框。 */
 html,
-body {
+body,
+.nav,
+.drawer,
+.modal-box {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge 旧 */
 }
@@ -33,10 +40,52 @@ body::-webkit-scrollbar,
 .shell-content::-webkit-scrollbar,
 .content::-webkit-scrollbar,
 .table-wrap::-webkit-scrollbar,
-.topnav-nav::-webkit-scrollbar {
+.topnav-nav::-webkit-scrollbar,
+.nav::-webkit-scrollbar,
+.drawer::-webkit-scrollbar,
+.modal-box::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
+}
+
+/* ===== 组件风格与间隙口径（全站唯一真源，各页 SHALL NOT 另立） =====
+   圆角：表面（卡片 / 表格 / 面板）`--radius-card` ｜ 控件（按钮 / 输入 / 下拉）`--radius` ｜ 胶囊标签 `--radius-pill`
+   间隙：页头 → 筛选区 → 内容 三段之间统一 `--space-4`；筛选区内部控件之间 `--space-3`；
+        表格与分页条之间由 `.table-wrap` 内距承担；抽屉 / 对话框内距 `--space-5`。 */
+
+/* ===== 详情抽屉「身份头 + 关键事实条」（公共类，各详情抽屉共用） =====
+   解决的问题：抽屉标题是**操作名**（「编辑菜品」），无法回答「这是哪一个」；
+   若正文直接从「核心指标」开始，首屏没有锚点，读起来就是一堆组件堆叠。
+   结构固定为三层：① `.ctx` 身份头（名称 + 状态 + ID）→ ② `.fact-chips` 关键事实（扫一眼）
+   → ③ 各 `.detail-group` 细节分组。身份头与事实条里出现过的事实，**正文分组不得重复**。 */
+.ctx-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.fact-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.fact-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+/* 事实名（弱）与事实值（强）的层次：同一枚 chip 内也应有主次 */
+.fact-chip-k {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
 }
 
 /* ============================================================
@@ -190,7 +239,8 @@ a:focus-visible,
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  margin-bottom: var(--space-5);
+  /* 与 `.filters` 的下边距同档（--space-4）—— 页头 / 筛选区 / 内容三段间距一致 */
+  margin-bottom: var(--space-4);
 }
 .page-header h2 {
   font-size: var(--font-2xl);

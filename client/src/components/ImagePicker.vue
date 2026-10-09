@@ -4,13 +4,13 @@
     复用点（跨分包公用，按组件组织规范驻留 components/）：
     写评价（ReviewComposer）/ 意见反馈（IssueForm）/ 菜品纠错（CorrectionForm、GoneForm）。
 
-    **两段式上传**（详见 components/ugcImage.ts）：
+    **提交时，才把本地文件送上云**（详见 components/ugcImage.ts）：
     · 选图时：wx.chooseMedia → wx.compressImage(quality 80) → wx.getImageInfo 校验最长边 ≤1334
       → wx.getFileSystemManager 校验 ≤1MB（超限逐张 toast 跳过该张）
-      → **wx.cloud.uploadFile 只落微信云存储拿 fileID**，缩略图 / 预览走**本地临时路径**，
-      **不调任何后端端点**（避免用户取消提交时在 COS 留下孤儿对象）。
-    · 提交时：由调用方经 submitUgcImages 逐张调 `POST /upload/cloud-image`（机审 + 转存 COS），
-      报错文案带「第 N 张图片」定位；已成功张数保留，重试只传剩余。
+      → **只保留本地临时路径**（缩略图 / 预览 / 删除都在本地完成），**不写云存储、不调任何后端端点**；
+    · 提交时：由调用方经 submitUgcImages 逐张「先 wx.cloud.uploadFile 拿 fileID → 再 `POST /upload/cloud-image`
+      （机审 + 转存 COS）」，报错文案带「第 N 张图片」定位；已成功张数保留，重试只传剩余。
+    ⇒ **用户不提交 ⇒ 云存储桶零写入**（本地临时文件由微信自行回收，不占用云存储空间）。
     ⇒ 组件对外契约 = `UgcImageItem[]`（preview / fileId / url），**不含任何后端 URL 语义**。
 
     ⚠️ 为何不自带来源弹层：ActionSheet → BaseSheet 内部是 position: fixed，而本组件在
@@ -51,19 +51,25 @@
       </view>
     </view>
 
-    <!-- 添加格：未达上限时展示；上传中 loading 态（评审 m3）；提交中/禁用弱化（评审 m1）。 -->
+    <!-- 添加格：未达上限时展示；处理中 loading 态（评审 m3）；提交中/禁用弱化（评审 m1）。 -->
     <view v-if="items.length < max" class="ip-cell">
       <view
         class="ip-box ip-add"
-        :class="{ uploading, disabled }"
+        :class="{ processing, disabled }"
         role="button"
-        :aria-label="uploading ? '图片上传中' : '添加图片'"
+        :aria-label="processing ? '图片处理中' : '添加图片'"
         hover-class="pressed"
         @tap="onAdd"
       >
-        <view v-if="uploading" class="ip-loading" />
-        <AppIcon v-else name="image" :size="48" :color="COLOR_MAP['text-tertiary']" />
-        <text class="ip-add-text">{{ uploading ? '上传中…' : '添加图片' }}</text>
+        <!-- 🔴 内容层必须**绝对定位铺满**：`grid.box` 是「height:0 + padding-bottom:100%」的经典等比盒，
+             其**内容盒高为 0** ⇒ 直接在盒内做 flex 居中会贴在**顶部**（不是视觉错觉）。
+             绝对定位层相对盒的 padding box 展开，正好覆盖整个正方形 ⇒ 加号落在正中央。
+             常态**只有加号**、无文字（加号即语义，可访问名由 aria-label 承担）。 -->
+        <view class="ip-add-inner">
+          <view v-if="processing" class="ip-loading" />
+          <AppIcon v-else name="plus" :size="48" :color="COLOR_MAP['text-tertiary']" />
+          <text v-if="processing" class="ip-add-text">处理中…</text>
+        </view>
       </view>
     </view>
     <!-- 满额计数格：轻量 n/n 占位（评审 m3，替代添加格直接消失，保留网格与已选感知）。 -->
@@ -80,7 +86,6 @@ import { ref, watch } from 'vue'
 import AppIcon from './AppIcon.vue'
 import ImagePlaceholder from './ImagePlaceholder.vue'
 import { useBrokenImages } from '@/composables/useBrokenImages'
-import { uploadToCloud } from '@/api/upload'
 import { toastError } from '@/utils/error'
 import { COLOR_MAP } from '@/theme/tokens'
 import { getWxApi } from '@/utils/device'
@@ -123,10 +128,10 @@ const { broken: brokenImages, markBroken: onImageError, clear, previewAt } = use
 watch(
   () => props.modelValue,
   (v) => {
-    // 上传在途时不回灌：本轮追加写在本地镜像 `items` 上，
-    // 若此刻用外部值覆盖，可能丢掉「已上传完成、但尚未随父级值回来」的那几张。
-    // 上传期间每次追加都会 emit，结束后父级值与本地镜像自然对齐。
-    if (uploading.value) return
+    // 本地处理在途时不回灌：本轮追加写在本地镜像 `items` 上，
+    // 若此刻用外部值覆盖，可能丢掉「已处理完成、但尚未随父级值回来」的那几张。
+    // 处理期间每次追加都会 emit，结束后父级值与本地镜像自然对齐。
+    if (processing.value) return
     items.value = [...(v || [])]
     clear()
   },
@@ -270,12 +275,12 @@ async function normalizeForPlatform(input: { path: string; size: number }): Prom
   return path
 }
 
-/* ===== 添加图片：来源由父页决定 → 逐张 规格收敛 → 落云存储 → 追加；单张失败不中断其余 ===== */
-const uploading = ref(false)
+/* ===== 添加图片：来源由父页决定 → 逐张 本地规格收敛 → 追加本地临时路径；单张失败不中断其余 ===== */
+const processing = ref(false)
 
 /** 可否继续加图：未禁用、未在途、且未达张数上限 */
 function canAdd(): boolean {
-  if (props.disabled || uploading.value) return false
+  if (props.disabled || processing.value) return false
   return props.max - items.value.length > 0
 }
 
@@ -292,43 +297,42 @@ function onAdd() {
 
 /**
  * 按父页给定的来源真正拉起选图（父页在 ActionSheet 选中项后调用）。
- * 内部为「拉起 → 逐张规格收敛 → 落微信云存储 → 追加」全流程；拍照一次仅回 1 张，由 {@link pick} 收口。
+ * 内部为「拉起 → 逐张本地规格收敛（压缩 + 尺寸/大小校验）→ 追加本地临时路径」全流程；拍照一次仅回 1 张，由 {@link pick} 收口。
  *
- * **不调后端**：内容安检与转存 COS 留到提交时（见 `submitUgcImages`），
- * 用户此刻放弃提交就不会在 COS 产生孤儿对象。
+ * **不写云存储、不调后端**：图片此时只在**本地临时文件**里（缩略图 / 预览 / 删除都本地完成）。
+ * 上云（微信云存储）与内容安检 + 转存 COS 全部留到用户**确认提交**时（见 `submitUgcImages`）——
+ * 用户不提交时云存储桶零写入，既省空间，也不需要靠「未提交中间产物过期清理」兜底。
  */
 async function startPick(source: PickSource) {
   if (!canAdd()) return
   const remain = props.max - items.value.length
-  uploading.value = true
+  processing.value = true
   try {
     const files = await pick(remain, source)
     for (const f of files) {
       try {
         const preview = await normalizeForPlatform(f)
-        const { fileId } = await uploadToCloud(preview)
-        if (fileId) {
-          items.value = [...items.value, { preview, fileId, url: '' }]
-          emit('update:modelValue', [...items.value])
-        }
+        // 仅落本地临时路径：`fileId`（云存储）留到提交时才产生
+        items.value = [...items.value, { preview, fileId: '', url: '' }]
+        emit('update:modelValue', [...items.value])
       } catch (e) {
-        // 超大 / 云存储失败 / 网络失败：toast 透出，跳过该张（机审不在本阶段，故无「违规」文案）
-        toastError(e, '图片上传失败')
+        // 超大 / 压缩失败：toast 透出，跳过该张（机审与上传都不在本阶段）
+        toastError(e, '图片处理失败')
       }
     }
   } catch (e) {
     toastError(e, '选择图片失败')
   } finally {
-    uploading.value = false
+    processing.value = false
   }
 }
 
 /** 供父页经 ref 调用（来源弹层选完后落地） */
 defineExpose({ startPick })
 
-/** 删除已选（本地移除；已落云存储但未提交的中间产物由 `ugc/` 前缀生命周期规则过期清理） */
+/** 删除已选（纯本地移除 —— 此刻尚未上传，云存储与后端均无痕迹，无需任何清理动作） */
 function onRemove(i: number) {
-  if (props.disabled || uploading.value) return
+  if (props.disabled || processing.value) return
   items.value = items.value.filter((_, idx) => idx !== i)
   emit('update:modelValue', [...items.value])
 }
@@ -402,7 +406,20 @@ function onPreview(i: number) {
   gap: var(--spacing-2xs);
   transition: opacity var(--duration-fast) var(--ease-out);
 }
-.ip-add.uploading { opacity: 0.6; }
+/* 内容层：绝对定位铺满正方形 —— 盒自身是「height:0 + padding-bottom:100%」的等比盒，
+   内容盒高为 0，无法承担 flex 居中（那会让加号贴在顶部） */
+.ip-add-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2xs);
+}
+
+/* 加号宿主：方形 flex 盒 ⇒ 图标在内容层内精确居中 */
+.ip-add.processing { opacity: 0.6; }
 /* 禁用态（评审 m1）：提交中等 disabled 弱化（非主色可点件保留透明档），按压不改变观感（onAdd 已拦截点击） */
 .ip-add.disabled { opacity: 0.5; }
 /* 禁用态（复审 MINOR）：提交中删除钮同步弱化（onRemove 已拦截点击） */

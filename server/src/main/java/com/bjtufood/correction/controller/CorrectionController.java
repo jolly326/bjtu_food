@@ -42,13 +42,13 @@ public class CorrectionController {
      * @param req <b>type 必填</b>：
      *            <b>field（信息有误）</b> —— 局部提交（patch），只传改动项
      *            （name / price(分) / canteenName / stallName / floor / attributes / images，均为选填），
-     *            无任何改动项 → 400「未提交任何改动」，images ≤5 张；
+     *            无任何改动项 → 400「未提交任何改动」，images ≤3 张；
      *            <b>gone（已经下架）</b> —— <b>一键提交即可成立</b>：note（≤200 字）与 images（≤3 张）
      *            <b>均为选填、允许全不传</b>；但传入任何差异项字段 → 400（语义冲突）。
      *            同一用户对同一菜品的 gone 型<b>只计一次</b>（重复提交返回成功、不重复计数）。
      */
     @Operation(summary = "提交菜品问题反馈", description = "PUB。游客与登录用户均可提交（dishId 在路径上）。"
-            + "**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤5 张）"
+            + "**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）"
             + "｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；"
             + "传差异项字段 → 400；同用户对同一菜品只计一次）。"
             + "floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。"

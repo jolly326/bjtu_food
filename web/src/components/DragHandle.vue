@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue'
 /**
  * 拖拽手柄（[UI 基线 §2.5 #3](../../../docs/ui/web/公共组件与形态基线.md)）。
  *
@@ -24,14 +25,7 @@ const emit = defineEmits<{ dragstart: [] }>()
     :title="label"
     @dragstart="emit('dragstart')"
   >
-    <svg viewBox="0 0 12 12" aria-hidden="true">
-      <circle cx="4" cy="2.5" r="1.1" />
-      <circle cx="8" cy="2.5" r="1.1" />
-      <circle cx="4" cy="6" r="1.1" />
-      <circle cx="8" cy="6" r="1.1" />
-      <circle cx="4" cy="9.5" r="1.1" />
-      <circle cx="8" cy="9.5" r="1.1" />
-    </svg>
+    <AppIcon name="drag" :size="14" color="var(--text-muted)" />
   </span>
 </template>
 
