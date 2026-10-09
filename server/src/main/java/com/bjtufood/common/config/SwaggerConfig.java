@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
  * 两套鉴权方案（与实现严格一致）：
  * <ul>
  *   <li>{@code bearerAuth}：学生端 JWT（{@code Authorization: Bearer <token>}）——默认 scheme；</li>
- *   <li>{@code adminToken}：管理端口令（请求头 {@code X-Admin-Token}）——仅 {@code /admin/**} 使用。</li>
+ *   <li>{@code adminToken}：管理端 JWT（{@code Authorization: Bearer <token>}，独立 secret 签名）——仅 {@code /admin/**} 使用。</li>
  * </ul>
  */
 @Configuration
@@ -24,7 +24,7 @@ public class SwaggerConfig {
     /** 学生端 JWT 方案名 */
     public static final String BEARER_SCHEME = "bearerAuth";
 
-    /** 管理端口令方案名 */
+    /** 管理端 JWT 方案名 */
     public static final String ADMIN_TOKEN_SCHEME = "adminToken";
 
     @Bean
@@ -37,10 +37,10 @@ public class SwaggerConfig {
                                 .bearerFormat("JWT")
                                 .description("学生端 JWT。Authorize 中粘贴 wechat-login 返回的 data.token（无需手写 Bearer 前缀）。"))
                         .addSecuritySchemes(ADMIN_TOKEN_SCHEME, new SecurityScheme()
-                                .type(SecurityScheme.Type.APIKEY)
-                                .in(SecurityScheme.In.HEADER)
-                                .name("X-Admin-Token")
-                                .description("管理端口令。值 = 服务端环境变量 ADMIN_TOKEN（未配置时管理端接口 fail-closed 403）。")))
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description("管理端 JWT。由 POST /admin/auth/login 换取（独立 secret 签名，与学生端不通用）；Authorize 中粘贴返回的 data.token（无需手写 Bearer 前缀）。")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME))
                 .info(new Info()
                         .title("校园食堂信息系统 API 文档")
@@ -59,7 +59,7 @@ public class SwaggerConfig {
                                 2. 学号邮箱认证：先 POST /auth/email-code 传 `{ "username": "20240001" }` 获取验证码（发至校园邮箱，
                                    邮箱由学号推导），再 POST /auth/verify-email 传 `{ "code": "123456" }` 完成认证
                                    （写入 bind_email，解锁 UGC 写操作）。
-                                3. 管理端接口（/admin/**）：先 POST /admin/auth/login 以管理员账号换取管理端 JWT，Authorize 选 `bearerAuth` 填入该 token（缺失 / 失效返回 401）。
+                                3. 管理端接口（/admin/**）：先 POST /admin/auth/login 以管理员账号换取管理端 JWT，Authorize 选 `adminToken` 填入该 token（缺失 / 失效返回 401）。
                                 4. 小程序用户态接口：Authorize 选 `bearerAuth`，填入 wechat-login 返回的 data.token。
                                 5. 未完成学号邮箱认证访问写接口返回 code=4031「请先完成学号邮箱认证」。
                                 （菜品由管理员经 /admin/dishes 录入，学生端无菜品写接口。）
@@ -71,7 +71,7 @@ public class SwaggerConfig {
 
                                 ## 图片规则
                                 上传：小程序 UGC 配图走 POST /upload/cloud-image（云存储 fileID → 安检 → COS）；
-                                管理端菜品图走 POST /admin/upload（multipart，X-Admin-Token）。
+                                管理端菜品图走 POST /admin/upload（multipart，Authorization: Bearer <管理端 JWT>）。
                                 数据库可存 `/images/...` 相对路径，后端按 `app.public-base-url` 拼接为完整 URL。
                                 """)
                         .contact(new Contact()

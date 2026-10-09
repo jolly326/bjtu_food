@@ -106,7 +106,7 @@ public class DishController {
         // 已被判定为枚举/爬取的来源：临时限流（到期自动解除，不封账号）
         long blockedSeconds = idEnumerationGuard.blockedSeconds(clientIp);
         if (blockedSeconds > 0) {
-            throw new BusinessException("操作过于频繁，请 " + blockedSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + blockedSeconds + " 秒后再试");
         }
         DishDetailVO detail;
         try {
@@ -164,7 +164,7 @@ public class DishController {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "dish-list", ClientIpUtil.resolveCurrent(), RULE_LIST_PER_MINUTE, RULE_LIST_PER_HOUR);
         if (waitSeconds > 0) {
-            throw new BusinessException("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 
@@ -172,7 +172,7 @@ public class DishController {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "dish-detail", ClientIpUtil.resolveCurrent(), RULE_VIEW_PER_MINUTE, RULE_VIEW_PER_HOUR);
         if (waitSeconds > 0) {
-            throw new BusinessException("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 }

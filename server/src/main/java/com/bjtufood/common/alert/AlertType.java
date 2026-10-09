@@ -25,10 +25,6 @@ public enum AlertType {
     /** 登录失败达锁定阈值 —— 疑似暴力破解 */
     LOGIN_LOCKOUT("登录失败达阈值", Severity.CRITICAL),
 
-    /** 管理端启用动态口令 */
-
-    /** 管理端停用动态口令（防护降级，需知悉） */
-
     /** 管理端口令修改（既有 token 全部失效） */
     PASSWORD_CHANGED("口令修改", Severity.WARN),
 

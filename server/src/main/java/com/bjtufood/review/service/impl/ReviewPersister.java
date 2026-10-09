@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * {@code RatingUpdateListener} 用 {@code @TransactionalEventListener(phase = AFTER_COMMIT)} 异步重算菜品均分。
  * 若把 {@code ReviewSubmittedEvent} 的发布挪到<b>事务之外</b>，Spring 会因无活动事务而
  * <b>不触发</b>该监听器（默认 {@code fallbackExecution=false}）⇒ 菜品评分<b>永不重算</b>，
- * 用户将<b>直接看到错误评分</b>（🔴 2026-10-05 热度下线后，排序不再受评分影响，但出参评分仍错）。故事件发布必须与写库同处一个事务，
+ * 用户将<b>直接看到错误评分</b>（排序不受评分影响，但出参评分仍错）。故事件发布必须与写库同处一个事务，
  * 由本类的 {@code @Transactional} 一并包住。
  * <p>
  * 必须是**独立 Bean**：Spring 声明式事务靠<b>代理</b>生效，同类自调用不会开启事务。

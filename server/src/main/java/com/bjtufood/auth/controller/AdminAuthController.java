@@ -16,8 +16,6 @@ import com.bjtufood.common.exception.UnauthorizedException;
 import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,17 +31,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 /**
  * 管理端鉴权端点（TD-19 / TD-21 · P0-4）。
  *
  * <p>口令不下发到前端，由服务端验证后签发**短期可吊销**的 JWT（设计见
- * {@code docs/secur/web/登录与凭证.md}）。绑定 MFA 的账号须走两步：
+ * {@code docs/secur/web/登录与凭证.md}）。
  *
  * <p>🔴 <b>{@code POST /admin/auth/login} 必须在鉴权白名单内</b>
  * （见 {@code SecurityConfig#PUBLIC_ANY_METHOD} 与 {@code AdminAuthFilter}）——
- * 否则这两步自身先被拦，<b>功能完全不可用</b>（表现为「登录总是 401」）。
+ * 否则登录请求自身先被拦，<b>功能完全不可用</b>（表现为「登录总是 401」）。
  *
  * <p>{@code /password} 是**自助端点**：作用于当前登录者本人的账号，
  * 故 {@code AdminAuthFilter} 对其跳过「按角色判定」这一步（只读角色同样需要能改自己的口令），但仍要求有效 token。
@@ -69,7 +66,6 @@ public class AdminAuthController {
      * <p>
      * 🔴 <b>与 {@link #ipRateLimiter} 并行、任一超限即拒</b>：IP 维度防「单源狂打」，
      * 账号维度防「换 IP 的分布式爆破」（计数按用户名累加，跨 IP 生效）。
-     * 第二因子校验失败同样计入此处，故行内人拿不到「无限次猜动态口令」的额度。
      */
     private final LoginAttemptGuard loginAttemptGuard;
 
@@ -81,7 +77,6 @@ public class AdminAuthController {
      * <p>
      * <b>阈值依据</b>：BCrypt 比对单次约 100ms（故意拖慢爆破）。正常用户输错几次即重试，
      * 5 次/分已足够宽裕；而 20 次/小时把可尝试次数压到远低于常用口令的组合空间。
-     * 第二步（动态口令）共用同一限频桶 —— 两步同属一次登录。
      */
     private static final IpRateLimiter.Rule LOGIN_PER_MINUTE = new IpRateLimiter.Rule(5, 60_000L);
 
@@ -96,14 +91,12 @@ public class AdminAuthController {
      */
     private static final String LOGIN_FAILED_MESSAGE = "账号或密码错误";
 
-    /** 第二因子失败提示（此时账密已被证明，不存在账号枚举风险） */
-
     /** 口令超期提示阈值（天）：超过即提示改密，<b>不强制踢出</b> */
     private static final long PASSWORD_AGING_DAYS = 180L;
 
     @PostMapping("/login")
-    @Operation(summary = "管理员账密登录（第一步）",
-            description = "公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；"
+    @Operation(summary = "管理员账密登录",
+            description = "公开端点。账号密码正确即签发管理端 JWT（默认 24h）；"
                                 + "失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。"
                     + "双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。")
     public Result<AdminLoginVO> login(@Valid @RequestBody AdminLoginReq req) {
@@ -112,7 +105,7 @@ public class AdminAuthController {
         // 🔴 账号维度锁定：先于一切（换 IP 也拦得住）。计数按用户名归一化累加，跨 IP 生效。
         long lockedSeconds = loginAttemptGuard.lockedSeconds(username);
         if (lockedSeconds > 0) {
-            throw new BusinessException("登录失败次数过多，请 " + lockedSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("登录失败次数过多，请 " + lockedSeconds + " 秒后再试");
         }
 
         // 限频先于查库：爆破的请求主体在此即被挡下，不给数据库压力
@@ -120,7 +113,7 @@ public class AdminAuthController {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "admin-login", clientIp, LOGIN_PER_MINUTE, LOGIN_PER_HOUR);
         if (waitSeconds > 0) {
-            throw new BusinessException("登录过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("登录过于频繁，请 " + waitSeconds + " 秒后再试");
         }
 
         // 指数退避：自第 3 次连续失败起人为延迟（封顶 3s），让「少量尝试」也不经济
@@ -140,9 +133,6 @@ public class AdminAuthController {
             // 已在登录页上 ⇒ 清空已存 session 即可，不产生跳转环。
             throw new UnauthorizedException(LOGIN_FAILED_MESSAGE);
         }
-
-        // 失败计数此时**不清零** —— 第二因子没通过就等于这次登录没成功，
-        // 否则「知道口令」的一方可以把爆破第二因子的额度刷成无限。
 
         loginAttemptGuard.clear(username);
         return Result.success(issueToken(account, clientIp));

@@ -84,7 +84,7 @@ public class ReviewController {
         String clientIp = ClientIpUtil.resolveCurrent();
         long blockedSeconds = idEnumerationGuard.blockedSeconds(clientIp);
         if (blockedSeconds > 0) {
-            throw new BusinessException("操作过于频繁，请 " + blockedSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + blockedSeconds + " 秒后再试");
         }
         PageResult<ReviewVO> pageResult = PageResult.of(reviewService.listByDishId(id, page, pageSize, rating));
         // 存在性在此不可判定（无评价 ≠ 无该菜）⇒ 只喂「顺序遍历」判据，不计蜜罐探针
@@ -100,7 +100,7 @@ public class ReviewController {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "reviews-list", ClientIpUtil.resolveCurrent(), READ_PER_MINUTE, READ_PER_HOUR);
         if (waitSeconds > 0) {
-            throw new BusinessException("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 
@@ -119,7 +119,7 @@ public class ReviewController {
 
     @Operation(
             summary = "提交评价",
-            description = "用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。**同一用户对同一菜品重复提交 = 覆盖旧评价**（2026-09-30 简化：不再返回「您已评价过该菜品」），提交后重算菜品评分。需已完成学号邮箱认证。成功返回评价 ID（data.id）。",
+            description = "用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。**同一用户对同一菜品重复提交 = 覆盖旧评价**，提交后重算菜品评分。需已完成学号邮箱认证。成功返回评价 ID（data.id）。",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
@@ -153,7 +153,7 @@ public class ReviewController {
                     String.valueOf(userId), WRITE_USER_PER_MINUTE, WRITE_USER_PER_HOUR);
         }
         if (waitSeconds > 0) {
-            throw new BusinessException("提交过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("提交过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 

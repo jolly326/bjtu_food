@@ -14,9 +14,6 @@ import { setSession } from '@/api/session'
  *
  * <p>🔴 **前端不持有口令**：口令只存在于本组件的内存态，仅在 `submit()` 那一次请求体中出现，
  * 成功后只留 token（写入 `sessionStorage`），口令不落任何存储、不进构建产物。
- *
- * <p><b>两步登录</b>：账号绑定动态口令时，第一步只拿回短时票据（不签发 token），
- * 本页切换为第二步输入动态口令（或一枚恢复码），校验通过才落盘 token。
  */
 const router = useRouter()
 
@@ -180,19 +177,5 @@ async function submit(): Promise<void> {
 .submit {
   width: 100%;
   margin-top: var(--space-2);
-}
-
-/* 第二步的辅助说明（口径：提示但不喧宾夺主，与字段错误同位置同节奏） */
-.field-hint {
-  margin: var(--space-1) 0 0;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-/* 返回上一步：次级操作，不与主按钮争夺视觉重心 */
-.back {
-  width: 100%;
-  margin-top: var(--space-1);
 }
 </style>

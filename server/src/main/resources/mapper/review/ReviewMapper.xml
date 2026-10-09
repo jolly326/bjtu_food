@@ -15,10 +15,9 @@
     - selectReviewPageByUserId：我的评价（按用户过滤的本人评价，含 dishId/dishName）
     - selectAvgRatingByStallIds：批量统计多个档口平均分
 
-    排序口径（2026-09-20 拍板）：评价列表排序唯一为 created_at DESC，
-    原「按有用数置顶」第二口径与 sort 入参已随「有用」全链下线一并删除。
+    排序口径：评价列表排序唯一为 created_at DESC（无 sort 入参）。
 
-    可见性口径（2026-09-15 用户拍板「取消人工复核，sec_state 全链退役」）：
+    可见性口径：
     - 客户端可达评价唯一判据为 is_hidden=0，公开列表与我的评价同口径——被隐藏的评价不对客户端返回。
     - images 列为配图 URL 列表 JSON 原文（review.images），由 StringListTypeHandler 在**持久层**完成
       「列 ↔ List<String>」转换（2026-09-23 R5）；图片相对路径 → 绝对 URL 的转换仍由 service 层完成。
@@ -36,7 +35,7 @@
     <!--
         本人视角行映射：MyReviewVO 恰 7 字段（id / rating / content / images / createdAt + dishId / dishName），
         不含作者标识三项（userId / userNickname / userAvatar）——本人视角下三者恒等于本人，属零信息，不下发。
-        两条链路各自绑定自己的 VO，消费端据此定义两个类型（不再靠「调哪个接口」区分字段集）。
+        两条链路各自绑定自己的 VO，消费端据此定义两个类型（不靠「调哪个接口」区分字段集）。
     -->
     <resultMap id="myReviewMap" type="com.bjtufood.review.dto.MyReviewVO">
         <id property="id" column="id"/>
@@ -96,7 +95,7 @@
 
     <!--
         批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射。
-        计入口径（2026-09-15 归一）：仅 is_hidden=0 的评价计入（与 dish 评分聚合同口径）。
+        计入口径：仅 is_hidden=0 的评价计入（与 dish 评分聚合同口径）。
     -->
     <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
         SELECT d.stall_id     AS stallId,

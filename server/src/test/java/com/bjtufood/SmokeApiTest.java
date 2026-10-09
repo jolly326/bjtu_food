@@ -194,7 +194,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class SmokeApiTest {
 
-    /** 管理端鉴权头（TD-20：Bearer JWT 取代 X-Admin-Token） */
+    /** 管理端鉴权头：{@code Authorization: Bearer <管理端 JWT>} */
     private static final String ADMIN_AUTH_HEADER = "Authorization";
     /** 签发一枚<b>真实</b>管理端 JWT（用 @TestPropertySource 注入的 admin.jwt.secret，与 AdminAuthFilter 同一套校验） */
     private static String adminBearer() {

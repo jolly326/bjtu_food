@@ -14,8 +14,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
  *   <li>{@link #PASS} = <b>放行</b>（含内容安全检测 review 疑似态归一）；</li>
  *   <li>{@link #RISKY} = <b>拒绝</b>（违规）。</li>
  * </ul>
- * 内容安全检测 review（疑似）不再产生「待复核」语义：由 {@link #fromValue} 在判定入口归一为 PASS，
- * 故本枚举对外实际只有「放行 / 拒绝」二态。{@link #REVIEW} 保留仅用于对应微信原始三态值域。
+ * 内容安全检测 review（疑似）不产生「待复核」语义：由 {@link #fromValue} 在判定入口归一为 PASS，
+ * 故本枚举对外只有「放行 / 拒绝」二态。{@link #REVIEW} 仅用于对应微信原始三态值域。
  */
 public enum SecSuggest {
 
@@ -23,8 +23,8 @@ public enum SecSuggest {
     PASS("pass"),
 
     /**
-     * 微信原始「疑似」态。起取消人工复核，本态一律归一为 {@link #PASS}（放行），
-     * 不再由本枚举对外产生（保留以对应微信 suggest 值域，避免上游语义映射丢失）。
+     * 微信原始「疑似」态：一律归一为 {@link #PASS}（放行），不由本枚举对外产生
+     * （保留以对应微信 suggest 值域，避免上游语义映射丢失）。
      */
     REVIEW("review"),
 
@@ -57,7 +57,7 @@ public enum SecSuggest {
         }
         return switch (value.trim().toLowerCase()) {
             case "pass" -> PASS;
-            // 用户拍板「取消人工复核」：review（疑似）不再进人工队列，直接视为放行
+            // review（疑似）不进人工队列，直接视为放行
             case "review" -> PASS;
             default -> RISKY;
         };

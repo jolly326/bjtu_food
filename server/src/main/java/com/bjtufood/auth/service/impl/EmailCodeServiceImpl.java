@@ -195,7 +195,7 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         LocalDateTime nextAllowedAt = lastRecord.getCreatedAt().plusSeconds(SEND_INTERVAL_SECONDS);
         if (nextAllowedAt.isAfter(DateTimeUtil.now())) {
             long remainingSeconds = Duration.between(DateTimeUtil.now(), nextAllowedAt).getSeconds();
-            throw new BusinessException("发送太频繁，请 " + Math.max(1, remainingSeconds) + " 秒后重试");
+            throw BusinessException.tooManyRequests("发送太频繁，请 " + Math.max(1, remainingSeconds) + " 秒后再试");
         }
     }
 

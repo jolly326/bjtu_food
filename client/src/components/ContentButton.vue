@@ -27,8 +27,8 @@
  *       （空态 CTA、举报弹层提交、加载失败块双 CTA、属性弹层「添加」）。</li>
  * </ul>
  *
- * <p>**触达**：`min-height` 恒为全站基线 `--tap-target-size`（88rpx = 44pt）。
- * 此前各消费方靠 `padding` 撑高，实际只有 40~60rpx（20~30pt），低于触达下限。
+ * <p>**触达**：`min-height` 恒为全站基线 `--tap-target-size`（88rpx = 44pt），
+ * 不由 `padding` 撑高（消费方自行 `padding` 只能得到 40~60rpx（20~30pt），低于触达下限）。
  *
  * <p>`loading` 时**忽略点击**并显示转环（防重复提交）；`disabled` 走「灰底 + 灰字」禁用档
  * （**不降透明** —— `opacity` 全站只表「在途」）。

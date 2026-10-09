@@ -11,7 +11,6 @@ import { getWxApi } from '@/utils/device'
 import { toastInfo } from '@/utils/error'
 import { STORAGE_KEY_TOKEN } from '@/constants/storage'
 import {
-  RATE_LIMIT_PATTERNS,
   RateLimitedError,
   ResourceNotFoundError,
   SurfacedError,
@@ -177,8 +176,8 @@ function throwForErrorBody<T>(body: ApiResponse<T>): never {
     throw new ResourceNotFoundError(body.message || '内容不存在')
   }
   const msg = body.message || '请求失败'
-  if (body.code === 400 && RATE_LIMIT_PATTERNS.some((p) => msg.includes(p))) {
-    // 限频：可恢复错误，本层已弹 toast，调用方 catch 后做 UI 退避（禁用按钮 + 倒计时）
+  if (body.code === 429) {
+    // 限频（429）：可恢复错误，本层已弹 toast，调用方 catch 后做 UI 退避（禁用按钮 + 倒计时）
     toastInfo(msg)
     throw new RateLimitedError(msg, parseRetryAfter(msg))
   }

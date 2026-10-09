@@ -27,7 +27,7 @@ import java.util.List;
  * A5 首页 Banner 管理（管理端）。
  *
  * <p>契约真源：docs/api/web/banners.md。归属 `/admin/**` ⇒ 由 `AdminAuthFilter`
- * 统一以口令 `X-Admin-Token` 守卫。
+ * 统一以管理端 JWT（`Authorization: Bearer <管理端 JWT>`）守卫。
  *
  * <p>公开只读端点（`GET /banners`）仍在 {@code banner/controller/BannerController}，
  * 只下发启用项、只出 `id` + `imageUrl` —— 本控制器**不改动**它。

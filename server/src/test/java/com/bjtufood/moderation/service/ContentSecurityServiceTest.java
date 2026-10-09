@@ -166,7 +166,7 @@ class ContentSecurityServiceTest {
     }
 
     @Test
-    @DisplayName("checkText 主链路：suggest=review 直接放行，不抛异常（原「待复核」链路已退役）")
+    @DisplayName("checkText 主链路：suggest=review 直接放行，不抛异常（无「待复核」态）")
     void shouldAllowReviewOnCheckText() {
         expectStableToken();
         expectMsgSecCheck("{\"errcode\":0,\"errmsg\":\"ok\",\"result\":{\"suggest\":\"review\",\"label\":200}}");

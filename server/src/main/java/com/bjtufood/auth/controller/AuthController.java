@@ -96,21 +96,21 @@ public class AuthController {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "email-code", ClientIpUtil.resolveCurrent(), EMAIL_CODE_PER_MINUTE, EMAIL_CODE_PER_HOUR);
         if (waitSeconds > 0) {
-            throw new BusinessException("验证码发送过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("验证码发送过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 
     /**
      * IP 维度限频：验证码校验（A1 防 6 位码暴力枚举；另一种防护见 {@code VerifyCodeAttemptGuard}）。
      * <p>
-     * 文案含「过于频繁」+「请 N 秒后再试」：与 {@code client/src/api/http.ts} 的限频识别
-     * （{@code RATE_LIMIT_PATTERNS} + {@code parseRetryAfter}）对齐，端上可做退避倒计时。
+     * 文案带「请 N 秒后再试」：端上按 {@code code=429} 识别限频，并用 {@code parseRetryAfter}
+     * 从文案解析等待秒数做退避倒计时。
      */
     private void checkVerifyEmailIpRateLimit() {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "verify-email", ClientIpUtil.resolveCurrent(), VERIFY_EMAIL_PER_MINUTE, VERIFY_EMAIL_PER_HOUR);
         if (waitSeconds > 0) {
-            throw new BusinessException("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 
@@ -123,7 +123,7 @@ public class AuthController {
         long waitSeconds = ipRateLimiter.tryAcquire(
                 "wechat-login", ClientIpUtil.resolveCurrent(), WECHAT_LOGIN_PER_MINUTE, WECHAT_LOGIN_PER_HOUR);
         if (waitSeconds > 0) {
-            throw new BusinessException("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 

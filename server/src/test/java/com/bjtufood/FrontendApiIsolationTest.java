@@ -27,7 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <b>业界惯例（本项目采用）</b>：一个后端 + 一套 API + <b>两种鉴权</b>，
  * 而非「给每个客户端复制一份端点」（GitHub / Stripe / 各类 SaaS 均如此）。
  * 真正的隔离在<b>安全区</b>：承载写操作与敏感数据的 {@code /admin/**} 由
- * {@code X-Admin-Token} 把关，与学生端 JWT 体系互不通。
+ * <b>管理端 JWT</b>（{@code Authorization: Bearer <管理端 JWT>}，独立 secret 签名）把关，
+ * 与学生端 JWT 体系互不通。
  * <p>
  * <b>允许共享什么</b>：<b>非敏感的公开只读字典/枚举端点</b>（如 {@code GET /dishes/views}、
  * {@code GET /report-reasons}）——它们在 {@code SecurityConfig} 内是 {@code permitAll}，
@@ -110,7 +111,7 @@ class FrontendApiIsolationTest {
      * <b>需鉴权的学生端路径前缀</b>——web 禁调这些。
      * <p>
      * 判据取自 {@code SecurityConfig}：这些路径<b>不在</b>白名单内，故需 JWT。
-     * 管理后台只有 {@code X-Admin-Token}，调用它们必然 401；且多数是用户私有数据
+     * 管理后台只有管理端 JWT，调用它们必然 401；且多数是用户私有数据
      * （{@code /my/**} 我的通知 / 我的评价），调用即越权。
      */
     private static final List<String> AUTHENTICATED_STUDENT_PREFIXES = List.of(
@@ -162,7 +163,7 @@ class FrontendApiIsolationTest {
                 .toList();
 
         assertThat(violations)
-                .as("web 只有 X-Admin-Token（无 JWT），调用需鉴权的学生端端点必然 401；"
+                .as("web 只有管理端 JWT，调用需鉴权的学生端端点必然 401；"
                         + "且 /my/** 是用户私有数据，管理端调用属越权。管理端需求应走 /admin/** 专属端点")
                 .isEmpty();
     }
@@ -184,7 +185,7 @@ class FrontendApiIsolationTest {
     }
 
     @Test
-    @DisplayName("client 不得调用 /admin/**（管理端口令只在 web 侧配置）")
+    @DisplayName("client 不得调用 /admin/**（管理端 JWT 只由 web 侧持有）")
     void client_callsNoAdminPaths() {
         Map<String, List<String>> client = collect("client/src/api");
 
@@ -194,7 +195,7 @@ class FrontendApiIsolationTest {
                 .toList();
 
         assertThat(violations)
-                .as("client（小程序）调用了管理端路径——ADMIN_TOKEN 只配在 web 侧，小程序无从携带")
+                .as("client（小程序）调用了管理端路径——管理端 JWT 只由 web 侧持有，小程序无从携带")
                 .isEmpty();
     }
     @Test

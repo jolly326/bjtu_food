@@ -80,7 +80,7 @@ public class CorrectionController {
                     "dish-correction:user", String.valueOf(userId), RULE_PER_MINUTE, RULE_PER_HOUR);
         }
         if (waitSeconds > 0) {
-            throw new BusinessException("提交过于频繁，请 " + waitSeconds + " 秒后再试");
+            throw BusinessException.tooManyRequests("提交过于频繁，请 " + waitSeconds + " 秒后再试");
         }
     }
 }

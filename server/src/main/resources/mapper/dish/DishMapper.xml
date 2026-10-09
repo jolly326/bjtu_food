@@ -19,9 +19,8 @@
     - 列表查询仅选 DishListItemVO 8 字段所需列（listDishColumns），详情查询选 DishDetailVO 15 字段所需列（detailDishColumns）；
     - 两者均不选 status/view_count/created_at/updated_at 等不出参列；
     - 管理端查询（adminDishColumns）额外选 status/stall_id/timestamps（管理端维护用）；
-    - 坐标兜底 COALESCE 与 canteen 坐标列同批下线（位置表达收敛为 食堂 · 楼层 · 档口名）；
-    - 标签 FIND_IN_SET(tag) 条件与 d.tags 模糊匹配随 tags 整链下线删除；
-    - 辣度 spice_level 筛选条件随维度替换删除。
+    - 坐标兜底 COALESCE 由 canteen 坐标列提供（位置表达为 食堂 · 楼层 · 档口名）；
+    - 无标签 / 辣度筛选条件（筛选维度仅剩 keyword 与视图分类）。
     ============================================================
     -->
 
@@ -29,7 +28,7 @@
          仅声明下划线列名与属性名不同者，其余按 mapUnderscoreToCamelCase 自动映射 -->
     <resultMap id="dishListItemMap" type="com.bjtufood.dish.dto.DishListItemVO">
         <id property="id" column="id"/>
-        <!-- 图片列 → List<String>（2026-09-23 R5，替换原 String imagesJson 中转字段）：
+        <!-- 图片列 → List<String>（2026-09-23 R5）：
              仅供 Service 派生首图 coverImage，不出参（列表契约只有 coverImage 单值） -->
         <result property="imageUrls" column="images"
                 typeHandler="com.bjtufood.common.persistence.StringListTypeHandler"/>
@@ -38,7 +37,7 @@
     <!-- 详情映射（DishDetailVO，11 字段） -->
     <resultMap id="dishDetailMap" type="com.bjtufood.dish.dto.DishDetailVO">
         <id property="id" column="id"/>
-        <!-- 图片列 → List<String>（替换原 String imagesJson 中转字段）；
+        <!-- 图片列 → List<String>；
              绝对 URL 转换仍由 Service 层完成（TypeHandler 不掺业务逻辑） -->
         <result property="images" column="images"
                 typeHandler="com.bjtufood.common.persistence.StringListTypeHandler"/>
@@ -115,17 +114,16 @@
         COALESCE(c.name, '') AS canteen_name
     </sql>
 
-    <!-- 分页查询菜品（列表专用 8 字段，2026-09-22 D 项拆分；仅 status='on'） -->
+    <!-- 分页查询菜品（列表专用 8 字段；仅 status='on'） -->
     <select id="selectDishPage" resultMap="dishListItemMap">
         SELECT
         <include refid="listDishColumns"/>
         <include refid="dishFromJoin"/>
-        <!-- 档口/食堂已去实体化：无停业语义，原 s.status/c.status='open' 过滤已移除（列同批 DROP） -->
-        <!-- 菜品审核语义已整体退役（2026-09-15 阶段4）：公开可见性唯一判据为上架状态 status='on' -->
+        <!-- 档口 / 食堂无停业语义：不按 status 过滤 -->
+        <!-- 公开可见性唯一判据为上架状态 status='on' -->
         WHERE d.status = 'on'
         <if test="q.keyword != null and q.keyword != ''">
-            -- 关键词三路模糊匹配：菜名 / 档口名 / 食堂名（2026-09-22 用户拍板：菜品无搜索别名，
-            -- 原 d.alias LIKE 分支随 dish.alias 列全链删除；tags 模糊匹配已于 2026-09-20 随标签整链下线）
+            -- 关键词三路模糊匹配：菜名 / 档口名 / 食堂名（菜品无搜索别名）
             -- ⚠️ 技术债（按代码审计登记，行为不动）：三处 `%keyword%` 前置通配 + 三表 OR ⇒ 任何索引都用不上，
             --    执行计划必为全表扫描（菜品表行数增长后是首要慢查询源）。彻底解决需改搜索形态
             --    （全文索引 / 独立检索服务）或产品侧收紧匹配范围，均属需拍板变更，故此处只登记不改。
@@ -187,7 +185,7 @@
                 </when>
             </choose>
         </foreach>
-        <!-- 排序按视图的 sortKind 分派（端上无排序入口；食堂 / 价格筛选条件已随 2026-09-22 K3「筛选全量下线」删除）：
+        <!-- 排序按视图的 sortKind 分派（端上无排序入口）：
              ① SEED_RANDOM 且无 keyword（推荐视图 / 6 个大类视图，2026-10-05 起全部走此口径）→ CRC32(CONCAT(seed,'-',id)), id 稳定伪随机序
                 —— 同一 seed ⇒ 同一全序（翻页不重不漏），换 seed ⇒ 整体重洗（每次进入看到不同组合）；
                 d.id 作决胜键，消除 CRC32 哈希碰撞导致的并列乱序；
@@ -230,7 +228,7 @@
         SELECT
         <include refid="detailDishColumns"/>
         <include refid="dishFromJoin"/>
-        <!-- 公开详情可见性判据同上：仅 status='on'（audit_status 列已退役） -->
+        <!-- 公开详情可见性判据同上：仅 status='on' -->
         WHERE d.id = #{id}
           AND d.status = 'on'
         LIMIT 1
@@ -239,7 +237,7 @@
     <!-- DishAdminVO 结果映射（后台全部菜品） -->
     <resultMap id="dishAdminVOMap" type="com.bjtufood.dish.dto.DishAdminVO">
         <id property="id" column="id"/>
-        <!-- 图片列 → List<String>（2026-09-23 R5，替换原 String imagesJson 中转字段） -->
+        <!-- 图片列 → List<String>（2026-09-23 R5） -->
         <result property="images" column="images"
                 typeHandler="com.bjtufood.common.persistence.StringListTypeHandler"/>
         <result property="stallId" column="stall_id"/>
@@ -316,17 +314,17 @@
     <!--
         猜你喜欢：
         抽取在售菜品名——不看热度、不排序、不做个性化（搜索页迷茫时刻的试探入口）。
-        刷新边界 = **重进小程序**（2026-09-29 收窄，推翻 2026-09-28「每次刷新」旧拍板）：
+        刷新边界 = **重进小程序**（2026-09-29 拍板）：
         端上无「主动换一批」入口（全仓无下拉刷新），会话内内容自变 ⇒ 用户只会读成「界面不稳定」；
         故端上传**会话级 seed**，本查询按 CRC32(CONCAT(seed,'-',d.id)), d.id 做稳定伪随机序
           · 同一次会话内多次进入 ⇒ 同一批词条（内容不会自己变）；
           · 重进小程序 ⇒ seed 重掷 ⇒ 整体重洗（新鲜度）。
         算法与推荐流（selectDishPage 的 SEED_RANDOM 分支）同一套：d.id 作决胜键消除 CRC32 并列乱序。
         seed 由 Service 侧保证非空：{@code DishServiceImpl#guessLike} 在未传 seed 时补一个一次性随机值，
-        故这里不再保留 ORDER BY RAND() 兜底（那是全表排序：代价随行数增长且无法使用索引）。
+        此处不保留 ORDER BY RAND() 兜底（那是全表排序：代价随行数增长且无法使用索引）。
         契约未变：未传 seed 的调用方仍得到「每次不同的随机序」，只是随机性改由 seed 承载。
         出参仅 name；条数由调用方传入（DishMapper#selectGuessLike(@Param limit, @Param seed)，Service 侧常量）。
-        注意：本查询**不走**任何热度/排序表达式（热度算法已于 2026-10-05 全量下线；此处为纯随机抽取）。
+        注意：本查询**不走**任何热度/排序表达式（为纯随机抽取）。
     -->
     <select id="selectGuessLike" resultType="com.bjtufood.dish.dto.GuessLikeVO">
         SELECT d.name AS name
@@ -354,8 +352,7 @@
 
     <!--
         评分聚合原子重算（并发安全：子查询 AVG/COUNT 整体写回）。
-        计入口径（Q-110 / 2026-09-15 归一）：仅 is_hidden=0 的评价计入 avg_rating / rating_count——
-        sec_state 已随「取消人工复核」全链退役，故过滤条件收敛为 is_hidden=0 单一判据。
+        计入口径：仅 is_hidden=0 的评价计入 avg_rating / rating_count —— 过滤条件为 is_hidden=0 单一判据。
         avg_rating 在<b>零评价时为 NULL</b>（不落 0）：公开出参以 avg_rating 是否 NULL 判「有无评分」，
         落 0 会让「零评价」与「均分 0」这两种不同事实坍缩为同一个值。
         ReviewMapper 的档口均值查询与本口径同源。

@@ -725,8 +725,8 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- 配图：归入分组（原先用表单 `.field` + `<label>`，那是**编辑态**语言，
-             只读详情里显得突兀且层级错位） -->
+        <!-- 配图：归入只读分组（表单 `.field` + `<label>` 是**编辑态**语言，
+             在只读详情里层级错位） -->
         <div class="detail-group">
           <div class="detail-group-title">配图 · {{ detail.images.length }} 张（首图为封面）</div>
           <div class="detail-thumbs" role="group" aria-label="菜品配图">

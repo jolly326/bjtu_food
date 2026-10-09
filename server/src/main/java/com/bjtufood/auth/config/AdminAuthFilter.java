@@ -149,19 +149,10 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     private static final String LOGIN_PATH = "/admin/auth/login";
 
     /**
-     * <b>登录第二步</b>（绑定 MFA 的账号）。
+     * <b>自助端点前缀</b>：{@code /admin/auth/**} 下作用于「当前登录者本人」的端点（改密）。
      *
-     * <p>与 {@link #LOGIN_PATH} 同理：此时端上持有的是**第二因子票据**而非访问 token，
-     * 若不在白名单内则必 401 ⇒ 绑定 MFA 的账号**永远登录不上**。
-     */
-    private static final String MFA_LOGIN_PATH = "/admin/auth/login/mfa";
-
-    /**
-     * <b>自助端点前缀</b>：{@code /admin/auth/**} 下作用于「当前登录者本人」的端点
-     * （MFA 绑定 / 停用、改密）。
-     *
-     * <p>这类端点**跳过角色门控**：只读角色同样需要能绑定第二因子、能改自己的口令 ——
-     * 卡住它们等于让低权限账号长期停留在「只有一层口令」的状态，与安全目标相反。
+     * <p>这类端点**跳过角色门控**：只读角色同样需要能改自己的口令 ——
+     * 卡住它等于让低权限账号只能由他人代改口令，与安全目标相反。
      * 但它们仍要求有效 token（走完整验签与账号状态回查）。
      */
     private static final String SELF_SERVICE_PREFIX = "/admin/auth/";
@@ -218,16 +209,15 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             log.debug("[GUARD] /admin 请求被限频：method={} path={} ip={} retryAfter={}s",
                     request.getMethod(), request.getRequestURI(), clientIp, waitSeconds);
             writeJson(response, HttpStatus.TOO_MANY_REQUESTS.value(),
-                    Result.error("操作过于频繁，请 " + waitSeconds + " 秒后再试"));
+                    Result.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试"));
             return;
         }
 
         // 🔴 白名单：登录端点自身还没有 token，照常校验必 401 ⇒「登录总是失败」。
         //    放行位置在**限频之后** —— /admin/** 全域 60/分 对登录同样成立，
         //    登录另有 5/分 · 20/时 的专属限频（在 Controller 内），两道各管各的，互不替代。
-        //    第二步（票据）同理：端上此时持有的还不是访问 token。
         String appPath = applicationPath(request);
-        if (LOGIN_PATH.equals(appPath) || MFA_LOGIN_PATH.equals(appPath)) {
+        if (LOGIN_PATH.equals(appPath)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -271,7 +261,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
 
         // 🔴 角色门控（服务端强制，与前端隐显解耦）：viewer 只读；DELETE 仅 super。
         //    前端按角色隐显入口只是体验优化 —— 绕过前端直接调接口同样在此被拦。
-        //    自助端点（改密 / MFA 绑定停用）例外：作用于本人账号，与角色无关。
+        //    自助端点（改密）例外：作用于本人账号，与角色无关。
         String role = normalizeRole(account.getRole());
         String httpMethodOfRequest = request.getMethod() == null
                 ? "" : request.getMethod().toUpperCase(Locale.ROOT);
@@ -296,7 +286,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
                 log.warn("[ALERT] 管理端写操作被 token 维度限频：adminId={} method={} path={} ip={}",
                         accountId, httpMethodOfRequest, request.getRequestURI(), clientIp);
                 writeJson(response, HttpStatus.TOO_MANY_REQUESTS.value(),
-                        Result.error("操作过于频繁，请 " + writeWaitSeconds + " 秒后再试"));
+                        Result.tooManyRequests("操作过于频繁，请 " + writeWaitSeconds + " 秒后再试"));
                 return;
             }
         }

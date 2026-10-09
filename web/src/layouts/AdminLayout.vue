@@ -35,7 +35,7 @@ const roleName = ref(roleLabel())
 /** 口令是否已超期（>180 天）⇒ 顶部提示改密，**不强制踢出** */
 const passwordAging = ref(false)
 
-/** 账号安全弹窗（改密 / 动态口令） */
+/** 账号安全弹窗（改密） */
 const securityOpen = ref(false)
 
 /**

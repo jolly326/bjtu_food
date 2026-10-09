@@ -65,6 +65,9 @@ useOverlayLayer('modal', toRef(props, 'open'), () => emit('close'))
 .modal-head h3 {
   margin: 0;
   font-size: var(--font-lg);
+  /* 与 BaseDrawer 标题同档（UI 基线 §2.1：浮层标题统一 --font-lg + semibold + --text-primary） */
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
 }
 .modal-x {
   border: none;

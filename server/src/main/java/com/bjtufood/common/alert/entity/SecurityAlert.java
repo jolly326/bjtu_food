@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  *
  * <p><b>只追加</b>：不提供修改 / 删除入口。
  *
- * <p><b>不含敏感值</b>：标题与明细由调用方传脱敏文本，口令 / token / 密钥 / 恢复码一律不入表。
+ * <p><b>不含敏感值</b>：标题与明细由调用方传脱敏文本，口令 / token / 密钥一律不入表。
  *
  * @see com.bjtufood.common.alert.SecurityAlertRecorder 写入点
  * @see com.bjtufood.common.alert.AlertType 类型与级别口径

@@ -275,7 +275,7 @@ async function onTap(n: Notification) {
   display: flex;
   align-items: center;
   gap: var(--spacing-2xs);
-  /* 触达：min-height 兜到全站基线 88rpx（44pt），原先 padding 撑出的约 42rpx 不足触达下限 */
+  /* 触达：min-height 兜到全站基线 88rpx（44pt）；仅靠 padding 只有约 42rpx，不足触达下限 */
   min-height: var(--tap-target-size);
   padding: var(--spacing-2xs) var(--spacing-sm);
   background: var(--bg-card);

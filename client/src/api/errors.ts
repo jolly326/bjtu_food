@@ -18,7 +18,7 @@ export function isResourceNotFound(e: unknown): boolean {
 export class SurfacedError extends Error {}
 
 /**
- * 「被限频」错误（对应后端 IpRateLimiter + 各 Controller 的 checkIpRateLimit）。
+ * 「被限频」错误（业务码 429，对应后端 IpRateLimiter 与各 Controller 的限频检查）。
  *
  * 这是**可恢复**错误（等几秒即可重试），与「参数非法」这类不可恢复错误分开，
  * 调用方才能做正确处置：禁用提交按钮 N 秒、展示倒计时，而不是无脑重试延长封锁。
@@ -38,9 +38,6 @@ export class RateLimitedError extends Error {
 export function isRateLimited(e: unknown): e is RateLimitedError {
   return e instanceof RateLimitedError
 }
-
-/** 限频文案特征（与后端限频抛出的文案对齐） */
-export const RATE_LIMIT_PATTERNS = ['过于频繁', '操作频繁', '稍后再试']
 
 /** 从后端 message 解析「请 N 秒后再试」中的 N；用正则而非固定切分，避免后端改文案即失效 */
 export function parseRetryAfter(message: string): number | undefined {

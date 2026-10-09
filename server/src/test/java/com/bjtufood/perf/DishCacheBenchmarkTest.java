@@ -131,7 +131,7 @@ class DishCacheBenchmarkTest {
         dishMapper = mock(DishMapper.class);
         dimensionMapper = mock(DishAttributeDimensionMapper.class);
         when(dimensionMapper.selectList(any())).thenReturn(DIMENSIONS);
-        // 候选值真源 = 取值字典（A4）；原 dishMapper.selectAttributesJsonOnSale 桩已随扫描逻辑退役
+        // 候选值真源 = 取值字典（A4）
         valueMapper = mock(DishAttributeValueMapper.class);
         when(valueMapper.selectList(any())).thenReturn(attributeValues());
         attributeAdminService = mock(DishAttributeAdminService.class);

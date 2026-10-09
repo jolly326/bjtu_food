@@ -11,12 +11,12 @@ import java.util.List;
  * 菜品列表行视图对象（**列表专用，恰为 8 个字段**）
  * <p>
  * 用户拍板「列表 / 详情出参拆分」（见 docs/func/client/A-浏览与发现/A1-首页菜品浏览.md D 项）：
- * 拆分前列表与详情共用 {@link DishDetailVO} 的 15 字段，其中 8 个在列表链路零消费
- * （description / images[1..] / floor / ratingCount / dietType / ingredients / flavorTags / serveTemp），
- * 20 行/页约多下发 160 个字段值 → 拆出本类，列表只装「首页卡片四段 + 搜索结果卡」的真实渲染集合。
+ * 列表链路只装「首页卡片四段 + 搜索结果卡」的真实渲染集合，不发在列表零消费的 8 个详情字段
+ * （description / images[1..] / floor / ratingCount / dietType / ingredients / flavorTags / serveTemp）——
+ * 否则 20 行/页会多下发约 160 个字段值。
  * <p>
- * 字段集：{@code id}（列表 key / 跳转）、{@code name}、{@code coverImage}（原 {@code images[0]}，
- * 无图为空串——列表只渲染首图，不再下发图片数组）、{@code price}、{@code originalPrice}、
+ * 字段集：{@code id}（列表 key / 跳转）、{@code name}、{@code coverImage}（列表只渲染首图，
+ * 无图为空串；不发图片数组）、{@code price}、{@code originalPrice}、
  * {@code avgRating}（卡片评分；列表不发 {@code ratingCount}）、{@code canteenName}、{@code stallName}。
  * <p>
  * 详情专属字段（不得回流到本类）：{@code description} / {@code images} / {@code floor} /

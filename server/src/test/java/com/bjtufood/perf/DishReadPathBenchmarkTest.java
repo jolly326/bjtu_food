@@ -185,8 +185,7 @@ class DishReadPathBenchmarkTest {
 
         // ---------- GET /dishes/{id}/attributes ----------
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        // 候选值真源已改为取值字典（A4，见 setUp 中的 valueMapper 桩）；
-        // 原 dishMapper.selectAttributesJsonOnSale 桩与方法一并退役。
+        // 候选值真源 = 取值字典（A4，见 setUp 中的 valueMapper 桩）。
         PerfMetrics.emit("server.mapper_calls.dish_attributes_edit",
                 measureCalls(() -> dishService.listDishAttributes(1L)), "次/请求",
                 "现状=单次取行（存在性+在售态+属性）+ 维度字典 + 全库attributes扫描（rows=" + ON_SALE_ROWS + "）");
@@ -213,8 +212,7 @@ class DishReadPathBenchmarkTest {
     @DisplayName("候选值聚合耗时：预热后测冷路径与热路径（无缓存时热 ≈ 冷）")
     void attributeCandidateLatency() {
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        // A4 落地后候选值真源 = 取值字典（字典规模由管理端维护控制，不再随菜品行数线性膨胀）；
-        // 原 dishMapper.selectAttributesJsonOnSale 桩随扫描逻辑一并退役。
+        // 候选值真源 = 取值字典（字典规模由管理端维护控制，不随菜品行数线性膨胀）。
         // 预热：让 JIT 完成热点编译，避免把编译成本算进「冷路径」
         for (int i = 0; i < 3; i++) {
             dishService.listDishAttributes(1L);

@@ -9,8 +9,8 @@ import java.util.List;
 /**
  * 评价视图对象（管理端专用 VO）
  * <p>
- * 管理端独有语义字段为 {@code hidden}（是否被隐藏，仅管理端可见/可改）。
- * 内容安全态 {@code secState} 已取消人工复核，不再返回。
+ * 管理端独有语义字段为 {@code hidden}（是否被隐藏，仅管理端可见/可改）；
+ * 不下发内容安全态。
  */
 @Data
 @Schema(description = "评价展示信息（管理端专用，含审核标记）")
@@ -49,9 +49,9 @@ public class ReviewAdminVO {
     /**
      * 是否被隐藏（管理端用）。
      * <p>
-     * B1 口径（2026-10-03）：由 `isHidden`(0/1) 改为 **`hidden`(boolean)** ——
+     * B1 口径：出参为 **`hidden`(boolean)** ——
      * 端上是「显示中 / 已隐藏」**二态**，0/1 会逼消费方做真假转换或写魔法数字。
-     * 库列 `review.is_hidden` 仍是 0/1，**不改列、只改出参**。
+     * 库列 `review.is_hidden` 是 0/1，**只改出参、不改列**。
      */
     @Schema(description = "是否被隐藏（管理端用）")
     private Boolean hidden;

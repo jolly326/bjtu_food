@@ -33,7 +33,7 @@ public class AdminAlertController {
     private final SecurityAlertService securityAlertService;
 
     @Operation(summary = "安全告警记录", description = "用途：分页回看安全告警（登录成功 / 登录失败达阈值 / "
-            + "动态口令启停 / 口令修改 / 审计写入失败 / 违规累积处置 / 爬取检测），"
+            + "口令修改 / 审计写入失败 / 违规累积处置 / 爬取检测），"
             + "支持按类型与级别筛选。记录只追加，无修改与删除入口。"
             + "测试示例：/admin/alerts?page=1&pageSize=20&severity=critical")
     @GetMapping

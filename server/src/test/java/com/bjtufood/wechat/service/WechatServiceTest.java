@@ -161,7 +161,7 @@ class WechatServiceTest {
 
         assertThat(session.openid()).isEqualTo("oX");
         assertThat(session.sessionKey()).isEqualTo("k");
-        // unionid 已随 user.unionid 列退役，WechatSession 不再携带该字段
+        // WechatSession 只携带 openid / sessionKey（不含 unionid）
         server.verify();
     }
 
@@ -176,7 +176,7 @@ class WechatServiceTest {
         WechatService.WechatSession session = wechatService.code2Session("code");
 
         assertThat(session.openid()).isEqualTo("oJson");
-        // 响应中的 unionid 字段不再解析（user.unionid 列已随 零消费退役）
+        // 响应中的 unionid 字段不解析（user 表无 unionid 列）
         assertThat(session.sessionKey()).isEqualTo("sk");
         server.verify();
     }

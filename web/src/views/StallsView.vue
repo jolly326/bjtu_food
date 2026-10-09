@@ -317,7 +317,7 @@ onMounted(async () => {
           </span>
         </div>
 
-        <!-- 配图归入分组（原先用表单 `.field` + `<label>`，那是编辑态语言，只读详情里层级错位） -->
+        <!-- 配图归入只读分组（表单 `.field` + `<label>` 是编辑态语言，在只读详情里层级错位） -->
         <div class="detail-group">
           <div class="detail-group-title">档口图片 · {{ current?.images.length ?? 0 }} 张</div>
           <div

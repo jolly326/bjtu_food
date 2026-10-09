@@ -25,9 +25,10 @@ import lombok.NoArgsConstructor;
 @Schema(description = "统一响应结果")
 public class Result<T> {
 
-    /** 业务状态码（200=成功, 400=参数/业务错误, 401=未登录, 403=无权限,
-     *  4031=未完成学号邮箱认证, 4001=资源不存在, 500=服务器错误）。
-     *  注：除 403 类授权错误与参数校验 / 过滤器层外，业务码统一挂在 HTTP 200 响应上，端上以 body.code 为准。 */
+    /** 业务状态码（200=成功, 400=参数/业务错误, 401=未登录, 403=无权限, 4031=未完成学号邮箱认证,
+     *  4001=资源不存在, 429=请求过于频繁（限频）, 500=服务器错误）。
+     *  注：除 403 类授权错误、参数校验与**过滤器层**（401 / 403 / 429）外，业务码统一挂在 HTTP 200 响应上，
+     *  端上以 body.code 为准；过滤器层与 HTTP 状态保持同值。 */
     @Schema(description = "状态码", example = "200")
     private int code;
 
@@ -69,6 +70,11 @@ public class Result<T> {
     /** 无权限 */
     public static <T> Result<T> forbidden(String message) {
         return new Result<>(403, message, null);
+    }
+
+    /** 请求过于频繁（限频）：HTTP 与 body `code` 同为 429 */
+    public static <T> Result<T> tooManyRequests(String message) {
+        return new Result<>(429, message, null);
     }
 
     /** 服务器内部错误 */
