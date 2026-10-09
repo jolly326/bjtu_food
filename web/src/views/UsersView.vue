@@ -17,7 +17,13 @@ import { computed, onMounted, ref } from 'vue'
 import { confirmDelete } from '@/utils/confirm'
 import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
-import { deleteUserAccount, listUsers, setUserStatus, unbindUserEmail } from '@/api/users'
+import {
+  deleteUserAccount,
+  kickUserSessions,
+  listUsers,
+  setUserStatus,
+  unbindUserEmail,
+} from '@/api/users'
 import type { UserAdminVO, UserListParams, UserStatus } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
@@ -95,6 +101,25 @@ async function toggle(row: UserAdminVO): Promise<void> {
   })
 }
 
+/** 踢下线：轻量止损（不改账号任何列，仅吊销既有 token，用户重新登录即换发） */
+async function kickOff(row: UserAdminVO): Promise<void> {
+  try {
+    await confirmDelete(
+      `踢下线后：该用户已登录的会话立即失效，需重新登录（小程序静默登录会自动换发新 token）；账号状态、认证邮箱与已发表内容全部不受影响。确认踢「${row.nickname || row.id}」下线？`,
+      { title: '踢下线', confirmText: '踢下线' },
+    )
+  } catch {
+    return
+  }
+  await runAction({
+    id: row.id,
+    action: () => kickUserSessions(row.id),
+    successMessage: '已踢下线',
+    refresh: reload,
+    syncAfterRefresh: syncCurrent,
+  })
+}
+
 async function unbindEmail(row: UserAdminVO): Promise<void> {
   try {
     await confirmDelete(
@@ -131,10 +156,15 @@ async function deleteAccount(row: UserAdminVO): Promise<void> {
   })
 }
 
-/** 详情抽屉底部动作：复用行内的启停 / 解绑 / 注销（确认文案与成功提示同源、逐字一致） */
+/** 详情抽屉底部动作：复用行内的启停 / 踢下线 / 解绑 / 注销（确认文案与成功提示同源、逐字一致） */
 function detailToggle(): void {
   const row = current.value
   if (row) void toggle(row)
+}
+
+function detailKick(): void {
+  const row = current.value
+  if (row) void kickOff(row)
 }
 
 function detailUnbind(): void {
@@ -333,7 +363,7 @@ onMounted(() => reloadFirstPage())
       </div>
 
       <p class="foot-note">
-        管理端不代改资料（昵称 / 头像由用户本人维护）；可在此禁用 / 启用、解绑认证邮箱或注销账号。
+        管理端不代改资料（昵称 / 头像由用户本人维护）；可在此禁用 / 启用、踢下线、解绑认证邮箱或注销账号。
       </p>
 
       <template #actions>
@@ -347,8 +377,19 @@ onMounted(() => reloadFirstPage())
           >
             {{ current?.status === 'disabled' ? '启用' : '禁用' }}
           </button>
+          <!-- 踢下线：POST 写操作（canWrite）；轻量止损 —— 不改账号任何列，仅吊销既有 token -->
           <button
-            v-if="current?.bindEmail"
+            v-if="canWrite()"
+            class="link"
+            type="button"
+            :disabled="isBusy(current?.id)"
+            @click="detailKick"
+          >
+            踢下线
+          </button>
+          <!-- 解绑邮箱：服务端 DELETE 仅 super（§1.4：DELETE 类动作用 canDelete() 隐显） -->
+          <button
+            v-if="current?.bindEmail && canDelete()"
             class="link"
             type="button"
             :disabled="isBusy(current?.id)"
