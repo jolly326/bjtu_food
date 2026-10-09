@@ -92,7 +92,7 @@ user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非�
 | 表.列 | 维护方 |
 |---|---|
 | `user.violation_count` / `user.muted_until` | 违规累积处置链路（机审命中 / 举报成立时自动写入；解封由处置到期自动恢复，人工介入用 `PUT /admin/users/{id}/status`） |
-| `admin_account.role` / `credential_version` / `password_changed_at` | 直连库维护（角色）/ 账号自助端点（改密令、改密） |
+| `admin_account.role` / `credential_version` / `password_changed_at` | 直连库维护（角色）/ 账号自助端点（改密码、改密） |
 
 **管理端无 CRUD 页面的表**（不属「字段可达」口径）：`notification`（由 client 只读）、`dish_view_log`（仅供 30 天窗口统计）、`email_verification_code`（短生命周期校验件）、`admin_account`（账号行由数据库与自助端点维护，页面不暴露其字段）、`user_violation`（只追加留痕，排查时按 `user_id` 直查）。
 
