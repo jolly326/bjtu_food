@@ -41,13 +41,6 @@ public class AdminJwtUtil {
     /** HMAC-SHA 算法的密钥长度硬要求：短于此长度 {@code Keys.hmacShaKeyFor} 直接抛异常 */
     private static final int MIN_SECRET_BYTES = 32;
 
-    /** 第二因子票据的有效期（秒）：够完成「打开认证器 → 输入 6 位口令」，短到泄露也几乎无用 */
-    private static final long MFA_TICKET_TTL_SECONDS = 300L;
-
-    /** 第二因子票据标记：带此声明的 token <b>不得</b>作为访问凭证（过滤器 fail-closed） */
-    private static final String CLAIM_MFA_PENDING = "mfaPending";
-
-    /** 凭证版本声明：与 {@code admin_account.credential_version} 比对，改密即让旧 token 全部失效 */
     private static final String CLAIM_CREDENTIAL_VERSION = "cv";
 
     public AdminJwtUtil(AdminProperties adminProperties) {
@@ -116,37 +109,6 @@ public class AdminJwtUtil {
                 .expiration(new Date(now.getTime() + ttlMillis))
                 .signWith(getKey())
                 .compact();
-    }
-
-    /**
-     * 签发第二因子票据（MFA 第一步通过后）。
-     *
-     * <p>🔴 <b>票据不是 token</b>：它带着 {@code mfaPending} 标记，{@code AdminAuthFilter}
-     * 见到该标记一律 401。有效期仅 {@value #MFA_TICKET_TTL_SECONDS} 秒，
-     * 作用只有「把第一步的结论带到第二步」。
-     *
-     * @param accountId 管理员账号 ID
-     * @return 紧凑序列化 JWT（含 {@code mfaPending=true}）
-     */
-    public String createMfaTicket(Long accountId) {
-        Date now = new Date();
-        return Jwts.builder()
-                .subject(String.valueOf(accountId))
-                .claim(CLAIM_MFA_PENDING, true)
-                .issuedAt(now)
-                .expiration(new Date(now.getTime() + MFA_TICKET_TTL_SECONDS * 1000L))
-                .signWith(getKey())
-                .compact();
-    }
-
-    /**
-     * 该 token 是否为「仅用于第二因子」的票据。
-     *
-     * @param claims 已校验的载荷
-     * @return true = 是票据（不得作为访问凭证）
-     */
-    public boolean isMfaTicket(Claims claims) {
-        return Boolean.TRUE.equals(claims.get(CLAIM_MFA_PENDING, Boolean.class));
     }
 
     /**

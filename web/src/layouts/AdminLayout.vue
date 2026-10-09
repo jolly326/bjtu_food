@@ -32,9 +32,6 @@ const displayName = computed(() => getUsername() || '管理员')
 /** 角色展示名（口径见 utils/permissions：未知 / 缺失一律按只读展示） */
 const roleName = ref(roleLabel())
 
-/** 动态口令是否已启用（端上据此展示「绑定」还是「停用」） */
-const mfaEnabled = ref(false)
-
 /** 口令是否已超期（>180 天）⇒ 顶部提示改密，**不强制踢出** */
 const passwordAging = ref(false)
 
@@ -51,7 +48,6 @@ onMounted(async () => {
   try {
     const me = await fetchMe()
     roleName.value = roleLabel()
-    mfaEnabled.value = !!me.mfaEnabled
     passwordAging.value = !!me.passwordAging
   } catch {
     // 401 由请求层统一清 token 并跳登录页；此处不重复处置
@@ -140,12 +136,7 @@ const groups: NavGroup[] = [
       </RouterView>
     </main>
 
-    <AccountSecurityDialog
-      :open="securityOpen"
-      :mfa-enabled="mfaEnabled"
-      @close="securityOpen = false"
-      @mfa-changed="mfaEnabled = $event"
-    />
+    <AccountSecurityDialog :open="securityOpen" @close="securityOpen = false" />
   </div>
 </template>
 
@@ -172,11 +163,15 @@ const groups: NavGroup[] = [
   box-sizing: border-box;
 }
 
+/* 品牌区：与下方导航之间用一条分隔线区隔（不用第二个色块 —— 侧栏本身已是浅色玻璃面，
+   再加块会把导航压得「碎」）；logo 与名称之间 `--space-3` 与导航项内距同档。 */
 .brand {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-2) var(--space-5);
+  padding: 0 var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-light);
 }
 .brand-logo {
   width: 36px;
@@ -200,8 +195,11 @@ const groups: NavGroup[] = [
   color: var(--text-muted);
 }
 
+/* 导航：组间距由 `gap` 统一承担（`--space-5`），组内项间距由项自身 `margin-bottom` 承担（`--space-1`）
+   —— 两者分工明确，避免「组间距与项间距混用同一个值」导致的节奏不匀。 */
 .nav {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -214,11 +212,16 @@ const groups: NavGroup[] = [
   padding: 0 var(--space-3);
   margin-bottom: var(--space-2);
 }
+/* 导航项：项高统一（`min-height: 36px` + 内距 `--space-2`），圆角 `--radius-sm`（与控件档一致）。
+   激活态用「主色浅底 + 主色文字 + 左侧 2px 指示条」三重表达 —— 单靠底色在深色底上辨识度不足。 */
 .nav-item {
-  display: block;
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
   padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-1);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
   font-size: var(--font-base);
@@ -228,6 +231,18 @@ const groups: NavGroup[] = [
     color var(--duration-base) var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 2px;
+  height: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  transform: translateY(-50%);
+  transition: height var(--duration-base) var(--ease-out);
+}
 .nav-item:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
@@ -236,8 +251,18 @@ const groups: NavGroup[] = [
   background: var(--color-primary-bg);
   color: var(--color-primary-text);
 }
+.nav-item.router-link-active::before {
+  height: 18px;
+}
+.nav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
 
+/* 底部身份区：与导航区之间留 `--space-4` 呼吸（导航项 margin-bottom 之后再退一档），
+   角色以 chip 形态呈现（圆角 `--radius-pill`），与「角色是标签」的语义一致。 */
 .sidebar-foot {
+  margin-top: var(--space-4);
   padding: var(--space-3) var(--space-2) 0;
   border-top: 1px solid var(--border-light);
 }
@@ -247,8 +272,13 @@ const groups: NavGroup[] = [
   color: var(--text-primary);
 }
 .admin-role {
-  font-size: var(--font-xs);
+  display: inline-block;
+  margin-top: var(--space-1);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-soft);
   color: var(--text-muted);
+  font-size: var(--font-xs);
 }
 .security-link {
   margin-top: var(--space-2);

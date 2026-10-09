@@ -2,23 +2,24 @@
   <view class="page notifications-page">
     <!-- 全站壁纸层（`fixed`：视口锚定、`z-index: -1` → 落在页底之上、内容之下） -->
     <PageWallpaper fixed />
-    <Header title="系统通知" @back="backToHome">
-      <!-- 全部已读：页面头部操作区，胶囊按钮与下方通知卡同一表面语言。
-           无未读时置灰不可点（常驻不隐藏）——位置稳定不跳动，用户随时能看到该动作存在。 -->
-      <template #action>
-        <view
-          class="read-all"
-          :class="{ 'is-active': hasUnread && !readAllBusy, 'is-disabled': !hasUnread || readAllBusy }"
-          role="button"
-          aria-label="全部已读"
-          hover-class="pressed"
-          @tap="onReadAll"
-        >
-          <AppIcon name="check" :size="28" :color="(hasUnread && !readAllBusy) ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
-          <text class="read-all-text">全部已读</text>
-        </view>
-      </template>
-    </Header>
+    <Header title="系统通知" @back="backToHome" />
+
+    <!-- 列表级批量动作：**列表上方常驻动作行**（在滚动区之外 ⇒ 不随列表滚出、位置稳定不跳动）；
+         空态 / 失败态不渲染（无列表即无批量动作），无未读时置灰不可点（入口不隐藏）。 -->
+    <view v-if="list.length" class="read-all-row">
+      <view
+        class="read-all"
+        :class="{ 'is-active': hasUnread && !readAllBusy, 'is-disabled': !hasUnread || readAllBusy }"
+        role="button"
+        aria-label="全部已读"
+        :aria-disabled="(!hasUnread || readAllBusy) ? 'true' : 'false'"
+        hover-class="pressed"
+        @tap="onReadAll"
+      >
+        <AppIcon name="check" :size="28" :color="(hasUnread && !readAllBusy) ? COLOR_MAP['primary'] : COLOR_MAP['text-tertiary']" />
+        <text class="read-all-text">全部已读</text>
+      </view>
+    </view>
 
     <!-- 滚动容器：数据更新 / 恢复走「首屏 load + onShow 重拉闸门 + 失败重试块 @tap」，容器为普通滚动容器。 -->
     <scroll-view class="scroll-wrap v-scroll" scroll-y @scroll="onScroll" @scrolltolower="loadMore">
@@ -261,6 +262,10 @@ async function onTap(n: Notification) {
 }
 
 /* 空态 / 失败态样式由公共组件 EmptyState / RetryBlock 承担 */
+
+/* 动作行：常驻于页头与滚动区之间、右对齐，右缘与列表卡同轴（左右内距 = 页面 gutter）；
+   纵向不额外占位（页头自带 `--spacing-sm`、滚动区自带 `--spacing-md`）；行不渲染时纵向零占位 */
+.read-all-row { display: flex; justify-content: flex-end; padding: 0 var(--page-gutter); }
 
 /* 「全部已读」胶囊：默认中性白底灰描边；有未读时（is-active）整体转暖橙描边 + 暖橙文字；
    禁用态（is-disabled）常驻中性描边 + 文字三阶末档（描边 / 文字类禁用档，**不降透明**）、不可点；

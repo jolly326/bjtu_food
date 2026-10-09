@@ -15,7 +15,6 @@ import lombok.Data;
  * @param username      登录名（供端上身份区回显）
  * @param lastLoginAt   最近登录成功时间；账号从未登录过时为 {@code null}（此时字段不下发）
  * @param role          角色（供端上按角色隐显入口；**真正的门控在服务端**，前端隐显只是体验）
- * @param mfaEnabled    是否已绑定 MFA（供端上决定展示「绑定」还是「停用」入口）
  * @param passwordAging 口令是否已超期（距上次改密 &gt;180 天 ⇒ 端上提示改密，**不强制踢出**）
  */
 @Data
@@ -26,8 +25,6 @@ public class AdminMeVO {
     private String lastLoginAt;
 
     private String role;
-
-    private boolean mfaEnabled;
 
     private boolean passwordAging;
 }

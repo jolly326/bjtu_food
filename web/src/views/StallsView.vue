@@ -298,13 +298,33 @@ onMounted(async () => {
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
       <template v-if="mode === 'view' && canWrite()">
-        <div class="field">
-          <label id="st-images-label">档口图片 · {{ current?.images.length ?? 0 }} 张</label>
+        <!-- 身份头（首屏锚点）：档口名 + 所属食堂 + ID；抽屉标题是操作名，不能替代身份信息 -->
+        <div class="ctx">
+          <div class="ctx-label">档口详情 · #{{ current?.id }}</div>
+          <div class="ctx-body">{{ current?.name }}</div>
+        </div>
+
+        <!-- 关键事实条：位置是经营判断的核心，提到分组之前 -->
+        <div class="fact-chips">
+          <span class="fact-chip">
+            <span class="fact-chip-k">食堂</span>{{ current?.canteenName }}
+          </span>
+          <span class="fact-chip">
+            <span class="fact-chip-k">楼层</span>{{ current?.floor || '—' }}
+          </span>
+          <span class="fact-chip">
+            <span class="fact-chip-k">窗口</span>{{ current?.windowNo || '—' }}
+          </span>
+        </div>
+
+        <!-- 配图归入分组（原先用表单 `.field` + `<label>`，那是编辑态语言，只读详情里层级错位） -->
+        <div class="detail-group">
+          <div class="detail-group-title">档口图片 · {{ current?.images.length ?? 0 }} 张</div>
           <div
             v-if="current?.images.length"
             class="detail-thumbs"
             role="group"
-            aria-labelledby="st-images-label"
+            aria-label="档口图片"
           >
             <button
               v-for="(img, i) in current.images"

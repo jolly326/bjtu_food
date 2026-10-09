@@ -1,0 +1,21 @@
+// 长表单页的**常驻底部操作条**（唯一实现）
+//
+// 为什么需要「常驻」：长表单（意见反馈 / 菜品纠错 / 写评价）的内容往往长于一屏，
+// 提交按钮若随内容滚动，用户必须滚到底才能提交 —— 这是**功能可达性问题**，不是审美问题。
+// 故长表单的主操作固定在底部，**不随内容滚动**。
+//
+// 配套规范（同页内落地）：
+// · 底色用 `--module-bg-strong`（不透明）+ `--shadow-bar-soft` 与内容分离；
+// · `padding-bottom` 叠加 `env(safe-area-inset-bottom)` ⇒ 全面屏底部不压内容；
+// · 内容区需为该条**预留等高内距**（消费方在滚动容器上补 `padding-bottom`），否则末尾条目被遮。
+@mixin action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-action-bar);
+  padding: var(--spacing-md);
+  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+  background: var(--module-bg-strong);
+  box-shadow: var(--shadow-bar-soft);
+}

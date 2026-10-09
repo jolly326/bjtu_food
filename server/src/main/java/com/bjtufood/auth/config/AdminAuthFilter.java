@@ -246,12 +246,6 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             //    IllegalArgumentException（NumberFormatException 的子类），留在 try 之外会冒泡成 500，
             //    而它本质上与「token 无效」是同一件事 ⇒ 同分支返回 401。
             claims = adminJwtUtil.parseAndValidate(token);
-            // 🔴 第二因子票据不得充当访问凭证：它只是「第一步已通过」的证明，
-            //    若在此被接受，等于第二因子形同虚设。
-            if (adminJwtUtil.isMfaTicket(claims)) {
-                onAuthFailure(response, clientIp, request, "第二因子票据不可作为访问凭证");
-                return;
-            }
             accountId = adminJwtUtil.getAccountId(claims);
         } catch (JwtException | IllegalArgumentException e) {
             // 🔴 不回显异常细节（可能泄露签名算法 / 密钥长度等信息），统一归为「凭证无效」

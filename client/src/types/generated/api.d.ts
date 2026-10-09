@@ -464,40 +464,12 @@ export interface paths {
      */
     post: operations["changePassword"];
   };
-  "/admin/auth/mfa/setup": {
-    /**
-     * 初始化动态口令绑定
-     * @description 返回待绑定密钥与 otpauth URI（此时**尚未落库**，中途放弃不影响账号）。录入认证器后带口令调 /admin/auth/mfa/enable 完成绑定。
-     */
-    post: operations["setupMfa"];
-  };
-  "/admin/auth/mfa/enable": {
-    /**
-     * 确认绑定动态口令
-     * @description 校验认证器口令后落库密钥，并**一次性下发**恢复码（服务端仅存哈希）。绑定完成后登录须走两步。
-     */
-    post: operations["enableMfa"];
-  };
-  "/admin/auth/mfa/disable": {
-    /**
-     * 停用动态口令
-     * @description 🔴 需同时提供当前口令与动态口令（或一枚恢复码）—— 停用 MFA 会降低账号防护，只认 token 会让 token 盗用方顺手摘掉第二因子。
-     */
-    post: operations["disableMfa"];
-  };
   "/admin/auth/login": {
     /**
      * 管理员账密登录（第一步）
-     * @description 公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；已绑定 ⇒ 返回 mfaRequired=true 与短时票据 mfaTicket，须再调 /admin/auth/login/mfa。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
+     * @description 公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
      */
     post: operations["login"];
-  };
-  "/admin/auth/login/mfa": {
-    /**
-     * 管理员登录第二步（动态口令）
-     * @description 公开端点。携带第一步返回的 mfaTicket 与认证器动态口令（或一枚恢复码）。校验失败计入账号锁定计数；票据 5 分钟有效且不能作为访问凭证。
-     */
-    post: operations["loginWithMfa"];
   };
   "/report-reasons": {
     /**
@@ -627,7 +599,7 @@ export interface paths {
   "/admin/auth/me": {
     /**
      * 读取当前登录的管理员
-     * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 mfaEnabled / passwordAging 给出安全提示。
+     * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 passwordAging 给出安全提示。
      */
     get: operations["me"];
   };
@@ -1875,8 +1847,6 @@ export interface components {
       username?: string;
       /** Format: int64 */
       expiresIn?: number;
-      mfaRequired?: boolean;
-      mfaTicket?: string;
     };
     /** @description 统一响应结果 */
     ResultAdminLoginVO: {
@@ -1893,60 +1863,9 @@ export interface components {
       message?: string;
       data?: components["schemas"]["AdminLoginVO"];
     };
-    /** @description 数据 */
-    MfaSetupVO: {
-      secret?: string;
-      otpAuthUri?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultMfaSetupVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["MfaSetupVO"];
-    };
-    MfaEnableReq: {
-      secret: string;
-      code: string;
-    };
-    /** @description 数据 */
-    MfaEnableVO: {
-      recoveryCodes?: string[];
-    };
-    /** @description 统一响应结果 */
-    ResultMfaEnableVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["MfaEnableVO"];
-    };
-    MfaDisableReq: {
-      password: string;
-      code: string;
-    };
     AdminLoginReq: {
       username: string;
       password: string;
-    };
-    MfaLoginReq: {
-      mfaTicket: string;
-      code: string;
     };
     /** @description 举报原因字典项 */
     ReportReasonVO: {
@@ -3193,7 +3112,6 @@ export interface components {
       username?: string;
       lastLoginAt?: string;
       role?: string;
-      mfaEnabled?: boolean;
       passwordAging?: boolean;
     };
     /** @description 统一响应结果 */
@@ -6550,180 +6468,13 @@ export interface operations {
     };
   };
   /**
-   * 初始化动态口令绑定
-   * @description 返回待绑定密钥与 otpauth URI（此时**尚未落库**，中途放弃不影响账号）。录入认证器后带口令调 /admin/auth/mfa/enable 完成绑定。
-   */
-  setupMfa: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultMfaSetupVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 确认绑定动态口令
-   * @description 校验认证器口令后落库密钥，并**一次性下发**恢复码（服务端仅存哈希）。绑定完成后登录须走两步。
-   */
-  enableMfa: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["MfaEnableReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultMfaEnableVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 停用动态口令
-   * @description 🔴 需同时提供当前口令与动态口令（或一枚恢复码）—— 停用 MFA 会降低账号防护，只认 token 会让 token 盗用方顺手摘掉第二因子。
-   */
-  disableMfa: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["MfaDisableReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
    * 管理员账密登录（第一步）
-   * @description 公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；已绑定 ⇒ 返回 mfaRequired=true 与短时票据 mfaTicket，须再调 /admin/auth/login/mfa。失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
+   * @description 公开端点。账号密码正确后：未绑定动态口令 ⇒ 直接签发管理端 JWT（默认 24h）；失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
    */
   login: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["AdminLoginReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminLoginVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 管理员登录第二步（动态口令）
-   * @description 公开端点。携带第一步返回的 mfaTicket 与认证器动态口令（或一枚恢复码）。校验失败计入账号锁定计数；票据 5 分钟有效且不能作为访问凭证。
-   */
-  loginWithMfa: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["MfaLoginReq"];
       };
     };
     responses: {
@@ -7457,7 +7208,7 @@ export interface operations {
   };
   /**
    * 读取当前登录的管理员
-   * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 mfaEnabled / passwordAging 给出安全提示。
+   * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 passwordAging 给出安全提示。
    */
   me: {
     responses: {

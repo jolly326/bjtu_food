@@ -645,31 +645,31 @@ onMounted(async () => {
 
       <!-- ① 查看态 -->
       <template v-else-if="mode === 'view' && detail">
-        <div class="field">
-          <label id="dish-images-label">
-            配图 · {{ detail.images.length }} 张（首图为封面，点击看大图）
-          </label>
-          <div
-            v-if="detail.images.length"
-            class="detail-thumbs"
-            role="group"
-            aria-labelledby="dish-images-label"
-          >
-            <button
-              v-for="(img, i) in detail.images"
-              :key="i"
-              class="thumb"
-              type="button"
-              :aria-label="`查看第 ${i + 1} 张配图`"
-              @click="openPreview(detail.images, i)"
-            >
-              <img :src="resolveImageUrl(img)" alt="" />
-            </button>
+        <!-- 身份头（首屏锚点）：回答「这是哪个菜」—— 名称 / 状态 / ID 三件事一眼可见；
+             抽屉标题是「编辑/新建」这类**操作名**，不能替代身份信息。 -->
+        <div class="ctx">
+          <div class="ctx-label">
+            菜品详情 · #{{ detail.id }}
+            <StatusTag :status="detail.status" kind="dish" />
           </div>
-          <div v-else class="muted">暂无配图</div>
+          <div class="ctx-body">{{ detail.name }}</div>
         </div>
 
-        <!-- 分组：核心指标（评分 / 价格并列强调）→ 基本信息（两栏）→ 描述与属性（整行） -->
+        <!-- 关键事实条：定位与定价三项提到分组之前（用 chips 承载「扫一眼」的信息，
+             分组里不再重复名称 / 状态 / 归属，避免同一信息出现两次） -->
+        <div class="fact-chips">
+          <span class="fact-chip">
+            <span class="fact-chip-k">食堂</span>{{ detail.canteenName }}
+          </span>
+          <span class="fact-chip">
+            <span class="fact-chip-k">档口</span>{{ detail.stallName }}
+          </span>
+          <span class="fact-chip">
+            <span class="fact-chip-k">现价</span>
+            <span class="num">{{ formatYuan(detail.price) }}</span>
+          </span>
+        </div>
+
         <div class="detail-group">
           <div class="detail-group-title">核心指标</div>
           <div class="detail-meta detail-meta--grid">
@@ -677,15 +677,15 @@ onMounted(async () => {
               {{ detail.avgRating ?? '—' }}
               <span class="muted">（{{ detail.ratingCount }} 条）</span>
             </DetailMetaRow>
-            <DetailMetaRow k="现价" num emphasis>{{ formatYuan(detail.price) }}</DetailMetaRow>
+            <DetailMetaRow k="原价" num>
+              {{ detail.originalPrice == null ? '—（无折扣）' : formatYuan(detail.originalPrice) }}
+            </DetailMetaRow>
           </div>
         </div>
 
         <div class="detail-group">
           <div class="detail-group-title">基本信息</div>
           <div class="detail-meta detail-meta--grid">
-            <DetailMetaRow k="名称">{{ detail.name }}</DetailMetaRow>
-            <DetailMetaRow k="菜品 ID" num>#{{ detail.id }}</DetailMetaRow>
             <div class="meta-row">
               <span class="meta-key">分类</span>
               <span class="meta-val">
@@ -704,9 +704,6 @@ onMounted(async () => {
                 }}<span class="muted"> #{{ detail.stallId }}</span>
               </span>
             </div>
-            <DetailMetaRow k="原价" num>
-              {{ detail.originalPrice == null ? '—（无折扣）' : formatYuan(detail.originalPrice) }}
-            </DetailMetaRow>
           </div>
         </div>
 
@@ -725,6 +722,25 @@ onMounted(async () => {
                 <span v-else class="muted">未设置</span>
               </span>
             </div>
+          </div>
+        </div>
+
+        <!-- 配图：归入分组（原先用表单 `.field` + `<label>`，那是**编辑态**语言，
+             只读详情里显得突兀且层级错位） -->
+        <div class="detail-group">
+          <div class="detail-group-title">配图 · {{ detail.images.length }} 张（首图为封面）</div>
+          <div class="detail-thumbs" role="group" aria-label="菜品配图">
+            <button
+              v-for="(img, i) in detail.images"
+              :key="i"
+              class="thumb"
+              type="button"
+              :aria-label="`查看第 ${i + 1} 张配图`"
+              @click="openPreview(detail.images, i)"
+            >
+              <img :src="resolveImageUrl(img)" alt="" />
+            </button>
+            <span v-if="!detail.images.length" class="muted">暂无配图</span>
           </div>
         </div>
 

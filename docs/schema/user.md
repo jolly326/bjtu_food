@@ -14,7 +14,7 @@
 | `avatar` | VARCHAR(512) | YES | NULL | | 头像地址（站内相对路径，或经内容安检 + COS 转存的绝对地址）|
 | `status` | VARCHAR(32) | NO | `'active'` | | `active` 正常 / `disabled` 禁用 / `deleted` 已注销 |
 | `openid` | VARCHAR(64) | YES | NULL | **UNI** | 微信 openid；**登录取号依据**，注销后置 NULL 解绑 |
-| `bind_email` | VARCHAR(128) | YES | NULL | | 已认证绑定的校园邮箱；**认证态的唯一判据**（非空即已认证） |
+| `bind_email` | VARCHAR(128) | YES | NULL | | 已认证绑定的校园邮箱；**认证态的唯一判据**（非空即已认证）；**同一邮箱至多一行非空**由应用层保证（本列无唯一索引）|
 | `violation_count` | INT | NO | `0` | | 累计违规次数（机审 `risky` 命中 + 举报成立）；达阈值触发梯度处置 |
 | `muted_until` | DATETIME | YES | NULL | | 限言到期时刻；**处于未来 = 限言中**（写端点 `403`，读不受限），到期自动恢复 |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | |

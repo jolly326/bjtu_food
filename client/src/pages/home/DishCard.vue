@@ -76,7 +76,9 @@ function handleClick() {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+/* 行内基线对齐：同行不同字号文本底部齐平（口径见 styles/_baseline-row.scss） */
+@use '../../styles/baseline-row' as baseline;
 .dish-card {
   width: 100%;
   min-width: 0;
@@ -171,7 +173,7 @@ function handleClick() {
   gap: var(--spacing-sm);
   margin-top: var(--spacing-sm);
 }
-.card-rating {
+.card-rating { @include baseline.baseline-row;
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);

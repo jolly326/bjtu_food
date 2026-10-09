@@ -89,8 +89,7 @@ public class SecurityConfig {
             //    表现为「登录永远 401」，功能完全不可用。/admin/auth/me 与其余 /admin/** 需 token。
             //    第二步（动态口令）同理：端上此时持有第二因子票据而非访问 token。
             "/admin/auth/login",
-            "/admin/auth/login/mfa",
-            // SpringDoc Swagger UI 文档
+                // SpringDoc Swagger UI 文档
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/webjars/**",

@@ -2,16 +2,16 @@
   <!-- 本组件承载**带返回的二级页**顶栏：**左「返回」（文字）+ 居中页面名**。
        与 `AppTitleBand` 的分工（用户裁定：**两个组件、按需显示**，不合并）：
        · 有返回 ⇒ 用本组件：左「返回」文字、标题**居中**（相对导航行真正水平居中）；
-       · 无返回 ⇒ 用 `AppTitleBand`：标题**居左**，无返回控件、无右操作。
+       · 无返回 ⇒ 用 `AppTitleBand`：标题**居左**，无返回控件。
        ⚠️ 本组件在 `show-back=false` 时退化为「无返回」形态（标题居左），供 TabBar 主根页使用。
        表面：**恒透明**——背后即 `fixed` 页底壁纸；不得加实底 / 蒙版。
-       右操作：默认插槽（如通知页「全部已读」），自动避让微信右上角原生胶囊（`navPadRight`）。 -->
+       页头**恒不承载业务操作**：微信原生胶囊占掉右侧约 `--nav-pr` 的宽度，行内余量不足以并存
+       「右操作 + 绝对居中标题」⇒ 批量动作落**列表上方动作行**，主操作落**底部固定操作栏**。 -->
   <view
     class="header-wrap"
     :style="{
       paddingTop: 'max(' + statusBarHeight + 'px, env(safe-area-inset-top))',
       '--nav-h': navBarHeight + 'px',
-      '--nav-pr': navPadRight,
     }"
   >
     <view class="nav" :class="{ 'nav--with-back': showBack }" :style="{ height: navBarHeight + 'px' }">
@@ -29,11 +29,6 @@
 
       <!-- 标题：有返回 ⇒ 绝对居中；无返回 ⇒ 靠左（与 `AppTitleBand` 同位置） -->
       <text class="title" :class="{ 'title--left': !showBack }">{{ title }}</text>
-
-      <!-- 右：页面级操作（可选），右边界 = 胶囊避让量。
-           同时提供 `action` **具名插槽**：消费方以 `<template #action>` 传入右侧操作
-           （如通知页「全部已读」胶囊）—— 只有默认插槽时该内容会被静默丢弃。 -->
-      <view class="nav-actions"><slot /><slot name="action" /></view>
     </view>
   </view>
 </template>
@@ -42,10 +37,11 @@
 /**
  * AppHeader —— 带返回的二级页顶栏（透明 + 左「返回」文字 + 居中页面名）
  *
- * 消费方（7 处）：`profile` / `privacy/DocPage` / `notifications`（带右操作槽） / `my-reviews` /
- * `feedback` / `auth`，以及 `mine`（`show-back=false` ⇒ 标题居左的退化形态）。
+ * 消费方（8 处）：`profile` / `privacy/DocPage` / `notifications` / `my-reviews` / `feedback` /
+ * `correction` / `auth`，以及 `mine`（`show-back=false` ⇒ 标题居左的退化形态）。
  *
  * 表面口径：恒透明（不含任何底色 / 蒙版）——背后即 `fixed` 页底壁纸（UI 文档 §11.1 / 循环 R12）。
+ * 无右操作能力：标题与返回不被任何页头控件挤占宽度（主操作落底部固定操作栏、批量动作落列表上方动作行）。
  */
 import { useNavMetrics } from '@/utils/useNavMetrics'
 
@@ -66,8 +62,8 @@ const emit = defineEmits<{
 }>()
 
 /* 顶部度量：一律走跨页统一实现 `useNavMetrics`。
-   本组件消费三项：状态栏高（顶部安全区）、导航行高（胶囊所在行）、右侧胶囊避让量（右操作槽用）。 */
-const { statusBarPx: statusBarHeight, navBarHeightPx: navBarHeight, navPadRight } = useNavMetrics()
+   本组件消费两项：状态栏高（顶部安全区）、导航行高（胶囊所在那一行）。 */
+const { statusBarPx: statusBarHeight, navBarHeightPx: navBarHeight } = useNavMetrics()
 
 function handleBack() {
   emit('back')
@@ -139,14 +135,5 @@ function handleBack() {
   max-width: none;
   font-size: var(--font-title);
   font-weight: var(--weight-bold);
-}
-/* 右操作槽：右边界避开微信原生胶囊（`--nav-pr` = useNavMetrics 的胶囊避让量） */
-.nav-actions {
-  position: absolute;
-  right: var(--nav-pr, 180rpx);
-  top: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
 }
 </style>

@@ -61,9 +61,15 @@
         hover-class="pressed"
         @tap="onAdd"
       >
-        <view v-if="processing" class="ip-loading" />
-        <AppIcon v-else name="image" :size="48" :color="COLOR_MAP['text-tertiary']" />
-        <text class="ip-add-text">{{ processing ? '处理中…' : '添加图片' }}</text>
+        <!-- 🔴 内容层必须**绝对定位铺满**：`grid.box` 是「height:0 + padding-bottom:100%」的经典等比盒，
+             其**内容盒高为 0** ⇒ 直接在盒内做 flex 居中会贴在**顶部**（不是视觉错觉）。
+             绝对定位层相对盒的 padding box 展开，正好覆盖整个正方形 ⇒ 加号落在正中央。
+             常态**只有加号**、无文字（加号即语义，可访问名由 aria-label 承担）。 -->
+        <view class="ip-add-inner">
+          <view v-if="processing" class="ip-loading" />
+          <AppIcon v-else name="plus" :size="48" :color="COLOR_MAP['text-tertiary']" />
+          <text v-if="processing" class="ip-add-text">处理中…</text>
+        </view>
       </view>
     </view>
     <!-- 满额计数格：轻量 n/n 占位（评审 m3，替代添加格直接消失，保留网格与已选感知）。 -->
@@ -400,6 +406,19 @@ function onPreview(i: number) {
   gap: var(--spacing-2xs);
   transition: opacity var(--duration-fast) var(--ease-out);
 }
+/* 内容层：绝对定位铺满正方形 —— 盒自身是「height:0 + padding-bottom:100%」的等比盒，
+   内容盒高为 0，无法承担 flex 居中（那会让加号贴在顶部） */
+.ip-add-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2xs);
+}
+
+/* 加号宿主：方形 flex 盒 ⇒ 图标在内容层内精确居中 */
 .ip-add.processing { opacity: 0.6; }
 /* 禁用态（评审 m1）：提交中等 disabled 弱化（非主色可点件保留透明档），按压不改变观感（onAdd 已拦截点击） */
 .ip-add.disabled { opacity: 0.5; }
