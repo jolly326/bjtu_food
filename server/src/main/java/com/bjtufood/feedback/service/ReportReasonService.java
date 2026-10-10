@@ -1,6 +1,5 @@
 package com.bjtufood.feedback.service;
 
-import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.feedback.dto.ReportReasonAdminVO;
 import com.bjtufood.feedback.dto.ReportReasonVO;
 
@@ -14,7 +13,7 @@ import java.util.Map;
  *
  * <p>三条不变量（服务端强制）：
  * <ol>
- *   <li><b>数据锚在原因 ID</b>：ID 由后端生成、历史举报按它落库；改 `label` 免费；</li>
+ *   <li><b>数据锚在原因 ID</b>：ID 由后端生成、历史举报按它落库；改 `name` 免费；</li>
  *   <li><b>删除受引用约束</b>：被任一举报引用 → `400`（下线一律用停用）；</li>
  *   <li><b>至少 1 条启用</b>（停用最后一条 → `400`）且<b>启用 ≤8 条</b>（单选弹层可用性）。</li>
  * </ol>
@@ -22,28 +21,28 @@ import java.util.Map;
 public interface ReportReasonService {
 
     /**
-     * 公开字典（`GET /report-reasons`）：**只下发启用项**，按 `order` 升序；出参恰 `id` + `label`。
+     * 公开字典（`GET /report-reasons`）：**只下发启用项**，按 `id` 升序；出参恰 `id` + `name`。
      */
     List<ReportReasonVO> listEnabled();
 
     /**
-     * 管理端列表（`GET /admin/report-reasons`）：**含已停用**，按 `order` 升序，带 `feedbackCount`。
+     * 管理端列表（`GET /admin/report-reasons`）：**含已停用**，按 `id` 升序，带 `feedbackCount`。
      */
     List<ReportReasonAdminVO> listAllForAdmin();
 
     /**
-     * 新增（默认**启用**、排最后；原因 ID 由后端生成）。
+     * 新增（默认**启用**；原因 ID 由后端生成）。
      *
-     * @throws com.bjtufood.common.exception.BusinessException code=400 标签非法/重名、启用数已达上限 8
+     * @throws com.bjtufood.common.exception.BusinessException code=400 名非法/重名、启用数已达上限 8
      */
-    ReportReasonAdminVO create(String label);
+    ReportReasonAdminVO create(String name);
 
     /**
-     * 改名（**只改 `label`**，改名免费）。
+     * 改名（**只改 `name`**，改名免费）。
      *
-     * @throws com.bjtufood.common.exception.BusinessException code=4001 原因不存在 / code=400 标签非法
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 原因不存在 / code=400 名非法
      */
-    void rename(Long id, String label);
+    void rename(Long id, String name);
 
     /**
      * 启停（只改 `status`）。
@@ -51,13 +50,6 @@ public interface ReportReasonService {
      * @throws com.bjtufood.common.exception.BusinessException code=4001 不存在 / code=400 status 非法、停用最后一条启用、启用数超上限
      */
     void updateStatus(Long id, String status);
-
-    /**
-     * 排序（拖拽后**整体提交全量行**）。
-     *
-     * @throws com.bjtufood.common.exception.BusinessException code=400 排序提交非法
-     */
-    void sort(List<SortItem> items);
 
     /**
      * 删除（**被举报记录引用 → `400`**）。
@@ -75,7 +67,7 @@ public interface ReportReasonService {
     boolean isSubmittable(Long reasonId);
 
     /**
-     * 全量原因 ID → 中文标签映射（**含停用项**）：管理端翻译历史举报用 —— 停用原因的记录仍要能译出中文。
+     * 全量原因 ID → 中文名映射（**含停用项**）：管理端翻译历史举报用 —— 停用原因的记录仍要能译出中文。
      */
-    Map<Long, String> labelByIdAll();
+    Map<Long, String> nameByIdAll();
 }

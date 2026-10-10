@@ -34,10 +34,6 @@ public class DishAttributeDimension {
     @Schema(description = "取值类型：single=单值 / multi=多值", example = "single")
     private String valueType;
 
-    /** 展示顺序（升序） */
-    @Schema(description = "维度展示顺序（升序）", example = "1")
-    private Integer sortOrder;
-
     /** 更新时间（管理端列表出参 `updatedAt`；DB 时钟 `ON UPDATE CURRENT_TIMESTAMP`，应用层不写、不填充） */
     @Schema(description = "更新时间")
     private java.time.LocalDateTime updatedAt;

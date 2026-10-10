@@ -3,7 +3,7 @@ import { fetchMe } from '@/api/auth'
 import { hasToken, setRole } from '@/api/session'
 
 /**
- * 路由表（**14 项菜单** + 登录页，口径见 [UI 基线 §1.1](../../../docs/ui/web/公共组件与形态基线.md)）。
+ * 路由表（**13 项菜单** + 登录页，口径见 [UI 基线 §1.1](../../../docs/ui/web/公共组件与形态基线.md)）。
  *
  * <p>菜单按业务域分 5 组（运营 / 场所 / 内容 / 互动 / 账号），分组定义在 `AdminLayout.vue`；
  * 本表只维护「路径 ↔ 组件 ↔ 页标题」——**菜品种类**等挂在页面内的二级入口不占菜单项。
@@ -100,12 +100,6 @@ const router = createRouter({
           name: 'users',
           component: () => import('@/views/UsersView.vue'),
           meta: { title: '用户管理' },
-        },
-        {
-          path: 'alerts',
-          name: 'alerts',
-          component: () => import('@/views/AlertsView.vue'),
-          meta: { title: '安全告警' },
         },
         {
           path: 'report-reasons',

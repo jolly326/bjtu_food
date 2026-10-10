@@ -48,12 +48,12 @@
     </resultMap>
 
     <!--
-    🔴 **本文件不含热度排序表达式**：种子里 7 个视图全部走 random 排序（排序口径存 dish_filter_view.sort_kind），
+    🔴 **本文件不含热度排序表达式**：公开列表唯一排序口径为随机序（排序输入 = 会话 seed，见 selectDishPage），
     「热度排序」不是现存需求。
     浏览量（`dish_view_log` 30 天滚动窗口明细）**仅供管理端展示，不参与任何排序**——
     浏览量无上限，参与排序即可被低成本刷量霸榜。
     ⇒ 若后期引入热度排序，须重新拍板公式（**必须含浏览量封顶**，并同时处理去重，见 schema/dish_view_log.md §2.2）。
-    如需稳定的翻页全序，各排序分支一律以 `d.id` 作决胜键。
+    如需稳定的翻页全序，随机序以 `d.id` 作决胜键。
     -->
 
     <!-- 联表 FROM 基础片段（dish + stall + canteen） -->
@@ -131,96 +131,19 @@
             OR s.name LIKE CONCAT('%', #{q.keyword}, '%')
             OR c.name LIKE CONCAT('%', #{q.keyword}, '%'))
         </if>
-        <!-- 视图筛选条件（A6：由 DishViewConditions 按**字段/操作符/值三层白名单**校验后下发；
-             白名单非法值在 Service 层即 400、不落 SQL；全部取值走 #{} 预编译参数，**不拼接 SQL 文本**。
-             组合关系只有 AND（一期不支持 OR）。字段清单见 docs/func/web/A-主数据维护/A6-首页筛选视图管理.md。
-             与 DishViewConditions#toWrapper（计数 / 预览 / 抽样用）保持**同一套口径**。 -->
-        <foreach collection="q.conditions" item="c">
-            <choose>
-                <when test="c.field == 'categoryId'">
-                    <!-- categoryId 条件值 = 种类 ID（dish_category.id）；
-                         直接匹配 dish.category_id（走 idx_dish_category），取值经 #{} 预编译参数绑定 -->
-                    <choose>
-                        <when test="c.op == 'in'">
-                            AND d.category_id IN
-                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
-                        </when>
-                        <otherwise>AND d.category_id = #{c.value}</otherwise>
-                    </choose>
-                </when>
-                <when test="c.field == 'discount'">
-                    AND d.original_price IS NOT NULL AND d.original_price &gt; d.price
-                </when>
-                <when test="c.field == 'price'">
-                    <choose>
-                        <when test="c.op == 'between'">AND d.price BETWEEN #{c.values[0]} AND #{c.values[1]}</when>
-                        <when test="c.op == '&gt;='">AND d.price &gt;= #{c.value}</when>
-                        <otherwise>AND d.price &lt;= #{c.value}</otherwise>
-                    </choose>
-                </when>
-                <when test="c.field == 'stallId'">
-                    <choose>
-                        <when test="c.op == 'in'">
-                            AND d.stall_id IN
-                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
-                        </when>
-                        <otherwise>AND d.stall_id = #{c.value}</otherwise>
-                    </choose>
-                </when>
-                <when test="c.field == 'canteenId'">
-                    <!-- 复用联表内的 s.canteen_id（FROM 已 JOIN stall s），无需子查询 -->
-                    <choose>
-                        <when test="c.op == 'in'">
-                            AND s.canteen_id IN
-                            <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
-                        </when>
-                        <otherwise>AND s.canteen_id = #{c.value}</otherwise>
-                    </choose>
-                </when>
-                <when test="c.field == 'avgRating'">
-                    AND COALESCE(d.avg_rating, 0) &gt;= #{c.value}
-                </when>
-                <when test="c.field == 'createdAt'">
-                    AND d.created_at &gt;= DATE_SUB(NOW(), INTERVAL #{c.value} DAY)
-                </when>
-            </choose>
-        </foreach>
-        <!-- 排序按视图的 sortKind 分派（端上无排序入口）：
-             ① SEED_RANDOM 且无 keyword（推荐视图 / 6 个大类视图，2026-10-05 起全部走此口径）→ CRC32(CONCAT(seed,'-',id)), id 稳定伪随机序
-                —— 同一 seed ⇒ 同一全序（翻页不重不漏），换 seed ⇒ 整体重洗（每次进入看到不同组合）；
-                d.id 作决胜键，消除 CRC32 哈希碰撞导致的并列乱序；
-             ② DISCOUNT_DESC（折扣视图）→ 折扣力度倒序，d.id 作决胜键；
-             ③ 其余（RATING_DESC / NEWEST）→ 各自主序 + d.id 决胜键。
-             🔴 **无「热度排序」分支**（理由见上方注释块）。
-             🔴 各分支一律带 `d.id` 决胜键 —— 保证全序稳定，否则同值行序不定会导致翻页重复/漏项。
-             seed 走 #{} 预编译参数（防注入）；端上仍无排序入口（sortBy/sortOrder 已删） -->
-        <choose>
-            <when test="q.sortKind.name() == 'SEED_RANDOM'">
-                ORDER BY CRC32(CONCAT(#{q.seed}, '-', d.id)), d.id
-            </when>
-            <!-- A6 的显式排序口径（白名单见 DishViewConditions.SORT_KINDS）：
-                 种子里 7 个视图均未使用，保留供后台为视图配置时启用。
-                 🔴 均以 d.id 作决胜键（不用热度）—— 保证同值行序稳定、翻页不重不漏 -->
-            <when test="q.sortKind.name() == 'DISCOUNT_DESC'">
-                ORDER BY (d.original_price - d.price) / d.original_price DESC, d.id DESC
-            </when>
-            <when test="q.sortKind.name() == 'PRICE_ASC'">
-                ORDER BY d.price ASC, d.id DESC
-            </when>
-            <when test="q.sortKind.name() == 'PRICE_DESC'">
-                ORDER BY d.price DESC, d.id DESC
-            </when>
-            <when test="q.sortKind.name() == 'RATING_DESC'">
-                ORDER BY COALESCE(d.avg_rating, 0) DESC, d.rating_count DESC, d.id DESC
-            </when>
-            <when test="q.sortKind.name() == 'NEWEST'">
-                ORDER BY d.created_at DESC, d.id DESC
-            </when>
-            <!-- 🔴 兜底分支：按 `d.id` 升序 —— 语义中性且全序稳定（本文件无热度排序，见文件头说明） -->
-            <otherwise>
-                ORDER BY d.id
-            </otherwise>
-        </choose>
+        <!-- 视图取数（A6）：按视图行 categoryId 过滤（NULL = 不按种类过滤）；
+             categoryId = 种类 ID（dish_category.id），直接匹配 dish.category_id（走 idx_dish_category），
+             取值经 #{} 预编译参数绑定，不拼接 SQL 文本。 -->
+        <if test="q.categoryId != null">
+            AND d.category_id = #{q.categoryId}
+        </if>
+        <!-- 排序口径固定为随机序（端上无排序入口）：
+             CRC32(CONCAT(seed,'-',id)), id 会话稳定伪随机序 —— 同一 seed ⇒ 同一全序（翻页不重不漏），
+             换 seed ⇒ 整体重洗（每次进入看到不同组合）；
+             seed 由 Service 侧保证非空（未传的调用补一次性随机值），仍走 #{} 预编译参数（防注入）；
+             d.id 作决胜键，消除 CRC32 哈希碰撞导致的并列乱序。
+             🔴 **无「热度排序」分支**（理由见上方注释块）。 -->
+        ORDER BY CRC32(CONCAT(#{q.seed}, '-', d.id)), d.id
     </select>
 
     <!-- 菜品详情（详情专用 11 字段） -->

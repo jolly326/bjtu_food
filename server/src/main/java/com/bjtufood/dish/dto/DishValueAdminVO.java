@@ -21,10 +21,7 @@ public class DishValueAdminVO {
     private Long dimensionId;
 
     @Schema(description = "取值中文名（可改，改名免费）", example = "半荤")
-    private String label;
-
-    @Schema(description = "组内展示顺序（升序）")
-    private Integer order;
+    private String name;
 
     @Schema(description = "引用该取值的菜品数（删除前判断）")
     private Long dishCount;

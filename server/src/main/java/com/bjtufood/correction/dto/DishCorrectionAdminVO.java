@@ -39,7 +39,7 @@ public class DishCorrectionAdminVO {
     private Long userId;
 
     @Schema(description = "提交人昵称（匿名提交为 null）")
-    private String userNickname;
+    private String userName;
 
     @Schema(description = "提交的菜品名称")
     private String name;

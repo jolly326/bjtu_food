@@ -88,8 +88,6 @@ export interface CanteenAdminVO {
   description: string
   /** 图片绝对 URL 数组（有序，首图作封面；无图 `[]`） */
   images: string[]
-  /** 排序位（食堂列表的排序键：升序；无拖动入口，在详情表单内维护） */
-  sortOrder: number
   updatedAt: string
 }
 
@@ -102,8 +100,6 @@ export interface CanteenSaveReq {
   description?: string
   /** 图片（有序，首图作封面；缺省 = 保持原值，`[]` = 清空） */
   images?: string[]
-  /** 排序位（缺省 = 保持原值） */
-  sortOrder?: number
 }
 
 // ===== A2 档口 =====
@@ -124,8 +120,6 @@ export interface StallAdminVO {
   images: string[]
   /** 平均评分（实时聚合，2 位小数；无评价按 0.00） */
   avgRating: number
-  /** 排序位（纠错候选档口列表的排序键；本列表不按其排序，在详情表单内维护） */
-  sortOrder: number
   /** 其下菜品数（删除受阻判据） */
   dishCount: number
   updatedAt: string
@@ -142,8 +136,6 @@ export interface StallSaveReq {
   description?: string
   /** 图片（有序，首图作封面；缺省 = 保持原值，`[]` = 清空） */
   images?: string[]
-  /** 排序位（缺省 = 保持原值） */
-  sortOrder?: number
 }
 
 // ===== A3 菜品 =====
@@ -164,7 +156,7 @@ export interface DishAdminListItemVO {
   /** 菜品种类 ID（= `dish.category_id`，值域来自 A6 种类字典 `dish_category`） */
   categoryId: number
   /** 种类中文名（服务端按 `dish_category.id` 查名带出） */
-  categoryLabel?: string
+  categoryName?: string
   status: OnOffStatus
   avgRating: number | null
   /** 评价数（删除确认的影响面来源） */
@@ -193,7 +185,7 @@ export interface DishAdminVO {
   /** 菜品种类 ID（= `dish.category_id`，值域来自 A6 种类字典 `dish_category`） */
   categoryId: number
   /** 种类中文名（服务端按 `dish_category.id` 查名带出，列表直接展示，端上零硬编码） */
-  categoryLabel?: string
+  categoryName?: string
   attributes: DishAttributes | null
   status: OnOffStatus
   avgRating: number | null
@@ -234,7 +226,6 @@ export interface DishDimensionAdminVO {
   name: string
   /** 取值类型（`single` 单值 / `multi` 多值；全部维度均可改） */
   valueType: 'single' | 'multi'
-  order: number
   dishCount: number
   valueCount: number
   updatedAt: string
@@ -243,8 +234,7 @@ export interface DishDimensionAdminVO {
 export interface DishValueAdminVO {
   id: number
   dimensionId: number
-  label: string
-  order: number
+  name: string
   dishCount: number
   updatedAt: string
 }
@@ -255,17 +245,10 @@ export interface DishDimensionSaveReq {
 }
 
 export interface DishValueSaveReq {
-  label: string
+  name: string
 }
 
-/** 拖拽排序的整体提交体（A4 / A5 / A6 / A7 四个 `PUT .../sort` 共用） */
-export interface SortItemsReq {
-  items: { id: number; order: number }[]
-}
-
-// ===== A4 属性维度与取值（续） =====
-
-// ===== A5 首页 Banner =====
+// ===== A5 首页 Banner（全站唯一保留排序位的资源） =====
 export interface BannerAdminVO {
   id: number
   imageUrl: string
@@ -279,72 +262,43 @@ export interface BannerSaveReq {
   imageUrl: string
 }
 
-// ===== A6 首页筛选视图与分类（菜品种类） =====
-
-/** 排序口径白名单（唯一真源 = 后端条件引擎） */
-export type DishSortKind =
-  | 'random'
-  | 'priceAsc'
-  | 'priceDesc'
-  | 'discountDesc'
-  | 'ratingDesc'
-  | 'newest'
-
-/** 筛选条件字段白名单（唯一真源 = 后端条件引擎；操作符随字段而定） */
-export type DishViewField =
-  | 'categoryId'
-  | 'discount'
-  | 'price'
-  | 'stallId'
-  | 'canteenId'
-  | 'avgRating'
-  | 'createdAt'
-
-/** 视图筛选条件的一项（`{ field, op, value? , values? }`）—— AND 组合的有限语言 */
-export interface DishViewCondition {
-  field: DishViewField | ''
-  op: string
-  /** 单值（`=` / `>=` / `<=` / `withinDays` 用；`between` 时为下界） */
-  value?: string
-  /** 多值（`in` 用；`between` 时为 [下界, 上界]） */
-  values?: string[]
+/** 拖拽排序的整体提交体（`[{ id, order }]`，全量提交） */
+export interface SortItemsReq {
+  items: { id: number; order: number }[]
 }
+
+// ===== A6 首页筛选视图与分类（菜品种类） =====
 
 export interface DishViewAdminVO {
   id: number
   /** tab 文案 */
-  label: string
-  order: number
+  name: string
+  /** 筛选种类 ID（`null` = 「为你推荐」，不按种类筛） */
+  categoryId: number | null
   enabled: boolean
-  /** 筛选条件（AND；`[]` = 不筛选） */
-  conditions: DishViewCondition[]
-  /** 排序口径 */
-  sortKind: DishSortKind
   /** 当前匹配的在售菜品数（列表展示，兼作「是否生效」的自证） */
   matchedCount: number
   updatedAt: string
 }
 
-/** 视图新建入参（不含 `order` / `enabled`：顺序由拖拽维护、新建即启用） */
+/** 视图新建入参（不含 `enabled`：新建即启用；顺序由 `id` 决定） */
 export interface DishViewCreateReq {
-  label: string
-  conditions: DishViewCondition[]
-  sortKind: DishSortKind
+  name: string
+  /** 筛选种类 ID；缺省 / `null` = 「为你推荐」（不按种类筛） */
+  categoryId?: number | null
 }
 
-/** 视图修改入参：文案 / 启停 / 条件 / 排序口径**整体替换**（缺任一 → 400） */
+/** 视图修改入参：文案 / 筛选种类 / 启停**整体替换**（`name` / `enabled` 缺失 → 400） */
 export interface DishViewUpdateReq {
-  label: string
+  name: string
+  categoryId?: number | null
   enabled: boolean
-  conditions: DishViewCondition[]
-  sortKind: DishSortKind
 }
 
 /** A6 菜品种类（独立字典表 `dish_category`；`dish.category_id` 存它的 `id`，无机器键） */
 export interface DishCategoryAdminVO {
   id: number
-  label: string
-  order: number
+  name: string
   /** 引用该种类的菜品数（> 0 时不可删除；本端点不提供删除） */
   dishCount: number
   updatedAt: string
@@ -354,8 +308,7 @@ export interface DishCategoryAdminVO {
 export interface ReportReasonAdminVO {
   /** 原因 ID（落库列 = `user_feedback.sub_reason_id`） */
   id: number
-  label: string
-  order: number
+  name: string
   status: OnOffStatus
   /** 被举报记录引用次数（`type='report'` 且 `sub_reason_id = id`）—— 删除前判断 */
   feedbackCount: number
@@ -368,7 +321,7 @@ export interface ReviewAdminVO {
   dishId: number
   dishName: string | null
   userId: number
-  userNickname: string
+  userName: string
   /** 评价者头像绝对 URL（联表带出；游客 / 未设置 / 已注销 → null，走统一占位） */
   userAvatar: string | null
   rating: number
@@ -400,11 +353,11 @@ export interface ReviewHiddenReq {
 // ===== B2 / B3 反馈与举报（同一端点，`category` 分流） =====
 export interface FeedbackAdminVO {
   id: number
-  /** 反馈类型（白名单：`suggestion` / `add` / `error`；存量可能有 `bug` / `other`） */
+  /** 反馈类型（反馈类行 = `bug` / `suggestion` / `other` 等机器值；举报行恒为 `report`） */
   type: string
   /** 提交人 ID（**`0` = 匿名提交**；静默登录的游客为真实 ID） */
   userId: number
-  userNickname: string
+  userName: string
   content: string
   images: string[]
   status: FeedbackStatus
@@ -421,7 +374,7 @@ export interface ReportAdminVO extends FeedbackAdminVO {
   /** 举报原因 ID（= `user_feedback.sub_reason_id` = `report_reason.id`） */
   subReasonId: number
   /** 举报原因中文名（服务端按 ID 实时翻译） */
-  reasonLabel: string
+  reasonName: string
   reviewId: number
   reviewContent: string | null
   reviewDishName: string | null
@@ -460,7 +413,7 @@ export interface CorrectionAdminVO {
   /** 提交人 ID（**`0` = 匿名提交**；昵称为空时页面回落「游客」） */
   userId: number
   /** 提交人昵称（匿名提交为空串 / null） */
-  userNickname: string
+  userName: string
   /** **仅 `type=gone`**：补充说明（≤200 字，处置时**必须展示**给管理员判读） */
   note: string | null
   status: CorrectionStatus
@@ -487,7 +440,7 @@ export interface CorrectionDetailVO {
   /** 提交人 ID（**`0` = 匿名提交**；昵称为空时页面回落「游客」） */
   userId: number
   /** 提交人昵称（匿名提交为空串 / null） */
-  userNickname: string
+  userName: string
   status: CorrectionStatus
   /** `field` 型：仍有差异的项（逐项勾选采纳）；`gone` 型：恒空 */
   differences: CorrectionDifference[]
@@ -548,15 +501,15 @@ export interface CorrectionRejectReq {
 export interface UserAdminVO {
   id: number
   /** 账号标识（微信建号为 `wx_<openid 尾 16 位>`；注销后为 `deleted_{id}`） */
-  username: string
-  nickname: string
+  wxId: string
+  name: string
   /** 头像绝对 URL（无为空串） */
   avatar: string
   status: UserStatus
   /** 是否已绑定微信（**只给布尔，不暴露 `openid` 明文**） */
   wechatBound: boolean
   /** 已认证绑定的校园邮箱（空串 = 未认证；**认证态唯一判据**） */
-  bindEmail: string
+  email: string
   /** 注册时间（`yyyy-MM-dd HH:mm:ss`） */
   createdAt: string
   /** 最近更新时间（`yyyy-MM-dd HH:mm:ss`；零值显示 `—`） */
@@ -573,36 +526,4 @@ export interface UserListParams {
 export interface UserStatusReq {
   /** `disabled` = 禁用；`active` = 启用（恢复 `active`）；启停类端点统一用 `status` 字符串枚举 */
   status: 'active' | 'disabled'
-}
-
-// ===== 管理端安全告警 =====
-/** 告警级别键（与后端 `AlertType.Severity` 对齐） */
-export type AlertSeverity = 'info' | 'warn' | 'critical'
-
-export interface SecurityAlertVO {
-  id: number
-  /** 告警类型键（后端枚举名，如 `LOGIN_LOCKOUT`） */
-  alertType: string
-  /** 类型中文标签（**写入时快照**，不随枚举重命名变化） */
-  alertTypeLabel: string
-  /** 级别键：`info` 提示 / `warn` 警告 / `critical` 严重 */
-  severity: AlertSeverity | string
-  /** 级别中文标签（写入时快照） */
-  severityLabel: string
-  title: string
-  /** 明细（脱敏；无明细为空串） */
-  detail: string
-  /** 来源 IP（无 Web 上下文时为空串） */
-  sourceIp: string
-  /** 发生时间（`yyyy-MM-dd HH:mm:ss`） */
-  createdAt: string
-}
-
-export interface AlertListParams {
-  page?: number
-  pageSize?: number
-  /** 告警类型键；空串 / 不传 = 全部 */
-  alertType?: string
-  /** 级别键；空串 / 不传 = 全部 */
-  severity?: AlertSeverity | ''
 }

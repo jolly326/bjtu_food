@@ -90,10 +90,10 @@ class DishReadPathBenchmarkTest {
 
     /** 维度字典（4 维：与 dish_attribute_dimension 生产数据同构） */
     private static final List<DishAttributeDimension> DIMENSIONS = List.of(
-            dimension(1L, "饮食属性", "single", 1),
-            dimension(2L, "辣度", "single", 2),
-            dimension(3L, "口味", "multi", 3),
-            dimension(4L, "出餐温度", "single", 4));
+            dimension(1L, "饮食属性", "single"),
+            dimension(2L, "辣度", "single"),
+            dimension(3L, "口味", "multi"),
+            dimension(4L, "出餐温度", "single"));
 
     private DishMapper dishMapper;
     private DishViewLogMapper dishViewLogMapper;
@@ -102,14 +102,12 @@ class DishReadPathBenchmarkTest {
     private DishAttributeValueMapper valueMapper;
     private DishServiceImpl dishService;
 
-    /** 视图样本（A6）：条件与排序口径同表存储（空条件 + `random` = 「为你推荐」） */
+    /** 视图样本（A6）：归属种类为 NULL = 不按种类过滤（即「为你推荐」聚合视角） */
     private static DishFilterView sampleView() {
         DishFilterView v = new DishFilterView();
         v.setId(1L);
-        v.setLabel("为你推荐");
-        v.setConditions("[]");
-        v.setSortKind("random");
-        v.setSortOrder(1);
+        v.setName("为你推荐");
+        v.setCategoryId(null);
         v.setEnabled(true);
         return v;
     }
@@ -117,18 +115,17 @@ class DishReadPathBenchmarkTest {
     /** 取值字典样本（4 维 × 2~3 个取值）；A4 后候选值不再来自菜品 attributes 扫描 */
     private static List<DishAttributeValue> attributeValues() {
         return List.of(
-                value(10L, 1L, "清淡", 1), value(11L, 1L, "半荤", 2),
-                value(20L, 2L, "微辣", 1), value(21L, 2L, "中辣", 2), value(22L, 2L, "重辣", 3),
-                value(30L, 3L, "酸", 1), value(31L, 3L, "辣", 2),
-                value(40L, 4L, "热食", 1), value(41L, 4L, "冷食", 2));
+                value(10L, 1L, "清淡"), value(11L, 1L, "半荤"),
+                value(20L, 2L, "微辣"), value(21L, 2L, "中辣"), value(22L, 2L, "重辣"),
+                value(30L, 3L, "酸"), value(31L, 3L, "辣"),
+                value(40L, 4L, "热食"), value(41L, 4L, "冷食"));
     }
 
-    private static DishAttributeValue value(Long id, Long dimensionId, String label, int order) {
+    private static DishAttributeValue value(Long id, Long dimensionId, String name) {
         DishAttributeValue v = new DishAttributeValue();
         v.setId(id);
         v.setDimensionId(dimensionId);
-        v.setLabel(label);
-        v.setSortOrder(order);
+        v.setName(name);
         return v;
     }
 
@@ -291,12 +288,11 @@ class DishReadPathBenchmarkTest {
         return objectMapper.writeValueAsString(value).getBytes(StandardCharsets.UTF_8).length;
     }
 
-    private static DishAttributeDimension dimension(long id, String name, String valueType, int order) {
+    private static DishAttributeDimension dimension(long id, String name, String valueType) {
         DishAttributeDimension dim = new DishAttributeDimension();
         dim.setId(id);
         dim.setName(name);
         dim.setValueType(valueType);
-        dim.setSortOrder(order);
         return dim;
     }
 

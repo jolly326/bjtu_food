@@ -416,7 +416,7 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .filter(id -> id != null && id != ANONYMOUS_USER_ID)
                 .distinct()
                 .toList();
-        Map<Long, String> userMap = userService.mapNicknameByIds(userIds);
+        Map<Long, String> userMap = userService.mapNameByIds(userIds);
 
         // 批量补齐目标菜品名（一次 IN 查询）：只取 id/name 两列；不过滤上架态——纠错对象可能已被下架，
         // 管理端仍需看到菜品名回看内容；菜品已物理删除时不在结果集，VO 保持 null。
@@ -483,7 +483,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setDishId(c.getDishId());
         vo.setDishName(c.getDishId() != null ? dishNameMap.get(c.getDishId()) : null);
         vo.setUserId(c.getUserId());
-        vo.setUserNickname(userMap.get(c.getUserId()));
+        vo.setUserName(userMap.get(c.getUserId()));
         vo.setName(c.getName());
         vo.setPrice(c.getPrice());
         vo.setCanteenName(c.getCanteenName());
@@ -573,8 +573,8 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setDishName(dishName);
         vo.setDishStatus(dishStatus);
         vo.setUserId(c.getUserId());
-        vo.setUserNickname(c.getUserId() == null || c.getUserId() == ANONYMOUS_USER_ID ? null
-                : userService.mapNicknameByIds(List.of(c.getUserId())).get(c.getUserId()));
+        vo.setUserName(c.getUserId() == null || c.getUserId() == ANONYMOUS_USER_ID ? null
+                : userService.mapNameByIds(List.of(c.getUserId())).get(c.getUserId()));
         vo.setStatus(c.getStatus());
         vo.setNote(c.getNote());
         List<String> rawImages = c.getImages() == null ? List.of() : c.getImages();
@@ -908,8 +908,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     }
 
     /**
-     * 构建档口确认候选列表：提交食堂名匹配现有食堂时 = 该食堂下全部档口（sort_order 升序）；
-     * 无匹配食堂时 = 全量档口（canteen_id 升序 → sort_order 升序，与既有档口排序口径一致）。
+     * 构建档口确认候选列表：提交食堂名匹配现有食堂时 = 该食堂下全部档口（id 升序）；
+     * 无匹配食堂时 = 全量档口（id 升序）。
      */
     private List<StallConfirmVO.StallCandidate> buildCandidates(String canteenName) {
         // 候选档口取数（含「按名找食堂」）经 canteen 域只读契约下发（P0-1：本域不注入 CanteenMapper/StallMapper），

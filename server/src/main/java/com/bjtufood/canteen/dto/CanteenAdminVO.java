@@ -29,9 +29,6 @@ public class CanteenAdminVO {
     @Schema(description = "食堂图片URL列表")
     private List<String> images;
 
-    @Schema(description = "排序权重")
-    private Integer sortOrder;
-
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
 }

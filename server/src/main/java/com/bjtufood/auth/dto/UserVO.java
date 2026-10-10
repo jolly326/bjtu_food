@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  * <ul>
  *   <li>本类额外汇总 {@code status}（账号状态，管理端需展示与操作）、{@code createdAt}（注册时间）、
  *       {@code wechatBound}（是否已绑定微信，仅布尔标识不暴露 openid 明文）——{@link UserInfoVO} 均无。</li>
- *   <li>认证状态<b>不作出参字段</b>：管理端与小程序端同口径，按 {@code bindEmail} 非空派生
+ *   <li>认证状态<b>不作出参字段</b>：管理端与小程序端同口径，按 {@code email} 非空派生
  *       。</li>
  *   <li>消费方：{@code GET /admin/users}（UserAdminController）；{@link UserInfoVO} 消费方为
  *       {@code POST /auth/wechat-login}、{@code POST /auth/verify-email}、{@code GET /auth/profile}。</li>
@@ -26,11 +26,11 @@ public class UserVO {
     @Schema(description = "用户ID")
     private Long id;
 
-    @Schema(description = "学号/工号", example = "stu001")
-    private String username;
+    @Schema(description = "微信标识号（唯一）", example = "wx_oXXXXX_ab12cd34")
+    private String wxId;
 
     @Schema(description = "昵称", example = "张三")
-    private String nickname;
+    private String name;
 
     @Schema(description = "头像URL")
     private String avatar;
@@ -41,8 +41,8 @@ public class UserVO {
     @Schema(description = "是否微信绑定（仅布尔标识，不返回 openid 明文，规避隐私泄露）", example = "false")
     private Boolean wechatBound;
 
-    @Schema(description = "已认证绑定邮箱（可空；非空即已认证，认证状态唯一真源）", example = "20240001@bjtu.edu.cn")
-    private String bindEmail;
+    @Schema(description = "绑定邮箱（可空；非空即已认证，认证状态唯一真源）", example = "20240001@bjtu.edu.cn")
+    private String email;
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;

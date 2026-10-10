@@ -19,7 +19,7 @@
 | `pageSize` | number | 否 | 20 | 每页条数；上限 **50** |
 | `category` | string | 否 | — | **列表分流**：`feedback` = 所有非举报 / `report` = 只举报；**不传 = 全部**（全局检索） |
 | `status` | string | 否 | — | `pending` 待处理 / `handled` 已处理；**不传 = 全部** |
-| `type` | string | 否 | — | 页面内类型下拉 = **当前写入白名单** `bug` / `suggestion` / `other`；服务端查询白名单另含历史类型 `issue` / `add` / `error`（存量已清零，见 [schema/user_feedback.md](../../schema/user_feedback.md)「存量口径」）；非法值 `400` |
+| `type` | string | 否 | — | 页面内类型下拉 = 写入白名单 `bug` / `suggestion` / `other`（`report` 行由 `category=report` 承载，不作筛选值）；服务端查询白名单另含历史类型 `issue` / `add` / `error`（存量已清零，见 [schema/user_feedback.md](../../schema/user_feedback.md)「存量口径」）；非法值 `400` |
 | `userId` | number | 否 | — | 按提交人筛选 |
 | `keyword` | string | 否 | — | 关键词（**对反馈正文 或 管理员回复**模糊匹配） |
 
@@ -31,33 +31,31 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `id` | number | 反馈 ID |
-| `userId` | number | 提交人 ID（`0` = 游客） |
-| `userNickname` | string | 提交人昵称（**匿名提交回落为「游客」**） |
+| `userId` | number | 提交人 ID（恒为真实用户 ID —— 列带外键 `fk_feedback_user → user(id)`） |
+| `userName` | string | 提交人昵称（联表带出；注销账号显示「已注销用户」） |
 | `type` | string | 反馈类型（`bug` / `suggestion` / `other` / `report`；服务端另容忍历史类型 `issue` / `add` / `error` 的存量行） |
 | `sub` | string | 二级分类；仅历史 `suggestion` 存量可能为 `idea` / `problem`；其余行为空 |
-| `subReasonId` | number \| null | **举报原因 ID**（`report_reason.id`；仅 `type='report'` 行非空） |
-| `reasonLabel` | string \| null | 举报原因中文名（仅举报行非空；由 `report_reason` 字典实时翻译，停用原因仍可译出） |
 | `content` | string | 反馈正文（空串兜底） |
 | `images` | string[] | 配图**绝对 URL** 数组（≤3 张；恒为数组） |
+| `relatedType` | string \| null | 关联类型：举报为 `review`；信息纠错为 `dish`；其余为 `null` |
+| `relatedId` | number \| null | 关联对象 ID（举报：评价 ID）；其余为 `null` |
 | `status` | string | `pending` / `handled` |
 | `outcome` | string \| null | 处理结论：`handled` / `rejected`；**`pending` 为 `null`**（由 `status` + `rejectReason` 派生，无物理列） |
 | `reply` | string | 管理员回复（可为空串） |
 | `rejectReason` | string | 不采纳原因（`rejected` 时非空） |
 | `createdAt` | string | 提交时间（`yyyy-MM-dd HH:mm:ss`） |
-| `updatedAt` | string | 最近更新时间 |
 | `handledAt` | string | 处理时间（未处理为空串） |
-| `relatedReview` | object \| null | **被举报评价摘要**（仅举报且 `relatedType='review'` 时非空；其余为 `null`） |
+| `updatedAt` | string | 最近更新时间 |
 
-**`relatedReview` 结构**（`category=report` 时填充）：
+**举报行私有字段**（`type='report'` 时填充；与主表字段同为扁平结构，非举报行为 `null`）：
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `authorNickname` | string | 被举报评价的作者昵称（管理端可见） |
-| `content` | string | 评价正文**摘要**（截断，完整内容去评价管理看） |
-| `rating` | number | 该评价的评分（1~5） |
-| `images` | string[] | 该评价配图绝对 URL（恒为数组） |
-| `hidden` | boolean | **该评价当前是否已被隐藏** |
-
-> `relatedDishName`（`relatedType='dish'`，菜品问题反馈场景）保留。
+| `subReasonId` | number | **举报原因 ID**（`report_reason.id`） |
+| `reasonName` | string | 举报原因中文名（由 `report_reason` 字典实时翻译，停用原因仍可译出） |
+| `reviewId` | number | 被举报评价 ID（= `relatedId`） |
+| `reviewContent` | string | 被举报评价正文**摘要**（截断，完整内容去评价管理看；评价已删除为 `null`） |
+| `reviewDishName` | string | 被举报评价所属菜品名（联表带出；评价已删除为 `null`） |
+| `reviewHidden` | boolean | 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰） |
 
 ---
 
@@ -103,6 +101,6 @@
 ### 备注
 - **合表理由**：两类数据流程完全相同，拆表 / 拆端点会把整套逻辑复制一份；**分流只发生在列表参数**（`category`），处理逻辑完全复用。
 - **`outcome` 不落物理列**：由 `status` + `reject_reason` 派生（`rejected ⇒ reject_reason 非空`；`handled ⇒ reject_reason 为 NULL`）。
-- **回执按 `type` 分流文案**：举报人收到「举报已受理 / 不予处理」、反馈人收到「反馈已处理 / 未采纳」；受理且顺带隐藏了评价时正文写明「已隐藏该评价」。投递判据 `user_id > 0`（静默登录的游客同样收到；匿名提交不投递），失败不阻塞处置。
+- **回执按 `type` 分流文案**：举报人收到「举报已受理 / 不予处理」、反馈人收到「反馈已处理 / 未采纳」；受理且顺带隐藏了评价时正文写明「已隐藏该评价」。投递判据 = `user_id` 有效（提交恒带登录态 ⇒ **恒投递**），失败不阻塞处置。
 - **联动隐藏是「一次性动作」而非状态**：恢复显示走 [web/reviews.md](./reviews.md) 的「恢复显示」。
 - **不做批量处置**（一期不做，留作演进）。

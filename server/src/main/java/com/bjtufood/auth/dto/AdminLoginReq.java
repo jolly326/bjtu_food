@@ -13,7 +13,7 @@ import lombok.Data;
 @Data
 public class AdminLoginReq {
 
-    /** 管理员登录名（{@code admin_account.username}） */
+    /** 管理员登录名（{@code admin.username}） */
     @NotBlank(message = "请输入账号")
     @Size(max = 64, message = "账号长度超限")
     private String username;

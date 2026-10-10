@@ -53,7 +53,7 @@ const {
   nextPage,
 } = usePagedList<ReportAdminVO>(
   // B3 与 B2 同端点：`category=report` 时服务端在反馈行基础上补举报私有字段
-  // （subReasonId/reasonLabel/reviewId/reviewContent/reviewDishName/reviewHidden）⇒ 收窄为本页 VO。
+  // （subReasonId/reasonName/reviewId/reviewContent/reviewDishName/reviewHidden）⇒ 收窄为本页 VO。
   async (pageNo, pageSize) =>
     (await listFeedbacks({ page: pageNo, pageSize, ...params() })) as AdminPage<ReportAdminVO>,
 )
@@ -203,8 +203,8 @@ onMounted(() => reloadFirstPage())
         </thead>
         <tbody>
           <tr v-for="row in items" :key="row.id">
-            <td>{{ row.reasonLabel }}</td>
-            <td>{{ row.userNickname || '游客' }}</td>
+            <td>{{ row.reasonName }}</td>
+            <td>{{ row.userName || '游客' }}</td>
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
@@ -247,7 +247,7 @@ onMounted(() => reloadFirstPage())
       <div class="field">
         <label>举报原因</label>
         <div class="readonly">
-          {{ current?.reasonLabel }}
+          {{ current?.reasonName }}
         </div>
       </div>
 
@@ -277,7 +277,7 @@ onMounted(() => reloadFirstPage())
           <div class="meta-row meta-row--span">
             <span class="meta-key">举报人</span>
             <span class="meta-val">
-              {{ current?.userNickname || '游客' }}
+              {{ current?.userName || '游客' }}
               <span class="muted"> #{{ current?.userId }}</span>
             </span>
           </div>

@@ -124,7 +124,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *       token 由真实 {@link JwtUtil} 以测试密钥签发，故 401/403/4031 均为真实分流结果；</li>
  *   <li>{@code 4031}（未完成学号邮箱认证）由真实 {@link RequireVerifiedAspect} 触发，
  *       判定经真实 {@link com.bjtufood.auth.service.UserService#requireUgcAuthorized(Long)}
- *       （判据 user.bind_email = 认证态唯一真源，P0-1/P0-2 起收敛在 auth 域），
+ *       （判据 user.email = 认证态唯一真源，P0-1/P0-2 起收敛在 auth 域），
  *       UserMapper 打桩注入，不查库；</li>
  *   <li>反馈入参校验（type 白名单 / sub 严格模式）在 Service 层，故导入真实 {@link FeedbackServiceImpl}，
  *       仅打桩其依赖的 Mapper / 工具类；</li>
@@ -177,8 +177,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         FeedbackServiceImpl.class,
         // 举报原因字典（A7 表驱动）：FeedbackServiceImpl 依赖其 isSubmittable 做提交白名单
         ReportReasonServiceImpl.class,
-        // 管理端操作审计（AdminAuthFilter 构造依赖）：装配真实记录器 + 打桩其 Mapper 与告警通道
-        com.bjtufood.common.audit.AdminAuditRecorder.class,
         // 反馈落库事务 Bean
         FeedbackPersister.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
@@ -209,7 +207,7 @@ class SmokeApiTest {
     /**
      * 打桩：管理端 JWT 内账号 ID=1 的账号**存在且启用**。
      * <p>
-     * {@code AdminAuthFilter} 验签后按 token 内 ID 回查 {@code admin_account.status}
+     * {@code AdminAuthFilter} 验签后按 token 内 ID 回查 {@code admin.status}
      * （凭证吊销，TD-25）；切片不连库，未打桩则回查为 null ⇒ 401。
      * 用 {@code lenient()} 避免「未触发该回查的用例」被判无用桩。
      */
@@ -273,10 +271,7 @@ class SmokeApiTest {
     /** 安全告警通道：打桩，避免测试真的发起 HTTP 推送 */
     @MockBean
     private com.bjtufood.common.alert.SecurityAlertNotifier securityAlertNotifier;
-    /** 审计写入依赖的 Mapper：切片不连库，打桩 */
-    @MockBean
-    private com.bjtufood.common.audit.mapper.AdminAuditLogMapper adminAuditLogMapper;
-    /** @RequireVerified 切面按 user.bind_email（认证态唯一判据）实时判定，打桩避免查库 */
+    /** @RequireVerified 切面按 user.email（认证态唯一判据）实时判定，打桩避免查库 */
     @MockBean
     private UserMapper userMapper;
     /** UserServiceImpl 解绑邮箱时的验证码清理依赖（表无 user_id 列，按 email 匹配），打桩避免查库 */
@@ -322,11 +317,10 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.token").value("minted-jwt"))
                 .andExpect(jsonPath("$.data.userInfo.id").value(USER_ID))
-                // 字段集契约回归：verified 已删除（认证态由 bindEmail 非空派生），不得回流
+                // 字段集契约回归：verified 已删除（认证态由 email 非空派生），不得回流
                 .andExpect(jsonPath("$.data.userInfo.verified").doesNotExist())
-                .andExpect(jsonPath("$.data.userInfo.bindEmail").doesNotExist())
-                // username 端上零消费，不得回流（账号标识保留在 user 表与 JWT 载荷）
-                .andExpect(jsonPath("$.data.userInfo.username").doesNotExist());
+                // wxId 端上零消费，不得回流（账号标识保留在 user 表与 JWT 载荷）
+                .andExpect(jsonPath("$.data.userInfo.wxId").doesNotExist());
 
         verify(authService).wechatLogin("wx-login-code");
     }
@@ -889,20 +883,20 @@ class SmokeApiTest {
 
     // ==================== 辅助方法 ====================
 
-    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/username，认证态不入 token；role claim 已退役） */
+    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/wxId，认证态不入 token；role claim 已退役） */
     private String studentToken() {
         return "Bearer " + jwtUtil.createToken(USER_ID, "smoke");
     }
 
     /**
-     * 构造按认证态区分的用户桩：认证态唯一判据 = bind_email 非空（见 AuthStateUtil），
+     * 构造按认证态区分的用户桩：认证态唯一判据 = email 非空（见 AuthStateUtil），
      * 已认证注入校园邮箱、游客态留 NULL。
      */
     private User user(boolean verified) {
         User user = new User();
         user.setId(USER_ID);
         user.setStatus("active");
-        user.setBindEmail(verified ? "20240001@bjtu.edu.cn" : null);
+        user.setEmail(verified ? "20240001@bjtu.edu.cn" : null);
         return user;
     }
 

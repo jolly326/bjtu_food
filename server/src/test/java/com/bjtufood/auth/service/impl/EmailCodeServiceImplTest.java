@@ -94,7 +94,6 @@ class EmailCodeServiceImplTest {
     private static EmailVerificationCode lastRecord(long secondsAgo) {
         EmailVerificationCode r = new EmailVerificationCode();
         r.setEmail("20240001@bjtu.edu.cn");
-        r.setPurpose("verify");
         r.setCreatedAt(DateTimeUtil.now().minusSeconds(secondsAgo));
         return r;
     }
@@ -185,7 +184,6 @@ class EmailCodeServiceImplTest {
         // 落库为哈希，6 位明文码只在内存与邮件中出现
         assertThat(saved.getCodeHash()).isEqualTo("$2a$10$hashed");
         assertThat(saved.getEmail()).isEqualTo("20240001@bjtu.edu.cn");
-        assertThat(saved.getPurpose()).isEqualTo("verify");
         assertThat(saved.getExpiresAt()).isAfter(LocalDateTime.now());
 
         ArgumentCaptor<MimeMessage> mail = ArgumentCaptor.forClass(MimeMessage.class);

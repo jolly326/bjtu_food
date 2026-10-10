@@ -60,7 +60,7 @@ public class DishAdminListItemVO {
     private Long categoryId;
 
     @Schema(description = "分类中文名（A6 种类字典派生，端上零硬编码）", example = "面食粉类")
-    private String categoryLabel;
+    private String categoryName;
 
     @Schema(description = "上架状态：on / off")
     private String status;

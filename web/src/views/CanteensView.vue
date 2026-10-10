@@ -2,13 +2,10 @@
 /**
  * A1 食堂管理（页面规格见 [列表页模板.md 的 A1 差异节](../../../docs/ui/web/列表页模板.md)）。
  *
- * <p>要点：**不分页**（量级十数条，列表按 `sortOrder` 升序 → `updatedAt` 降序）；
- * 表格**只放基础检索列**（名称 / 档口数 / 更新时间）—— 图片、地点、描述、排序位与
+ * <p>要点：**不分页**（量级十数条，列表按 `id` 升序）；
+ * 表格**只放基础检索列**（名称 / 档口数 / 更新时间）—— 图片、地点、描述与
  * **全部操作**（编辑 / 删除）都在**详情抽屉**内（同一抽屉两态：查看 ⇄ 编辑）；
  * 删除受阻（**其下仍有档口 → `400` 原文透出**）。
- *
- * <p>排序位无拖动入口（本页不是 `useReorder` 菜单）：它作为**普通可编辑字段**落在详情表单内，
- * 与 [schema/canteen.md](../../../docs/schema/canteen.md) 的「改序直接维护本列」同口径。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -39,12 +36,10 @@ const mode = ref<DrawerMode>('view')
 const current = ref<CanteenAdminVO | null>(null)
 const saving = ref(false)
 
-/** 表单态（`sortOrder` 用字符串承接空输入 = 不下发该字段 ⇒ 保持原值） */
 const form = ref({
   name: '',
   location: '',
   description: '',
-  sortOrder: '',
   images: [] as ImageItem[],
 })
 /** 进入编辑态时的快照：用于「未保存修改」二次确认（BaseDrawer 的 dirty） */
@@ -61,7 +56,6 @@ function fillForm(row: CanteenAdminVO | null): void {
     name: row?.name ?? '',
     location: row?.location ?? '',
     description: row?.description ?? '',
-    sortOrder: row == null ? '' : String(row.sortOrder),
     images: (row?.images ?? []).map((url) => ({ url })),
   }
   snapshot.value = JSON.stringify(form.value)
@@ -106,15 +100,6 @@ async function save(): Promise<void> {
     location: form.value.location,
     description: form.value.description,
     images: form.value.images.map((img) => img.url),
-  }
-  // `sortOrder` 留空 = 不下发 ⇒ 服务端保持原值（新建时落库默认 0）
-  if (form.value.sortOrder.trim() !== '') {
-    const order = Number(form.value.sortOrder)
-    if (!Number.isInteger(order)) {
-      ElMessage.warning('排序位须为整数')
-      return
-    }
-    req.sortOrder = order
   }
   saving.value = true
   try {
@@ -226,7 +211,7 @@ onMounted(() => load())
         </tbody>
       </table>
       <p class="foot-note">
-        「食堂名称」是快速检索列；图片、地点、描述、排序位与编辑 / 删除入口都在行内「详情」内。
+        「食堂名称」是快速检索列；图片、地点、描述与编辑 / 删除入口都在行内「详情」内。
       </p>
     </div>
 
@@ -256,7 +241,7 @@ onMounted(() => load())
           <div v-else class="muted">暂无图片（点「编辑」上传）</div>
         </div>
 
-        <!-- 分组：基本信息（两栏）→ 说明与排序 -->
+        <!-- 分组：基本信息（两栏）→ 说明 -->
         <div class="detail-group">
           <div class="detail-group-title">基本信息</div>
           <div class="detail-meta detail-meta--grid">
@@ -269,15 +254,8 @@ onMounted(() => load())
         </div>
 
         <div class="detail-group">
-          <div class="detail-group-title">说明与排序</div>
+          <div class="detail-group-title">说明</div>
           <div class="detail-meta">
-            <div class="meta-row">
-              <span class="meta-key">排序位</span>
-              <span class="meta-val num">
-                {{ current?.sortOrder }}
-                <span class="muted">（升序，越小越靠前）</span>
-              </span>
-            </div>
             <DetailMetaRow k="描述">{{ current?.description || '—' }}</DetailMetaRow>
           </div>
         </div>
@@ -314,18 +292,6 @@ onMounted(() => load())
             rows="3"
             maxlength="512"
           />
-        </div>
-        <div class="field">
-          <label for="canteen-sort">排序位</label>
-          <input
-            id="canteen-sort"
-            class="form-input"
-            type="number"
-            step="1"
-            v-model="form.sortOrder"
-            placeholder="升序，越小越靠前"
-          />
-          <div class="hint">留空 = 保持原值；列表按「排序位升序 → 更新时间降序」排列</div>
         </div>
         <div class="field">
           <label>食堂图片（有序，首图作封面，≤5 张）</label>

@@ -32,7 +32,7 @@ import {
 import { listCanteens } from '@/api/canteens'
 import { listStalls } from '@/api/stalls'
 import { listDimensions, listValues } from '@/api/dimensions'
-import { createCategory, listCategories, renameCategory, sortCategories } from '@/api/categories'
+import { createCategory, listCategories, renameCategory } from '@/api/categories'
 import type {
   CanteenAdminVO,
   DishAdminListItemVO,
@@ -47,7 +47,6 @@ import type {
 } from '@/types/common'
 import { fenToYuan, formatYuan, yuanToFen } from '@/utils/money'
 import { usePagedList } from '@/composables/usePagedList'
-import { useReorder } from '@/composables/useReorder'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import BaseModal from '@/components/BaseModal.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
@@ -62,7 +61,7 @@ import { useRowAction } from '@/composables/useRowAction'
 
 const canteens = ref<CanteenAdminVO[]>([])
 const stalls = ref<StallAdminVO[]>([])
-/** 描述属性维度：属性子表单按 `order` 渲染（种类已独立成字典，不在属性维度内） */
+/** 描述属性维度：属性子表单按维度 `id` 升序渲染（种类已独立成字典，不在属性维度内） */
 const dimensions = ref<DishDimensionAdminVO[]>([])
 /** A6 菜品种类字典：分类**筛选下拉**与编辑表单分类下拉、以及「种类中文名」展示的真源 */
 const categories = ref<DishCategoryAdminVO[]>([])
@@ -416,9 +415,9 @@ function openPreview(images: string[], index: number): void {
 
 /* ==================== 分类管理（抽屉：分类下拉旁入口，菜品种类字典） ==================== */
 const catOpen = ref(false)
-const newCatLabel = ref('')
+const newCatName = ref('')
 const editingCatId = ref<number | null>(null)
-const editingCatLabel = ref('')
+const editingCatName = ref('')
 
 async function refreshCategories(): Promise<void> {
   categories.value = await listCategories()
@@ -430,32 +429,32 @@ function openCategories(): void {
 }
 
 async function addCategory(): Promise<void> {
-  const label = newCatLabel.value.trim()
-  if (!label) {
+  const name = newCatName.value.trim()
+  if (!name) {
     ElMessage.warning('请填写分类名')
     return
   }
   try {
-    await createCategory(label)
-    newCatLabel.value = ''
+    await createCategory(name)
+    newCatName.value = ''
     ElMessage.success('已登记')
     await refreshCategories()
   } catch (e) {
-    // 名非法 / 同维度重名 → 后端原文（400）
+    // 名非法 / 重名 → 后端原文（400）
     fail(e, '登记失败')
   }
 }
 
 function startRenameCategory(row: DishCategoryAdminVO): void {
   editingCatId.value = row.id
-  editingCatLabel.value = row.label
+  editingCatName.value = row.name
 }
 
 async function commitRenameCategory(row: DishCategoryAdminVO): Promise<void> {
-  const label = editingCatLabel.value.trim()
-  if (!label) return
+  const name = editingCatName.value.trim()
+  if (!name) return
   try {
-    await renameCategory(row.id, label)
+    await renameCategory(row.id, name)
     editingCatId.value = null
     ElMessage.success('已改名')
     await refreshCategories()
@@ -463,13 +462,6 @@ async function commitRenameCategory(row: DishCategoryAdminVO): Promise<void> {
     fail(e, '改名失败')
   }
 }
-
-/** 种类拖拽排序（整体提交全量行） */
-const { onDragStart: onCatDragStart, onDrop: onCatDrop } = useReorder(
-  categories,
-  sortCategories,
-  refreshCategories,
-)
 
 function reset(): void {
   fKeyword.value = ''
@@ -486,8 +478,8 @@ function reset(): void {
 const canteenLabel = (id: number): string =>
   canteens.value.find((c) => c.id === id)?.name ?? `#${id}`
 const stallLabel = (id: number): string => stalls.value.find((s) => s.id === id)?.name ?? `#${id}`
-const categoryLabel = (id: number): string =>
-  categories.value.find((c) => c.id === id)?.label ?? `#${id}`
+const categoryText = (id: number): string =>
+  categories.value.find((c) => c.id === id)?.name ?? `#${id}`
 
 const activeFilters = computed(() => {
   const out: { key: string; label: string; value: string }[] = []
@@ -497,7 +489,7 @@ const activeFilters = computed(() => {
     out.push({ key: 'canteen', label: '食堂', value: canteenLabel(fCanteenId.value) })
   if (fStallId.value) out.push({ key: 'stall', label: '档口', value: stallLabel(fStallId.value) })
   if (fCategoryId.value)
-    out.push({ key: 'category', label: '分类', value: categoryLabel(fCategoryId.value) })
+    out.push({ key: 'category', label: '分类', value: categoryText(fCategoryId.value) })
   if (fStatus.value)
     out.push({
       key: 'status',
@@ -568,7 +560,7 @@ onMounted(async () => {
       <!-- A6 种类字典驱动的下拉：筛选值 = 种类 ID（`dish_category.id`） -->
       <select class="form-input" v-model.number="fCategoryId" @change="reloadFirstPage">
         <option :value="0">全部分类</option>
-        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.label }}</option>
+        <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
       <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
         <option value="">全部状态</option>
@@ -605,7 +597,7 @@ onMounted(async () => {
         <tbody>
           <tr v-for="row in items" :key="row.id">
             <td>{{ row.name }}</td>
-            <td>{{ row.categoryLabel || '—' }}</td>
+            <td>{{ row.categoryName || '—' }}</td>
             <td class="num">{{ formatYuan(row.price) }}</td>
             <td><StatusTag :status="row.status" kind="dish" /></td>
             <td class="muted">{{ formatDateTime(row.updatedAt) }}</td>
@@ -689,8 +681,7 @@ onMounted(async () => {
             <div class="meta-row">
               <span class="meta-key">分类</span>
               <span class="meta-val">
-                {{ detail.categoryLabel || '—'
-                }}<span class="muted"> #{{ detail.categoryId }}</span>
+                {{ detail.categoryName || '—' }}<span class="muted"> #{{ detail.categoryId }}</span>
               </span>
             </div>
             <div class="meta-row">
@@ -794,10 +785,10 @@ onMounted(async () => {
           <label for="dish-category">菜品分类</label>
           <select id="dish-category" class="form-input" v-model.number="form.categoryId">
             <option :value="0" disabled>请选择分类</option>
-            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.label }}</option>
+            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
           <div class="hint">
-            菜品种类在页头「管理分类」内维护（登记 / 改名 / 拖拽排序；种类是独立字典表，改名免费）
+            菜品种类在页头「管理分类」内维护（登记 / 改名；种类是独立字典表，改名免费）
           </div>
         </div>
         <div class="field">
@@ -838,7 +829,7 @@ onMounted(async () => {
               <option
                 v-for="v in valuesByDimensionId[String(d.id)] ?? []"
                 :key="v.id"
-                :value="v.label"
+                :value="v.name"
               />
             </datalist>
           </div>
@@ -910,12 +901,12 @@ onMounted(async () => {
       </template>
     </BaseModal>
 
-    <!-- 分类管理（抽屉）：种类字典的登记 / 改名 / 拖拽排序（种类 ID 由后端生成） -->
+    <!-- 分类管理（抽屉）：种类字典的登记 / 改名（种类 ID 由后端生成，列表按种类 ID 升序） -->
     <BaseDrawer title="菜品分类" :open="catOpen" @close="catOpen = false">
       <div class="add-row">
         <input
           class="form-input"
-          v-model="newCatLabel"
+          v-model="newCatName"
           placeholder="分类名（≤32 字）"
           @keyup.enter="addCategory"
         />
@@ -926,7 +917,6 @@ onMounted(async () => {
         <table class="table table--compact">
           <thead>
             <tr>
-              <th class="drag-col"></th>
               <th>分类名</th>
               <th>引用菜品</th>
               <th>更新时间</th>
@@ -934,22 +924,16 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="(row, index) in categories"
-              :key="row.id"
-              @dragover.prevent
-              @drop="onCatDrop(index)"
-            >
-              <td class="drag-col"><DragHandle @dragstart="onCatDragStart(index)" /></td>
+            <tr v-for="row in categories" :key="row.id">
               <td>
                 <input
                   v-if="editingCatId === row.id"
                   class="form-input inline"
-                  v-model="editingCatLabel"
+                  v-model="editingCatName"
                   @keyup.enter="commitRenameCategory(row)"
                   @keyup.esc="editingCatId = null"
                 />
-                <span v-else>{{ row.label }}</span>
+                <span v-else>{{ row.name }}</span>
               </td>
               <td class="num">{{ row.dishCount }}</td>
               <td class="muted">{{ formatDateTime(row.updatedAt) }}</td>
@@ -969,7 +953,7 @@ onMounted(async () => {
         </table>
         <p class="foot-note">
           菜品种类是独立字典表：菜品存的是种类 ID，改名免费（已归类菜品无需迁移）；
-          被菜品引用时不可删除（本抽屉不提供删除入口）；拖拽排序整体提交全量行。
+          被菜品引用时不可删除（本抽屉不提供删除入口）；列表按种类 ID 升序。
         </p>
       </div>
     </BaseDrawer>

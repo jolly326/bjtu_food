@@ -227,17 +227,17 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("report：游客（userId=null）无身份标识 → 跳过去重查询，直接落库")
-    void report_guest_skipsDuplicateCheck() {
+    @DisplayName("report：游客（userId=null）→ 401「请先登录」（user_feedback.user_id 必填真实登录用户），不落库")
+    void report_guest_rejected401() {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
         stubReasonSubmittable();
 
-        service().report(null, 99L, reportReq(1L, ""));
+        assertThatThrownBy(() -> service().report(null, 99L, reportReq(1L, "")))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(401));
 
-        // 游客无 userId 可判重 ⇒ 不发起 selectCount，但仍要落一条匿名举报
-        verify(feedbackMapper, never()).selectCount(any());
-        verify(feedbackMapper).insert(any());
+        verify(feedbackMapper, never()).insert(any());
     }
 
     // ==================== handle：处理结论与不采纳原因 ====================
@@ -413,17 +413,15 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("submit：游客（userId=null）机审仍走本地词库后落库（不因无身份而拒绝）")
-    void submit_guest_persists() {
+    @DisplayName("submit：游客（userId=null）→ 401「请先登录」（user_feedback.user_id 必填真实登录用户），不落库")
+    void submit_guest_rejected401() {
         stubFilterPassThrough();
-        when(userService.getAuthContext(null)).thenReturn(null);
 
-        service().submit(null, feedbackReq(FeedbackConst.TYPE_OTHER, "匿名反馈"));
+        assertThatThrownBy(() -> service().submit(null, feedbackReq(FeedbackConst.TYPE_OTHER, "匿名反馈")))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(401));
 
-        ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
-        verify(feedbackMapper).insert(captor.capture());
-        assertThat(captor.getValue().getUserId()).isNull();
-        verify(contentSecurityService).checkText(null, "匿名反馈", 2);
+        verify(feedbackMapper, never()).insert(any());
     }
 
     // ==================== 账号归属迁移 ====================

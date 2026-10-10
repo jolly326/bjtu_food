@@ -34,7 +34,7 @@
 | `images` | string[] | 否 | 配图绝对 URL，≤3 张；恒为数组 |
 | `createdAt` | string | 否 | 发表时间 |
 
-> **本人视角不重复下发** `userId` / `userNickname` / `userAvatar`（三者恒等于本人，零信息）。
+> **本人视角不重复下发** `userId` / `userName` / `userAvatar`（三者恒等于本人，零信息）。
 > 与公开视角 `ReviewVO`（8 字段，见 [dishes.md](./dishes.md#get-dishesidreviews)）**MUST 是两个类型**，端上不得复用单一 interface。
 
 ### 备注

@@ -1,7 +1,7 @@
 import { get, post, put, del } from './http'
 import type { CanteenAdminVO, CanteenSaveReq } from '@/types/common'
 
-/** A1 食堂列表（按 `name` 升序；**不分页**，量级为十数条） */
+/** A1 食堂列表（按 `id` 升序；**不分页**，量级为十数条） */
 export function listCanteens(): Promise<CanteenAdminVO[]> {
   return get<CanteenAdminVO[]>('/admin/canteens')
 }
@@ -11,7 +11,7 @@ export function createCanteen(req: CanteenSaveReq): Promise<CanteenAdminVO> {
   return post<CanteenAdminVO>('/admin/canteens', req)
 }
 
-/** A1 编辑（`name` 必填整体替换；`location` / `description` / `images` / `sortOrder` 缺省 = 保持原值） */
+/** A1 编辑（`name` 必填整体替换；`location` / `description` / `images` 缺省 = 保持原值） */
 export function updateCanteen(id: number, req: CanteenSaveReq): Promise<null> {
   return put<null>(`/admin/canteens/${id}`, req)
 }

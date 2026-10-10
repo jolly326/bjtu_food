@@ -36,35 +36,32 @@ class DishAttributeCatalogTest {
         return new DishAttributeCatalog(dimensionMapper, valueMapper, mock(CacheManager.class));
     }
 
-    private static DishAttributeDimension dimension(Long id, String name, int order) {
+    private static DishAttributeDimension dimension(Long id, String name) {
         DishAttributeDimension d = new DishAttributeDimension();
         d.setId(id);
         d.setName(name);
         d.setValueType("single");
-        d.setSortOrder(order);
         return d;
     }
 
-    private static DishAttributeValue value(Long id, Long dimensionId, String label, int order) {
+    private static DishAttributeValue value(Long id, Long dimensionId, String name) {
         DishAttributeValue v = new DishAttributeValue();
         v.setId(id);
         v.setDimensionId(dimensionId);
-        v.setLabel(label);
-        v.setSortOrder(order);
+        v.setName(name);
         return v;
     }
 
     @Test
-    @DisplayName("候选值 = 该维度下取值字典的 label（按字典 order 升序），键为维度 ID")
+    @DisplayName("候选值 = 该维度下取值字典的 name，键为维度 ID")
     void candidatesComeFromValueDictionary() {
         when(dimensionMapper.selectList(any())).thenReturn(List.of(
-                dimension(1L, "饮食属性", 1),
-                dimension(2L, "口味", 3)));
-        // 故意乱序返回：服务端按 order 升序（查询已排序，此处验证聚合不依赖返回顺序）
+                dimension(1L, "饮食属性"),
+                dimension(2L, "口味")));
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(10L, 1L, "荤", 1),
-                value(11L, 1L, "素", 2),
-                value(20L, 2L, "辣", 1)));
+                value(10L, 1L, "荤"),
+                value(11L, 1L, "素"),
+                value(20L, 2L, "辣")));
 
         Map<Long, List<String>> result = catalog().candidateValuesByDimensionId();
 
@@ -77,8 +74,8 @@ class DishAttributeCatalogTest {
     @DisplayName("候选按取值行的 dimensionId 直接归组，不依赖维度字典回查（维度删除时取值一并清理）")
     void candidatesGroupedByValueDimensionId() {
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(10L, 1L, "荤", 1),
-                value(99L, 42L, "孤儿值", 2)));
+                value(10L, 1L, "荤"),
+                value(99L, 42L, "孤儿值")));
 
         Map<Long, List<String>> result = catalog().candidateValuesByDimensionId();
 
@@ -89,7 +86,7 @@ class DishAttributeCatalogTest {
     @Test
     @DisplayName("返回不可变：调用方改写候选列表 / 外层 Map 必须抛异常（结果跨请求共享）")
     void candidatesAreImmutable() {
-        when(valueMapper.selectList(any())).thenReturn(List.of(value(10L, 1L, "荤", 1)));
+        when(valueMapper.selectList(any())).thenReturn(List.of(value(10L, 1L, "荤")));
 
         Map<Long, List<String>> result = catalog().candidateValuesByDimensionId();
 
@@ -100,17 +97,17 @@ class DishAttributeCatalogTest {
     }
 
     @Test
-    @DisplayName("维度字典按 order 升序返回且不可变")
-    void dimensionsAreOrderedAndImmutable() {
+    @DisplayName("维度字典返回且不可变")
+    void dimensionsAreImmutable() {
         when(dimensionMapper.selectList(any())).thenReturn(List.of(
-                dimension(1L, "饮食属性", 1),
-                dimension(2L, "口味", 3)));
+                dimension(1L, "饮食属性"),
+                dimension(2L, "口味")));
 
         List<DishAttributeDimension> dimensions = catalog().dimensions();
 
         assertThat(dimensions).extracting(DishAttributeDimension::getId)
                 .containsExactly(1L, 2L);
-        assertThatThrownBy(() -> dimensions.add(dimension(3L, "x", 4)))
+        assertThatThrownBy(() -> dimensions.add(dimension(3L, "x")))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 }

@@ -27,12 +27,12 @@
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 用户 ID |
-| `nickname` | string | 否 | 昵称；新建游客号默认「食客 + ID 尾 4 位」 |
+| `name` | string | 否 | 昵称；新建游客号默认「食客 + ID 尾 4 位」 |
 | `avatar` | string | **是** | 头像绝对 URL；无头像为 `null` |
-| `bindEmail` | string | **是** | 已认证绑定的校园邮箱；**`null` = 游客态**（非空即已认证） |
+| `email` | string | **是** | 已认证绑定的校园邮箱；**`null` = 游客态**（非空即已认证） |
 
-> `bindEmail` 是**校园邮箱与认证状态的唯一判据**——端上 `isVerified()` 由它派生，页面不得散写判空。
-> **无 `username` 出参**：学号 / 账号标识属服务端内部字段（保留在 `user` 表与 JWT 载荷供日志）。
+> `email` 是**校园邮箱与认证状态的唯一判据**——端上 `isVerified()` 由它派生，页面不得散写判空。
+> **无 `wxId` 出参**：学号 / 账号标识属服务端内部字段（保留在 `user` 表与 JWT 载荷供日志）。
 
 ### 错误码
 | code | 条件 |
@@ -68,7 +68,7 @@
 ### 请求体 `ProfileUpdateReq`
 | 字段 | 类型 | 必填 | 约束 |
 |---|---|---|---|
-| `nickname` | string | 否 | 最长 **20 字**；变更时过本地敏感词 + 微信内容安检 |
+| `name` | string | 否 | 最长 **20 字**；变更时过本地敏感词 + 微信内容安检 |
 | `avatar` | string | 否 | 仅允许：站内 `/images/`、`/uploads/`、**或 `POST /upload/cloud-image` 返回的 COS 绝对地址**（头像与 UGC 配图同走该链路，见 [upload.md](./upload.md)）|
 
 > **两者至少填一项**，都为空 → 400。
@@ -85,7 +85,7 @@
 ### 副作用
 | 目标 | 变化 |
 |---|---|
-| `user.nickname` | UPDATE（局部） |
+| `user.name` | UPDATE（局部） |
 | `user.avatar` | UPDATE（局部） |
 
 ---
@@ -97,7 +97,7 @@
 ### 请求体 `EmailCodeReq`
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `username` | string | **是** | **学号**（⚠️ **与库表 `user.username` 同名异义** —— 后者是账号标识 `wx_<openid 尾 16 位>`）；校园邮箱由服务端推导为 `{username}@bjtu.edu.cn`，端上不传 email |
+| `username` | string | **是** | **学号**（⚠️ 与库表 `user.wx_id` 无关 —— 后者是账号标识）；校园邮箱由服务端推导为 `{username}@bjtu.edu.cn`，端上不传邮箱 |
 
 ### 响应 `data`
 `null`（成功即 `code=200`）。成功文案由 `message` 承担。
@@ -130,7 +130,7 @@
 
 ### 响应 `data` = `UserInfoVO`（4 字段）
 
-`bindEmail` 已写入为本次认证的邮箱。**字段集与 `POST /auth/wechat-login` 的 `userInfo` 严格一致**。
+`email` 已写入为本次认证的邮箱。**字段集与 `POST /auth/wechat-login` 的 `userInfo` 严格一致**。
 
 ### 错误码
 | code | 条件 |
@@ -166,11 +166,11 @@
 
 | 对象 | 变化 |
 |---|---|
-| `user.nickname` | → `'已注销用户'` |
-| `user.username` | → `'deleted_{id}'`（释放唯一键占用） |
-| `user.avatar` / `email` / `openid` / `bind_email` | → `NULL` |
+| `user.name` | → `'已注销用户'` |
+| `user.wx_id` | → `'deleted_{id}'`（释放唯一键占用） |
+| `user.avatar` / `email` / `openid` | → `NULL` |
 | `user.status` | → `'deleted'`（持久化兜底，拦截重新登录与 UGC 写） |
-| `email_verification_code` | 按 `email` 与 `bind_email` 两批 DELETE |
+| `email_verification_code` | 按目标邮箱 `email` 与用户 `user.email`（认证绑定邮箱）两批 DELETE |
 | `notification` | 按 `user_id` 全删（账号维度过程性数据） |
 | Token 黑名单 | 拉黑当前 token + 该 userId（其余设备历史 token 一并失效） |
 | `review` / `user_feedback` | **保留** —— 评价与反馈匿名化展示，评分聚合不破坏 |
@@ -190,9 +190,9 @@
 
 | 项 | 说明 |
 |---|---|
-| 载荷 | `userId` / `username` / `iat` / `exp`，有效期 **7 天** |
+| 载荷 | `userId` / `wxId` / `iat` / `exp`，有效期 **7 天** |
 | 载荷可读 | base64url 编码，**非加密** —— 故严禁放入 openid、邮箱、手机号等敏感信息 |
-| 认证态 | **不进 JWT**；后端按 `user.bind_email` 非空实时查库判定（`AuthStateUtil`） |
+| 认证态 | **不进 JWT**；后端按 `user.email` 非空实时查库判定（`AuthStateUtil`） |
 | 角色 | 不进 JWT；学生态 authorities 由过滤器固定授予 |
 
 存储映射见 [schema/user.md](../../schema/user.md)。

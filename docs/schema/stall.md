@@ -15,7 +15,6 @@
 | `floor` | VARCHAR(16) | YES | NULL | | 楼层（**受控字典，值即汉字**：`负一层` / `一层` / `二层` / `三层` / `四层`，见「注意事项」）；经菜品详情（`DishDetailVO.floor`，`COALESCE` 空串）与管理端列表出参 |
 | `window_no` | VARCHAR(32) | YES | NULL | | 窗口号；**公开接口不出参**（管理端列表出参 `windowNo`，无则空串） |
 | `description` | VARCHAR(512) | YES | NULL | | 档口描述；经管理端出参 `description`，**A2 详情抽屉内可编辑**（≤512 字，空串 = 清空） |
-| `sort_order` | INT | NO | 0 | | **排序位**（有内部消费）：纠错候选档口列表按其升序（`StallService#listBriefCandidates`）；另经管理端出参 `sortOrder`，**A2 详情抽屉内作为普通数值字段维护**。管理端档口列表不按它排序（按「食堂 → 档口名」） |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参 `updatedAt`） |
 
 ## 索引
@@ -33,6 +32,7 @@
 - 管理端可**新增 / 修改 / 删除**（`POST` / `PUT` / `DELETE /admin/stalls`，列表支持按 `canteenId` 筛选）。
 - **删除约束**：其下仍有菜品时禁止删除，避免孤儿菜品。
 - **同食堂下名称唯一**由应用层校验。
+- **列表顺序 = `id` 升序** —— 管理端档口列表与纠错候选档口列表（`StallService#listBriefCandidates`）同一口径，档口不设排序位。
 
 ### `floor` 归属档口而非菜品
 菜品详情的位置行取**档口的 `floor`**，因此：
@@ -56,8 +56,7 @@
 ## 注意事项
 
 - 本表**无 `created_at`**：档口是管理端维护的字典型主数据，「创建时间」无业务消费方，`updated_at` 已承载「最近改动」展示。
-- `images` / `location` / `description` / `sort_order` **公开接口（client）均不出参** —— 只随**管理端**出参下发（`images` / `location` / `description` / `sortOrder`），且均在 **A2 详情抽屉**内可查看、可编辑（写入面与空值语义见 [api/web/stalls.md](../api/web/stalls.md)）。
-- **`sort_order` 是「排序位」而非死列**：纠错候选档口列表按其升序（`StallService#listBriefCandidates`）；管理端在 A2 详情抽屉内直接维护该值，但**档口列表本身不按它排序**（按「食堂 → 档口名」）。
+- `images` / `location` / `description` **公开接口（client）均不出参** —— 只随**管理端**出参下发（`images` / `location` / `description`），且均在 **A2 详情抽屉**内可查看、可编辑（写入面与空值语义见 [api/web/stalls.md](../api/web/stalls.md)）。
 - `floor` 为**受控字典，且「值即汉字」**（列类型仍是 `VARCHAR(16)`，**不做 DB 枚举约束**，由应用层校验）：
   - **值域（楼层字典，唯一真源）**：`负一层` ｜ `一层` ｜ `二层` ｜ `三层` ｜ `四层`；
   - **存储值 = 显示值 ⇒ 全链零映射**：管理端 [A2](../func/web/A-主数据维护/A2-档口管理.md) 下拉、小程序端（[菜品问题反馈页](../ui/client/菜品纠错.md)）楼层单选、菜品详情页位置行**都直接显示该汉字**，两端无映射表、无「机器值 ↔ 中文」转换。
@@ -68,7 +67,7 @@
   | **删除楼层** | ① 先把该楼层的档口改到其它楼层（A2 逐个改，档口量级十数条）→ ② 两端下拉各删一项 | **是**（先迁移） | 是 |
   | **改名**（如「负一层」→「夹层」） | ① 先迁移存量档口 → ② 两端下拉改名 | **是**（先迁移） | 是 |
   > **为什么可接受**：楼层是**低频、封闭**的枚举（一个食堂 1~5 层），改名 / 删除属罕见运营动作；用「显示文本即数据值」换来的是**零映射、零兜底、零例外**。
-- **演进路线（登记，不实现）**：若「后台自助增删楼层、免发版」成为需求 → 照 [A6](../func/web/A-主数据维护/A6-首页筛选视图管理.md) 的字典表模式改为**表驱动**：新增小表（如 `stall_floor`：`label` / `order` / `enabled`）+ 公开字典端点（如 `GET /stall-floors`），两端改查表；**届时汉字值原样对上 `label`，无需数据迁移**。
+- **演进路线（登记，不实现）**：若「后台自助增删楼层、免发版」成为需求 → 照 [A6](../func/web/A-主数据维护/A6-首页筛选视图管理.md) 的字典表模式改为**表驱动**：新增小表（如 `stall_floor`：`name` / `enabled`）+ 公开字典端点（如 `GET /stall-floors`），两端改查表；**届时汉字值原样对上 `name`，无需数据迁移**。
 - **本期不新增楼层字典表 / 字典端点**：两端硬编码同一份（以上表为锚），符合「零消费即删 / 能不加就加不加」。
 
 接口契约：`floor` 经 `DishDetailVO.floor` 出参（见 [api/client/dishes.md](../api/client/dishes.md#get-dishesid)）。

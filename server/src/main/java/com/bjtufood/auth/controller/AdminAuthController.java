@@ -165,8 +165,8 @@ public class AdminAuthController {
     }
 
     /**
-     * 时间格式 —— 契约真源 {@code docs/api/web/auth.md}：{@code lastLoginAt} 为
-     * {@code yyyy-MM-dd HH:mm:ss}。
+     * 时间格式 —— 契约真源 {@code docs/api/web/auth.md}：{@code lastLoginAt} /
+     * {@code updatedAt} 均为 {@code yyyy-MM-dd HH:mm:ss}。
      */
     private static final DateTimeFormatter TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -184,6 +184,8 @@ public class AdminAuthController {
         vo.setRole(account.getRole());
         LocalDateTime lastLoginAt = account.getLastLoginAt();
         vo.setLastLoginAt(lastLoginAt == null ? null : TIME_FORMATTER.format(lastLoginAt));
+        LocalDateTime updatedAt = account.getUpdatedAt();
+        vo.setUpdatedAt(updatedAt == null ? null : TIME_FORMATTER.format(updatedAt));
         vo.setPasswordAging(isPasswordAging(account));
         return Result.success(vo);
     }

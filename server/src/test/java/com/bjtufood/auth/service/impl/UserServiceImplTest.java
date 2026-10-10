@@ -101,11 +101,11 @@ class UserServiceImplTest {
                 userStateWriteLock, accountCloser);
     }
 
-    private static User user(Long id, String status, String bindEmail) {
+    private static User user(Long id, String status, String email) {
         User u = new User();
         u.setId(id);
         u.setStatus(status);
-        u.setBindEmail(bindEmail);
+        u.setEmail(email);
         return u;
     }
 
@@ -149,12 +149,12 @@ class UserServiceImplTest {
                 });
     }
 
-    @ParameterizedTest(name = "bindEmail={0}")
+    @ParameterizedTest(name = "email={0}")
     @NullSource
     @ValueSource(strings = {"", "   "})
-    @DisplayName("bindEmail 为空/空白（未完成邮箱认证）→ 4031，与普通 403 区分")
-    void unverifiedUserGets4031(String bindEmail) {
-        when(userMapper.selectById(1L)).thenReturn(user(1L, "active", bindEmail));
+    @DisplayName("email 为空/空白（未完成邮箱认证）→ 4031，与普通 403 区分")
+    void unverifiedUserGets4031(String email) {
+        when(userMapper.selectById(1L)).thenReturn(user(1L, "active", email));
         assertThatThrownBy(() -> service().requireUgcAuthorized(1L))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
@@ -184,7 +184,7 @@ class UserServiceImplTest {
     // ==================== getAuthContext / isVerifiedById ====================
 
     @Test
-    @DisplayName("getAuthContext：bindEmail 明文不出 auth 域，仅下发折算后的布尔认证态")
+    @DisplayName("getAuthContext：email 明文不出 auth 域，仅下发折算后的布尔认证态")
     void authContextDoesNotLeakBindEmail() {
         when(userMapper.selectById(1L)).thenReturn(user(1L, "active", "20240001@bjtu.edu.cn"));
 
@@ -193,7 +193,7 @@ class UserServiceImplTest {
         assertThat(ctx).isNotNull();
         assertThat(ctx.getUserId()).isEqualTo(1L);
         assertThat(ctx.isVerified()).isTrue();
-        // 契约上无 bindEmail 出参：确认 DTO 确实不承载明文邮箱
+        // 契约上无邮箱明文出参：确认 DTO 确实不承载明文邮箱
         assertThat(UserAuthContextVO.class.getDeclaredFields())
                 .extracting(java.lang.reflect.Field::getName)
                 .noneMatch(n -> n.toLowerCase().contains("email"));
@@ -227,17 +227,17 @@ class UserServiceImplTest {
     @DisplayName("mapBriefByIds：avatar 经 ImageUrlUtil 转绝对地址（跨域不外泄相对路径）")
     void mapBriefByIdsConvertsAvatarToAbsoluteUrl() {
         User u1 = user(1L, "active", null);
-        u1.setNickname("小明");
+        u1.setName("小明");
         u1.setAvatar("/images/a.jpg");
         User u2 = user(2L, "active", null);
-        u2.setNickname("小红");
+        u2.setName("小红");
         when(userMapper.selectList(any())).thenReturn(Arrays.asList(u1, u2));
         when(imageUrlUtil.toAbsoluteUrl("/images/a.jpg")).thenReturn("http://host/api/v1/images/a.jpg");
 
         Map<Long, UserBriefVO> map = service().mapBriefByIds(List.of(1L, 2L));
 
         assertThat(map).containsOnlyKeys(1L, 2L);
-        assertThat(map.get(1L).getNickname()).isEqualTo("小明");
+        assertThat(map.get(1L).getName()).isEqualTo("小明");
         assertThat(map.get(1L).getAvatarUrl()).isEqualTo("http://host/api/v1/images/a.jpg");
         // avatar 为 null 的行：实现对每行都调 toAbsoluteUrl（不做 null 短路），
         // 故此处断言其结果为 null，即 ImageUrlUtil 自身须对 null 安全
@@ -245,13 +245,13 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("mapBriefByIds / mapNicknameByIds：入参 null 或空集合 → 空 Map 且不查库")
+    @DisplayName("mapBriefByIds / mapNameByIds：入参 null 或空集合 → 空 Map 且不查库")
     void mapContractsShortCircuitOnEmptyInput() {
         UserServiceImpl svc = service();
         assertThat(svc.mapBriefByIds((Collection<Long>) null)).isEmpty();
         assertThat(svc.mapBriefByIds(List.of())).isEmpty();
-        assertThat(svc.mapNicknameByIds((Collection<Long>) null)).isEmpty();
-        assertThat(svc.mapNicknameByIds(List.of())).isEmpty();
+        assertThat(svc.mapNameByIds((Collection<Long>) null)).isEmpty();
+        assertThat(svc.mapNameByIds(List.of())).isEmpty();
         verify(userMapper, never()).selectList(any());
     }
 
@@ -280,11 +280,11 @@ class UserServiceImplTest {
                 .doesNotContain("updated_at=");
         assertThat(wrapper.getSqlSet())
                 .as("整行回写会连带写回昵称/头像等列，与本人 PUT /auth/profile 的局部更新并发时互相覆盖")
-                .doesNotContain("nickname")
+                .doesNotContain("name=")
                 .doesNotContain("avatar")
-                .doesNotContain("bind_email")
+                .doesNotContain("email=")
                 .doesNotContain("openid")
-                .doesNotContain("username");
+                .doesNotContain("wx_id");
         assertThat(wrapper.getParamNameValuePairs().values())
                 .as("status 新值必须作为参数落库")
                 .contains(UserConst.STATUS_DISABLED);
@@ -379,7 +379,7 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("unbindEmail：目标未绑定邮箱（bind_email 为空，含已注销账号）→ 400，不写库")
+    @DisplayName("unbindEmail：目标未绑定邮箱（email 为空，含已注销账号）→ 400，不写库")
     void unbindEmailRejectsUnboundUser() {
         when(userMapper.selectById(1L)).thenReturn(user(1L, UserConst.STATUS_ACTIVE, null));
 
@@ -392,8 +392,8 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("unbindEmail：正常解绑 → 只置空 bind_email 一列（不改 status / username / openid），并清理该邮箱验证码")
-    void unbindEmailClearsBindEmailColumnOnly() {
+    @DisplayName("unbindEmail：正常解绑 → 只置空 email 一列（不改 status / wxId / openid），并清理该邮箱验证码")
+    void unbindEmailClearsEmailColumnOnly() {
         when(userMapper.selectById(1L)).thenReturn(user(1L, UserConst.STATUS_ACTIVE, "20240001@bjtu.edu.cn"));
         AtomicReference<Wrapper<User>> captured = new AtomicReference<>();
         when(userMapper.update(isNull(), any())).thenAnswer(inv -> {
@@ -405,14 +405,14 @@ class UserServiceImplTest {
 
         AbstractWrapper<?, ?, ?> wrapper = (AbstractWrapper<?, ?, ?>) captured.get();
         assertThat(wrapper.getSqlSet())
-                .as("解绑必须是列级更新且只动 bind_email：认证态判据唯一，其余列（status / 账号标识 / 微信绑定）不属于解绑语义")
-                .contains("bind_email=")
+                .as("解绑必须是列级更新且只动 email：认证态判据唯一，其余列（status / 账号标识 / 微信绑定）不属于解绑语义")
+                .contains("email=")
                 .doesNotContain("status=")
-                .doesNotContain("username")
+                .doesNotContain("wx_id")
                 .doesNotContain("openid")
-                .doesNotContain("nickname");
+                .doesNotContain("name=");
         assertThat(wrapper.getParamNameValuePairs().values())
-                .as("SET 片段只含 NULL（bind_email 置空），不带其它新值参数")
+                .as("SET 片段只含 NULL（email 置空），不带其它新值参数")
                 .containsNull();
         // 残留验证码清理：表无 user_id 列，按绑定邮箱匹配删除（与注销同口径）
         verify(codeMapper).delete(any());

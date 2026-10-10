@@ -2,11 +2,11 @@
 /**
  * C2 用户管理（页面规格见 [列表页模板.md](../../../docs/ui/web/列表页模板.md) §一 + §C2）。
  *
- * <p>列序（§C2）：`用户`（主标识列 —— 头像 + 昵称合并为一个单元格）→ `账号`（`username`）→ `认证` →
+ * <p>列序（§C2）：`用户`（主标识列 —— 头像 + 昵称合并为一个单元格）→ `账号`（`wxId`）→ `认证` →
  * `状态` → `注册时间` → `更新时间` → `操作`。
  *
  * <p>要点：分页（`AdminPageResult`，**页码 + 共 N 条**）；筛选 = 关键词 + 状态；
- * **认证态不单独出字段** —— 按 `bindEmail` 是否为空派生（空串 = 未认证，管理端 VO 恒非空串）；
+ * **认证态不单独出字段** —— 按 `email` 是否为空派生（空串 = 未认证，管理端 VO 恒非空串）；
  * 状态列恒用 `StatusTag`（`kind="user"`）。
  *
  * <p>**启停保留为行级快速动作**（高频、可逆）；「解绑邮箱」「删除账号」属编辑 / 删除类 ⇒ 一律进
@@ -85,7 +85,7 @@ async function toggle(row: UserAdminVO): Promise<void> {
   if (disabled) {
     try {
       await confirmDelete(
-        `禁用后：该用户无法再登录，已登录的会话立即失效（写操作被拒）；已发表内容保留，可随时启用恢复。确认禁用「${row.nickname || row.id}」？`,
+        `禁用后：该用户无法再登录，已登录的会话立即失效（写操作被拒）；已发表内容保留，可随时启用恢复。确认禁用「${row.name || row.id}」？`,
         { title: '禁用用户', confirmText: '禁用' },
       )
     } catch {
@@ -105,7 +105,7 @@ async function toggle(row: UserAdminVO): Promise<void> {
 async function kickOff(row: UserAdminVO): Promise<void> {
   try {
     await confirmDelete(
-      `踢下线后：该用户已登录的会话立即失效，需重新登录（小程序静默登录会自动换发新 token）；账号状态、认证邮箱与已发表内容全部不受影响。确认踢「${row.nickname || row.id}」下线？`,
+      `踢下线后：该用户已登录的会话立即失效，需重新登录（小程序静默登录会自动换发新 token）；账号状态、认证邮箱与已发表内容全部不受影响。确认踢「${row.name || row.id}」下线？`,
       { title: '踢下线', confirmText: '踢下线' },
     )
   } catch {
@@ -123,7 +123,7 @@ async function kickOff(row: UserAdminVO): Promise<void> {
 async function unbindEmail(row: UserAdminVO): Promise<void> {
   try {
     await confirmDelete(
-      `解绑后：该用户立即回落为未认证状态，无法发表评价与反馈，需重新邮箱认证恢复；登录与已发表内容不受影响。确认解绑「${row.nickname || row.id}」的认证邮箱 ${row.bindEmail}？`,
+      `解绑后：该用户立即回落为未认证状态，无法发表评价与反馈，需重新邮箱认证恢复；登录与已发表内容不受影响。确认解绑「${row.name || row.id}」的认证邮箱 ${row.email}？`,
       { title: '解绑邮箱', confirmText: '解绑' },
     )
   } catch {
@@ -141,7 +141,7 @@ async function unbindEmail(row: UserAdminVO): Promise<void> {
 async function deleteAccount(row: UserAdminVO): Promise<void> {
   try {
     await confirmDelete(
-      `注销后：账号立即失效且不可恢复——无法再登录，微信与邮箱解绑，昵称显示为「已注销用户」；已发表内容保留且照旧公开可见。确认注销「${row.nickname || row.id}」？`,
+      `注销后：账号立即失效且不可恢复——无法再登录，微信与邮箱解绑，昵称显示为「已注销用户」；已发表内容保留且照旧公开可见。确认注销「${row.name || row.id}」？`,
       { title: '删除账号', confirmText: '注销' },
     )
   } catch {
@@ -261,13 +261,13 @@ onMounted(() => reloadFirstPage())
               <div class="user-cell">
                 <img v-if="row.avatar" :src="resolveImageUrl(row.avatar)" class="avatar" alt="" />
                 <span v-else class="avatar avatar-placeholder">·</span>
-                <span>{{ row.nickname || '—' }}</span>
+                <span>{{ row.name || '—' }}</span>
               </div>
             </td>
-            <td class="ellipsis muted">{{ row.username }}</td>
+            <td class="ellipsis muted">{{ row.wxId }}</td>
             <!-- 认证态派生：空串 = 未认证（不单独出认证字段） -->
             <td>
-              <span v-if="row.bindEmail" class="email">{{ row.bindEmail }}</span>
+              <span v-if="row.email" class="email">{{ row.email }}</span>
               <span v-else class="muted">未认证</span>
             </td>
             <td><StatusTag :status="row.status" kind="user" /></td>
@@ -321,7 +321,7 @@ onMounted(() => reloadFirstPage())
             alt=""
           />
           <span v-else class="avatar avatar-placeholder" aria-hidden="true">·</span>
-          <span>{{ current?.nickname || '—' }}</span>
+          <span>{{ current?.name || '—' }}</span>
         </div>
       </div>
 
@@ -329,7 +329,7 @@ onMounted(() => reloadFirstPage())
       <div class="detail-group">
         <div class="detail-group-title">账号标识</div>
         <div class="detail-meta detail-meta--grid">
-          <DetailMetaRow k="账号">{{ current?.username }}</DetailMetaRow>
+          <DetailMetaRow k="账号">{{ current?.wxId }}</DetailMetaRow>
           <DetailMetaRow k="用户 ID" num>#{{ current?.id }}</DetailMetaRow>
           <div class="meta-row">
             <span class="meta-key">状态</span>
@@ -353,7 +353,7 @@ onMounted(() => reloadFirstPage())
           <div class="meta-row">
             <span class="meta-key">认证邮箱</span>
             <span class="meta-val">
-              <template v-if="current?.bindEmail">{{ current.bindEmail }}</template>
+              <template v-if="current?.email">{{ current.email }}</template>
               <span v-else class="muted">未认证</span>
             </span>
           </div>
@@ -363,7 +363,8 @@ onMounted(() => reloadFirstPage())
       </div>
 
       <p class="foot-note">
-        管理端不代改资料（昵称 / 头像由用户本人维护）；可在此禁用 / 启用、踢下线、解绑认证邮箱或注销账号。
+        管理端不代改资料（昵称 / 头像由用户本人维护）；可在此禁用 /
+        启用、踢下线、解绑认证邮箱或注销账号。
       </p>
 
       <template #actions>
@@ -389,7 +390,7 @@ onMounted(() => reloadFirstPage())
           </button>
           <!-- 解绑邮箱：服务端 DELETE 仅 super（§1.4：DELETE 类动作用 canDelete() 隐显） -->
           <button
-            v-if="current?.bindEmail && canDelete()"
+            v-if="current?.email && canDelete()"
             class="link"
             type="button"
             :disabled="isBusy(current?.id)"

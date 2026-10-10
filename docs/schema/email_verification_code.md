@@ -10,7 +10,6 @@
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 记录 ID |
 | `email` | VARCHAR(128) | NO | `''` | KEY | 目标邮箱（由学号推导 `{学号}@bjtu.edu.cn`） |
 | `code_hash` | VARCHAR(128) | NO | `''` | | 验证码的 **BCrypt 散列**（**不存明文**） |
-| `purpose` | VARCHAR(32) | NO | `'verify'` | KEY | 用途；当前**仅 `verify`**（认证用途） |
 | `expires_at` | DATETIME | YES | NULL | KEY | 过期时间（发码时 = 创建 +10 分钟） |
 | `used_at` | DATETIME | YES | NULL | | 消费时间；**NULL = 未使用** |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | 发码时间；**同邮箱 60 秒冷却的判据** |
@@ -20,7 +19,7 @@
 | 索引名 | 列 | 类型 | 用途 |
 |---|---|---|---|
 | `PRIMARY` | `id` | 主键 | |
-| `idx_evc_email` | `email`, `purpose` | 复合 | 同邮箱冷却查询（`ORDER BY created_at DESC LIMIT 1`） |
+| `idx_evc_email` | `email` | 普通 | 同邮箱冷却查询（`ORDER BY created_at DESC LIMIT 1`） |
 | `idx_evc_expires` | `expires_at` | 普通 | 定时清理过期记录 |
 
 ## 关键设计
@@ -34,7 +33,7 @@
 因散列不可反查，核验流程为：
 
 ```
-取最近 20 条（purpose='verify' 且未使用且未过期，按 created_at 倒序）
+取最近 20 条（未使用且未过期，按 created_at 倒序）
   → 逐条 BCrypt 比对输入的验证码
   → 命中则原子消费
 ```
@@ -60,7 +59,7 @@ UPDATE email_verification_code SET used_at = ? WHERE id = ? AND used_at IS NULL
 
 ### 清理策略
 - **定时任务**每日 03:00 清理 1 天前已过期的记录（`EmailVerificationCodeCleanupTask`）
-- **账号注销时**按 `email` 与 `bind_email` 两批删除（避免残留验证码在他端被消费）
+- **账号注销时**按目标邮箱 `email` 与用户 `user.email`（认证绑定邮箱）两批删除（避免残留验证码在他端被消费）
 
 ## 关联
 
@@ -71,8 +70,8 @@ UPDATE email_verification_code SET used_at = ? WHERE id = ? AND used_at IS NULL
 ## 注意事项
 
 - `expires_at` / `used_at` 允许 NULL，但业务上发码时**必填 `expires_at`**。
-- `purpose` 保留为独立维度而非硬编码，当前只有 `verify` 一个取值——为将来可能的「密码重置」等用途预留（届时须重新评估核验逻辑）。
+- **不记用途**：本表只承载学号邮箱认证一种业务，核验不判用途（无用途列）。
 - `code_hash` 长度 128 足以容纳 BCrypt 输出（60 字符）。
-- 单条记录的 60 秒冷却基于 `idx_evc_email(email, purpose)` + `ORDER BY created_at DESC LIMIT 1`。
+- 单条记录的 60 秒冷却基于 `idx_evc_email(email)` + `ORDER BY created_at DESC LIMIT 1`。
 
 接口契约见 [api/client/auth.md](../api/client/auth.md#post-authemail-code) 与 `#post-authverify-email`。

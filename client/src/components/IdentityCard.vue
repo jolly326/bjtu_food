@@ -33,8 +33,8 @@
         <ImagePlaceholder v-else name="user" :size="60" />
       </view>
       <view class="identity-card-meta">
-        <text class="identity-card-name">{{ displayNickname(nickname, verified) }}</text>
-        <text class="identity-card-sub">{{ displaySubLine(bindEmail, verified) }}</text>
+        <text class="identity-card-name">{{ displayNickname(name, verified) }}</text>
+        <text class="identity-card-sub">{{ displaySubLine(email, verified) }}</text>
       </view>
       <!-- 动作位：两页**均仅认证态渲染**（基线 §三：「游客态两页均不渲染动作位」）
            —— 游客态整段仍可点（无认证拦截），只是不展示入口暗示 -->
@@ -76,9 +76,9 @@ import { displayNickname, displaySubLine } from '@/utils/userDisplay'
 
 const props = withDefaults(defineProps<{
   /** 昵称（空值按认证态「食客」/ 游客态「游客」兜底） */
-  nickname?: string
+  name?: string
   /** 校园邮箱（认证态副行；空值回落占位符） */
-  bindEmail?: string
+  email?: string
   /** 头像地址（空值 / 失败 → 统一人形占位） */
   avatar?: string
   /** 是否已认证（决定条纹色、副行文案、动作位） */
@@ -86,8 +86,8 @@ const props = withDefaults(defineProps<{
   /** `entry` = 整段可点进入「我的主页」；`edit` = 右侧「编辑个人信息」胶囊 */
   mode?: 'entry' | 'edit'
 }>(), {
-  nickname: '',
-  bindEmail: '',
+  name: '',
+  email: '',
   avatar: '',
   mode: 'entry',
 })

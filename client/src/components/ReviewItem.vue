@@ -111,7 +111,7 @@ const props = defineProps<{
   /** 扁平模式：嵌套在评价卡片内时去独立卡片样式（bg/shadow/圆角），只保留条目结构 */
   flat?: boolean
   /**
-   * **本人视角变体**（「我的评价」页）：`MyReviewVO` 不含 `userId` / `userNickname` / `userAvatar`
+   * **本人视角变体**（「我的评价」页）：`MyReviewVO` 不含 `userId` / `userName` / `userAvatar`
    * ⇒ 不渲染头像与昵称（恒为本人，渲染即冗余）。
    */
   mine?: boolean
@@ -142,7 +142,7 @@ const avatarOk = ref(true)
  */
 const userStore = useUserStore()
 const displayAvatar = computed(() => (props.mine ? userStore.userInfo?.avatar || '' : authorAvatar.value))
-const displayNickname = computed(() => (props.mine ? userStore.userInfo?.nickname || ANONYMOUS_AUTHOR : authorNickname.value))
+const displayNickname = computed(() => (props.mine ? userStore.userInfo?.name || ANONYMOUS_AUTHOR : authorNickname.value))
 
 /**
  * 作者标识（**仅公开视角下发**；本人视角恒为本人、零信息 ⇒ 不渲染头像 / 昵称）。
@@ -150,7 +150,7 @@ const displayNickname = computed(() => (props.mine ? userStore.userInfo?.nicknam
  */
 const authorAvatar = computed(() => ('userAvatar' in props.review ? props.review.userAvatar : ''))
 const authorNickname = computed(() => {
-  const name = 'userNickname' in props.review ? props.review.userNickname : ''
+  const name = 'userName' in props.review ? props.review.userName : ''
   return name || ANONYMOUS_AUTHOR
 })
 

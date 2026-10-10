@@ -47,7 +47,7 @@ public class DishCorrectionDetailVO {
     private Long userId;
 
     @Schema(description = "提交人昵称（匿名提交为 null）")
-    private String userNickname;
+    private String userName;
 
     @Schema(description = "处理状态：pending/adopted/rejected")
     private String status;

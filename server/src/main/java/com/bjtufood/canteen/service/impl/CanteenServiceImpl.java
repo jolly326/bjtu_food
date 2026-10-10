@@ -9,7 +9,6 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.CanteenService;
 import com.bjtufood.canteen.support.ImageColumnWriter;
-import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -41,8 +40,7 @@ public class CanteenServiceImpl implements CanteenService {
     @Override
     public List<CanteenAdminVO> listAllForAdmin() {
         return canteenMapper.selectList(new LambdaQueryWrapper<Canteen>()
-                        .orderByAsc(Canteen::getSortOrder)
-                        .orderByDesc(Canteen::getUpdatedAt))
+                        .orderByAsc(Canteen::getId))
                 .stream()
                 .map(this::toAdminVO)
                 .collect(Collectors.toList());
@@ -92,8 +90,6 @@ public class CanteenServiceImpl implements CanteenService {
         if (current == null) {
             throw new BusinessException(4001, "食堂不存在");
         }
-        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
-        AuditSnapshot.before(current);
         // 删除受阻：其下仍有档口时禁止删除（避免孤儿档口，见 A1 错误码节）
         long stallCount = stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
                 .eq(Stall::getCanteenId, id));
@@ -118,7 +114,7 @@ public class CanteenServiceImpl implements CanteenService {
     }
 
     /**
-     * 写入 4 个可选列（位置 / 描述 / 图片 / 排序位）。
+     * 写入 3 个可选列（位置 / 描述 / 图片）。
      * <p>
      * <b>null = 保持原值</b>（局部实体不带该列 ⇒ updateById 的 NOT_NULL 策略跳过；
      * 新建时可空列即落 NULL），给值即覆盖（空串 / 空数组表达「清空」）。
@@ -137,9 +133,6 @@ public class CanteenServiceImpl implements CanteenService {
             entity.setImages(ImageColumnWriter.encode(imageUrlUtil, req.getImages(), IMAGES_JSON_MAX,
                     "食堂图片地址过长（序列化后不得超过 " + IMAGES_JSON_MAX + " 字符）"));
         }
-        if (req.getSortOrder() != null) {
-            entity.setSortOrder(req.getSortOrder());
-        }
     }
 
     private CanteenAdminVO toAdminVO(Canteen canteen) {
@@ -153,7 +146,6 @@ public class CanteenServiceImpl implements CanteenService {
         vo.setLocation(orEmpty(canteen.getLocation()));
         vo.setDescription(orEmpty(canteen.getDescription()));
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(canteen.getImages()));
-        vo.setSortOrder(canteen.getSortOrder());
         vo.setUpdatedAt(canteen.getUpdatedAt());
         return vo;
     }

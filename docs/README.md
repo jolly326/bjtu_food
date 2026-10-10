@@ -39,7 +39,7 @@
 |---|---|
 | 限流 / Token 黑名单 / 验证码封禁计数 / **管理端登录失败与锁定计数** 存 JVM 内存 | 单容器云托管部署，重启清零可接受（**已拍板 2026-10-06 接受现状**）；**扩到 ≥2 实例前必须下沉 Redis** |
 | 验证码枚举风险靠限频兜底 | 根因是发码端点匿名、表无 `user_id`（见 [schema/email_verification_code.md](./schema/email_verification_code.md)）；根治需产品确认是否要求登录后发码 |
-| `canteen` / `stall` 多列保留但**无编辑入口、无 UI 消费**（`images` / `location` / `description` / `sort_order`；其中 `sort_order` 兼作**内部排序位** —— [schema/stall.md](./schema/stall.md) / [schema/canteen.md](./schema/canteen.md)） | **已定「保留不删」**（不建管理入口，也不在清理范围；见 [A1](./func/web/A-主数据维护/A1-食堂管理.md) / [A2](./func/web/A-主数据维护/A2-档口管理.md)） |
+| `canteen` / `stall` 的 `images` / `location` / `description` 列保留且**无公开（client）消费方**（只随管理端出参下发，在 A1 / A2 详情抽屉内维护 —— [schema/stall.md](./schema/stall.md) / [schema/canteen.md](./schema/canteen.md)） | **已定「保留不删」**（不下发到学生端，也不在清理范围；见 [A1](./func/web/A-主数据维护/A1-食堂管理.md) / [A2](./func/web/A-主数据维护/A2-档口管理.md)） |
 | 菜品搜索用 `%keyword%` 前缀通配 | 全表扫描 + 计算列排序必然 filesort。改检索形态需产品确认（涉及搜索体验） |
 | **首页主列表 / 猜你喜欢排序不可索引**（`ORDER BY CRC32(CONCAT(seed,'-',id)), d.id`；`DishMapper.xml` 的 `selectDishPage` / `selectGuessLike`） | **已核实为可接受现状**（2026-10-06 直连生产库**只读**核对）：`dish` 实况 **25 行**，`EXPLAIN` 确为 `type=ALL` + `Using filesort`，该量级代价可忽略。排序的业务目的 = **会话种子稳定伪随机序**（`seed` 端上冷启动生成一次、会话内恒定 ⇒ 翻页不重不漏且内容不自变；重进小程序重掷 ⇒ 整体重洗，冷启动期每道菜都有机会被看到）—— 任何「可索引」改法都要把 `seed` 换成固定盐 / 预生成序，即**变更产品语义**（已否决「按天全局种子：全站同序、当天无新鲜度」），而加缓存对本形态无收益（键须含 `seed`，命中率≈0）。**触发条件（任一满足即必须改，不由「感觉慢」触发）**：① `SELECT COUNT(*) FROM dish WHERE status='on'` **> 5000 行**；② `GET /dishes` / `GET /dishes/for-you` 服务端 SQL 耗时 **P95 > 200 ms**（含 filesort）。触发后按序评估：**限制候选集**（先按索引过滤取 N 条再内存排序 —— 会引入「老菜永不出现」的选择偏差，候选池口径须产品确认）→ **全局日级种子 + 生成列**（新鲜度口径须产品确认） |
 | **菜品种类用独立字典表 + 单值列**（`dish_category` 表 + `dish.category_id`；种类不并入属性维度 / 取值表，也不并入 `dish.attributes` JSON） | 「种类」需**互斥 + 必填**（一道菜恰属一种、后台录入必填），而描述属性是 **m:n 可空**（存 `dish.attributes` JSON）—— 两种关系不同，故各有自己的表与端点；且 JSON 值无法建索引 ⇒ 独立列 + `idx_dish_category` 同时满足「互斥必填语义 + 可索引筛选」。理由真源见 [schema/dish_category.md](./schema/dish_category.md) |
@@ -48,7 +48,13 @@
 | **限频样板 / DTO 映射保留重复** | 9 处 IP 限频样板、`dish` / `review` 两处「实体 → VO」映射虽相似，但错误文案 / 目标类型各异，抽公共层仅省 ~10 行、回归风险高 ⇒ **已定「保留不重构」**（限频机制见 [`secur/server/通用防护机制.md`](./secur/server/通用防护机制.md)）|
 | **`server/src/test` 保留「回归锁定」类注释** | 测试里「退役 / 2026-XX 口径变更 / 原 X 已改为」等叙述是**测试意图 / 防回归说明**，非历史残留；按零残留规则「回归锁定类注释保留」条款保留，清理反损可维护性 |
 | **违规累积计数为「尽力而为」** | 机审命中后的计数写在**独立事务**里并对异常吞掉 + 记 ERROR：计数失败绝不能把一次明确的「内容违规」拦截变成 500 不明故障。丢一次计数的代价远小于误报故障 |
-| **审计「变更前后值」快照只覆盖删除类 + 状态跃迁类** | 快照是为「**误删后重建**」存在的；纯新增 / 普通字段编辑已有 `target_id` + 时间线足以定位，全量字段级快照会让审计表体积与写入成本成倍上升 |
+| **管理端不做操作日志**（**库内无审计表**，无日志端点、无日志页面） | 管理端账号仅 1 行（单管理员运营），写操作可按业务表自身的 `updatedAt` / 时间线定位；为「逐请求留痕」付出的一张表 + 每条写操作一次 DB 往返，收益不抵（**已定：整体不做**） |
+| **安全告警不落库、只推送**（webhook：`ALERT_WEBHOOK_URL` / `ALERT_WEBHOOK_SECRET`） | 告警的职责是「**立刻知道**」（群消息实时到达）；拦截行为（登录失败锁定 / ID 枚举拦截）在请求链路上实时生效，不依赖告警记录。落库只会多一张与业务无关的表与一条旁路写路径（**已定：不落库**） |
+| **违规不落留痕表** | `user.violation_count` / `user.muted_until` 已完整表达「累计几次违规、限言到何时」，处置档位（警告 / 限言 24h / 限言 7d / 封禁）是计数区间的确定性映射，可由两列直接读出（见 [schema/user.md](./schema/user.md)） |
+| **字典类不设排序位，一律按 `id` 升序** | 字典项量级小（种类 6 / 原因 6 / 视图 7 / 维度与取值各十数条）；排序位带来的成本是「排序列 + 索引 + 全量拖拽提交端点 + 前后端交互」，收益仅是调整展示次序（**已定：按 `id` 排**） |
+| **字典类展示名字段统一 `name`** | 同义异名（`label` / `name` 混用）会让「字典名」在表间、端点间漂移；统一为 `name` 后，`dish_category` / `dish_attribute_value` / `report_reason` / `dish_filter_view` 与出参一一对应 |
+| **`dish_filter_view` 由 `category_id` 单列驱动** | 首页 tab 的筛选需求收敛为「按某种类筛」与「不筛（为你推荐）」两态 ⇒ 视图只存一个种类 ID（`NULL` = 为你推荐）；可配条件语言（字段 / 操作符白名单）整体不做，免发版目标由「加一行 + 选种类」达成 |
+| **`user` 行永不物理删除**（注销为匿名化） | 物理删除会让历史评价 / 反馈失去归属；因此指向 `user` 的外键仅 `user_feedback.user_id`（无级联，纯引用完整性兜底），其余关系由应用层维护 |
 | **管理端前端隐显入口按角色收敛在 `utils/permissions.ts`** | 页面只写 `v-if="canWrite()"` / `v-if="canDelete()"`，**不在页面内自行解析角色**（一份判据、一处维护）；🔴 它只是体验，真正的门控在服务端 `AdminAuthFilter` |
 | **颜色变量「真源 → `generated-colors.css`」手工同步**（不恢复 `scripts/gen-css-vars.ts` / `npm run gen:tokens`） | 颜色真源（`client/src/theme/tokens.ts`）与生成物之间可能漂移，靠改值流程（[`ui/client/设计变量.md`](./ui/client/设计变量.md) §5）+ `npm run verify` 约束；**已定「保留手工维护」**，不为颜色生成引入构建期脚本 |
 

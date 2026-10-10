@@ -20,9 +20,9 @@ public class FeedbackAdminVO {
     private Long userId;
 
     @Schema(description = "用户昵称")
-    private String userNickname;
+    private String userName;
 
-    @Schema(description = "反馈类型：issue/report（历史可含 suggestion/add/error/bug/other）")
+    @Schema(description = "反馈类型：bug/suggestion/other/report（历史存量行另含 issue/add/error）")
     private String type;
 
     @Schema(description = "二级分类（仅历史 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null")
@@ -40,18 +40,8 @@ public class FeedbackAdminVO {
     @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
     private String relatedType;
 
-    @Schema(description = "关联对象ID（举报：评价ID；信息纠错：菜品ID）；其他为 null")
+    @Schema(description = "关联对象ID（举报：评价ID）；其他为 null")
     private Long relatedId;
-
-    /**
-     * 关联菜品名称（DEV-04）：仅 {@code relatedType='dish'}（信息纠错）时填充，
-     * 由服务端按 related_id 批量查 dish 表补全（<b>不区分上/下架</b>，含已下架菜品，供管理端回看纠错对象）；
-     * 其他关联类型、relatedId 为空、或菜品已被物理删除时保持 null。
-     * <p>
-     * 后台管理端点对管理端开放，故此处可安全呈现下架菜品名——端上不得据此推断菜品可见性。
-     */
-    @Schema(description = "关联菜品名称（仅 relatedType=dish 时填充，含已下架菜品；否则为 null）")
-    private String relatedDishName;
 
     @Schema(description = "处理状态：pending/handled")
     private String status;
@@ -93,7 +83,7 @@ public class FeedbackAdminVO {
     private Long subReasonId;
 
     /** 举报原因中文名（由 `report_reason` 字典翻译；停用原因仍可译出，端上零硬编码） */
-    private String reasonLabel;
+    private String reasonName;
 
     /** 被举报评价 ID（= `relatedId`；反馈行为 null） */
     private Long reviewId;

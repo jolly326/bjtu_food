@@ -3,7 +3,6 @@ package com.bjtufood.dish.service.impl;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.dish.dto.DishDimensionAdminVO;
@@ -44,9 +43,9 @@ import static org.mockito.Mockito.when;
  * A4 属性维度 / 取值管理端的契约单测（口径见 docs/api/web/dimensions.md、
  * docs/schema/dish_attribute_value.md）：
  * <ol>
- *   <li><b>维度</b>：名称必填与 32 字上限、取值类型白名单、默认排最后、被菜品引用不可删
+ *   <li><b>维度</b>：名称必填与 32 字上限、取值类型白名单、被菜品引用不可删
  *       （含「其下取值随维度一并清理」的落库顺序）；</li>
- *   <li><b>取值</b>：归属维度必须存在、label 必填与 32 字上限、同维度重名、被菜品引用不可删；</li>
+ *   <li><b>取值</b>：归属维度必须存在、name 必填与 32 字上限、同维度重名、被菜品引用不可删；</li>
  *   <li><b>形状迁移</b>：`valueType` 单 ⇄ 多切换时按维度 ID 迁移 `dish.attributes`（标量 ↔ 数组，
  *       幂等跳过已是目标形状的行）；</li>
  *   <li><b>读写口径转换</b>：`resolveForWrite`（键 = 维度 ID / 取值 ID 校验 / 中文名查字典 /
@@ -58,7 +57,6 @@ import static org.mockito.Mockito.when;
 class DishAttributeAdminServiceImplTest {
 
     private static final String MSG_VALUE_TYPE_ILLEGAL = "取值类型非法（仅 single / multi）";
-    private static final String MSG_SORT_ILLEGAL = "排序提交非法";
 
     /** MyBatis-Plus 的 lambda 缓存需显式初始化，否则构造 LambdaQueryWrapper 会抛异常 */
     @BeforeAll
@@ -81,21 +79,19 @@ class DishAttributeAdminServiceImplTest {
 
     // ==================== 夹具 ====================
 
-    private static DishAttributeDimension dimension(Long id, String name, String valueType, Integer order) {
+    private static DishAttributeDimension dimension(Long id, String name, String valueType) {
         DishAttributeDimension d = new DishAttributeDimension();
         d.setId(id);
         d.setName(name);
         d.setValueType(valueType);
-        d.setSortOrder(order);
         return d;
     }
 
-    private static DishAttributeValue value(Long id, Long dimensionId, String label, Integer order) {
+    private static DishAttributeValue value(Long id, Long dimensionId, String name) {
         DishAttributeValue v = new DishAttributeValue();
         v.setId(id);
         v.setDimensionId(dimensionId);
-        v.setLabel(label);
-        v.setSortOrder(order);
+        v.setName(name);
         return v;
     }
 
@@ -108,12 +104,12 @@ class DishAttributeAdminServiceImplTest {
 
     /** 维度 1「饮食属性」（single）；`dish.attributes` 的键 = "1" */
     private static DishAttributeDimension singleDim() {
-        return dimension(1L, "饮食属性", "single", 1);
+        return dimension(1L, "饮食属性", "single");
     }
 
     /** 维度 2「口味」（multi）；`dish.attributes` 的键 = "2" */
     private static DishAttributeDimension multiDim() {
-        return dimension(2L, "口味", "multi", 2);
+        return dimension(2L, "口味", "multi");
     }
 
     /** 断言「业务码 + 文案」双锁（避免每个用例重复强制转换样板）。 */
@@ -139,7 +135,7 @@ class DishAttributeAdminServiceImplTest {
     void listDimensions_aggregatesCounts() {
         when(dimensionMapper.selectList(any())).thenReturn(List.of(singleDim(), multiDim()));
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(5L, 1L, "半荤", 1), value(6L, 1L, "全素", 2), value(7L, 2L, "微辣", 1)));
+                value(5L, 1L, "半荤"), value(6L, 1L, "全素"), value(7L, 2L, "微辣")));
         when(dishMapper.selectList(any())).thenReturn(List.of(
                 dish(1L, "{\"1\":5}"),
                 // 空数组不计入 dishCount（清空语义）
@@ -153,7 +149,6 @@ class DishAttributeAdminServiceImplTest {
         assertThat(first.getId()).isEqualTo(1L);
         assertThat(first.getName()).isEqualTo("饮食属性");
         assertThat(first.getValueType()).isEqualTo("single");
-        assertThat(first.getOrder()).isEqualTo(1);
         // 维度 1 被 2 行菜品使用；其下有 2 个取值
         assertThat(first.getDishCount()).isEqualTo(2L);
         assertThat(first.getValueCount()).isEqualTo(2L);
@@ -178,9 +173,8 @@ class DishAttributeAdminServiceImplTest {
     // ==================== 维度：createDimension ====================
 
     @Test
-    @DisplayName("createDimension：正常落库 —— 名称去空白、默认排最后（当前最大 order + 1），出参计数为 0")
-    void createDimension_savesWithNextOrder() {
-        when(dimensionMapper.selectList(any())).thenReturn(List.of(dimension(1L, "饮食属性", "single", 4)));
+    @DisplayName("createDimension：正常落库 —— 名称去空白，出参计数为 0，并失效目录缓存")
+    void createDimension_savesTrimmedName() {
         AtomicReference<DishAttributeDimension> inserted = new AtomicReference<>();
         when(dimensionMapper.insert(any())).thenAnswer(invocation -> {
             DishAttributeDimension entity = invocation.getArgument(0);
@@ -195,28 +189,11 @@ class DishAttributeAdminServiceImplTest {
         DishAttributeDimension saved = inserted.get();
         assertThat(saved.getName()).isEqualTo("饮食属性");
         assertThat(saved.getValueType()).isEqualTo("single");
-        assertThat(saved.getSortOrder()).isEqualTo(5);
         assertThat(vo.getId()).isEqualTo(9L);
         assertThat(vo.getDishCount()).isZero();
         assertThat(vo.getValueCount()).isZero();
-    }
-
-    @Test
-    @DisplayName("createDimension：无任何维度时默认 order = 1")
-    void createDimension_firstRowOrderIsOne() {
-        when(dimensionMapper.selectList(any())).thenReturn(List.of());
-        AtomicReference<DishAttributeDimension> inserted = new AtomicReference<>();
-        when(dimensionMapper.insert(any())).thenAnswer(invocation -> {
-            DishAttributeDimension entity = invocation.getArgument(0);
-            entity.setId(1L);
-            inserted.set(entity);
-            return 1;
-        });
-        when(dimensionMapper.selectById(1L)).thenAnswer(invocation -> inserted.get());
-
-        service().createDimension("饮食属性", "single");
-
-        assertThat(inserted.get().getSortOrder()).isEqualTo(1);
+        verify(attributeCatalog).invalidateDimensions();
+        verify(attributeCatalog).invalidateCandidates();
     }
 
     @Test
@@ -287,7 +264,6 @@ class DishAttributeAdminServiceImplTest {
         assertThat(patch.getId()).isEqualTo(1L);
         assertThat(patch.getName()).isEqualTo("口味");
         assertThat(patch.getValueType()).isEqualTo("single");
-        assertThat(patch.getSortOrder()).isNull();
         verifyNoInteractions(dishMapper);
     }
 
@@ -359,7 +335,7 @@ class DishAttributeAdminServiceImplTest {
     @DisplayName("deleteDimension：仍被菜品使用 → 400（文案含被引用数），且不删维度、不删其下取值")
     void deleteDimension_referenced_rejected400() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
-        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤", 1)));
+        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤")));
         when(dishMapper.selectList(any())).thenReturn(List.of(
                 dish(1L, "{\"1\":5}"),
                 // 空数组不计入引用
@@ -385,52 +361,6 @@ class DishAttributeAdminServiceImplTest {
         verify(dimensionMapper).deleteById(1L);
     }
 
-    // ==================== 维度：sortDimensions ====================
-
-    @Test
-    @DisplayName("sortDimensions：全量行合法提交 → 逐行写 order（只带 id + order）")
-    void sortDimensions_valid_updatesEachRow() {
-        when(dimensionMapper.selectList(any())).thenReturn(List.of(singleDim(), multiDim()));
-        when(dimensionMapper.updateById(any())).thenReturn(1);
-
-        service().sortDimensions(List.of(
-                sortItem(2L, 1), sortItem(1L, 2)));
-
-        ArgumentCaptor<DishAttributeDimension> captor = ArgumentCaptor.forClass(DishAttributeDimension.class);
-        verify(dimensionMapper, times(2)).updateById(captor.capture());
-        Map<Long, Integer> orders = new HashMap<>();
-        for (DishAttributeDimension patch : captor.getAllValues()) {
-            orders.put(patch.getId(), patch.getSortOrder());
-            assertThat(patch.getName()).isNull();
-        }
-        assertThat(orders).containsOnly(entry(2L, 1), entry(1L, 2));
-    }
-
-    @Test
-    @DisplayName("sortDimensions：空提交 / 缺行 / 未知 id / order 重复 → 400「排序提交非法」，且不写库")
-    void sortDimensions_illegalSubmission_rejected400() {
-        when(dimensionMapper.selectList(any())).thenReturn(List.of(singleDim(), multiDim()));
-
-        assertRejected(() -> service().sortDimensions(List.of()), 400, MSG_SORT_ILLEGAL);
-        // 缺行：只提交 1 行，实际有 2 行
-        assertRejected(() -> service().sortDimensions(List.of(sortItem(1L, 1))), 400, MSG_SORT_ILLEGAL);
-        // 未知 id
-        assertRejected(() -> service().sortDimensions(List.of(sortItem(1L, 1), sortItem(9L, 2))),
-                400, MSG_SORT_ILLEGAL);
-        // order 重复
-        assertRejected(() -> service().sortDimensions(List.of(sortItem(1L, 1), sortItem(2L, 1))),
-                400, MSG_SORT_ILLEGAL);
-
-        verify(dimensionMapper, never()).updateById(any());
-    }
-
-    private static SortItem sortItem(Long id, Integer order) {
-        SortItem item = new SortItem();
-        item.setId(id);
-        item.setOrder(order);
-        return item;
-    }
-
     // ==================== 取值：listValues / createValue ====================
 
     @Test
@@ -445,7 +375,7 @@ class DishAttributeAdminServiceImplTest {
     void listValues_carriesDishCount() {
         when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(7L, 2L, "微辣", 1), value(8L, 2L, "特辣", 2)));
+                value(7L, 2L, "微辣"), value(8L, 2L, "特辣")));
         when(dishMapper.selectList(any())).thenReturn(List.of(
                 dish(1L, "{\"2\":[7,8]}"),
                 dish(2L, "{\"2\":7}")));
@@ -455,14 +385,13 @@ class DishAttributeAdminServiceImplTest {
         assertThat(values).hasSize(2);
         assertThat(values.get(0).getId()).isEqualTo(7L);
         assertThat(values.get(0).getDimensionId()).isEqualTo(2L);
-        assertThat(values.get(0).getLabel()).isEqualTo("微辣");
-        assertThat(values.get(0).getOrder()).isEqualTo(1);
+        assertThat(values.get(0).getName()).isEqualTo("微辣");
         assertThat(values.get(0).getDishCount()).isEqualTo(2L);
         assertThat(values.get(1).getDishCount()).isEqualTo(1L);
     }
 
     @Test
-    @DisplayName("createValue：维度不存在先于 label 校验 → 4001（不因 label 为空而报 400）")
+    @DisplayName("createValue：维度不存在先于 name 校验 → 4001（不因 name 为空而报 400）")
     void createValue_missingDimension_rejected4001() {
         assertRejected(() -> service().createValue(1L, "  "), 4001, "维度不存在");
 
@@ -470,8 +399,8 @@ class DishAttributeAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("createValue：label 空白 / 超 32 字 → 400，且不落库")
-    void createValue_illegalLabel_rejected400() {
+    @DisplayName("createValue：name 空白 / 超 32 字 → 400，且不落库")
+    void createValue_illegalName_rejected400() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
 
         assertRejected(() -> service().createValue(1L, "   "), 400, "取值名不能为空");
@@ -483,7 +412,7 @@ class DishAttributeAdminServiceImplTest {
 
     @Test
     @DisplayName("createValue：同维度下重名 → 400「该取值已存在」，且不落库")
-    void createValue_duplicateLabel_rejected400() {
+    void createValue_duplicateName_rejected400() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
         when(valueMapper.selectCount(any())).thenReturn(1L);
 
@@ -493,11 +422,11 @@ class DishAttributeAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("createValue：正常落库 —— label 去空白、默认排最后，出参含 dimensionId 且 dishCount = 0")
-    void createValue_savesWithNextOrder() {
+    @DisplayName("createValue：正常落库 —— name 去空白，出参含 dimensionId 且 dishCount = 0")
+    void createValue_savesTrimmedName() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
         when(valueMapper.selectCount(any())).thenReturn(0L);
-        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤", 3)));
+        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤")));
         AtomicReference<DishAttributeValue> inserted = new AtomicReference<>();
         when(valueMapper.insert(any())).thenAnswer(invocation -> {
             DishAttributeValue entity = invocation.getArgument(0);
@@ -510,32 +439,11 @@ class DishAttributeAdminServiceImplTest {
         DishValueAdminVO vo = service().createValue(1L, "  全素  ");
 
         assertThat(inserted.get().getDimensionId()).isEqualTo(1L);
-        assertThat(inserted.get().getLabel()).isEqualTo("全素");
-        assertThat(inserted.get().getSortOrder()).isEqualTo(4);
+        assertThat(inserted.get().getName()).isEqualTo("全素");
         assertThat(vo.getId()).isEqualTo(31L);
         assertThat(vo.getDimensionId()).isEqualTo(1L);
-        assertThat(vo.getLabel()).isEqualTo("全素");
+        assertThat(vo.getName()).isEqualTo("全素");
         assertThat(vo.getDishCount()).isZero();
-    }
-
-    @Test
-    @DisplayName("createValue：该维度下无取值时 order = 1")
-    void createValue_firstValueOrderIsOne() {
-        when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
-        when(valueMapper.selectCount(any())).thenReturn(0L);
-        when(valueMapper.selectList(any())).thenReturn(List.of());
-        AtomicReference<DishAttributeValue> inserted = new AtomicReference<>();
-        when(valueMapper.insert(any())).thenAnswer(invocation -> {
-            DishAttributeValue entity = invocation.getArgument(0);
-            entity.setId(1L);
-            inserted.set(entity);
-            return 1;
-        });
-        when(valueMapper.selectById(1L)).thenAnswer(invocation -> inserted.get());
-
-        service().createValue(1L, "半荤");
-
-        assertThat(inserted.get().getSortOrder()).isEqualTo(1);
     }
 
     // ==================== 取值：updateValue / deleteValue ====================
@@ -552,17 +460,17 @@ class DishAttributeAdminServiceImplTest {
         assertRejected(() -> service().updateValue(1L, null, "半荤"), 4001, "取值不存在");
 
         // 取值属于另一个维度（防跨维度改值）
-        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣", 1));
+        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣"));
         assertRejected(() -> service().updateValue(1L, 7L, "微辣"), 4001, "取值不存在");
 
         verify(valueMapper, never()).updateById(any());
     }
 
     @Test
-    @DisplayName("updateValue：label 空白 → 400「取值名不能为空」；重名 → 400「该取值已存在」；均不写库")
-    void updateValue_illegalOrDuplicateLabel_rejected400() {
+    @DisplayName("updateValue：name 空白 → 400「取值名不能为空」；重名 → 400「该取值已存在」；均不写库")
+    void updateValue_illegalOrDuplicateName_rejected400() {
         when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣", 1));
+        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣"));
 
         assertRejected(() -> service().updateValue(2L, 7L, "  "), 400, "取值名不能为空");
 
@@ -574,10 +482,10 @@ class DishAttributeAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("updateValue：改名只写 label（order 不变，菜品数据零迁移）")
-    void updateValue_writesLabelOnly() {
+    @DisplayName("updateValue：改名只写 name（菜品数据零迁移）")
+    void updateValue_writesNameOnly() {
         when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣", 1));
+        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣"));
         when(valueMapper.selectCount(any())).thenReturn(0L);
         when(valueMapper.updateById(any())).thenReturn(1);
 
@@ -585,8 +493,7 @@ class DishAttributeAdminServiceImplTest {
 
         DishAttributeValue patch = capturedPatch(DishAttributeValue.class, valueMapper);
         assertThat(patch.getId()).isEqualTo(7L);
-        assertThat(patch.getLabel()).isEqualTo("中辣");
-        assertThat(patch.getSortOrder()).isNull();
+        assertThat(patch.getName()).isEqualTo("中辣");
         assertThat(patch.getDimensionId()).isNull();
         verifyNoInteractions(dishMapper);
     }
@@ -598,7 +505,7 @@ class DishAttributeAdminServiceImplTest {
 
         assertRejected(() -> service().deleteValue(1L, 5L), 4001, "取值不存在");
 
-        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣", 1));
+        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣"));
         assertRejected(() -> service().deleteValue(1L, 7L), 4001, "取值不存在");
 
         verify(valueMapper, never()).deleteById(anyLong());
@@ -608,9 +515,9 @@ class DishAttributeAdminServiceImplTest {
     @DisplayName("deleteValue：仍被菜品引用 → 400（文案含被引用菜品数），且不删库")
     void deleteValue_referenced_rejected400() {
         when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣", 2));
+        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣"));
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(5L, 2L, "不辣", 1), value(7L, 2L, "微辣", 2)));
+                value(5L, 2L, "不辣"), value(7L, 2L, "微辣")));
         when(dishMapper.selectList(any())).thenReturn(List.of(
                 dish(1L, "{\"2\":[5,7]}"),
                 dish(2L, "{\"2\":7}")));
@@ -624,63 +531,15 @@ class DishAttributeAdminServiceImplTest {
     @DisplayName("deleteValue：未被引用 → 删除该取值行（同维度其它取值不受影响）")
     void deleteValue_unused_deletesRow() {
         when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣", 2));
+        when(valueMapper.selectById(7L)).thenReturn(value(7L, 2L, "微辣"));
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(5L, 2L, "不辣", 1), value(7L, 2L, "微辣", 2)));
+                value(5L, 2L, "不辣"), value(7L, 2L, "微辣")));
         when(dishMapper.selectList(any())).thenReturn(List.of(dish(1L, "{\"2\":[5]}")));
         when(valueMapper.deleteById(anyLong())).thenReturn(1);
 
         service().deleteValue(2L, 7L);
 
         verify(valueMapper).deleteById(7L);
-    }
-
-    // ==================== 取值：sortValues ====================
-
-    @Test
-    @DisplayName("sortValues：维度不存在 → 4001「维度不存在」，且不写库")
-    void sortValues_missingDimension_rejected4001() {
-        assertRejected(() -> service().sortValues(2L, List.of(sortItem(10L, 1))), 4001, "维度不存在");
-
-        verify(valueMapper, never()).updateById(any());
-    }
-
-    @Test
-    @DisplayName("sortValues：只接受该维度下的全量行（缺行 / 未知 id / order 重复 → 400），且不写库")
-    void sortValues_illegalSubmission_rejected400() {
-        when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(10L, 2L, "不辣", 1), value(11L, 2L, "微辣", 2)));
-
-        assertRejected(() -> service().sortValues(2L, List.of()), 400, MSG_SORT_ILLEGAL);
-        assertRejected(() -> service().sortValues(2L, List.of(sortItem(10L, 1))), 400, MSG_SORT_ILLEGAL);
-        assertRejected(() -> service().sortValues(2L, List.of(sortItem(10L, 1), sortItem(99L, 2))),
-                400, MSG_SORT_ILLEGAL);
-        assertRejected(() -> service().sortValues(2L, List.of(sortItem(10L, 1), sortItem(11L, 1))),
-                400, MSG_SORT_ILLEGAL);
-
-        verify(valueMapper, never()).updateById(any());
-    }
-
-    @Test
-    @DisplayName("sortValues：全量行合法提交 → 逐行写 order（只带 id + order）")
-    void sortValues_valid_updatesEachRow() {
-        when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(10L, 2L, "不辣", 1), value(11L, 2L, "微辣", 2)));
-        when(valueMapper.updateById(any())).thenReturn(1);
-
-        service().sortValues(2L, List.of(sortItem(11L, 1), sortItem(10L, 2)));
-
-        ArgumentCaptor<DishAttributeValue> captor = ArgumentCaptor.forClass(DishAttributeValue.class);
-        verify(valueMapper, times(2)).updateById(captor.capture());
-        Map<Long, Integer> orders = new HashMap<>();
-        for (DishAttributeValue patch : captor.getAllValues()) {
-            orders.put(patch.getId(), patch.getSortOrder());
-            assertThat(patch.getLabel()).isNull();
-            assertThat(patch.getDimensionId()).isNull();
-        }
-        assertThat(orders).containsOnly(entry(11L, 1), entry(10L, 2));
     }
 
     // ==================== 写入口径：resolveForWrite ====================
@@ -720,7 +579,7 @@ class DishAttributeAdminServiceImplTest {
     @DisplayName("resolveForWrite：单值维度收到数组 → 取首项（宽容前端形态差异）")
     void resolveForWrite_singleDimensionWithArray_takesFirstItem() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
-        when(valueMapper.selectOne(any())).thenReturn(value(5L, 1L, "半荤", 1));
+        when(valueMapper.selectOne(any())).thenReturn(value(5L, 1L, "半荤"));
 
         Map<String, Object> result = service().resolveForWrite(Map.of("1", List.of(5, 6)));
 
@@ -731,13 +590,13 @@ class DishAttributeAdminServiceImplTest {
     @DisplayName("resolveForWrite：多值维度恒为 ID 数组（标量入参包成单元素数组）")
     void resolveForWrite_multiDimension_alwaysReturnsArray() {
         when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectOne(any())).thenReturn(value(5L, 2L, "不辣", 1));
+        when(valueMapper.selectOne(any())).thenReturn(value(5L, 2L, "不辣"));
 
         Map<String, Object> scalar = service().resolveForWrite(Map.of("2", 5));
         assertThat(scalar).containsOnly(entry("2", List.of(5L)));
 
         // 重新打桩：字典查询按入参次序依次回显 ID 5 / 7（数组形态逐一解析）
-        when(valueMapper.selectOne(any())).thenReturn(value(5L, 2L, "不辣", 1), value(7L, 2L, "微辣", 2));
+        when(valueMapper.selectOne(any())).thenReturn(value(5L, 2L, "不辣"), value(7L, 2L, "微辣"));
         Map<String, Object> array = service().resolveForWrite(Map.of("2", List.of(5, 7)));
         assertThat(array).containsOnly(entry("2", List.of(5L, 7L)));
     }
@@ -758,9 +617,9 @@ class DishAttributeAdminServiceImplTest {
 
     @Test
     @DisplayName("resolveForWrite：中文名命中字典 → 返回既有取值 ID（不新建行）")
-    void resolveForWrite_labelHit_returnsExistingId() {
+    void resolveForWrite_nameHit_returnsExistingId() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
-        when(valueMapper.selectOne(any())).thenReturn(value(9L, 1L, "半荤", 1));
+        when(valueMapper.selectOne(any())).thenReturn(value(9L, 1L, "半荤"));
 
         Map<String, Object> result = service().resolveForWrite(Map.of("1", " 半荤 "));
 
@@ -769,11 +628,11 @@ class DishAttributeAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("resolveForWrite：中文名未命中 → 自动登记为新取值并排最后")
-    void resolveForWrite_labelMiss_registersNewValue() {
+    @DisplayName("resolveForWrite：中文名未命中 → 自动登记为新取值")
+    void resolveForWrite_nameMiss_registersNewValue() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
         when(valueMapper.selectOne(any())).thenReturn(null);
-        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤", 1)));
+        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤")));
         AtomicReference<DishAttributeValue> inserted = new AtomicReference<>();
         when(valueMapper.insert(any())).thenAnswer(invocation -> {
             DishAttributeValue entity = invocation.getArgument(0);
@@ -786,13 +645,12 @@ class DishAttributeAdminServiceImplTest {
 
         assertThat(result).containsOnly(entry("1", 21L));
         assertThat(inserted.get().getDimensionId()).isEqualTo(1L);
-        assertThat(inserted.get().getLabel()).isEqualTo("全素");
-        assertThat(inserted.get().getSortOrder()).isEqualTo(2);
+        assertThat(inserted.get().getName()).isEqualTo("全素");
     }
 
     @Test
     @DisplayName("resolveForWrite：未命中的新值超过 32 字 → 400「属性取值不能超过 32 字」，且不登记")
-    void resolveForWrite_newLabelTooLong_rejected400() {
+    void resolveForWrite_newNameTooLong_rejected400() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
         when(valueMapper.selectOne(any())).thenReturn(null);
 
@@ -807,7 +665,7 @@ class DishAttributeAdminServiceImplTest {
     void resolveForWrite_keepsKeyOrder() {
         when(dimensionMapper.selectById(1L)).thenReturn(singleDim());
         when(dimensionMapper.selectById(2L)).thenReturn(multiDim());
-        when(valueMapper.selectOne(any())).thenReturn(value(5L, 1L, "半荤", 1), value(7L, 2L, "微辣", 1));
+        when(valueMapper.selectOne(any())).thenReturn(value(5L, 1L, "半荤"), value(7L, 2L, "微辣"));
 
         Map<String, Object> raw = new LinkedHashMap<>();
         raw.put("1", 5);
@@ -818,7 +676,7 @@ class DishAttributeAdminServiceImplTest {
         assertThat(new ArrayList<>(result.keySet())).containsExactly("1", "2");
     }
 
-    // ==================== 出参口径：translateForRead / labelByIdForDimension ====================
+    // ==================== 出参口径：translateForRead / nameByIdForDimension ====================
 
     @Test
     @DisplayName("translateForRead：null / 空白 / 非法 JSON → 空结果（脏列不炸读接口）")
@@ -832,7 +690,7 @@ class DishAttributeAdminServiceImplTest {
     @DisplayName("translateForRead：取值 ID → 中文；悬空 ID 原样保留（不丢数据）；键 = 维度 ID 字符串")
     void translateForRead_translatesIds() {
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(5L, 1L, "半荤", 1), value(7L, 2L, "微辣", 1)));
+                value(5L, 1L, "半荤"), value(7L, 2L, "微辣")));
 
         Map<String, Object> out = service().translateForRead(
                 "{\"1\":5,\"2\":[7,8],\"legacy\":\"全素\",\"dangling\":999}");
@@ -848,7 +706,7 @@ class DishAttributeAdminServiceImplTest {
     @Test
     @DisplayName("translateForRead：null 值与空数组原样透传；带空白数字串按 ID 翻译")
     void translateForRead_handlesNullAndEmptyArray() {
-        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤", 1)));
+        when(valueMapper.selectList(any())).thenReturn(List.of(value(5L, 1L, "半荤")));
 
         Map<String, Object> out = service().translateForRead("{\"1\":null,\"2\":[],\"x\":\" 5 \"}");
 
@@ -859,12 +717,12 @@ class DishAttributeAdminServiceImplTest {
     }
 
     @Test
-    @DisplayName("labelByIdForDimension：返回该维度下的 id → 中文映射")
-    void labelByIdForDimension_returnsLabels() {
+    @DisplayName("nameByIdForDimension：返回该维度下的 id → 中文映射")
+    void nameByIdForDimension_returnsNames() {
         when(valueMapper.selectList(any())).thenReturn(List.of(
-                value(7L, 2L, "微辣", 1), value(8L, 2L, "特辣", 2)));
+                value(7L, 2L, "微辣"), value(8L, 2L, "特辣")));
 
-        assertThat(service().labelByIdForDimension(2L))
+        assertThat(service().nameByIdForDimension(2L))
                 .containsOnly(entry(7L, "微辣"), entry(8L, "特辣"));
     }
 

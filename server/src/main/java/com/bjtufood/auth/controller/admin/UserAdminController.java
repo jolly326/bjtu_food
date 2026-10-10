@@ -60,8 +60,8 @@ public class UserAdminController {
 
     @Operation(
             summary = "解绑认证邮箱",
-            description = "用途：置空 bind_email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。"
-                    + "不改 status、不动 email（账号标识），登录与已发表内容不受影响；不代绑新邮箱。"
+            description = "用途：置空 email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。"
+                    + "不改 status、不改 wxId（账号标识），登录与已发表内容不受影响；不代绑新邮箱。"
                     + "目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content())
     )

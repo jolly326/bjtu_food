@@ -32,7 +32,7 @@ public interface StallService {
      * 新增档口（{@code POST /admin/stalls}）。
      * <p>
      * 入参是 DTO 而非实体：档口的 {@code images} / {@code location} / {@code description} /
-     * {@code sort_order} 是保留列、{@code created_at} / {@code updated_at} 是时间列，
+     * {@code created_at} / {@code updated_at} 是时间列，
      * 均不属写入面（口径见 docs/api/web/stalls.md）。
      *
      * @param req 档口表单（仅可编辑字段，见 {@link StallSaveReq}）
@@ -61,8 +61,8 @@ public interface StallService {
      * 编辑档口（{@code PUT /admin/stalls/{id}}）：必填字段（canteenId / name）整体替换，
      * floor 缺省/null = 保持原值（不支持清空），windowNo 给值即覆盖（`""` = 清空）。
      * <p>
-     * 入参是 DTO 而非实体：保留列（{@code images} / {@code location} / {@code description} /
-     * {@code sort_order}）与时间列不属写入面，改档口不会放大成一次整行覆盖
+     * 入参是 DTO 而非实体：保留列（{@code images} / {@code location} / {@code description}）
+     * 与时间列不属写入面，改档口不会放大成一次整行覆盖
      * （口径见 docs/api/web/stalls.md 的「逐字段空值语义」）。
      *
      * @param id  目标档口 ID（路径参数）
@@ -160,8 +160,8 @@ public interface StallService {
     /**
      * 档口确认候选列表（correction 采纳两段式确认用，替代其直接注入 StallMapper/CanteenMapper 自查）。
      * <p>
-     * 口径不变：提交食堂名匹配现有食堂时 = 该食堂下全部档口（sort_order 升序）；
-     * 无匹配食堂时 = 全量档口（canteen_id 升序 → sort_order 升序 → updated_at 倒序）。
+     * 口径：提交食堂名匹配现有食堂时 = 该食堂下全部档口（id 升序）；
+     * 无匹配食堂时 = 全量档口（id 升序）。
      * 「按名找食堂」属 canteen 域自有知识，故一并收在本实现内。
      *
      * @param canteenName 提交/纠错的食堂名（可空，空则返回全量档口）

@@ -151,7 +151,7 @@ public class AuthController {
             description = """
                     用途：游客完成学号邮箱认证（verified=true）。入参仅验证码，绑定邮箱由验证码记录推导，当前微信账号从登录态取。
                     认证通过后：无历史邮箱则直接绑定；存在历史邮箱账号则数据归属转移（旧账号业务数据改挂到当前微信）；
-                    邮箱已被他微信绑定则替换绑定（旧微信 verified=false、bind_email=NULL）。返回更新后 UserInfoVO（bind_email 已写入；JWT 不含 bind_email、实时查库，无需重发 token）。
+                    邮箱已被他微信绑定则替换绑定（旧微信 verified=false、email=NULL）。返回更新后 UserInfoVO（email 已写入；JWT 不含 email、实时查库，无需重发 token）。
                     风控：同 IP 每分钟 ≤5 次、每小时 ≤20 次；同一账号 15 分钟内失败满 10 次将被暂时拒绝校验
                     （发码接口匿名 ⇒ 服务端无「谁申请了这条码」的归属信息，故以「让枚举不成立」防 6 位码被暴力猜中）。
                     """,
@@ -171,7 +171,7 @@ public class AuthController {
 
     @Operation(
             summary = "获取当前用户资料",
-            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 4 项：id / nickname / avatar / bindEmail）。",
+            description = "用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 email 非空派生，不作独立出参字段）、绑定邮箱（email）。字段集与登录 / 认证链路一致（恰 4 项：id / name / avatar / email）。",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @GetMapping("/auth/profile")
@@ -186,7 +186,7 @@ public class AuthController {
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(examples = @ExampleObject(value = """
                     {
-                      "nickname": "新的昵称",
+                      "name": "新的昵称",
                       "avatar": "/images/seed/dishes/tomato-egg.jpg"
                     }
                     """)))

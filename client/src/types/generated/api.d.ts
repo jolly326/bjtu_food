@@ -22,7 +22,7 @@ export interface paths {
   "/auth/profile": {
     /**
      * 获取当前用户资料
-     * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 4 项：id / nickname / avatar / bindEmail）。
+     * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 email 非空派生，不作独立出参字段）、绑定邮箱（email）。字段集与登录 / 认证链路一致（恰 4 项：id / name / avatar / email）。
      */
     get: operations["profile"];
     /**
@@ -41,7 +41,7 @@ export interface paths {
   "/admin/stalls/{id}": {
     /**
      * 编辑档口
-     * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images / sortOrder 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
+     * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
      */
     put: operations["updateStall"];
     /**
@@ -60,7 +60,7 @@ export interface paths {
   "/admin/report-reasons/{id}": {
     /**
      * 举报原因改名
-     * @description 用途：**只改 label**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
+     * @description 用途：**只改 name**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
      */
     put: operations["rename"];
     /**
@@ -75,13 +75,6 @@ export interface paths {
      * @description 用途：只改 status。**停用最后一条启用 → 400**（举报入口不能配空）；启用数超 8 → 400；不存在 → 4001。
      */
     put: operations["updateStatus_1"];
-  };
-  "/admin/report-reasons/sort": {
-    /**
-     * 举报原因排序
-     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-     */
-    put: operations["sort"];
   };
   "/admin/feedbacks/{id}": {
     /**
@@ -117,7 +110,7 @@ export interface paths {
   "/admin/dish-views/{id}": {
     /**
      * 修改视图
-     * @description 用途：改**文案 / 启停 / 筛选条件 / 排序口径**（四字段整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
+     * @description 用途：改**文案 / 启停 / 归属种类**（整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
      */
     put: operations["update"];
     /**
@@ -125,13 +118,6 @@ export interface paths {
      * @description 用途：删除 tab（从下发集合移除）。删除「最后一个启用的视图」→ 400；不存在 → 4001。
      */
     delete: operations["delete_1"];
-  };
-  "/admin/dish-views/sort": {
-    /**
-     * 视图排序
-     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-     */
-    put: operations["sort_1"];
   };
   "/admin/dish-dimensions/{dimensionId}": {
     /**
@@ -157,33 +143,12 @@ export interface paths {
      */
     delete: operations["deleteValue"];
   };
-  "/admin/dish-dimensions/{dimensionId}/values/sort": {
-    /**
-     * 取值排序
-     * @description 用途：拖拽后**整体提交该维度下全量取值**；缺行 / 重复 → 400。
-     */
-    put: operations["sortValues"];
-  };
-  "/admin/dish-dimensions/sort": {
-    /**
-     * 维度排序
-     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-     */
-    put: operations["sortDimensions"];
-  };
   "/admin/dish-categories/{id}": {
     /**
      * 重命名分类
-     * @description 用途：**只改 label**（改名免费，零菜品迁移）；重名 400；不存在 4001。
+     * @description 用途：**只改 name**（改名免费，零菜品迁移）；重名 400；不存在 4001。
      */
     put: operations["rename_1"];
-  };
-  "/admin/dish-categories/sort": {
-    /**
-     * 分类排序
-     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-     */
-    put: operations["sort_2"];
   };
   "/admin/corrections/{id}": {
     /**
@@ -200,7 +165,7 @@ export interface paths {
   "/admin/canteens/{id}": {
     /**
      * 编辑食堂
-     * @description 用途：修改食堂信息（name + location / description / images / sortOrder；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
+     * @description 用途：修改食堂信息（name + location / description / images；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
      */
     put: operations["updateCanteen"];
     /**
@@ -233,7 +198,7 @@ export interface paths {
      * Banner 排序
      * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
      */
-    put: operations["sort_3"];
+    put: operations["sort"];
   };
   "/upload/cloud-image": {
     /**
@@ -298,7 +263,7 @@ export interface paths {
      * 学号邮箱认证（绑定/合并/替换）
      * @description 用途：游客完成学号邮箱认证（verified=true）。入参仅验证码，绑定邮箱由验证码记录推导，当前微信账号从登录态取。
      * 认证通过后：无历史邮箱则直接绑定；存在历史邮箱账号则数据归属转移（旧账号业务数据改挂到当前微信）；
-     * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、bind_email=NULL）。返回更新后 UserInfoVO（bind_email 已写入；JWT 不含 bind_email、实时查库，无需重发 token）。
+     * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、email=NULL）。返回更新后 UserInfoVO（email 已写入；JWT 不含 email、实时查库，无需重发 token）。
      * 风控：同 IP 每分钟 ≤5 次、每小时 ≤20 次；同一账号 15 分钟内失败满 10 次将被暂时拒绝校验
      * （发码接口匿名 ⇒ 服务端无「谁申请了这条码」的归属信息，故以「让枚举不成立」防 6 位码被暴力猜中）。
      */
@@ -343,19 +308,19 @@ export interface paths {
     get: operations["listStalls"];
     /**
      * 新增档口
-     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images / sortOrder）—— 时间列与派生统计不在写入面内。
+     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images）—— 时间列与派生统计不在写入面内。
      */
     post: operations["createStall"];
   };
   "/admin/report-reasons": {
     /**
      * 举报原因列表
-     * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
+     * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
      */
     get: operations["list_1"];
     /**
      * 新增举报原因
-     * @description 用途：新增（默认**启用**、排最后）。只填中文标签（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
+     * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
      */
     post: operations["create"];
   };
@@ -381,48 +346,48 @@ export interface paths {
   "/admin/dish-views": {
     /**
      * 视图列表
-     * @description 用途：视图管理页（按 order 升序，不分页）；带 conditions / sortKind 与 matchedCount（当前匹配的在售菜品数）。
+     * @description 用途：视图管理页（按 id 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
      */
     get: operations["list_3"];
     /**
      * 新建视图
-     * @description 用途：新建 tab（默认启用、排最后）。条件由白名单字段 / 操作符 / 取值 ID 组成；`[]` = 不筛选。
+     * @description 用途：新建 tab（默认启用）。categoryId 缺省 = 不按种类过滤；种类不存在 → 400。
      */
     post: operations["create_1"];
   };
   "/admin/dish-dimensions": {
     /**
      * 维度列表
-     * @description 用途：维度管理页（按 order 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
+     * @description 用途：维度管理页（按 id 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
      */
     get: operations["listDimensions"];
     /**
      * 新增维度
-     * @description 用途：新建维度（默认排最后）。只填中文名与取值类型；维度 ID 由后端生成。
+     * @description 用途：新建维度。只填中文名与取值类型；维度 ID 由后端生成。
      */
     post: operations["createDimension"];
   };
   "/admin/dish-dimensions/{dimensionId}/values": {
     /**
      * 取值列表
-     * @description 用途：某维度下的取值（按 order 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
+     * @description 用途：某维度下的取值（按 id 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
      */
     get: operations["listValues"];
     /**
      * 新增取值
-     * @description 用途：新增取值（默认排最后）。同维度下**名称唯一**；维度不存在 → 4001。
+     * @description 用途：新增取值。同维度下**名称唯一**；维度不存在 → 4001。
      */
     post: operations["createValue"];
   };
   "/admin/dish-categories": {
     /**
      * 分类列表
-     * @description 用途：分类（种类）维护入口（按 order 升序，不分页）；带 dishCount（引用该种类的菜品数）。
+     * @description 用途：分类（种类）维护入口（按 id 升序，不分页）；带 dishCount（引用该种类的菜品数）。
      */
     get: operations["list_4"];
     /**
      * 登记分类
-     * @description 用途：登记新种类。种类的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、全表唯一。
+     * @description 用途：登记新种类。种类的 ID 由后端生成；名 1~32 字、全表唯一。
      */
     post: operations["create_2"];
   };
@@ -474,14 +439,14 @@ export interface paths {
   "/report-reasons": {
     /**
      * 举报原因字典
-     * @description PUB。举报时的原因单选项（id 原因 ID + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
+     * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
      */
     get: operations["reportReasons"];
   };
   "/my/reviews": {
     /**
      * 我的评价列表
-     * @description STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userNickname/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1
+     * @description STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userName/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1
      */
     get: operations["listMyReviews"];
   };
@@ -504,7 +469,7 @@ export interface paths {
      * 菜品分页查询
      * @description 用途：首页网格、搜索页。
      * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-     * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：种子里 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
+     * 参数集恰为 5 项：page、pageSize、keyword、view、seed（取数口径由所选 view 的归属种类决定：种类过滤（可空）+ CRC32(seed:ID) 会话伪随机序 + 在售；无排序入口）。
      * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
      */
     get: operations["listDishes"];
@@ -538,7 +503,7 @@ export interface paths {
      * 首页筛选视图字典
      * @description 用途：首页横向筛选栏数据源。
      * 下发可见视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图表唯一定义，
-     * 端上不得维护任何标签中文映射（端上只认 id + label，回传 view=<id>）。
+     * 端上不得维护任何标签中文映射（端上只认 id + name，回传 view=<id>）。
      * 空视图自动隐藏（当前无在售菜品匹配即不下发）。
      * 公开接口。测试示例：/dishes/views
      */
@@ -603,13 +568,6 @@ export interface paths {
      */
     get: operations["me"];
   };
-  "/admin/alerts": {
-    /**
-     * 安全告警记录
-     * @description 用途：分页回看安全告警（登录成功 / 登录失败达阈值 / 口令修改 / 审计写入失败 / 违规累积处置 / 爬取检测），支持按类型与级别筛选。记录只追加，无修改与删除入口。测试示例：/admin/alerts?page=1&pageSize=20&severity=critical
-     */
-    get: operations["listAlerts"];
-  };
   "/reviews/{id}": {
     /**
      * 删除自己的评价
@@ -641,7 +599,7 @@ export interface paths {
   "/admin/users/{id}/email": {
     /**
      * 解绑认证邮箱
-     * @description 用途：置空 bind_email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不动 email（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
+     * @description 用途：置空 email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不改 wxId（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
      */
     delete: operations["unbindEmail"];
   };
@@ -680,7 +638,7 @@ export interface components {
        * @description 新的昵称
        * @example 新的昵称
        */
-      nickname?: string;
+      name?: string;
       /**
        * @description 头像图片路径。小程序端先调用 /upload/cloud-image 获取 URL。
        * @example /images/seed/dishes/tomato-egg.jpg
@@ -714,14 +672,14 @@ export interface components {
        * @description 昵称
        * @example 食客0001
        */
-      nickname?: string;
+      name?: string;
       /** @description 头像URL */
       avatar?: string;
       /**
-       * @description 已认证绑定邮箱（可空；非空即已认证，认证状态唯一真源）
+       * @description 绑定邮箱（可空；非空即已认证，认证状态唯一真源）
        * @example 20240001@bjtu.edu.cn
        */
-      bindEmail?: string;
+      email?: string;
     };
     /** @description 启用/禁用请求体 {status}；status 缺失/空白或非法返回 400 */
     UserStatusReq: {
@@ -763,20 +721,14 @@ export interface components {
       description?: string;
       /** @description 档口图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
       images?: string[];
-      /**
-       * Format: int32
-       * @description 排序权重（升序，越小越靠前；缺省 = 保持原值）
-       * @example 10
-       */
-      sortOrder?: number;
     };
     /** @description 举报原因改名请求 */
     ReportReasonRenameReq: {
       /**
-       * @description 中文标签（1~32 字）
+       * @description 中文名（1~32 字）
        * @example 垃圾广告 / 营销刷屏
        */
-      label: string;
+      name: string;
     };
     /** @description 举报原因启停请求 */
     ReportReasonStatusReq: {
@@ -785,26 +737,6 @@ export interface components {
        * @example off
        */
       status: string;
-    };
-    /** @description 排序提交的单行 */
-    SortItem: {
-      /**
-       * Format: int64
-       * @description 目标行 ID
-       * @example 3
-       */
-      id?: number;
-      /**
-       * Format: int32
-       * @description 目标顺序（1 起、连续、互不相同）
-       * @example 1
-       */
-      order?: number;
-    };
-    /** @description 排序提交体（全量行、整体替换） */
-    SortItemsReq: {
-      /** @description 全量行（不得缺行、不得重复 id / order） */
-      items: components["schemas"]["SortItem"][];
     };
     /** @description 处理请求体 {reply, outcome, rejectReason}；校验失败返回 400 */
     FeedbackHandleReq: {
@@ -913,42 +845,21 @@ export interface components {
        */
       status: string;
     };
-    /** @description 视图筛选条件项 */
-    DishViewCondition: {
-      /**
-       * @description 条件字段（白名单：categoryId/discount/price/stallId/canteenId/avgRating/createdAt）
-       * @example categoryId
-       */
-      field?: string;
-      /**
-       * @description 操作符（白名单，随字段而定：= / in / isTrue / between / >= / <= / withinDays）
-       * @example =
-       */
-      op?: string;
-      /**
-       * @description 单值（`= / >= / <= / withinDays` 用；between 时为下界）
-       * @example 3
-       */
-      value?: string;
-      /** @description 多值（`in` 用；`between` 时为 [下界, 上界]） */
-      values?: string[];
-    };
     /** @description 筛选视图修改请求 */
     DishViewUpdateReq: {
       /**
        * @description tab 文案（1~32 字）
        * @example 面食粉类
        */
-      label: string;
+      name: string;
       /** @description 是否在 client 首页出现（停用 = tab 隐藏） */
       enabled: boolean;
-      /** @description 筛选条件（AND；[] = 不筛选） */
-      conditions: components["schemas"]["DishViewCondition"][];
       /**
-       * @description 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest）
-       * @example random
+       * Format: int64
+       * @description 归属种类 ID（值域 = dish_category.id；null = 不按种类过滤）
+       * @example 3
        */
-      sortKind: string;
+      categoryId?: number;
     };
     /** @description 属性维度保存请求 */
     DishDimensionSaveReq: {
@@ -969,7 +880,7 @@ export interface components {
        * @description 取值中文名（1~32 字；同维度下唯一）
        * @example 半荤
        */
-      label: string;
+      name: string;
     };
     /** @description 菜品种类重命名请求 */
     DishCategoryRenameReq: {
@@ -977,7 +888,7 @@ export interface components {
        * @description 种类中文名（1~32 字；全表唯一）
        * @example 面食粉类
        */
-      label: string;
+      name: string;
     };
     /** @description 拒绝请求体 {reply, outcome:'rejected', rejectReason}；校验失败返回 400 */
     DishCorrectionHandleReq: {
@@ -1013,12 +924,6 @@ export interface components {
       description?: string;
       /** @description 食堂图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
       images?: string[];
-      /**
-       * Format: int32
-       * @description 排序权重（升序，越小越靠前；缺省 = 保持原值）
-       * @example 10
-       */
-      sortOrder?: number;
     };
     /** @description Banner 保存请求 */
     BannerSaveReq: {
@@ -1035,6 +940,26 @@ export interface components {
        * @example off
        */
       status: string;
+    };
+    /** @description 排序提交的单行 */
+    SortItem: {
+      /**
+       * Format: int64
+       * @description 目标行 ID
+       * @example 3
+       */
+      id?: number;
+      /**
+       * Format: int32
+       * @description 目标顺序（1 起、连续、互不相同）
+       * @example 1
+       */
+      order?: number;
+    };
+    /** @description 排序提交体（全量行、整体替换） */
+    SortItemsReq: {
+      /** @description 全量行（不得缺行、不得重复 id / order） */
+      items: components["schemas"]["SortItem"][];
     };
     /** @description 云存储图片转存请求 */
     CloudImageUploadReq: {
@@ -1304,11 +1229,6 @@ export interface components {
        */
       avgRating?: number;
       /**
-       * Format: int32
-       * @description 排序权重
-       */
-      sortOrder?: number;
-      /**
        * Format: date-time
        * @description 更新时间
        */
@@ -1317,10 +1237,10 @@ export interface components {
     /** @description 举报原因新增请求 */
     ReportReasonSaveReq: {
       /**
-       * @description 中文标签（1~32 字）
+       * @description 中文名（1~32 字）
        * @example 垃圾广告 / 营销刷屏
        */
-      label: string;
+      name: string;
     };
     /** @description 管理端举报原因出参 */
     ReportReasonAdminVO: {
@@ -1330,15 +1250,10 @@ export interface components {
        */
       id?: number;
       /**
-       * @description 中文标签
+       * @description 中文名
        * @example 垃圾广告 / 营销刷屏
        */
-      label?: string;
-      /**
-       * Format: int32
-       * @description 展示顺序（升序）
-       */
-      order?: number;
+      name?: string;
       /** @description 状态：on=启用 / off=停用 */
       status?: string;
       /**
@@ -1462,7 +1377,7 @@ export interface components {
        * @description 分类中文名
        * @example 面食粉类
        */
-      categoryLabel?: string;
+      categoryName?: string;
     };
     /** @description 统一响应结果 */
     ResultDishAdminVO: {
@@ -1493,14 +1408,13 @@ export interface components {
        * @description tab 文案（1~32 字）
        * @example 面食粉类
        */
-      label: string;
-      /** @description 筛选条件（AND；缺省 / [] 均表示不筛选） */
-      conditions?: components["schemas"]["DishViewCondition"][];
+      name: string;
       /**
-       * @description 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest）
-       * @example random
+       * Format: int64
+       * @description 归属种类 ID（值域 = dish_category.id；缺省 = 不按种类过滤）
+       * @example 3
        */
-      sortKind: string;
+      categoryId?: number;
     };
     /** @description 管理端筛选视图出参 */
     DishViewAdminVO: {
@@ -1513,21 +1427,15 @@ export interface components {
        * @description tab 文案
        * @example 面食粉类
        */
-      label?: string;
+      name?: string;
       /**
-       * Format: int32
-       * @description 展示顺序（升序）
+       * Format: int64
+       * @description 归属种类ID（null = 不按种类过滤）
+       * @example 3
        */
-      order?: number;
+      categoryId?: number;
       /** @description 是否在 client 首页出现 */
       enabled?: boolean;
-      /** @description 筛选条件（AND；[] = 不筛选） */
-      conditions?: components["schemas"]["DishViewCondition"][];
-      /**
-       * @description 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest）
-       * @example random
-       */
-      sortKind?: string;
       /**
        * Format: int64
        * @description 当前匹配的在售菜品数
@@ -1568,11 +1476,6 @@ export interface components {
       name?: string;
       /** @description 取值类型：single / multi */
       valueType?: string;
-      /**
-       * Format: int32
-       * @description 展示顺序（升序）
-       */
-      order?: number;
       /**
        * Format: int64
        * @description 使用该维度的菜品数（删除前判断）
@@ -1620,12 +1523,7 @@ export interface components {
        * @description 取值中文名（可改，改名免费）
        * @example 半荤
        */
-      label?: string;
-      /**
-       * Format: int32
-       * @description 组内展示顺序（升序）
-       */
-      order?: number;
+      name?: string;
       /**
        * Format: int64
        * @description 引用该取值的菜品数（删除前判断）
@@ -1658,7 +1556,7 @@ export interface components {
        * @description 种类中文名（1~32 字；全表唯一）
        * @example 面食粉类
        */
-      label: string;
+      name: string;
     };
     /** @description 管理端菜品种类出参 */
     DishCategoryAdminVO: {
@@ -1671,12 +1569,7 @@ export interface components {
        * @description 种类中文名（可改，改名免费）
        * @example 面食粉类
        */
-      label?: string;
-      /**
-       * Format: int32
-       * @description 展示顺序
-       */
-      order?: number;
+      name?: string;
       /**
        * Format: int64
        * @description 引用该种类的菜品数（删除前判断）
@@ -1767,11 +1660,6 @@ export interface components {
       description?: string;
       /** @description 食堂图片URL列表 */
       images?: string[];
-      /**
-       * Format: int32
-       * @description 排序权重
-       */
-      sortOrder?: number;
       /**
        * Format: date-time
        * @description 更新时间
@@ -1874,10 +1762,10 @@ export interface components {
        */
       id?: number;
       /**
-       * @description 中文标签（端上直接渲染）
+       * @description 中文名（端上直接渲染）
        * @example 垃圾广告 / 营销刷屏
        */
-      label?: string;
+      name?: string;
     };
     /** @description 统一响应结果 */
     ResultListReportReasonVO: {
@@ -2033,7 +1921,7 @@ export interface components {
        */
       view?: number;
       /**
-       * @description 推荐流会话随机种子（可选；仅「推荐」类视图（sortKind=SEED_RANDOM）且无 keyword 时参与排序，服务端按 CRC32(seed:ID) 稳定伪随机序；其余视图忽略本参数、按各自排序口径）
+       * @description 推荐流会话随机种子（可选）：服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批内容；未传时服务端补一次性随机值（仍为随机序）
        * @example m3k9x7q2
        */
       seed?: string;
@@ -2224,7 +2112,7 @@ export interface components {
        * @description 评价者昵称
        * @example 张三
        */
-      userNickname?: string;
+      userName?: string;
       /** @description 评价者头像URL */
       userAvatar?: string;
       /**
@@ -2283,10 +2171,10 @@ export interface components {
        */
       id?: number;
       /**
-       * @description 中文标签（端上直接渲染）
+       * @description tab 文案（端上直接渲染）
        * @example 面食粉类
        */
-      label?: string;
+      name?: string;
     };
     /** @description 统一响应结果 */
     ResultListDishViewVO: {
@@ -2387,15 +2275,15 @@ export interface components {
        */
       id?: number;
       /**
-       * @description 学号/工号
-       * @example stu001
+       * @description 微信标识号（唯一）
+       * @example wx_oXXXXX_ab12cd34
        */
-      username?: string;
+      wxId?: string;
       /**
        * @description 昵称
        * @example 张三
        */
-      nickname?: string;
+      name?: string;
       /** @description 头像URL */
       avatar?: string;
       /**
@@ -2409,10 +2297,10 @@ export interface components {
        */
       wechatBound?: boolean;
       /**
-       * @description 已认证绑定邮箱（可空；非空即已认证，认证状态唯一真源）
+       * @description 绑定邮箱（可空；非空即已认证，认证状态唯一真源）
        * @example 20240001@bjtu.edu.cn
        */
-      bindEmail?: string;
+      email?: string;
       /**
        * Format: date-time
        * @description 创建时间
@@ -2485,7 +2373,7 @@ export interface components {
        * @description 评价者昵称
        * @example 张三
        */
-      userNickname?: string;
+      userName?: string;
       /** @description 评价者头像URL */
       userAvatar?: string;
       /**
@@ -2544,8 +2432,8 @@ export interface components {
        */
       userId?: number;
       /** @description 用户昵称 */
-      userNickname?: string;
-      /** @description 反馈类型：issue/report（历史可含 suggestion/add/error/bug/other） */
+      userName?: string;
+      /** @description 反馈类型：bug/suggestion/other/report（历史存量行另含 issue/add/error） */
       type?: string;
       /** @description 二级分类（仅历史 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null */
       sub?: string;
@@ -2557,11 +2445,9 @@ export interface components {
       relatedType?: string;
       /**
        * Format: int64
-       * @description 关联对象ID（举报：评价ID；信息纠错：菜品ID）；其他为 null
+       * @description 关联对象ID（举报：评价ID）；其他为 null
        */
       relatedId?: number;
-      /** @description 关联菜品名称（仅 relatedType=dish 时填充，含已下架菜品；否则为 null） */
-      relatedDishName?: string;
       /** @description 处理状态：pending/handled */
       status?: string;
       /** @description 处理结论：handled=通过/已处理（缺省）；rejected=不采纳/退回；pending 未处理为 null */
@@ -2584,7 +2470,7 @@ export interface components {
       updatedAt?: string;
       /** Format: int64 */
       subReasonId?: number;
-      reasonLabel?: string;
+      reasonName?: string;
       /** Format: int64 */
       reviewId?: number;
       reviewContent?: string;
@@ -2668,7 +2554,7 @@ export interface components {
        * @description 分类中文名（A6 种类字典派生，端上零硬编码）
        * @example 面食粉类
        */
-      categoryLabel?: string;
+      categoryName?: string;
       /** @description 上架状态：on / off */
       status?: string;
       /** @description 均分（零评价为 null） */
@@ -2808,7 +2694,7 @@ export interface components {
       userCount?: number;
       /**
        * Format: int64
-       * @description 已认证用户数（bind_email 非空）
+       * @description 已认证用户数（email 非空）
        */
       verifiedUserCount?: number;
       /**
@@ -2910,7 +2796,7 @@ export interface components {
        */
       userId?: number;
       /** @description 提交人昵称（匿名提交为 null） */
-      userNickname?: string;
+      userName?: string;
       /** @description 提交的菜品名称 */
       name?: string;
       /**
@@ -3022,7 +2908,7 @@ export interface components {
        */
       userId?: number;
       /** @description 提交人昵称（匿名提交为 null） */
-      userNickname?: string;
+      userName?: string;
       /** @description 处理状态：pending/adopted/rejected */
       status?: string;
       /**
@@ -3109,6 +2995,7 @@ export interface components {
     AdminMeVO: {
       username?: string;
       lastLoginAt?: string;
+      updatedAt?: string;
       role?: string;
       passwordAging?: boolean;
     };
@@ -3126,55 +3013,6 @@ export interface components {
        */
       message?: string;
       data?: components["schemas"]["AdminMeVO"];
-    };
-    /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultSecurityAlertVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["SecurityAlertVO"][];
-      /**
-       * Format: int64
-       * @description 总条数
-       */
-      total?: number;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminPageResultSecurityAlertVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminPageResultSecurityAlertVO"];
-    };
-    /** @description 安全告警记录 */
-    SecurityAlertVO: {
-      /**
-       * Format: int64
-       * @description 告警记录 ID
-       */
-      id?: number;
-      /** @description 告警类型键（可据此筛选） */
-      alertType?: string;
-      /** @description 告警类型中文标签 */
-      alertTypeLabel?: string;
-      /** @description 级别键：info 提示 / warn 警告 / critical 严重 */
-      severity?: string;
-      /** @description 级别中文标签 */
-      severityLabel?: string;
-      /** @description 告警标题 */
-      title?: string;
-      /** @description 告警明细（脱敏） */
-      detail?: string;
-      /** @description 来源 IP（无 Web 上下文时为空串） */
-      sourceIp?: string;
-      /** @description 发生时间（yyyy-MM-dd HH:mm:ss） */
-      createdAt?: string;
     };
   };
   responses: never;
@@ -3277,7 +3115,7 @@ export interface operations {
   };
   /**
    * 获取当前用户资料
-   * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 bindEmail 非空派生，不作独立出参字段）、绑定邮箱（bindEmail）。字段集与登录 / 认证链路一致（恰 4 项：id / nickname / avatar / bindEmail）。
+   * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 email 非空派生，不作独立出参字段）、绑定邮箱（email）。字段集与登录 / 认证链路一致（恰 4 项：id / name / avatar / email）。
    */
   profile: {
     responses: {
@@ -3322,7 +3160,7 @@ export interface operations {
       content: {
         /**
          * @example {
-         *   "nickname": "新的昵称",
+         *   "name": "新的昵称",
          *   "avatar": "/images/seed/dishes/tomato-egg.jpg"
          * }
          */
@@ -3421,7 +3259,7 @@ export interface operations {
   };
   /**
    * 编辑档口
-   * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images / sortOrder 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
+   * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
    */
   updateStall: {
     parameters: {
@@ -3567,7 +3405,7 @@ export interface operations {
   };
   /**
    * 举报原因改名
-   * @description 用途：**只改 label**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
+   * @description 用途：**只改 name**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
    */
   rename: {
     parameters: {
@@ -3681,49 +3519,6 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["ReportReasonStatusReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报原因排序
-   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-   */
-  sort: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SortItemsReq"];
       };
     };
     responses: {
@@ -4011,7 +3806,7 @@ export interface operations {
   };
   /**
    * 修改视图
-   * @description 用途：改**文案 / 启停 / 筛选条件 / 排序口径**（四字段整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
+   * @description 用途：改**文案 / 启停 / 归属种类**（整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
    */
   update: {
     parameters: {
@@ -4073,49 +3868,6 @@ export interface operations {
          * @example 1
          */
         id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 视图排序
-   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-   */
-  sort_1: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SortItemsReq"];
       };
     };
     responses: {
@@ -4360,103 +4112,8 @@ export interface operations {
     };
   };
   /**
-   * 取值排序
-   * @description 用途：拖拽后**整体提交该维度下全量取值**；缺行 / 重复 → 400。
-   */
-  sortValues: {
-    parameters: {
-      path: {
-        /**
-         * @description 维度ID
-         * @example 1
-         */
-        dimensionId: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SortItemsReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 维度排序
-   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-   */
-  sortDimensions: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SortItemsReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
    * 重命名分类
-   * @description 用途：**只改 label**（改名免费，零菜品迁移）；重名 400；不存在 4001。
+   * @description 用途：**只改 name**（改名免费，零菜品迁移）；重名 400；不存在 4001。
    */
   rename_1: {
     parameters: {
@@ -4471,49 +4128,6 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["DishCategoryRenameReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 分类排序
-   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
-   */
-  sort_2: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SortItemsReq"];
       };
     };
     responses: {
@@ -4650,7 +4264,7 @@ export interface operations {
   };
   /**
    * 编辑食堂
-   * @description 用途：修改食堂信息（name + location / description / images / sortOrder；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
+   * @description 用途：修改食堂信息（name + location / description / images；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
    */
   updateCanteen: {
     parameters: {
@@ -4902,7 +4516,7 @@ export interface operations {
    * Banner 排序
    * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
    */
-  sort_3: {
+  sort: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["SortItemsReq"];
@@ -5313,7 +4927,7 @@ export interface operations {
    * 学号邮箱认证（绑定/合并/替换）
    * @description 用途：游客完成学号邮箱认证（verified=true）。入参仅验证码，绑定邮箱由验证码记录推导，当前微信账号从登录态取。
    * 认证通过后：无历史邮箱则直接绑定；存在历史邮箱账号则数据归属转移（旧账号业务数据改挂到当前微信）；
-   * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、bind_email=NULL）。返回更新后 UserInfoVO（bind_email 已写入；JWT 不含 bind_email、实时查库，无需重发 token）。
+   * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、email=NULL）。返回更新后 UserInfoVO（email 已写入；JWT 不含 email、实时查库，无需重发 token）。
    * 风控：同 IP 每分钟 ≤5 次、每小时 ≤20 次；同一账号 15 分钟内失败满 10 次将被暂时拒绝校验
    * （发码接口匿名 ⇒ 服务端无「谁申请了这条码」的归属信息，故以「让枚举不成立」防 6 位码被暴力猜中）。
    */
@@ -5570,7 +5184,7 @@ export interface operations {
   };
   /**
    * 新增档口
-   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images / sortOrder）—— 时间列与派生统计不在写入面内。
+   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images）—— 时间列与派生统计不在写入面内。
    */
   createStall: {
     requestBody: {
@@ -5613,7 +5227,7 @@ export interface operations {
   };
   /**
    * 举报原因列表
-   * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
+   * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
    */
   list_1: {
     responses: {
@@ -5651,7 +5265,7 @@ export interface operations {
   };
   /**
    * 新增举报原因
-   * @description 用途：新增（默认**启用**、排最后）。只填中文标签（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
+   * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
    */
   create: {
     requestBody: {
@@ -5868,7 +5482,7 @@ export interface operations {
   };
   /**
    * 视图列表
-   * @description 用途：视图管理页（按 order 升序，不分页）；带 conditions / sortKind 与 matchedCount（当前匹配的在售菜品数）。
+   * @description 用途：视图管理页（按 id 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
    */
   list_3: {
     responses: {
@@ -5906,7 +5520,7 @@ export interface operations {
   };
   /**
    * 新建视图
-   * @description 用途：新建 tab（默认启用、排最后）。条件由白名单字段 / 操作符 / 取值 ID 组成；`[]` = 不筛选。
+   * @description 用途：新建 tab（默认启用）。categoryId 缺省 = 不按种类过滤；种类不存在 → 400。
    */
   create_1: {
     requestBody: {
@@ -5949,7 +5563,7 @@ export interface operations {
   };
   /**
    * 维度列表
-   * @description 用途：维度管理页（按 order 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
+   * @description 用途：维度管理页（按 id 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
    */
   listDimensions: {
     responses: {
@@ -5987,7 +5601,7 @@ export interface operations {
   };
   /**
    * 新增维度
-   * @description 用途：新建维度（默认排最后）。只填中文名与取值类型；维度 ID 由后端生成。
+   * @description 用途：新建维度。只填中文名与取值类型；维度 ID 由后端生成。
    */
   createDimension: {
     requestBody: {
@@ -6030,7 +5644,7 @@ export interface operations {
   };
   /**
    * 取值列表
-   * @description 用途：某维度下的取值（按 order 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
+   * @description 用途：某维度下的取值（按 id 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
    */
   listValues: {
     parameters: {
@@ -6077,7 +5691,7 @@ export interface operations {
   };
   /**
    * 新增取值
-   * @description 用途：新增取值（默认排最后）。同维度下**名称唯一**；维度不存在 → 4001。
+   * @description 用途：新增取值。同维度下**名称唯一**；维度不存在 → 4001。
    */
   createValue: {
     parameters: {
@@ -6129,7 +5743,7 @@ export interface operations {
   };
   /**
    * 分类列表
-   * @description 用途：分类（种类）维护入口（按 order 升序，不分页）；带 dishCount（引用该种类的菜品数）。
+   * @description 用途：分类（种类）维护入口（按 id 升序，不分页）；带 dishCount（引用该种类的菜品数）。
    */
   list_4: {
     responses: {
@@ -6167,7 +5781,7 @@ export interface operations {
   };
   /**
    * 登记分类
-   * @description 用途：登记新种类。种类的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、全表唯一。
+   * @description 用途：登记新种类。种类的 ID 由后端生成；名 1~32 字、全表唯一。
    */
   create_2: {
     requestBody: {
@@ -6510,7 +6124,7 @@ export interface operations {
   };
   /**
    * 举报原因字典
-   * @description PUB。举报时的原因单选项（id 原因 ID + label 中文标签），仅含启用项；服务端按 order 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
+   * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
    */
   reportReasons: {
     responses: {
@@ -6548,7 +6162,7 @@ export interface operations {
   };
   /**
    * 我的评价列表
-   * @description STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userNickname/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1
+   * @description STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userName/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1
    */
   listMyReviews: {
     parameters: {
@@ -6683,7 +6297,7 @@ export interface operations {
    * 菜品分页查询
    * @description 用途：首页网格、搜索页。
    * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-   * 参数集恰为 5 项：page、pageSize、keyword、view、seed（筛选与排序由所选 view 决定：种子里 7 个视图均按 CRC32(seed:ID) 会话伪随机序；无排序入口）。
+   * 参数集恰为 5 项：page、pageSize、keyword、view、seed（取数口径由所选 view 的归属种类决定：种类过滤（可空）+ CRC32(seed:ID) 会话伪随机序 + 在售；无排序入口）。
    * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
    */
   listDishes: {
@@ -6833,7 +6447,7 @@ export interface operations {
    * 首页筛选视图字典
    * @description 用途：首页横向筛选栏数据源。
    * 下发可见视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图表唯一定义，
-   * 端上不得维护任何标签中文映射（端上只认 id + label，回传 view=<id>）。
+   * 端上不得维护任何标签中文映射（端上只认 id + name，回传 view=<id>）。
    * 空视图自动隐藏（当前无在售菜品匹配即不下发）。
    * 公开接口。测试示例：/dishes/views
    */
@@ -7243,54 +6857,6 @@ export interface operations {
     };
   };
   /**
-   * 安全告警记录
-   * @description 用途：分页回看安全告警（登录成功 / 登录失败达阈值 / 口令修改 / 审计写入失败 / 违规累积处置 / 爬取检测），支持按类型与级别筛选。记录只追加，无修改与删除入口。测试示例：/admin/alerts?page=1&pageSize=20&severity=critical
-   */
-  listAlerts: {
-    parameters: {
-      query?: {
-        page?: number;
-        pageSize?: number;
-        /** @description 告警类型键（如 LOGIN_LOCKOUT）；不传 = 全部 */
-        alertType?: string;
-        /** @description 级别键：info / warn / critical；不传 = 全部 */
-        severity?: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminPageResultSecurityAlertVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
    * 删除自己的评价
    * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
    */
@@ -7436,7 +7002,7 @@ export interface operations {
   };
   /**
    * 解绑认证邮箱
-   * @description 用途：置空 bind_email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不动 email（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
+   * @description 用途：置空 email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不改 wxId（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
    */
   unbindEmail: {
     parameters: {

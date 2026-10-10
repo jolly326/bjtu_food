@@ -1,17 +1,18 @@
 package com.bjtufood.auth.constant;
 
 /**
- * 学生账号违规与处置的字面量（来源 / 处置动作）。
+ * 学生账号违规累积与梯度处置的字面量（来源 / 处置动作）。
  *
- * <p>与 {@link UserConst} 分开：状态是账号的「当前形态」，违规记录是「发生过什么」，
- * 二者的取值域不应混在一处，否则会误以为 {@code mute_24h} 也是 {@code status} 的合法值。
+ * <p>与 {@link UserConst} 分开：状态是账号的「当前形态」（{@code active} / {@code disabled} / {@code deleted}），
+ * 来源与处置动作是「这次为什么被处置、处置到什么档位」——二者的取值域不应混在一处，
+ * 否则会误以为 {@code mute_24h} 也是 {@code status} 的合法值。
  */
 public interface ViolationConst {
 
     /** 来源：机审 risky 命中（内容未入库） */
     String SOURCE_MODERATION = "moderation";
 
-    /** 来源：举报成立（管理端处置结论为 handled） */
+    /** 来源：举报成立（管理端处置结论为通过） */
     String SOURCE_REPORT = "report";
 
     /** 处置：仅累计，未达处置阈值 */

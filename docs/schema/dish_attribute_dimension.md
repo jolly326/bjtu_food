@@ -12,7 +12,6 @@
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 维度 ID；**唯一锚点**（`dish.attributes` JSON 的键 + 纠错快照键） |
 | `name` | VARCHAR(32) | NO | `''` | | 维度中文名（端上直接渲染，如「原料」；**可改，改名免费**） |
 | `value_type` | VARCHAR(16) | NO | `'single'` | | `single` 单值 / `multi` 多值 |
-| `sort_order` | INT | NO | 0 | | 展示顺序（升序） |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参 `updatedAt`） |
 
 ## 索引
@@ -26,7 +25,7 @@
 ## 关键设计
 
 ### 表驱动 = 新增维度零发版
-新增一个描述维度的完整流程：向本表 **INSERT 一行**（`name` / `value_type` / `sort_order`）——**免 ALTER、免发版、端上零改代码**。
+新增一个描述维度的完整流程：向本表 **INSERT 一行**（`name` / `value_type`）——**免 ALTER、免发版、端上零改代码**。
 
 ### 数据锚在 ID，`dish.attributes` 的键 = 维度 ID
 - `dish.attributes` JSON 对象的**键 = 维度 `id`**（JSON 键为字符串形态的十进制 ID），**仅描述维度**；
@@ -34,8 +33,8 @@
 - 维度 `name` 只是展示文案：改 `name` 只改一行、**全站生效**（含详情展示与管理端列表），**零菜品迁移**。
 
 ### 取值在 `dish_attribute_value` 表
-- 本表**只定义维度**（中文名、单/多选、顺序）；
-- **取值是 `dish_attribute_value` 的行**（`label` + `id`）；
+- 本表**只定义维度**（中文名、单/多选）；
+- **取值是 `dish_attribute_value` 的行**（`name` + `id`）；
 - **描述维度的取值存进 `dish.attributes`**（存取值 `id`），出参时服务端翻译成中文 ⇒ 取值可集中改名（见 [dish_attribute_value.md](./dish_attribute_value.md)）。
 
 ## 关联
@@ -47,7 +46,7 @@
 
 ## 注意事项
 
-- `sort_order` 决定 `DishDetailVO.attributes[]` 的**返回顺序**，端上按序渲染。
+- 维度**无排序列** ⇒ `DishDetailVO.attributes[]` 按维度 `id` 升序返回，端上按序渲染；管理端维度列表同一口径。
 - 维度被菜品引用时**禁止删除**（应用层统计）。
 - `value_type` 由 `single` ↔ `multi` 切换时，须**迁移该维度下菜品的数据形状**（由管理端触发，一次性事务）。
 

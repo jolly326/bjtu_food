@@ -1,6 +1,5 @@
 package com.bjtufood.dish.controller.admin;
 
-import com.bjtufood.common.dto.SortItemsReq;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.dish.dto.DishDimensionAdminVO;
 import com.bjtufood.dish.dto.DishDimensionSaveReq;
@@ -27,7 +26,7 @@ import java.util.List;
 /**
  * A4 菜品属性维度与取值管理（管理端）。
  *
- * <p>契约真源：docs/api/web/dimensions.md（10 个端点）。
+ * <p>契约真源：docs/api/web/dimensions.md。
  * <p>两条约束：维度 / 取值**被引用不可删**（`400`）；
  * `valueType` 切换自动迁移该维度下菜品的数据形状。
  * <p>维度 / 取值**改名免费**（数据锚在 ID）—— 没有「改 ID」的端点。
@@ -46,23 +45,16 @@ public class DishAttributeAdminController {
 
     /* ==================== 维度 ==================== */
 
-    @Operation(summary = "维度列表", description = "用途：维度管理页（按 order 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。")
+    @Operation(summary = "维度列表", description = "用途：维度管理页（按 id 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。")
     @GetMapping
     public Result<List<DishDimensionAdminVO>> listDimensions() {
         return Result.success(service.listDimensions());
     }
 
-    @Operation(summary = "新增维度", description = "用途：新建维度（默认排最后）。只填中文名与取值类型；维度 ID 由后端生成。")
+    @Operation(summary = "新增维度", description = "用途：新建维度。只填中文名与取值类型；维度 ID 由后端生成。")
     @PostMapping
     public Result<DishDimensionAdminVO> createDimension(@Valid @RequestBody DishDimensionSaveReq req) {
         return Result.success(service.createDimension(req.getName(), req.getValueType()));
-    }
-
-    @Operation(summary = "维度排序", description = "用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。")
-    @PutMapping("/sort")
-    public Result<Void> sortDimensions(@Valid @RequestBody SortItemsReq req) {
-        service.sortDimensions(req.getItems());
-        return Result.success();
     }
 
     @Operation(summary = "修改维度", description = "用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；"
@@ -85,28 +77,19 @@ public class DishAttributeAdminController {
 
     /* ==================== 取值 ==================== */
 
-    @Operation(summary = "取值列表", description = "用途：某维度下的取值（按 order 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。")
+    @Operation(summary = "取值列表", description = "用途：某维度下的取值（按 id 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。")
     @GetMapping("/{dimensionId}/values")
     public Result<List<DishValueAdminVO>> listValues(
             @Parameter(description = "维度ID", example = "1") @PathVariable Long dimensionId) {
         return Result.success(service.listValues(dimensionId));
     }
 
-    @Operation(summary = "新增取值", description = "用途：新增取值（默认排最后）。同维度下**名称唯一**；维度不存在 → 4001。")
+    @Operation(summary = "新增取值", description = "用途：新增取值。同维度下**名称唯一**；维度不存在 → 4001。")
     @PostMapping("/{dimensionId}/values")
     public Result<DishValueAdminVO> createValue(
             @Parameter(description = "维度ID", example = "1") @PathVariable Long dimensionId,
             @Valid @RequestBody DishValueSaveReq req) {
-        return Result.success(service.createValue(dimensionId, req.getLabel()));
-    }
-
-    @Operation(summary = "取值排序", description = "用途：拖拽后**整体提交该维度下全量取值**；缺行 / 重复 → 400。")
-    @PutMapping("/{dimensionId}/values/sort")
-    public Result<Void> sortValues(
-            @Parameter(description = "维度ID", example = "1") @PathVariable Long dimensionId,
-            @Valid @RequestBody SortItemsReq req) {
-        service.sortValues(dimensionId, req.getItems());
-        return Result.success();
+        return Result.success(service.createValue(dimensionId, req.getName()));
     }
 
     @Operation(summary = "修改取值", description = "用途：**只改取值名**（改名免费，菜品数据零迁移）；同维度下重名 → 400；不存在 → 4001。")
@@ -115,7 +98,7 @@ public class DishAttributeAdminController {
             @Parameter(description = "维度ID", example = "1") @PathVariable Long dimensionId,
             @Parameter(description = "取值ID", example = "3") @PathVariable Long valueId,
             @Valid @RequestBody DishValueSaveReq req) {
-        service.updateValue(dimensionId, valueId, req.getLabel());
+        service.updateValue(dimensionId, valueId, req.getName());
         return Result.success();
     }
 

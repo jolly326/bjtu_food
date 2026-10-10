@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 /**
  * 管理员账号 Mapper。
  *
- * <p><b>为何单独一个 Mapper</b>：{@code admin_account} 与学生 {@code user} 表身份体系完全独立
+ * <p><b>为何单独一个 Mapper</b>：{@code admin} 与学生 {@code user} 表身份体系完全独立
  * （见 {@link AdminAccount} 类注释），不在任何情况下 join 或互相复用。
  */
 @Mapper
@@ -27,10 +27,10 @@ public interface AdminAccountMapper extends BaseMapper<AdminAccount> {
      * @param lastLoginAt 登录时刻（应用侧当前时间）
      * @return 影响行数
      */
-    @Update("UPDATE admin_account SET last_login_at = #{lastLoginAt} WHERE id = #{id}")
+    @Update("UPDATE admin SET last_login_at = #{lastLoginAt} WHERE id = #{id}")
     int touchLastLogin(@Param("id") Long id, @Param("lastLoginAt") LocalDateTime lastLoginAt);
 
-    @Update("UPDATE admin_account SET password_hash = #{passwordHash}, password_changed_at = #{changedAt},"
+    @Update("UPDATE admin SET password_hash = #{passwordHash}, password_changed_at = #{changedAt},"
             + " credential_version = credential_version + 1 WHERE id = #{id}")
     int updatePassword(@Param("id") Long id,
                        @Param("passwordHash") String passwordHash,

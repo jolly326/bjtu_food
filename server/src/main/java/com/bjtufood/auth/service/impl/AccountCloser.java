@@ -91,31 +91,27 @@ public class AccountCloser {
 
         // 匿名化 user 行（非物理删除）。必须用 LambdaUpdateWrapper 显式 set NULL：
         // updateById 默认 NOT_NULL 策略对 null 字段不写列，avatar/email/openid 等无法被清空。
-        // · username → deleted_{id}：释放 uk_user_username 唯一键占用。openid 置 NULL 解绑后，
-        //   同一微信重新静默登录会按 username='wx_'+openid 尾 16 位建新游客号，若保留旧 username
+        // · wxId → deleted_{id}：释放 wx_id 唯一键占用。openid 置 NULL 解绑后，
+        //   同一微信重新静默登录会按 wxId='wx_'+openid 尾 16 位建新游客号，若保留旧 wxId
         //   将撞唯一键导致「微信登录创建账号失败」；deleted_{id} 不含任何个人信息且唯一。
         // · openid → NULL：解绑微信身份，允许同一微信重新建号。
-        // · email → NULL：释放 uk_user_email 唯一键占用（NULL 不参与唯一索引）。
-        // · bind_email → NULL：解绑认证关系（认证态判据即该列非空，清空即回落游客态），
-        //   避免 verifyEmail 的 getByBindEmail 命中已注销账号导致后续认证走「替换绑定」歧义分支。
-        // · nickname → '已注销用户'：review/user_feedback 保留且展示昵称经 join user 取本字段，
+        // · email → NULL：释放 email 唯一键占用（NULL 不参与唯一索引），认证态随之回落游客态。
+        // · name → '已注销用户'：review/user_feedback 保留且展示昵称经 join user 取本字段，
         //   历史内容自然匿名化，评分聚合不破坏。
-        // · status → 'deleted'：与 wechatLogin/adminLogin 的登录拦截、RequireVerifiedAspect 的
+        // · status → 'deleted'：与 wechatLogin 的登录拦截、RequireVerifiedAspect 的
         //   UGC 写拦截形成持久化兜底（黑名单重启清空后仍有效）。
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, userId)
-                .set(User::getNickname, "已注销用户")
-                .set(User::getUsername, "deleted_" + userId)
+                .set(User::getName, "已注销用户")
+                .set(User::getWxId, "deleted_" + userId)
                 .set(User::getAvatar, null)
                 .set(User::getEmail, null)
                 .set(User::getOpenid, null)
-                .set(User::getBindEmail, null)
                 .set(User::getStatus, UserConst.STATUS_DELETED));
 
-        // email_verification_code 按该用户邮箱删除（表无 user_id 列，以 email 匹配）；
-        // email 与 bind_email 可能不同（迁移/替换绑定场景），两批都清，避免残留验证码在他端被消费。
+        // email_verification_code 按该用户邮箱删除（表无 user_id 列，以 email 匹配），
+        // 避免残留验证码在他端被消费。
         deleteVerifyCodesByEmail(user.getEmail());
-        deleteVerifyCodesByEmail(user.getBindEmail());
 
         // 系统通知：账号维度的过程性数据，注销后账号不可再进入、无任何读取方，
         // 保留即孤儿数据只增不减，故随注销物理删除（与 review / user_feedback「内容价值」保留口径区分）。

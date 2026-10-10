@@ -11,7 +11,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>
  * <b>为何需要</b>：管理员状态变更（{@code UserServiceImpl#updateStatus}：写 {@code user.status}
  * 后同步 {@link com.bjtufood.auth.config.TokenBlacklist}）、解绑邮箱
- * （{@code UserServiceImpl#unbindEmail}：写 {@code bind_email}）与账号注销
+ * （{@code UserServiceImpl#unbindEmail}：写 {@code email}）与账号注销
  * （{@code AccountCloser#close}：写 {@code status='deleted'} 后拉黑）都写<b>同一行</b>的
  * 状态 / 绑定列并写黑名单。两组写若交错，终态可能是「DB 为 {@code active}，而该 userId 仍在拉黑中」——
  * 此时该用户连重新登录换到的新 token 也会被 {@code JwtAuthFilter} 按 userId 判定为已失效而一律 401，

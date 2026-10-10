@@ -33,7 +33,7 @@
 | `idx_dish_category` | `category_id` | 普通 | 按种类取数（首页种类视图筛选、管理端种类筛选与引用计数） |
 | `idx_dish_status` | `status` | 普通 | 公开列表「只查在售」的过滤（`WHERE status='on'`）|
 
-> **关于浏览量与排序**：**本表无「热度排序」** —— 7 个视图走**会话伪随机序**（各视图的排序口径存 [`dish_filter_view.sort_kind`](./dish_filter_view.md)），各排序分支一律以 `d.id` 作决胜键保证全序稳定。
+> **关于浏览量与排序**：**本表无「热度排序」** —— 列表恒走**会话伪随机序**（`CRC32(seed, id)`，见 [`dish_filter_view`](./dish_filter_view.md) 的 tab 口径），并以 `d.id` 作决胜键保证全序稳定。
 > `idx_dish_status` 只服务 `status` 过滤 —— 浏览量由 `dish_view_log` 的 30 天窗口承载、评分由 `avg_rating` / `rating_count` 缓存列承载，排序与筛选均不读这三列，故索引不涉及它们。浏览量由 [`dish_view_log.md`](./dish_view_log.md) 的 **30 天滚动窗口明细**承载，仅供管理端展示、**不参与排序**。
 > 三路 `%keyword%` 模糊匹配同样无法用索引（前缀通配）。二者是各自独立的性能约束，见各 feature 文档的登记。
 > **首页主列表 / 猜你喜欢的 `CRC32` 会话伪随机序**同样是不可索引的计算表达式排序（`EXPLAIN` 实测 `type=ALL` + `Using filesort`）——按 `dish` 当前规模（**25 行**）判为**已核实的已知取舍**，触发条件与候选方案见 [README「已知取舍」](../README.md)。
@@ -82,5 +82,5 @@
 - **`images` 存 VARCHAR 而非 JSON**：相对路径数组以 JSON 字符串存入 VARCHAR(1024)；出参经 `ImageUrlUtil` 转绝对 URL（`DishListItemVO.coverImage` 为其**派生值**——取首图）。
 - **`attributes` 的键 = 描述维度 ID**（JSON 内为字符串形态的十进制 `dish_attribute_dimension.id`）。新增描述维度只需向该表插一行，**免 ALTER、免发版**。
 - **`attributes` 引用取值字典**（[dish_attribute_value](./dish_attribute_value.md)）：值为**取值 ID**，出参翻译为中文；编辑候选来自取值字典。这里只承载**描述维度**（m:n）。
-- **`category_id` 的值域来自种类字典**（[dish_category](./dish_category.md)），**不是数据库枚举**；被首页视图（[A6](../func/web/A-主数据维护/A6-首页筛选视图管理.md)）以 `categoryId ∈ {…}` 条件引用（条件值 = 种类 ID）。
+- **`category_id` 的值域来自种类字典**（[dish_category](./dish_category.md)），**不是数据库枚举**；被首页视图（[A6](../func/web/A-主数据维护/A6-首页筛选视图管理.md)）经 `dish_filter_view.category_id` 单值引用（值 = 种类 ID）。
 - **`original_price` 促销价字段不属本表**：`price` 是唯一价格数据源，不存在第三个价格字段。

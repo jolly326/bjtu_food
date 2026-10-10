@@ -46,9 +46,6 @@ public class StallAdminVO {
     @Schema(description = "平均评分", example = "4.5")
     private BigDecimal avgRating;
 
-    @Schema(description = "排序权重")
-    private Integer sortOrder;
-
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
 }

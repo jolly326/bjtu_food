@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 /**
  * A7 举报原因出参（管理端）。
  *
- * <p>比公开 VO（{@link ReportReasonVO}）多 4 项：`order` / `status` / `feedbackCount` / `updatedAt`
+ * <p>比公开 VO（{@link ReportReasonVO}）多 3 项：`status` / `feedbackCount` / `updatedAt`
  * —— 支撑列表展示与「删除前判断」。契约真源：docs/api/web/report-reasons.md。
  */
 @Data
@@ -18,11 +18,8 @@ public class ReportReasonAdminVO {
     @Schema(description = "原因ID（落库列 = user_feedback.sub_reason_id）")
     private Long id;
 
-    @Schema(description = "中文标签", example = "垃圾广告 / 营销刷屏")
-    private String label;
-
-    @Schema(description = "展示顺序（升序）")
-    private Integer order;
+    @Schema(description = "中文名", example = "垃圾广告 / 营销刷屏")
+    private String name;
 
     @Schema(description = "状态：on=启用 / off=停用")
     private String status;

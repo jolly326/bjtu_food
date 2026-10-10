@@ -48,11 +48,10 @@
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 原因 ID（提交举报时作为 `reasonId` 上送） |
-| `label` | string | 否 | 中文标签（弹层直接渲染） |
+| `name` | string | 否 | 中文名（弹层直接渲染） |
 
-> **恰好 2 个字段**，按 **`order` 升序**下发（**仅启用项**），端上**零硬编码**、不排序。
+> **恰好 2 个字段**，按 **`id` 升序**下发（**仅启用项**），端上**零硬编码**、不排序（展示顺序即数组顺序）。
 > 值域由 `report_reason` 字典驱动（管理端 [A7](../../func/web/A-主数据维护/A7-举报原因管理.md) 维护，新增原因免发版；种子见 [schema/report_reason.md](../../schema/report_reason.md)）。
-> **不含 `order` 字段** —— 展示顺序即数组顺序。
 
 ---
 
@@ -95,7 +94,7 @@
 ### 副作用
 | 目标 | 变化 |
 |---|---|
-| `user_feedback` | INSERT（`type='report'`、`sub_reason_id=reasonId`、`related_type='review'`、`related_id={id}`、`status='pending'`；**匿名提交 `user_id = 0`**） |
+| `user_feedback` | INSERT（`type='report'`、`sub_reason_id=reasonId`、`related_type='review'`、`related_id={id}`、`status='pending'`；`user_id` = 提交人（**恒为真实用户 ID**，本端点需登录）） |
 | `notification` | 管理员处理后异步 INSERT 回执 |
 
-> **有 `userId` 即可收回执**：静默登录的游客**同样收到**处理回执；仅**匿名提交**（无 token，`user_id = 0`）因无接收人不投递。
+> **回执恒可达**：`user_id` 恒为登录用户，处理完成后必投递站内回执（不依赖邮箱认证级）。

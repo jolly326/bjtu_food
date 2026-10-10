@@ -115,10 +115,10 @@ export async function listGuessLike(seed?: string): Promise<GuessLike[]> {
 /** 首页筛选视图字典（GET /dishes/views）：横向筛选栏数据源，文案与顺序全由后端下发 */
 export async function listDishViews(): Promise<DishView[]> {
   const raw = await get<DishViewVO[]>('/dishes/views')
-  // 端上只认 id + label（无 null 特例：首个启用视图「为你推荐」也是普通视图）
+  // 端上只认 id + name（无 null 特例：首个启用视图「为你推荐」也是普通视图）
   return (raw || []).map((item) => ({
     id: Number(item.id),
-    label: String(item.label || ''),
+    name: String(item.name || ''),
   }))
 }
 

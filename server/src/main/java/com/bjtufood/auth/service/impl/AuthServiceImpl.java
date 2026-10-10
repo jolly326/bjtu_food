@@ -120,7 +120,7 @@ public class AuthServiceImpl implements AuthService {
         verifyCodeAttemptGuard.assertNotLocked(userId);
         String email;
         try {
-            // 校验验证码并原子消费，推导绑定邮箱（purpose=verify、未用、未过期）
+            // 校验验证码并原子消费，推导绑定邮箱（未用、未过期）
             email = verifyCodePersister.consumeAndGetEmail(code);
         } catch (BusinessException e) {
             // 失败计数（含空码/错误/过期/不存在）：达阈值即封禁窗口内 fail-fast
@@ -129,13 +129,13 @@ public class AuthServiceImpl implements AuthService {
         }
         verifyCodeAttemptGuard.recordSuccess(userId);
 
-        // 认证写入（此处才开事务）：释放他微信绑定 + 归属迁移 + 历史邮箱账号清理 + 置当前账号 bind_email。
-        // 四步同生共死——否则会出现「邮箱已释放但业务数据没迁移」的中间态（数据悬在新旧两账号之间）。
+        // 认证写入（此处才开事务）：释放他微信绑定 + 归属迁移 + 置当前账号 email。
+        // 各步同生共死——否则会出现「邮箱已释放但业务数据没迁移」的中间态（数据悬在新旧两账号之间）。
         // 各步实现与判据见 VerifyCodePersister#applyVerifiedBinding。
         verifyCodePersister.applyVerifiedBinding(current, email);
 
         // 🔴 邮箱换绑后吊销该 userId 的全部既有 token：换绑改变了账号的身份语义
-        //    （可能伴随游客与历史学号账号之间的数据归属迁移），旧 token 携带的是迁移前的身份。
+        //    （可能伴随游客与历史邮箱账号之间的数据归属迁移），旧 token 携带的是迁移前的身份。
         //    端上收到 401 后会走静默登录换发新 token，用户无感。
         tokenBlacklist.revokeUser(userId);
 
@@ -153,11 +153,11 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 更新昵称 / 头像。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
-     * （{@link AuthProfilePersister#updateNicknameAndAvatar}），使微信机审的外呼期间不占用数据库连接。
+     * （{@link AuthProfilePersister#updateNameAndAvatar}），使微信机审的外呼期间不占用数据库连接。
      */
     @Override
     public UserInfoVO updateProfile(Long userId, ProfileUpdateReq req) {
-        if (!StringUtils.hasText(req.getNickname()) && !StringUtils.hasText(req.getAvatar())) {
+        if (!StringUtils.hasText(req.getName()) && !StringUtils.hasText(req.getAvatar())) {
             throw new BusinessException("昵称和头像至少填写一项");
         }
         User user = userMapper.selectById(userId);
@@ -165,14 +165,14 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("用户不存在");
         }
         // 昵称：本地敏感词 + 微信机审（均在无事务状态下完成，不占用数据库连接）
-        if (StringUtils.hasText(req.getNickname())) {
-            if (localSensitiveFilter.containsSensitive(req.getNickname())) {
+        if (StringUtils.hasText(req.getName())) {
+            if (localSensitiveFilter.containsSensitive(req.getName())) {
                 throw new BusinessException("昵称包含敏感内容，请修改后重试");
             }
             // 内容安全检测（产品定稿 昵称变更 msgSecCheck v2，scene=1 资料）。
             // risky 由 checkText 统一拦截（400「内容包含违规信息，请修改后重试」）；
             // openid 为 NULL（历史学号账号）或微信凭据未配置时跳过机审放行（与评价口径一致，报告备案）。
-            contentSecurityService.checkText(user.getOpenid(), req.getNickname(), 1);
+            contentSecurityService.checkText(user.getOpenid(), req.getName(), 1);
         }
         // 头像：地址白名单校验（同样在无事务状态下完成）——
         // 仅接受站内相对路径，或走 /upload/cloud-image 链路（已过 imgSecCheck + COS 转存）的正式地址
@@ -180,7 +180,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("头像地址不合法，仅支持站内资源或已通过内容安检的上传地址");
         }
         // 落库收窄为单一事务：仅更新昵称/头像（局部更新，避免整行覆盖导致并发 lost update）
-        profilePersister.updateNicknameAndAvatar(userId, req.getNickname(), req.getAvatar());
+        profilePersister.updateNameAndAvatar(userId, req.getName(), req.getAvatar());
         User updated = userMapper.selectById(userId);
         return toUserInfo(updated);
     }
@@ -194,15 +194,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserInfoVO toUserInfo(User user) {
-        // 字段集恰 5 个：id/username/nickname/avatar/bindEmail；
-        // verified（bindEmail 派生冗余）、email/status/guestShortId/createdAt
+        // 字段集恰 4 个：id/name/avatar/email；
+        // verified（email 派生冗余）、wxId/status/createdAt
         // 不在 VO 内且不得回流（见 UserInfoVO 类注释）
         UserInfoVO vo = new UserInfoVO();
         vo.setId(user.getId());
-        // username 端上零消费，不出参（账号标识保留在 user 表与 JWT 载荷，供日志）
-        vo.setNickname(user.getNickname());
+        vo.setName(user.getName());
         vo.setAvatar(imageUrlUtil.toAbsoluteUrl(user.getAvatar()));
-        vo.setBindEmail(user.getBindEmail());
+        vo.setEmail(user.getEmail());
         return vo;
     }
 
@@ -210,7 +209,7 @@ public class AuthServiceImpl implements AuthService {
 
     private LoginVO toLoginVO(User user) {
         // JWT 载荷不含 role（user 表无 role 列）：学生态 authorities 由 JwtAuthFilter 固定授予
-        String token = jwtUtil.createToken(user.getId(), user.getUsername());
+        String token = jwtUtil.createToken(user.getId(), user.getWxId());
         return new LoginVO(token, toUserInfo(user));
     }
 

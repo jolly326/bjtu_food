@@ -111,7 +111,6 @@ class AuthServiceImplTest {
         record.setId(1L);
         record.setEmail(email);
         record.setCodeHash("hash");
-        record.setPurpose("verify");
         record.setCreatedAt(DateTimeUtil.now());
         record.setExpiresAt(DateTimeUtil.now().plusMinutes(10));
         return record;
@@ -121,7 +120,7 @@ class AuthServiceImplTest {
         User u = new User();
         u.setId(id);
         u.setStatus(status);
-        u.setNickname("小明");
+        u.setName("小明");
         return u;
     }
 
@@ -195,22 +194,22 @@ class AuthServiceImplTest {
             assertThatThrownBy(() -> svc.verifyEmail("000000", 1L)).isInstanceOf(BusinessException.class);
         }
 
-        // 换用正确验证码：命中记录 → CAS 消费成功（影响行数 1）→ 无历史邮箱冲突 → 仅写 bind_email
+        // 换用正确验证码：命中记录 → CAS 消费成功（影响行数 1）→ 无绑定冲突 → 仅写 email
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
         // 必须打**单参** update(Wrapper) 重载：生产代码走的正是这一个。
         // 若误桩成两参 update(entity, wrapper)，匹配不上会静默返回 0 →
         // 被当成「已被并发消费」而继续循环 → 最终误报「验证码错误」，错误信息完全指错方向。
         // 用无参 any()（而非 any(Wrapper.class)）以免引入原始类型与 unchecked 警告。
         when(codeMapper.update(any())).thenReturn(1);
-        // 认证写入归 VerifyCodePersister，本测试不桩 getByBindEmail / getByEmail ——
+        // 认证写入归 VerifyCodePersister，本测试不桩 getByEmail ——
         // Mockito 未打桩时 userMapper.selectOne 默认返回 null（即「无历史账号冲突」）。
         svc.verifyEmail("123456", 1L);
 
         assertThat(guard.isLocked(1L)).isFalse();
-        // 成功路径确实写入了绑定邮箱（认证态唯一写入点 = bind_email）
+        // 成功路径确实写入了绑定邮箱（认证态唯一写入点 = email）
         ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userMapper).updateById(saved.capture());
-        assertThat(saved.getValue().getBindEmail()).isEqualTo("20240001@bjtu.edu.cn");
+        assertThat(saved.getValue().getEmail()).isEqualTo("20240001@bjtu.edu.cn");
 
         // 之后再失败同样的次数仍不应被封禁：证明计数确实从零重开，而不是残留旧计数
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
@@ -279,7 +278,6 @@ class AuthServiceImplTest {
     void deleteAccountAnonymizesPublishesEventAndBlacklists() {
         User u = user(1L, "active");
         u.setEmail("a@bjtu.edu.cn");
-        u.setBindEmail("b@bjtu.edu.cn");
         when(userMapper.selectById(1L)).thenReturn(u);
 
         service().deleteAccount(1L, "tk-abc");
@@ -313,7 +311,7 @@ class AuthServiceImplTest {
         when(userMapper.selectById(1L)).thenReturn(user(1L, "active"));
         when(localSensitiveFilter.containsSensitive("违禁词")).thenReturn(true);
         ProfileUpdateReq req = new ProfileUpdateReq();
-        req.setNickname("违禁词");
+        req.setName("违禁词");
 
         assertThatThrownBy(() -> service().updateProfile(1L, req))
                 .isInstanceOf(BusinessException.class);
@@ -342,7 +340,7 @@ class AuthServiceImplTest {
         when(userMapper.selectById(1L)).thenReturn(before);
         when(localSensitiveFilter.containsSensitive("新昵称")).thenReturn(false);
         ProfileUpdateReq req = new ProfileUpdateReq();
-        req.setNickname("新昵称");
+        req.setName("新昵称");
 
         // 第二次 selectById 返回更新后的行
         when(userMapper.selectById(1L)).thenReturn(before, user(1L, "active"));
@@ -350,7 +348,7 @@ class AuthServiceImplTest {
         service().updateProfile(1L, req);
 
         verify(contentSecurityService).checkText("oX-openid", "新昵称", 1);
-        // 部分更新走 update(wrapper)；若退化为 updateById 会覆盖 bind_email/status 造成 lost update
+        // 部分更新走 update(wrapper)；若退化为 updateById 会覆盖 email/status 造成 lost update
         verify(userMapper).update(any(com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class));
         verify(userMapper, never()).updateById(any());
     }

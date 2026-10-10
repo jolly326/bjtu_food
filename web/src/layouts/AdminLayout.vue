@@ -12,7 +12,7 @@ import AccountSecurityDialog from '@/components/AccountSecurityDialog.vue'
  * —— **账密登录，无个人页**：🔴 前端不持有口令，底部身份区回显**登录响应下发的 username**
  * （不是静态文案）。
  *
- * <p>导航 **5 组 / 14 项，按业务域分组**（运营 / 场所 / 内容 / 互动 / 账号）——
+ * <p>导航 **5 组 / 13 项，按业务域分组**（运营 / 场所 / 内容 / 互动 / 账号）——
  * 分组口径见 [UI 基线 §1.1](../../../docs/ui/web/公共组件与形态基线.md)：
  * 同一个「域」的菜单放一起（一所食堂的档口归「场所」、菜品与它引用的字典归「内容」、
  * 一切 UGC 与治理字典归「互动」），避免按「主数据 / 治理 / 配置」这类**实现视角**切分。
@@ -54,7 +54,7 @@ onMounted(async () => {
   }
 })
 
-/** 导航分组（5 组 / 14 项，按业务域） */
+/** 导航分组（5 组 / 13 项，按业务域） */
 const groups: NavGroup[] = [
   {
     title: '运营',
@@ -88,10 +88,7 @@ const groups: NavGroup[] = [
   },
   {
     title: '账号',
-    items: [
-      { to: '/users', label: '用户管理' },
-      { to: '/alerts', label: '安全告警' },
-    ],
+    items: [{ to: '/users', label: '用户管理' }],
   },
 ]
 </script>

@@ -13,7 +13,7 @@ import java.util.List;
  * 档口新增 / 编辑请求（{@code POST /admin/stalls} · {@code PUT /admin/stalls/{id}}）。
  *
  * <p><b>可编辑字段 = {@code canteenId} / {@code name} / {@code floor} / {@code windowNo}
- * + {@code location} / {@code description} / {@code images} / {@code sortOrder}</b> ——
+ * + {@code location} / {@code description} / {@code images}</b> ——
  * 档口的全部业务列均在写入面内（管理端可达，见 {@code docs/api/web/stalls.md}）。
  *
  * <p>仍然<b>不在本 DTO 内</b>的字段：
@@ -31,8 +31,8 @@ import java.util.List;
  * （字典增删时两处必然漂移）。因此「空白串 → 400」「字典外值 → 400」由服务层承担。
  *
  * <p><b>空值语义</b>（{@code PUT}）：{@code canteenId} / {@code name} 必填（整体替换）；
- * {@code floor} / {@code windowNo} / {@code location} / {@code description} / {@code images} /
- * {@code sortOrder} <b>缺省 / {@code null} = 保持原值</b>，给值即覆盖（空串 / 空数组 = 清空，
+ * {@code floor} / {@code windowNo} / {@code location} / {@code description} / {@code images}
+ * <b>缺省 / {@code null} = 保持原值</b>，给值即覆盖（空串 / 空数组 = 清空，
  * {@code floor} 例外：字典内无「空楼层」，不支持清空）。
  */
 @Data
@@ -79,7 +79,4 @@ public class StallSaveReq {
     @Schema(description = "档口图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空）")
     @Size(max = IMAGE_MAX, message = "档口图片最多 5 张")
     private List<String> images;
-
-    @Schema(description = "排序权重（升序，越小越靠前；缺省 = 保持原值）", example = "10")
-    private Integer sortOrder;
 }

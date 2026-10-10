@@ -47,20 +47,20 @@ public class DishAttributeCatalog {
     private final CacheManager cacheManager;
 
     /**
-     * 维度字典（按 {@code sort_order} 升序）。
+     * 维度字典（按 {@code id} 升序）。
      * <p>
-     * 应用内没有该表的写入口（由建表种子维护），所以 TTL 可以放宽到字典级（10 分钟）。
+     * 写入口为管理端 A4 端点（写入即显式失效，见 {@link #invalidateDimensions()}），TTL 为字典级（10 分钟）。
      */
     @Cacheable(CacheConfig.ATTRIBUTE_DIMENSIONS)
     public List<DishAttributeDimension> dimensions() {
         return List.copyOf(dimensionMapper.selectList(
                 new LambdaQueryWrapper<DishAttributeDimension>()
-                        .orderByAsc(DishAttributeDimension::getSortOrder)));
+                        .orderByAsc(DishAttributeDimension::getId)));
     }
 
     /**
      * 编辑候选值（**取值字典驱动**，A4 落地 2026-10-03）：按维度 {@code id} 汇总
-     * 该维度下**取值字典**的 `label`，按字典 `sort_order` 升序。
+     * 该维度下**取值字典**的 {@code name}，按取值 {@code id} 升序。
      * <p>
      * 候选值只从取值字典直读，<b>不</b>扫全库菜品 {@code attributes} 聚合：{@code attributes} 存的是
      * 取值 ID（A4），对 ID 串做频次去重得不到可用中文候选，聚合路径的语义不成立。
@@ -72,9 +72,9 @@ public class DishAttributeCatalog {
     public Map<Long, List<String>> candidateValuesByDimensionId() {
         Map<Long, List<String>> result = new HashMap<>();
         for (DishAttributeValue value : valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
-                .orderByAsc(DishAttributeValue::getSortOrder))) {
-            if (StringUtils.hasText(value.getLabel())) {
-                result.computeIfAbsent(value.getDimensionId(), k -> new ArrayList<>()).add(value.getLabel());
+                .orderByAsc(DishAttributeValue::getId))) {
+            if (StringUtils.hasText(value.getName())) {
+                result.computeIfAbsent(value.getDimensionId(), k -> new ArrayList<>()).add(value.getName());
             }
         }
         Map<Long, List<String>> immutable = new HashMap<>(result.size());

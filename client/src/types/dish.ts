@@ -119,12 +119,12 @@ export interface GuessLike {
 
 /**
  * 首页筛选视图项（`GET /dishes/views`）。
- * 文案 / 顺序 / 子集全由后端下发，**端上不得维护任何中文映射**（只认 `id` + `label`）；
- * `order` 由服务端下发次序表达，端上按数组顺序渲染 ⇒ 按「零消费即删」不进入本类型；
+ * 文案 / 顺序 / 子集全由后端下发，**端上不得维护任何中文映射**（只认 `id` + `name`）；
+ * 顺序 = 下发次序（服务端按视图 `id` 升序，首项「为你推荐」），端上按数组顺序渲染；
  * 筛选条件与排序口径都存服务端，端上不感知、也不回传。
  */
 export interface DishView {
   /** 视图 ID（端上选中后原样回传为 `view`） */
   id: number
-  label: string
+  name: string
 }

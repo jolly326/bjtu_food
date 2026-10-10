@@ -8,10 +8,16 @@
 > **变更流程**：先改对应表文档 → 再在数据库执行 `ALTER` / `CREATE` → 两者必须一致。
 
 > **设计注记 / 已知事项**：
-> - **管理端列表统一带 `updated_at`**：凡管理端出参 `updatedAt` 的表（`canteen` / `stall` / `dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `dish_filter_view` / `report_reason`）均有 `updated_at` 列（`DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`）。`created_at` 只在确有「创建时间」语义的表保留：`dish` / `banner` / `user` / `review` / `user_feedback` / `dish_correction` / `notification` / `email_verification_code`。
-> - **匿名提交 `user_id = 0`**：`dish_correction.user_id` 为 `BIGINT NOT NULL DEFAULT 0`（与 `user_feedback` 同口径），列注释写明「匿名提交为 0」。
+> - **管理端统一带 `updated_at`**：凡管理端出参 `updatedAt` 的表（`canteen` / `stall` / `dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `dish_filter_view` / `report_reason`；`admin` 经 `GET /admin/auth/me` 出参 `updatedAt`）均有 `updated_at` 列（`DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`）。`created_at` 只在确有「创建时间」语义的表保留：`dish` / `banner` / `user` / `review` / `user_feedback` / `dish_correction` / `notification` / `email_verification_code`。
+> - **匿名提交 `user_id = 0`**：`dish_correction.user_id` 为 `BIGINT NOT NULL DEFAULT 0`，列注释写明「匿名提交为 0」。
+> - **`user_feedback.user_id` 恒为真实用户**：列为 `BIGINT NOT NULL` + 外键 `fk_feedback_user → user(id)`（**无级联**）—— 意见反馈与举报的提交入口一律要求登录态。
+> - **告警不落库**：安全告警经 webhook 推送（`ALERT_WEBHOOK_URL` / `ALERT_WEBHOOK_SECRET`），拦截行为（登录失败锁定 / ID 枚举拦截）保留；库内**无告警表**。
+> - **管理端不留操作日志**：`/admin/**` 的写操作不留库内审计记录（库内**无审计表**）。
+> - **违规不留痕表**：违规计数与梯度处置由 `user.violation_count` / `user.muted_until` 承载；库内**无违规留痕表**。
+> - **字典表无排序列**：`dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `report_reason` / `dish_filter_view` 一律按 `id` 升序（唯一保留排序位的是 `banner.sort_order`）。
+> - **`dish_filter_view` 由 `category_id` 驱动**：`NULL` = 「为你推荐」（不按种类筛），非 NULL ⇒ 后端按该种类筛菜品；视图不持有筛选条件语言与排序口径。
 > - **DDL 注释口径**：`user_feedback.sub_reason_id`（仅 `type='report'` 有效：举报原因 ID）、`user_feedback.reject_reason`（`status='handled'` 且结论不采纳时必填）、`stall.floor`（受控字典，值即汉字）。
-> - **库表实况**：`dish.category_id` 与索引 `idx_dish_category`、`dish_category`（6 条种子）均与本文档列定义一致；`canteen` / `stall` 两表的实际列与其列定义一致（只含 `updated_at`，不含 `created_at`）。
+> - **库表实况**：`dish.category_id` 与索引 `idx_dish_category`、`dish_category`（6 条种子）、`dish_filter_view`（**7 行** = 1 推荐 + 6 种类，与 `dish_category` 种子一一对应）均与本文档列定义一致；`canteen` / `stall` 两表的实际列与其列定义一致（只含 `updated_at`，不含 `created_at`）；`user` **30 行**（含 id 1–5 种子）。
 > - ⚠️ **MySQL 版本**：生产为 MySQL 5.7（TDSQL-C）；变更脚本须用 5.7 可执行语法（避免 `JSON_TABLE` 等 8.0 特性）。
 > - **`dish.images VARCHAR(1024)` 超长**：管理端 ≤5 张为硬校验；序列化后长度 > 1024 → `400`，禁止静默截断。
 > - **名称唯一性并发口径**：`canteen.name` / `stall.name` 仅靠应用层查重，并发建档可写入重名 → 查重与写入须在同一事务；如需强约束可加唯一索引（先核查存量数据）。
@@ -27,21 +33,18 @@
 | `dish_category` | 菜品种类字典（`dish.category_id` 的取值域） | [dish_category.md](./dish_category.md) |
 | `dish_attribute_dimension` | 描述属性维度定义（表驱动） | [dish_attribute_dimension.md](./dish_attribute_dimension.md) |
 | `dish_attribute_value` | 描述属性取值字典（维度下的可选值） | [dish_attribute_value.md](./dish_attribute_value.md) |
-| `dish_filter_view` | 首页筛选视图（文案 / 顺序 / 显隐 + **筛选条件** + **排序口径**） | [dish_filter_view.md](./dish_filter_view.md) |
+| `dish_filter_view` | 首页筛选视图（文案 / 显隐 + **筛选种类** `category_id`） | [dish_filter_view.md](./dish_filter_view.md) |
 | `report_reason` | 举报原因字典（`GET /report-reasons` 的数据源） | [report_reason.md](./report_reason.md) |
 | `banner` | 首页轮播运营位 | [banner.md](./banner.md) |
 | `user` | 用户账号（学生） | [user.md](./user.md) |
-| `user_violation` | 学生账号违规与处置留痕（**只追加**） | [user_violation.md](./user_violation.md) |
-| `admin_account` | 管理端账号（与学生 `user` 身份体系**完全隔离**） | [admin_account.md](./admin_account.md) |
+| `admin` | 管理端账号（与学生 `user` 身份体系**完全隔离**） | [admin.md](./admin.md) |
 | `email_verification_code` | 邮箱验证码 | [email_verification_code.md](./email_verification_code.md) |
 | `review` | 评价 | [review.md](./review.md) |
 | `user_feedback` | 用户反馈与举报 | [user_feedback.md](./user_feedback.md) |
 | `dish_correction` | 菜品问题反馈（`type`=field 信息有误 / gone 已经下架） | [dish_correction.md](./dish_correction.md) |
 | `notification` | 站内通知 | [notification.md](./notification.md) |
-| `admin_audit_log` | 管理端操作审计日志（**只追加**，覆盖全部管理端写操作） | [admin_audit_log.md](./admin_audit_log.md) |
-| `security_alert` | 安全告警记录（**只追加**，推送的同时落库供面板回看） | [security_alert.md](./security_alert.md) |
 
-**表清单以本目录为准（当前 **20 张**）** —— 新增表时同步补一份 `schema/<表名>.md` 并登记于此。
+**表清单以本目录为准（当前 **17 张**）** —— 新增表时同步补一份 `schema/<表名>.md` 并登记于此。
 
 ## 实体关系
 
@@ -51,18 +54,20 @@ canteen 1 ── n stall 1 ── n dish ── n review
                                     │     └── n dish_correction
                                     └──── n user_feedback (related_type='review')
 
-user 1 ── n review            (user_id)
-user 1 ── n user_feedback     (user_id，**匿名提交为 `0`**，不设外键)
-user 1 ── n notification      (user_id)
-user 1 ── n user_violation    (user_id)
+user 1 ── n review            (user_id，无外键)
+user 1 ── n user_feedback     (user_id，**外键 `fk_feedback_user`**，无级联)
+user 1 ── n dish_correction   (user_id，**匿名提交为 `0`**，不设外键)
+user 1 ── n notification      (user_id，**外键 `fk_notification_user`**，`ON DELETE CASCADE`)
 user 1 ─── email_verification_code (按 email 关联，非 user_id)
+
+admin （独立账号体系，与 user 无关系、无外键）
 
 
 dish ── dish_category   经 dish.category_id 引用种类 ID（N→1 单值，非外键）
 dish ── dish_attribute_dimension   经 attributes JSON 的键（= 描述维度 ID）关联（非外键）
 dish_attribute_dimension 1 ── n dish_attribute_value   维度下的取值字典
 dish.attributes ── dish_attribute_value   经 JSON 内的取值 ID 引用（描述维度取值，非外键）
-dish_filter_view.conditions ── dish_category   种类条件经种类 ID 引用（非外键）
+dish_filter_view.category_id ── dish_category   视图筛选的种类经种类 ID 引用（非外键）
 user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非外键）
 ```
 
@@ -74,29 +79,28 @@ user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非�
 
 | 表 | 管理端可达 | 刻意不可达（列 + 原因） |
 |---|---|---|
-| `canteen` | 名称 / 图片 / 地点 / 描述 / 排序位（A1 **详情抽屉**内可编辑）；档口数、更新时间为只读 | — |
-| `stall` | 所属食堂 / 名称 / 楼层 / 窗口号 / 图片 / 地点 / 描述 / 排序位（A2 详情抽屉内可编辑）；菜品数、均分、更新时间为只读 | — |
+| `canteen` | 名称 / 图片 / 地点 / 描述（A1 **详情抽屉**内可编辑）；档口数、更新时间为只读 | — |
+| `stall` | 所属食堂 / 名称 / 楼层 / 窗口号 / 图片 / 地点 / 描述（A2 详情抽屉内可编辑）；菜品数、均分、更新时间为只读 | — |
 | `dish` | 归属档口 / 名称 / 现价 / 原价 / 菜品种类 / 描述 / 图片 / 描述属性（A3 详情抽屉内可编辑）；评分数、浏览量为只读 | `view_count` —— **停写的只读历史列**（浏览量由 `dish_view_log` 的 30 天窗口承载），无消费方；`avg_rating` / `rating_count` —— **派生缓存列**，可编辑会与重算链路互相覆盖（见 [dish.md 派生与缓存列](./dish.md)） |
-| `dish_category` | 种类名（A3 分类抽屉内可编辑）；顺序位（拖拽）、引用菜品数、时间为只读 | —（**无删除入口**：种类是 `dish.category_id` 的锚点，下线一律「改名 + 把菜品改到别的种类」，见 [dish_category.md](./dish_category.md)） |
-| `dish_attribute_dimension` | 维度名 / 取值类型（A4 详情抽屉内可编辑）；顺序位（拖拽）、取值数、关联菜品数、时间为只读 | — |
-| `dish_attribute_value` | 取值名（A4「管理取值」抽屉内可编辑）；顺序位（拖拽）、引用菜品数、时间为只读 | `dimension_id` 由**所在维度**决定（改归属 = 换维度，非本行字段） |
-| `dish_filter_view` | tab 文案 / 筛选条件 / 排序口径 / 启停 / 顺序位（全部可改） | — |
-| `report_reason` | 中文标签 / 启停 / 顺序位 | — |
+| `dish_category` | 种类名（A3 分类抽屉内可编辑）；引用菜品数、时间为只读 | —（**无删除入口**：种类是 `dish.category_id` 的锚点，下线一律「改名 + 把菜品改到别的种类」，见 [dish_category.md](./dish_category.md)） |
+| `dish_attribute_dimension` | 维度名 / 取值类型（A4 详情抽屉内可编辑）；取值数、关联菜品数、时间为只读 | — |
+| `dish_attribute_value` | 取值名（A4「管理取值」抽屉内可编辑）；引用菜品数、时间为只读 | `dimension_id` 由**所在维度**决定（改归属 = 换维度，非本行字段） |
+| `dish_filter_view` | tab 文案 / **筛选种类**（`categoryId`，`null` = 为你推荐）/ 启停（全部可改） | — |
+| `report_reason` | 中文名 / 启停 | — |
 | `banner` | Banner 图 / 启停 / 顺序位；创建与更新时间为只读 | — |
-| `user` | 账号 / 昵称 / 头像 / 状态 / 认证邮箱 / 时间（C2 详情抽屉内只读 + 启停 / 解绑 / 注销） | `openid` —— **身份凭据**，仅以布尔 `wechatBound` 出参；`email` —— 历史「邮箱注册」列，微信体系**无写入点**（恒 NULL）；口令类列本表不存在（管理端口令在 `admin_account`） |
+| `user` | 账号（`wx_id`）/ 昵称（`name`）/ 头像 / 状态 / 认证邮箱（`email`）/ 时间（C2 详情抽屉内只读 + 启停 / 解绑 / 注销） | `openid` —— **身份凭据**，仅以布尔 `wechatBound` 出参；口令类列本表不存在（管理端口令在 `admin`） |
 | `review` | 作者 / 菜品 / 评分 / 正文 / 配图 / 隐藏态 / 隐藏附注 / 时间（B1 详情抽屉 + 隐藏处置） | — |
 | `user_feedback` | 类型 / 正文 / 配图 / 状态 / 回复 / 不采纳原因 / 举报原因 / 关联对象 / 处理与提交时间 | `sub` —— 仅历史 `suggestion` 存量的二级分类，**无现行写入点** |
 | `dish_correction` | 类型 / 目标菜品 / 提交人 / **改动项快照**（经 `differences` 逐项对照）/ 补充说明 / 配图 / 状态 / 回复 / 不采纳原因 / 时间 | 快照列（`name` / `price` / `canteen_name` / `stall_name` / `floor` / `attributes` / `images`）以**差异对照**形态呈现，不单独作为可编辑字段（它们表达的是「用户提交了什么」而不是「菜品当前值」） |
-| `security_alert` | 全列只读可达（C3 安全告警面板：时间 / 级别 / 类型 / 标题 / 来源 IP + 详情抽屉看明细与类型键） | —（**只追加表，面板不提供任何写入口** —— 能改告警的人就能抹掉自己的痕迹） |
 
 **系统维护列**（无人工编辑入口，不属「管理端可达」口径）：
 
 | 表.列 | 维护方 |
 |---|---|
 | `user.violation_count` / `user.muted_until` | 违规累积处置链路（机审命中 / 举报成立时自动写入；解封由处置到期自动恢复，人工介入用 `PUT /admin/users/{id}/status`） |
-| `admin_account.role` / `credential_version` / `password_changed_at` | 直连库维护（角色）/ 账号自助端点（改密码、改密） |
+| `admin.role` / `credential_version` / `password_changed_at` | 直连库维护（角色）/ 账号自助端点（改密码、改密） |
 
-**管理端无 CRUD 页面的表**（不属「字段可达」口径）：`notification`（由 client 只读）、`dish_view_log`（仅供 30 天窗口统计）、`email_verification_code`（短生命周期校验件）、`admin_account`（账号行由数据库与自助端点维护，页面不暴露其字段）、`user_violation`（只追加留痕，排查时按 `user_id` 直查）。
+**管理端无 CRUD 页面的表**（不属「字段可达」口径）：`notification`（由 client 只读）、`dish_view_log`（仅供 30 天窗口统计）、`email_verification_code`（短生命周期校验件）、`admin`（账号行由数据库与自助端点维护，页面不暴露其字段）。
 
 ### 命名
 | 对象 | 规则 | 例 |
@@ -164,18 +168,18 @@ private LocalDateTime updatedAt;
 
 > 说明：取值本身有独立生命周期（取值字典），但「菜品 ↔ 取值」的**指派**由菜品整体持有、不单独检索；按取值计数属低频管理操作（扫描可接受）。若将来需**按属性筛选菜品**，应改用关联表（登记为演进预留）。
 
-**不符合而建表**的对照：`stall` / `canteen` 虽只被引用，但它们有独立的录入与排序语义，因此是独立表。
+**不符合而建表**的对照：`stall` / `canteen` 虽只被引用，但它们有独立的录入与维护语义，因此是独立表。
 
 ### 索引策略
 | 类型 | 用于 |
 |---|---|
 | 复合索引 | 覆盖「过滤列 + 排序列」，如 `idx_review_dish_visible(dish_id, is_hidden, created_at)` |
-| 唯一索引 | 业务唯一性：`uk_user_openid` / `uk_user_username` / `uk_user_email`（`user`）、`uk_review_user_dish`（`review`）。⚠️ `dish_attribute_value` 的「同维度下 `label` 唯一」由**应用层**保证（**不建唯一索引**，见 [dish_attribute_value.md](./dish_attribute_value.md)）；`dish_filter_view` **无唯一约束**（视图由 ID 标识，文案可重复） |
+| 唯一索引 | 业务唯一性：`uk_user_openid` / `uk_user_wx_id`（`user`）、`uk_review_user_dish`（`review`）、`uk_admin_username`（`admin`）。⚠️ 字典类的「同表 / 同维度下 `name` 唯一」由**应用层**保证（**不建唯一索引**，见 [dish_attribute_value.md](./dish_attribute_value.md)）；`dish_filter_view` **无唯一约束**（视图由 ID 标识，文案可重复） |
 
 > ⚠️ **计算表达式的 `ORDER BY` 无法用索引** —— 复合索引只能减少参与排序的行数，不能消除排序（必然 filesort）。
 > 首页主列表 / 猜你喜欢的 `ORDER BY CRC32(CONCAT(seed,'-',id)), d.id` 即此类：现状为**已核实的已知取舍**，触发条件见 [README「已知取舍」](../README.md)。
 > 同理，**前缀通配 `%kw%` 模糊匹配无法用索引**。这两项是各自独立的性能约束，登记在对应功能文档。
-> 浏览量由 [`dish_view_log.md`](./dish_view_log.md) 的 **30 天滚动窗口**承载，**不参与排序**；各视图排序口径见 [`dish_filter_view.sort_kind`](./dish_filter_view.md)。
+> 浏览量由 [`dish_view_log.md`](./dish_view_log.md) 的 **30 天滚动窗口**承载，**不参与排序**；筛选视图只决定「看哪些菜品」（[`dish_filter_view.category_id`](./dish_filter_view.md)），视图列表的端上顺序按 `id` 升序。
 
 ### 软状态
 状态一律用 `VARCHAR` 而非枚举类型或 TINYINT：
@@ -188,26 +192,25 @@ private LocalDateTime updatedAt;
 | `report_reason.status` | `on` / `off` | 启用 / 停用 |
 | `user_feedback.status` | `pending` / `handled` | 待处理 / 已处理（**「不采纳」不是状态**：由 `status='handled'` + `reject_reason` 非空派生） |
 | `dish_correction.status` | `pending` / `adopted` / `rejected` | 待处理 / 已采纳 / 已拒绝 |
-| `user_violation.action` | `counted` / `warn` / `mute_24h` / `mute_7d` / `ban` | 违规处置动作（**是「本次触发的动作」而非账号状态**；账号当前是否限言看 `user.muted_until`） |
-| `security_alert.severity` | `info` / `warn` / `critical` | 告警级别（由 `alert_type` 决定，非调用方自选；中文标签另有快照列） |
 
 > `dish.status = 'off'`（下架）对公开接口**等价于不存在**（返回 `4001`）。
 
 ### 外键与级联
 
-**全库仅两条外键**，其余关系由应用层维护：
+**全库三条外键**，其余关系由应用层维护：
 
 | 关系 | 级联方式 | 维护方 |
 |---|---|---|
 | `review.dish_id` → `dish.id` | `ON DELETE CASCADE` | 应用层 `ReviewDishCascadeListener` 先删（同步事务内），外键兜底 |
 | `notification.user_id` → `user.id` | `ON DELETE CASCADE` | 应用层 `NotificationAccountCleanListener` 硬删，外键兜底 |
+| `user_feedback.user_id` → `user.id` | **无级联** | 纯引用完整性兜底：提交入口恒带登录态，`user_id` 必指向真实用户；`user` 行永不物理删除 ⇒ 无级联需求 |
 
 **刻意不设外键的三处**：
 
 | 关系 | 原因 |
 |---|---|
 | `dish_correction.dish_id` | 菜品删除后反馈记录**有意保留**（历史痕迹，非附属数据）。CASCADE 会删掉它们；RESTRICT 会让菜品删不掉 |
-| `review.user_id` 等指向 `user` | `user` 行**永不物理删除**（注销为匿名化），加约束无实际收益 |
+| `review.user_id` / `dish_correction.user_id` 指向 `user` | `user` 行**永不物理删除**（注销为匿名化），加约束无实际收益 |
 | `dish.stall_id` | `stall` 是**管理端维护的实体**，有独立的合并 / 清理语义，约束化会干扰管理操作 |
 
 > 两级方向一致（都删）时，应用层 + 外键是**冗余防护**：正常路径下应用层已删完，外键命中 0 行；只有应用层失效时外键才兜底。

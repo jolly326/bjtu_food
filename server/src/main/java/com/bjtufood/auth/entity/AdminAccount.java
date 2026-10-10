@@ -8,7 +8,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 管理员账号（表 {@code admin_account}）。
+ * 管理员账号（表 {@code admin}）。
  *
  * <p><b>与学生账号完全分离</b>：{@code user} 表是学生专用（无 {@code role} 列），
  * 管理端**不复用** —— 两类身份的生命周期、鉴权方式、失效条件都不同，混在一张表会让
@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
  * @see com.bjtufood.auth.config.AdminAuthFilter 管理端 JWT 鉴权
  */
 @Data
-@TableName("admin_account")
+@TableName("admin")
 public class AdminAccount {
 
     /** 账号 ID */
@@ -63,6 +63,9 @@ public class AdminAccount {
 
     /** 建号时间（{@code password_changed_at} 为空时，口令超期以本字段起算） */
     private LocalDateTime createdAt;
+
+    /** 最近更新时间（DB 时钟：UPDATE 由 `ON UPDATE CURRENT_TIMESTAMP` 维护，应用层不写、不填充；`GET /admin/auth/me` 出参 `updatedAt`） */
+    private LocalDateTime updatedAt;
 
     /** 账号是否启用 */
     public boolean isActive() {

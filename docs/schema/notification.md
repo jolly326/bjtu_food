@@ -13,7 +13,6 @@
 | `content` | VARCHAR(1024) | NO | `''` | | 通知正文 = **固定前缀（≤40 字）+ `reply` / `rejectReason` 全文**（`reply ≤600` ⇒ 构造后必 ≤ 1024）——**恒非空**（空回执用固定文案，出参不做 null 兜底）；**SHALL NOT 截断** |
 | `is_read` | TINYINT | NO | 0 | | `0` 未读 / `1` 已读 |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | 生成时间（列表按此倒序） |
-| `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | |
 
 ## 索引
 

@@ -14,7 +14,6 @@ import com.bjtufood.auth.entity.EmailVerificationCode;
 import com.bjtufood.auth.mapper.EmailVerificationCodeMapper;
 import com.bjtufood.auth.mapper.UserMapper;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.auth.support.AuthStateUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -33,8 +32,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    /** 建号占位昵称：`nickname` 列为 NOT NULL，须先写占位值，拿到自增 id 后再于同一事务内回填 */
-    private static final String NICKNAME_PLACEHOLDER = "食客新友";
+    /** 建号占位昵称：`name` 列为 NOT NULL，须先写占位值，拿到自增 id 后再于同一事务内回填 */
+    private static final String NAME_PLACEHOLDER = "食客新友";
 
     private final UserMapper userMapper;
     /** 解绑邮箱时清理该绑定邮箱的历史验证码（表无 user_id 列，按 email 匹配删除） */
@@ -43,12 +42,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserOverviewVO countOverview() {
         UserOverviewVO vo = new UserOverviewVO();
-        // 概况是「平台规模」：已注销用户不计入；已认证以 bind_email 非空为唯一判据（与端上认证态同源）
+        // 概况是「平台规模」：已注销用户不计入；已认证以 email 非空为唯一判据（与端上认证态同源）
         vo.setUserCount(userMapper.selectCount(new LambdaQueryWrapper<User>()
                 .ne(User::getStatus, UserConst.STATUS_DELETED)));
         vo.setVerifiedUserCount(userMapper.selectCount(new LambdaQueryWrapper<User>()
                 .ne(User::getStatus, UserConst.STATUS_DELETED)
-                .isNotNull(User::getBindEmail)));
+                .isNotNull(User::getEmail)));
         return vo;
     }
     private final ImageUrlUtil imageUrlUtil;
@@ -66,14 +65,14 @@ public class UserServiceImpl implements UserService {
     public IPage<UserVO> listUsers(int page, int pageSize, String status, String keyword) {
         int[] p = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
         page = p[0]; pageSize = p[1];
-        // C2：关键词 = 昵称 / 账号（email）/ 绑定邮箱 三路模糊（与列表页「按人定位」用途对齐）。
+        // C2：关键词 = 昵称 / 微信标识号 / 绑定邮箱 三路模糊（与列表页「按人定位」用途对齐）。
         // 该形态无法走索引（前置通配），与 client / 菜品搜索同属已知取舍；用户量级下可接受。
         String kw = StringUtils.hasText(keyword) ? keyword.trim() : null;
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>()
                 .eq(StringUtils.hasText(status), User::getStatus, status)
-                .and(kw != null, w -> w.like(User::getNickname, kw)
-                        .or().like(User::getEmail, kw)
-                        .or().like(User::getBindEmail, kw))
+                .and(kw != null, w -> w.like(User::getName, kw)
+                        .or().like(User::getWxId, kw)
+                        .or().like(User::getEmail, kw))
                 .orderByDesc(User::getCreatedAt);
         return userMapper.selectPage(new Page<>(page, pageSize), wrapper).convert(this::toVO);
     }
@@ -89,20 +88,15 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User getByBindEmail(String bindEmail) {
-        return userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getBindEmail, bindEmail));
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public User createWechatGuest(String openid) {
         User user = new User();
         user.setOpenid(openid);
-        // 游客建号：username = wx_+openid 尾 16 位（保证唯一且不含敏感完整 openid）
+        // 游客建号：wxId = wx_+openid 尾 16 位（保证唯一且不含敏感完整 openid）
         String tail = openid.length() > 16 ? openid.substring(openid.length() - 16) : openid;
-        user.setUsername("wx_" + tail);
+        user.setWxId("wx_" + tail);
         // 最终昵称含自增 id 尾 4 位，而本列 NOT NULL → 先写占位值，插入后回填（同事务）
-        user.setNickname(NICKNAME_PLACEHOLDER);
+        user.setName(NAME_PLACEHOLDER);
         user.setStatus(UserConst.STATUS_ACTIVE);
         try {
             userMapper.insert(user);
@@ -116,12 +110,12 @@ public class UserServiceImpl implements UserService {
         }
         // 回填前判等（D5）：仅当昵称仍为占位值时才回填，避免覆盖任何已存在的用户昵称
         User fresh = userMapper.selectById(user.getId());
-        if (fresh != null && NICKNAME_PLACEHOLDER.equals(fresh.getNickname())) {
+        if (fresh != null && NAME_PLACEHOLDER.equals(fresh.getName())) {
             String nickname = buildGuestNickname(user.getId());
             userMapper.update(null, new LambdaUpdateWrapper<User>()
                     .eq(User::getId, user.getId())
-                    .set(User::getNickname, nickname));
-            fresh.setNickname(nickname);
+                    .set(User::getName, nickname));
+            fresh.setName(nickname);
         }
         return fresh != null ? fresh : user;
     }
@@ -143,8 +137,6 @@ public class UserServiceImpl implements UserService {
             if (current == null) {
                 throw new BusinessException(4001, "用户不存在");
             }
-            // 审计变更前后值：启停是账号能力边界的跃迁，快照使「谁把谁禁用了」可精确追溯
-            AuditSnapshot.before(current);
             // 说明：管理端单一管理员模型（无角色区分），用户状态变更不做「禁止操作自身 / 越权」判定；
             // /admin/** 整体由 AdminAuthFilter 的管理端 JWT 校验保护。
             // 只写 status 一列（不整行回写）：整行回写会把昵称 / 头像等列一并写回，
@@ -161,16 +153,13 @@ public class UserServiceImpl implements UserService {
             } else {
                 tokenBlacklist.restoreUser(id);
             }
-            // 变更后快照（before 已在改动前序列化，此处覆盖新状态不影响已登记的旧值）
-            current.setStatus(status);
-            AuditSnapshot.after(current);
         });
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unbindEmail(Long id) {
-        // 「读现状 → 置空 bind_email → 清验证码」整体落在同一 userId 临界区：
+        // 「读现状 → 置空 email → 清验证码」整体落在同一 userId 临界区：
         // 与启停 / 注销（AccountCloser#close）对同一账号的写互不交错。
         userStateWriteLock.run(id, () -> doUnbindEmail(id));
     }
@@ -178,8 +167,8 @@ public class UserServiceImpl implements UserService {
     /**
      * {@link #unbindEmail} 的临界区主体。
      * <p>
-     * 认证态唯一判据 = {@code bind_email} 非空（不进 JWT，实时查库判定），置 NULL 即实时回落游客态；
-     * 只动这一列 —— 不改 {@code status}、不动 {@code email}（账号标识），登录与已发表内容不受影响。
+     * 认证态唯一判据 = {@code email} 非空（不进 JWT，实时查库判定），置 NULL 即实时回落游客态；
+     * 只动这一列 —— 不改 {@code status}、不改 {@code wxId}（账号标识），登录与已发表内容不受影响。
      * <p>
      * 事务边界：方法入口开事务（含两条写：user 行 + 验证码清理，须同生共死），
      * 锁在事务内获取（与 {@code AccountCloser#close} 同一口径）。
@@ -190,23 +179,20 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             throw new BusinessException(4001, "用户不存在");
         }
-        String bindEmail = user.getBindEmail();
-        if (!StringUtils.hasText(bindEmail)) {
-            // 未认证账号无可解绑对象（已注销账号的 bind_email 恒为 NULL，同样命中此处）
+        String email = user.getEmail();
+        if (!StringUtils.hasText(email)) {
+            // 未认证账号无可解绑对象（已注销账号的 email 恒为 NULL，同样命中此处）
             throw new BusinessException("该用户未绑定邮箱");
         }
-        // 审计变更前后值：解绑邮箱会让账号从「已认证」回落「游客」，是能力边界的跃迁
-        AuditSnapshot.before(user);
         // 必须用 LambdaUpdateWrapper 显式 set NULL：updateById 默认 NOT_NULL 策略对 null 字段不写列
         userMapper.update(null, new LambdaUpdateWrapper<User>()
                 .eq(User::getId, id)
-                .set(User::getBindEmail, null));
-        user.setBindEmail(null);
-        AuditSnapshot.after(user);
+                .set(User::getEmail, null));
+        user.setEmail(null);
         // 残留验证码清理（与注销同口径）：表无 user_id 列，按 email 匹配删除，
         // 避免残留验证码在他端被消费
         emailVerificationCodeMapper.delete(new LambdaQueryWrapper<EmailVerificationCode>()
-                .eq(EmailVerificationCode::getEmail, bindEmail));
+                .eq(EmailVerificationCode::getEmail, email));
         // 邮箱换绑即吊销既有 token：认证态是「绑定邮箱」派生出来的，换绑改变了这个账号的能力边界，
         // 换绑前签发的 token 携带的是旧身份语义 —— 一律作废，由静默登录换发新 token。
         tokenBlacklist.revokeUser(id);
@@ -222,7 +208,6 @@ public class UserServiceImpl implements UserService {
                 throw new BusinessException(4001, "用户不存在");
             }
             // 踢下线不改任何账号列，但它是**影响该用户会话**的动作 ⇒ 记下对象现状便于事后核对对象是否正确
-            AuditSnapshot.before(current);
             tokenBlacklist.revokeUser(id);
         });
     }
@@ -240,15 +225,15 @@ public class UserServiceImpl implements UserService {
     private UserVO toVO(User user) {
         UserVO vo = new UserVO();
         vo.setId(user.getId());
-        vo.setUsername(user.getUsername());
-        vo.setNickname(user.getNickname());
+        vo.setWxId(user.getWxId());
+        vo.setName(user.getName());
         // 出参空值口径（管理端列表）：可空字符串列恒非空串 —— avatar 无值 → 空串，端上无需判空
         vo.setAvatar(orEmpty(imageUrlUtil.toAbsoluteUrl(user.getAvatar())));
         vo.setStatus(user.getStatus());
         // 是否绑定微信：由 openid 非空派生（不暴露 openid 明文），管理端用户列表消费
         vo.setWechatBound(user.getOpenid() != null);
         // 空串 = 未认证（管理端认证态唯一判据，与端上同口径）
-        vo.setBindEmail(orEmpty(user.getBindEmail()));
+        vo.setEmail(orEmpty(user.getEmail()));
         vo.setCreatedAt(user.getCreatedAt());
         // C2：列表统一带 updatedAt（表已有列，无需 DDL）
         vo.setUpdatedAt(user.getUpdatedAt());
@@ -297,7 +282,7 @@ public class UserServiceImpl implements UserService {
         if (user.getMutedUntil() != null && user.getMutedUntil().isAfter(LocalDateTime.now())) {
             throw new BusinessException(403, "账号已被限制发言，请稍后再试");
         }
-        if (!AuthStateUtil.isVerified(user.getBindEmail())) {
+        if (!AuthStateUtil.isVerified(user.getEmail())) {
             // 使用细分的业务码 4031 标识「未认证邮箱」，与普通权限拒绝（code=403）区分，
             // 便于前端对「需先认证」与「无权限」给出不同引导（避免越权错误被误导向邮箱认证）。
             throw new BusinessException(4031, "请先完成学号邮箱认证");
@@ -313,8 +298,8 @@ public class UserServiceImpl implements UserService {
         if (user == null) {
             return null;
         }
-        // 认证态在此折算为布尔值下发：bindEmail 明文不出 auth 域
-        return new UserAuthContextVO(user.getId(), AuthStateUtil.isVerified(user.getBindEmail()),
+        // 认证态在此折算为布尔值下发：email 明文不出 auth 域
+        return new UserAuthContextVO(user.getId(), AuthStateUtil.isVerified(user.getEmail()),
                 user.getOpenid());
     }
 
@@ -324,19 +309,19 @@ public class UserServiceImpl implements UserService {
             return false;
         }
         User user = userMapper.selectById(userId);
-        return user != null && AuthStateUtil.isVerified(user.getBindEmail());
+        return user != null && AuthStateUtil.isVerified(user.getEmail());
     }
 
     @Override
-    public Map<Long, String> mapNicknameByIds(Collection<Long> userIds) {
+    public Map<Long, String> mapNameByIds(Collection<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return new HashMap<>();
         }
         Map<Long, String> map = new HashMap<>();
         userMapper.selectList(new LambdaQueryWrapper<User>()
-                        .select(User::getId, User::getNickname)
+                        .select(User::getId, User::getName)
                         .in(User::getId, userIds))
-                .forEach(u -> map.put(u.getId(), u.getNickname()));
+                .forEach(u -> map.put(u.getId(), u.getName()));
         return map;
     }
 
@@ -347,9 +332,9 @@ public class UserServiceImpl implements UserService {
         }
         Map<Long, UserBriefVO> map = new HashMap<>();
         userMapper.selectList(new LambdaQueryWrapper<User>()
-                        .select(User::getId, User::getNickname, User::getAvatar)
+                        .select(User::getId, User::getName, User::getAvatar)
                         .in(User::getId, userIds))
-                .forEach(u -> map.put(u.getId(), new UserBriefVO(u.getId(), u.getNickname(),
+                .forEach(u -> map.put(u.getId(), new UserBriefVO(u.getId(), u.getName(),
                         imageUrlUtil.toAbsoluteUrl(u.getAvatar()))));
         return map;
     }

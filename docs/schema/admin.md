@@ -1,4 +1,4 @@
-# admin_account — 管理员账号
+# admin — 管理员账号
 
 **用途**：管理后台（Web）的**独立管理员账号** —— 账密登录（JWT），与 `user`（学生）**完全隔离**。
 **对应实体**：`com.bjtufood.auth.entity.AdminAccount`。设计真源见 [C1 管理员登录与访问控制](../func/web/C-账号与访问/C1-管理员登录与访问控制.md)。
@@ -18,7 +18,7 @@
 | `credential_version` | INT | NO | `1` | | 凭证版本；**改密即自增** ⇒ 既有 token 全部失效 |
 | `password_changed_at` | DATETIME | YES | NULL | | 最近一次改密时刻；NULL = 从未改密（超期提示按建号时间起算） |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | 创建时间 |
-| `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间 |
+| `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（`GET /admin/auth/me` 出参 `updatedAt`） |
 
 ## 索引
 
@@ -36,7 +36,7 @@
 仅存 `BCryptPasswordEncoder` 生成的哈希；**初始密码经环境变量注入或直连库登记，绝不写入文档 / 仓库**。
 
 ### 角色边界（`role`）
-三档 —— `super` 全权（含删除类不可逆操作）/ `operator` 读写（**不含删除**）/ `viewer` 只读。由 `AdminAuthFilter` 按「HTTP 方法 + 角色」**服务端强制**判定，`403` 拒绝越权；**未知 / 空值一律按 `viewer` 处理**（fail-closed）。角色由直连库维护（库内仅 2~3 行账号），**无管理入口** —— 引入入口会新增「谁能改角色」的自指权限问题。
+三档 —— `super` 全权（含删除类不可逆操作）/ `operator` 读写（**不含删除**）/ `viewer` 只读。由 `AdminAuthFilter` 按「HTTP 方法 + 角色」**服务端强制**判定，`403` 拒绝越权；**未知 / 空值一律按 `viewer` 处理**（fail-closed）。角色由直连库维护（库内仅 1 行账号），**无管理入口** —— 引入入口会新增「谁能改角色」的自指权限问题。
 
 ### 凭证版本（`credential_version`）
 token 内嵌签发时的版本快照，`AdminAuthFilter` **逐请求**与库中现值比对，不一致即 `401`。

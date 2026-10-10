@@ -82,6 +82,8 @@ public class FeedbackServiceImpl implements FeedbackService {
      */
     @Override
     public void submit(Long userId, FeedbackReq req) {
+        // user_feedback.user_id 必填真实登录用户：无登录态即 401（不落 0/匿名占位）
+        requireLogin(userId);
         // 类型写入白名单（方案 B ）：仅纯反馈三类可写（bug / suggestion / other），
         // 其余类型（issue / add / error / report）→ 400，不落库；
         // 举报走 POST /reviews/{id}/report，纠错走 POST /dishes/{id}/correction，均不在本端点内。
@@ -103,10 +105,17 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         // ---- 内容安全检测（全部 UGC 过微信内容安全检测）----
         // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）；
-        // 边界：游客（userId=null）与无 openid 账号跳过机审放行（本地词库兜底）。
+        // 边界：无 openid 账号跳过机审放行（本地词库兜底）。
         checkUgcText(userId, feedback.getContent());
         feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
         feedbackPersister.insert(feedback);
+    }
+
+    /** 登录前置：user_feedback 的提交人恒为真实登录用户（user_id 必填）。 */
+    private void requireLogin(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(401, "请先登录");
+        }
     }
 
     /**
@@ -115,12 +124,14 @@ public class FeedbackServiceImpl implements FeedbackService {
      */
     @Override
     public List<ReportReasonVO> reportReasons() {
-        // 字典真源 = report_reason 表（A7）；出参结构不变（恰 value + label、仅启用项、按 order 升序）
+        // 字典真源 = report_reason 表（A7）；出参结构不变（恰 id + name、仅启用项、按 id 升序）
         return reportReasonService.listEnabled();
     }
 
     @Override
     public void report(Long userId, Long reviewId, ReportReq req) {
+        // user_feedback.user_id 必填真实登录用户：无登录态即 401（不落 0/匿名占位）
+        requireLogin(userId);
         // 举报目标必须存在且公开可见（已隐藏 / 已删除对外等价于不存在 → 4001）
         if (!reviewService.existsVisibleById(reviewId)) {
             throw new BusinessException(4001, "评价不存在");
@@ -131,14 +142,12 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (!reportReasonService.isSubmittable(reasonId)) {
             throw new BusinessException("举报原因非法");
         }
-        // 去重：同一登录用户对同一评价的重复举报不新增（游客 userId=null 无身份标识，不去重）
-        if (userId != null) {
-            DuplicateGuard.assertUnique(feedbackMapper, new LambdaQueryWrapper<Feedback>()
-                    .eq(Feedback::getUserId, userId)
-                    .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
-                    .eq(Feedback::getRelatedType, FeedbackConst.RELATED_REVIEW)
-                    .eq(Feedback::getRelatedId, reviewId), 400, "你已举报过该内容，我们会尽快处理，请勿重复提交");
-        }
+        // 去重：同一登录用户对同一评价的重复举报不新增
+        DuplicateGuard.assertUnique(feedbackMapper, new LambdaQueryWrapper<Feedback>()
+                .eq(Feedback::getUserId, userId)
+                .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
+                .eq(Feedback::getRelatedType, FeedbackConst.RELATED_REVIEW)
+                .eq(Feedback::getRelatedId, reviewId), 400, "你已举报过该内容，我们会尽快处理，请勿重复提交");
         // 补充文本可空；填写则过本地词库 + 微信机审（空文本跳过送检省额度）
         String content = StringUtils.hasText(req.getContent()) ? localSensitiveFilter.filter(req.getContent()) : "";
         if (StringUtils.hasText(content)) {
@@ -191,14 +200,10 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .distinct()
                 .toList();
         // 昵称投影经 auth 域只读契约下发（P0-1：本域不注入 UserMapper；空集合返回空 Map，不发起查询）
-        Map<Long, String> userMap = userService.mapNicknameByIds(userIds);
+        Map<Long, String> userMap = userService.mapNameByIds(userIds);
 
-        // 关联菜品名（DEV-04）：一次 IN 查询取回本页全部 dish 关联 id → name（消除 N+1）。
-        // 口径：不过滤 status/上架态——信息纠错的对象可能已被下架，管理端仍需看到菜品名回看纠错内容；
-        //       菜品已物理删除时不在结果集，VO 保持 null（前端按「菜品已删除」缺省展示）。
-        Map<Long, String> dishNameMap = batchRelatedDishNames(p.getRecords());
         // B3：举报原因中文名（`report_reason` 字典全量，含停用项 —— 历史举报仍要能翻译出中文；逐页取一次）
-        Map<Long, String> reasonLabelMap = reportReasonService.labelByIdAll();
+        Map<Long, String> reasonNameMap = reportReasonService.nameByIdAll();
         // B3：被举报评价摘要 —— **只收集 report 行的 relatedId 后批量取**（反馈行不参与，避免白取）
         java.util.Set<Long> reportReviewIds = new java.util.HashSet<>();
         for (Feedback f : p.getRecords()) {
@@ -211,7 +216,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
         return com.bjtufood.common.utils.PageUtil.toVoPage(p,
                 recs -> recs.stream()
-                        .map(f -> toAdminVO(f, userMap, dishNameMap, reasonLabelMap, reviewBriefs))
+                        .map(f -> toAdminVO(f, userMap, reasonNameMap, reviewBriefs))
                         .toList());
     }
 
@@ -242,34 +247,16 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     /**
-     * 批量查询本页反馈关联的菜品名（DEV-04）：{@code relatedType='dish'} 且 relatedId 非空的 id 去重后
-     * 一次 IN 查询，返回 dishId → dish.name 映射（空集合返回空 Map，不发起查询）。
-     */
-    private Map<Long, String> batchRelatedDishNames(List<Feedback> records) {
-        List<Long> dishIds = records.stream()
-                .filter(f -> FeedbackConst.RELATED_DISH.equals(f.getRelatedType()))
-                .map(Feedback::getRelatedId)
-                .filter(id -> id != null)
-                .distinct()
-                .toList();
-        if (dishIds.isEmpty()) {
-            return Map.of();
-        }
-        // 菜品名经 dish 域只读契约下发（P0-1：本域不注入 DishMapper；口径=不过滤上架态，见接口注释）
-        return dishService.mapNameByIds(dishIds);
-    }
-
-    /**
-     * 管理端 VO 转换：补齐昵称、配图（JSON→数组）、关联菜品名（DEV-04）；
+     * 管理端 VO 转换：补齐昵称、配图（JSON→数组）；
      * **举报行**另补原因中文名与被举报评价 ID（B3）；内容安全态已取消人工复核。
      */
-    private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap, Map<Long, String> dishNameMap,
-                                      Map<Long, String> reasonLabelMap,
+    private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap,
+                                      Map<Long, String> reasonNameMap,
                                       java.util.Map<Long, ReviewRelatedBriefVO> reviewBriefs) {
         FeedbackAdminVO vo = new FeedbackAdminVO();
         vo.setId(f.getId());
         vo.setUserId(f.getUserId());
-        vo.setUserNickname(userMap.get(f.getUserId()));
+        vo.setUserName(userMap.get(f.getUserId()));
         vo.setType(f.getType());
         // 二级分类：仅 suggestion 有效（老数据/其他类型该列为 NULL，前端按「未分类」展示）
         vo.setSub(f.getSub());
@@ -279,13 +266,6 @@ public class FeedbackServiceImpl implements FeedbackService {
         // user_feedback 无联系方式列，管理端 VO 不返回该字段
         vo.setRelatedType(f.getRelatedType());
         vo.setRelatedId(f.getRelatedId());
-        // 关联菜品名（DEV-04）：仅 relatedType=dish 且 relatedId 非空时按映射填充（含已下架菜品）；
-        // 其他关联类型/无关联/菜品已物理删除 → null（前端按「无」缺省展示）。
-        // 注：映射在无 dish 关联时为空不可变 Map（Map.of()），故必须先判 relatedId 非空再取值。
-        Long relatedId = f.getRelatedId();
-        vo.setRelatedDishName(relatedId != null && FeedbackConst.RELATED_DISH.equals(f.getRelatedType())
-                ? dishNameMap.get(relatedId)
-                : null);
         vo.setStatus(f.getStatus());
         // 处理结论回显：表无 outcome 物理列，按 status + reject_reason 派生——
         // handle() 落库保证「rejected ⇒ reject_reason 非空、handled ⇒ reject_reason 为 NULL」，
@@ -306,7 +286,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (FeedbackConst.TYPE_REPORT.equals(f.getType())) {
             vo.setSubReasonId(f.getSubReasonId());
             // 字典缺失（原因已被物理删除的极端情况）时回退 null：由前端按「—」呈现
-            vo.setReasonLabel(f.getSubReasonId() == null ? null : reasonLabelMap.get(f.getSubReasonId()));
+            vo.setReasonName(f.getSubReasonId() == null ? null : reasonNameMap.get(f.getSubReasonId()));
             vo.setReviewId(f.getRelatedId());
             // 内嵌「被举报内容」摘要：管理员不跳页即可看到被举报了什么，并据 hidden 决定
             // 「同时隐藏」复选是否置灰（评价已隐藏时置灰，避免重复处置）

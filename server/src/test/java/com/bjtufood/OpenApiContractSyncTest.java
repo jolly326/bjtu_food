@@ -120,8 +120,8 @@ class OpenApiContractSyncTest {
     @Test
     @DisplayName("UserInfoVO 字段集与后端账号出参一致（4 字段，禁止复活已删字段）")
     void userInfoVo_fieldsMatchContract() throws IOException {
-        // 后端 UserInfoVO 的 4 字段：verified/email/status/username 等已按「零消费即删」移除
-        assertSchemaFields("UserInfoVO", List.of("id", "nickname", "avatar", "bindEmail"));
+        // 后端 UserInfoVO 的 4 字段：verified/status/wxId 等已按「零消费即删」移除
+        assertSchemaFields("UserInfoVO", List.of("id", "name", "avatar", "email"));
     }
 
     @Test

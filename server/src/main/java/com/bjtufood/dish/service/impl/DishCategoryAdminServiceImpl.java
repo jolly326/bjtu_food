@@ -1,10 +1,8 @@
 package com.bjtufood.dish.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
-import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.dish.dto.DishCategoryAdminVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishCategory;
@@ -30,7 +28,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
-    private static final int LABEL_MAX = 32;
+    private static final int NAME_MAX = 32;
 
     private final DishCategoryMapper categoryMapper;
     private final DishMapper dishMapper;
@@ -39,7 +37,6 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
     public List<DishCategoryAdminVO> listAll() {
         Map<Long, Long> counts = dishCountByCategoryId();
         return categoryMapper.selectList(new LambdaQueryWrapper<DishCategory>()
-                        .orderByAsc(DishCategory::getSortOrder)
                         .orderByAsc(DishCategory::getId))
                 .stream()
                 .map(category -> toVO(category, counts.getOrDefault(category.getId(), 0L)))
@@ -48,12 +45,11 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public DishCategoryAdminVO create(String label) {
-        String text = requireText(label);
-        requireLabelUnique(text, null);
+    public DishCategoryAdminVO create(String name) {
+        String text = requireText(name);
+        requireNameUnique(text, null);
         DishCategory entity = new DishCategory();
-        entity.setLabel(text);
-        entity.setSortOrder(nextOrder());
+        entity.setName(text);
         categoryMapper.insert(entity);
         // 时间列以回查为准；新建的种类无菜品引用
         return toVO(categoryMapper.selectById(entity.getId()), 0L);
@@ -61,29 +57,15 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void rename(Long id, String label) {
+    public void rename(Long id, String name) {
         requireRow(id);
-        String text = requireText(label);
-        requireLabelUnique(text, id);
+        String text = requireText(name);
+        requireNameUnique(text, id);
         DishCategory update = new DishCategory();
         update.setId(id);
-        update.setLabel(text);
+        update.setName(text);
         // 改名免费：菜品存的是种类 ID，无需迁移任何菜品数据
         categoryMapper.updateById(update);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void sort(List<SortItem> items) {
-        List<Long> existing = categoryMapper.selectList(null).stream()
-                .map(DishCategory::getId).toList();
-        Map<Long, Integer> ordered = SortReorderUtil.resolve(items, existing);
-        for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
-            DishCategory update = new DishCategory();
-            update.setId(e.getKey());
-            update.setSortOrder(e.getValue());
-            categoryMapper.updateById(update);
-        }
     }
 
     @Override
@@ -116,28 +98,22 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
         return counts;
     }
 
-    private void requireLabelUnique(String label, Long excludeId) {
+    private void requireNameUnique(String name, Long excludeId) {
         LambdaQueryWrapper<DishCategory> wrapper = new LambdaQueryWrapper<DishCategory>()
-                .eq(DishCategory::getLabel, label);
+                .eq(DishCategory::getName, name);
         if (excludeId != null) {
             wrapper.ne(DishCategory::getId, excludeId);
         }
         DuplicateGuard.assertUnique(categoryMapper, wrapper, "该分类已存在");
     }
 
-    private int nextOrder() {
-        List<DishCategory> all = categoryMapper.selectList(new LambdaQueryWrapper<DishCategory>()
-                .orderByDesc(DishCategory::getSortOrder));
-        return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
-    }
-
-    private static String requireText(String label) {
-        String text = label == null ? null : label.trim();
+    private static String requireText(String name) {
+        String text = name == null ? null : name.trim();
         if (!StringUtils.hasText(text)) {
             throw new BusinessException("分类名不能为空");
         }
-        if (text.length() > LABEL_MAX) {
-            throw new BusinessException("分类名不能超过 " + LABEL_MAX + " 字");
+        if (text.length() > NAME_MAX) {
+            throw new BusinessException("分类名不能超过 " + NAME_MAX + " 字");
         }
         return text;
     }
@@ -145,8 +121,7 @@ public class DishCategoryAdminServiceImpl implements DishCategoryAdminService {
     private static DishCategoryAdminVO toVO(DishCategory entity, long dishCount) {
         DishCategoryAdminVO vo = new DishCategoryAdminVO();
         vo.setId(entity.getId());
-        vo.setLabel(entity.getLabel());
-        vo.setOrder(entity.getSortOrder());
+        vo.setName(entity.getName());
         vo.setDishCount(dishCount);
         vo.setUpdatedAt(entity.getUpdatedAt());
         return vo;

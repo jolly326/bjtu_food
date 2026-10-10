@@ -11,11 +11,12 @@ import java.time.LocalDateTime;
 /**
  * 首页筛选视图（表 {@code dish_filter_view}）—— **tab 的全部口径都在本表**。
  * <p>
- * 一个 tab = 文案 + 顺序 + 启停 + **筛选条件**（{@code conditions} 的 JSON 原文）+ **排序口径**
- * （{@code sortKind}）；端上回传 {@code view=<id>} 定位视图。
+ * 一个 tab = 文案 + 启停 + **归属种类**（{@code categoryId}）：
  * <ul>
- *   <li>{@code conditions}：条件数组的 JSON 原文（`[]` = 不筛选）；解析 / 校验 / 翻译的唯一入口是
- *       {@code DishViewConditions}（字段 / 操作符 / 取值三层白名单），本字段只持存储形态；</li>
+ *   <li>{@code categoryId} 为 {@code NULL} ⇒ 不按种类过滤（「为你推荐」等聚合视角）；
+ *       非 {@code NULL} ⇒ 引用 {@code dish_category.id}，取数按该种类过滤；</li>
+ *   <li>取数口径固定：{@code status='on'} + 种类过滤 + 随机序
+ *       （{@code CRC32(CONCAT(seed,'-',id)), id} 会话稳定伪随机）；</li>
  *   <li>无「默认视图」概念（空 {@code view} 取首个启用视图）。</li>
  * </ul>
  * 口径真源：docs/schema/dish_filter_view.md 与 docs/api/web/views.md。
@@ -30,19 +31,11 @@ public class DishFilterView {
     private Long id;
 
     @Schema(description = "tab 文案（可改）", example = "面食粉类")
-    private String label;
+    private String name;
 
-    /** 筛选条件 JSON 原文（`[]` = 不筛选；结构与白名单见 {@code DishViewConditions}） */
-    @Schema(description = "筛选条件（JSON 数组；[] = 不筛选）", example = "[{\"field\":\"categoryId\",\"op\":\"=\",\"value\":\"3\"}]")
-    private String conditions;
-
-    /** 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest） */
-    @Schema(description = "排序口径", example = "random")
-    private String sortKind;
-
-    /** 展示顺序（升序） */
-    @Schema(description = "展示顺序（升序）", example = "4")
-    private Integer sortOrder;
+    /** 归属种类（值域 = {@code dish_category.id}；NULL = 不按种类过滤） */
+    @Schema(description = "归属种类ID（NULL = 不按种类过滤）", example = "3")
+    private Long categoryId;
 
     @Schema(description = "是否在 client 首页出现（false=tab 隐藏）")
     private Boolean enabled;

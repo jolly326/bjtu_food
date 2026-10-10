@@ -18,7 +18,7 @@ import java.util.Map;
  * JWT 工具类
  * <p>
  * 负责 JWT Token 的生成、校验和解析。
- * Token 载荷中存储 userId、username，不存储敏感信息（暂不承载 role）。
+ * Token 载荷中存储 userId、wxId，不存储敏感信息（暂不承载 role）。
  * <p>
  * 流程说明：
  * 1. 登录成功 → createToken() 生成 JWT → 返回给前端
@@ -101,12 +101,12 @@ public class JwtUtil {
     /**
      * 创建 JWT Token
      *
-     * @param userId   用户 ID
-     * @param username 用户名
+     * @param userId 用户 ID
+     * @param wxId   微信标识号
      * @return 签发的 JWT 字符串（如：eyJhbGciOiJIUzI1NiJ9.xxx）
      */
-    public String createToken(Long userId, String username) {
-        return createToken(userId, username, jwtProperties.getExpiration());
+    public String createToken(Long userId, String wxId) {
+        return createToken(userId, wxId, jwtProperties.getExpiration());
     }
 
     /**
@@ -116,16 +116,16 @@ public class JwtUtil {
      * 由业务侧自行持有过期策略，避免全局统一时长一刀切。
      *
      * @param userId          用户 ID
-     * @param username        用户名
+     * @param wxId            微信标识号
      * @param expirationMillis 过期时长（毫秒）
      * @return 签发的 JWT 字符串
      */
-    public String createToken(Long userId, String username, long expirationMillis) {
+    public String createToken(Long userId, String wxId, long expirationMillis) {
         // 设置载荷（Payload）。注：role 不下发——
         // 学生态 authorities 由 JwtAuthFilter 固定授予（学生接口鉴权依赖 @RequireVerified + userId，不依赖角色）
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
-        claims.put("username", username);
+        claims.put("wxId", wxId);
 
         // 生成签名密钥（复用缓存 Key）
         SecretKey key = getKey();
@@ -146,7 +146,7 @@ public class JwtUtil {
      * 调用者极易在同一请求里重复解析（每请求 3 次验签）。
      *
      * @param token JWT 字符串
-     * @return 有效则返回 Claims（含 userId / username）；无效 / 过期 / 格式错误 / 签名不符一律返回 null
+     * @return 有效则返回 Claims（含 userId / wxId）；无效 / 过期 / 格式错误 / 签名不符一律返回 null
      */
     public Claims parseAndValidate(String token) {
         try {

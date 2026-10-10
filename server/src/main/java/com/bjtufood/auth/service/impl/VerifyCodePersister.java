@@ -54,7 +54,7 @@ public class VerifyCodePersister {
      * 事务边界仅包住末尾那次消费 UPDATE；前面的候选查询与 BCrypt 比对在事务外完成，
      * 最坏 2 秒的比对耗时<b>不占用数据库连接</b>。
      * <p>
-     * 匹配口径：按 purpose 全局匹配最近 20 条未用未过期记录，用 BCrypt 逐条比对定位。
+     * 匹配口径：全局匹配最近 20 条未用未过期记录，用 BCrypt 逐条比对定位。
      * 之所以要「逐条比对」而非按码直查，是因为发码接口为匿名 permitAll，服务端没有「谁申请了这条码」的归属信息，
      * 且 {@code code_hash} 是 BCrypt 散列、无法反查（详见 {@code VerifyCodeAttemptGuard} 类注释）。
      *
@@ -69,7 +69,6 @@ public class VerifyCodePersister {
         }
         List<EmailVerificationCode> records = emailVerificationCodeMapper.selectList(
                 new LambdaQueryWrapper<EmailVerificationCode>()
-                        .eq(EmailVerificationCode::getPurpose, "verify")
                         .isNull(EmailVerificationCode::getUsedAt)
                         .gt(EmailVerificationCode::getExpiresAt, DateTimeUtil.now())
                         .orderByDesc(EmailVerificationCode::getCreatedAt)
@@ -107,45 +106,30 @@ public class VerifyCodePersister {
      * 认证写入（事务边界包住全部跨域写入）。
      * <p>
      * 收在同一事务的原因：<b>归属迁移要么全成、要么全不成</b>。本方法依次做「释放他微信绑定 →
-     * 迁移该账号业务数据 → 标记历史邮箱账号注销 → 置当前账号 bind_email」，
-     * 任何一步失败都必须整体回滚，否则会出现「邮箱已被释放但业务数据没迁移」的中间态
+     * 迁移该账号业务数据 → 置当前账号 email」，任何一步失败都必须整体回滚，
+     * 否则会出现「邮箱已被释放但业务数据没迁移」的中间态
      * （旧微信掉了登录态、数据悬在新旧两账号之间）。
      *
-     * @param currentUser 发起认证的当前账号实体（认证态唯一写入点为其 bind_email）
+     * @param currentUser 发起认证的当前账号实体（认证态唯一写入点为其 email）
      * @param email       验证码绑定（并已消费）的邮箱
      */
     @Transactional(rollbackFor = Exception.class)
     public void applyVerifiedBinding(User currentUser, String email) {
-        // 已认证的微信绑定（bind_email = 邮箱）：被他人占用则释放并迁移其业务数据
-        User verifiedBinding = userMapper.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getBindEmail, email));
-        if (verifiedBinding != null && !verifiedBinding.getId().equals(currentUser.getId())) {
-            // 替换绑定：旧微信 bind_email=NULL（认证态判据即该列非空，清空即回落游客态）。
-            // 必须走 LambdaUpdateWrapper 显式 set NULL：updateById 对 null 字段默认不写列，
-            // bind_email 无法被清空，会导致唯一键占用不释放、替换绑定失效。
-            userMapper.update(null, new LambdaUpdateWrapper<User>()
-                    .eq(User::getId, verifiedBinding.getId())
-                    .set(User::getBindEmail, null));
-            publishOwnershipMigrated(verifiedBinding.getId(), currentUser.getId());
-        }
-
-        // 历史邮箱注册账号（email = 邮箱，旧账号密码体系）
-        User legacyAccount = userMapper.selectOne(
+        // 该邮箱已被他微信占用（email = 邮箱，即认证绑定唯一键）：释放并迁移其业务数据
+        User occupied = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getEmail, email));
-        if (legacyAccount != null && !legacyAccount.getId().equals(currentUser.getId())) {
-            // 数据归属转移：旧账号业务数据改挂到当前微信
-            publishOwnershipMigrated(legacyAccount.getId(), currentUser.getId());
-            // 旧账号清理：标记 deleted 并释放 email 唯一键占用。
-            // email 置 NULL 必须显式 set（updateById 忽略 null 字段不写列）：
-            // NULL 不占用 uk_user_email 唯一索引，空串则会与其它置 '' 的账号冲突。
+        if (occupied != null && !occupied.getId().equals(currentUser.getId())) {
+            // 替换绑定：旧微信 email=NULL（认证态判据即该列非空，清空即回落游客态）。
+            // 必须走 LambdaUpdateWrapper 显式 set NULL：updateById 对 null 字段默认不写列，
+            // email 无法被清空，会导致唯一键占用不释放、替换绑定失效。
             userMapper.update(null, new LambdaUpdateWrapper<User>()
-                    .eq(User::getId, legacyAccount.getId())
-                    .set(User::getStatus, UserConst.STATUS_DELETED)
+                    .eq(User::getId, occupied.getId())
                     .set(User::getEmail, null));
+            publishOwnershipMigrated(occupied.getId(), currentUser.getId());
         }
 
-        // 置当前微信为已认证：**认证态唯一写入点 = bind_email**（无布尔列，派生判据见 AuthStateUtil）
-        currentUser.setBindEmail(email);
+        // 置当前微信为已认证：**认证态唯一写入点 = email**（无布尔列，派生判据见 AuthStateUtil）
+        currentUser.setEmail(email);
         userMapper.updateById(currentUser);
     }
 

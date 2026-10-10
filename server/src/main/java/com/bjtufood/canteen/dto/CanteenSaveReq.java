@@ -10,9 +10,8 @@ import java.util.List;
 /**
  * 食堂新增 / 编辑请求（{@code POST /admin/canteens} · {@code PUT /admin/canteens/{id}}）。
  *
- * <p><b>可编辑字段 = {@code name} + {@code location} / {@code description} / {@code images} /
- * {@code sortOrder}</b> —— 食堂的全部业务列均在写入面内（管理端可达，见
- * {@code docs/api/web/stalls.md}）。
+ * <p><b>可编辑字段 = {@code name} + {@code location} / {@code description} / {@code images}</b> ——
+ * 食堂的全部业务列均在写入面内（管理端可达，见 {@code docs/api/web/stalls.md}）。
  *
  * <p>仍然<b>不在本 DTO 内</b>的字段：
  * <ul>
@@ -25,7 +24,7 @@ import java.util.List;
  * 请求体中出现这些字段一律忽略（不落库、不回写）。
  *
  * <p><b>空值语义</b>（{@code PUT}）：{@code name} 必填（整体替换）；
- * {@code location} / {@code description} / {@code images} / {@code sortOrder}
+ * {@code location} / {@code description} / {@code images}
  * <b>缺省 / {@code null} = 保持原值</b>，给值即覆盖（空串 / 空数组 = 清空）。
  */
 @Data
@@ -59,7 +58,4 @@ public class CanteenSaveReq {
     @Schema(description = "食堂图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空）")
     @Size(max = IMAGE_MAX, message = "食堂图片最多 5 张")
     private List<String> images;
-
-    @Schema(description = "排序权重（升序，越小越靠前；缺省 = 保持原值）", example = "10")
-    private Integer sortOrder;
 }

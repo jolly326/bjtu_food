@@ -47,11 +47,11 @@ type ReportReasonVO = SharedReportReasonVO
 
 /**
  * 端上展示模型：**必填**（契约字段可空，在此一次性兜底，避免 UI 模板处处判空）。
- * 字典项必带 id/label，契约的 `?` 只是 OpenAPI 对 record 分量的保守表达。
+ * 字典项必带 id/name，契约的 `?` 只是 OpenAPI 对 record 分量的保守表达。
  */
 export interface ReportReason {
   id: number
-  label: string
+  name: string
 }
 
 /**
@@ -62,6 +62,6 @@ export async function listReportReasons(): Promise<ReportReason[]> {
   const rows = await get<ReportReasonVO[]>('/report-reasons')
   if (!Array.isArray(rows)) return []
   return rows
-    .map((r) => ({ id: Number(r.id ?? 0), label: String(r.label ?? '') }))
-    .filter((r) => r.id && r.label)
+    .map((r) => ({ id: Number(r.id ?? 0), name: String(r.name ?? '') }))
+    .filter((r) => r.id && r.name)
 }

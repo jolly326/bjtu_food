@@ -34,7 +34,7 @@
 |---|---|---|
 | `id` | number | 反馈 ID |
 | `dishId` / `dishName` | number / string | 目标菜品 ID / 名称（**实时回查，含已下架**；菜品已物理删除为 null） |
-| `userId` / `userNickname` | number / string | 提交人（**匿名提交 `userId = 0`** 且昵称为空，后台显示为「游客」）；静默登录的游客为真实 ID |
+| `userId` / `userName` | number / string | 提交人（**匿名提交 `userId = 0`** 且昵称为空，后台显示为「游客」）；静默登录的游客为真实 ID |
 | `status` | string | `pending` / `adopted` / `rejected` |
 | `changeCount` | number | **差异项数量**（一眼看出「改了几项」） |
 | `floorImpact` | string \| null | 含 `floor` 改动时的连带影响提示（同档口菜品数） |
@@ -119,7 +119,7 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `needStallConfirm` | boolean | `true` |
-| `candidates` | object[] | 候选档口 `[{ id, name }]` |
+| `candidates` | object[] | 候选档口 `[{ id, name }]`（按 `id` 升序） |
 
 2. **第二段**：带 `stallId`（挂靠既有档口）或 `createIfMissing: true`（按提交名新建）再次调用 → 执行采纳。
 

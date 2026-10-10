@@ -20,11 +20,11 @@
           class="mt-tab"
           :class="{ active: tab.id === activeId }"
           role="button"
-          :aria-label="`筛选：${tab.label}`"
+          :aria-label="`筛选：${tab.name}`"
           hover-class="mt-tab-pressed"
           @tap="onSelect(tab.id)"
         >
-          <text class="mt-label">{{ tab.label }}</text>
+          <text class="mt-label">{{ tab.name }}</text>
           <!-- 选中态橙色短下划线：常驻节点 + opacity 切换（避免显隐引起行高跳动）；
                纯装饰（选中语义已由 .active 字重与 aria-label 表达），对读屏隐藏 -->
           <view class="mt-underline" :class="{ show: tab.id === activeId }" aria-hidden="true" />
@@ -37,12 +37,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { DishView } from '@/types/dish'
-
-/** 标签项：`id` 原样回传（无 null 特例：首个启用视图「为你推荐」也是普通视图）；文案一律来自服务端 */
-interface ViewTab {
-  id: number
-  label: string
-}
 
 const props = defineProps<{
   /** 筛选视图字典（`store.viewList`）——**后端已含「为你推荐」等聚合视图及种类视图**，端上原样渲染 */
@@ -60,8 +54,8 @@ const emit = defineEmits<{
  * 字典未到位（未加载 / 失败 / 后端返回空）⇒ 返回空数组 ⇒ 标签栏整体不渲染（不留空栏）。
  * 这样「「为你推荐」文案」「将来新增的视图」全部是服务端资产，端上零文案。
  */
-const tabs = computed<ViewTab[]>(() =>
-  (props.items ?? []).map((item) => ({ id: item.id, label: item.label })),
+const tabs = computed<DishView[]>(() =>
+  (props.items ?? []).map((item) => ({ id: item.id, name: item.name })),
 )
 
 /** 选中项滚动入视口（横向标签超过一屏时，切换后仍能看到高亮项） */

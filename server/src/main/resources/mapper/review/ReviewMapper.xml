@@ -25,7 +25,7 @@
     -->
 
     <!-- 评价行映射（2026-09-23 R5）：images 列 → List<String> 由 TypeHandler 完成；
-         其余下划线列（user_nickname / dish_name / created_at 等）按 mapUnderscoreToCamelCase 自动映射 -->
+         其余下划线列（user_name / dish_name / created_at 等）按 mapUnderscoreToCamelCase 自动映射 -->
     <resultMap id="reviewMap" type="com.bjtufood.review.dto.ReviewVO">
         <id property="id" column="id"/>
         <result property="images" column="images"
@@ -34,7 +34,7 @@
 
     <!--
         本人视角行映射：MyReviewVO 恰 7 字段（id / rating / content / images / createdAt + dishId / dishName），
-        不含作者标识三项（userId / userNickname / userAvatar）——本人视角下三者恒等于本人，属零信息，不下发。
+        不含作者标识三项（userId / userName / userAvatar）——本人视角下三者恒等于本人，属零信息，不下发。
         两条链路各自绑定自己的 VO，消费端据此定义两个类型（不靠「调哪个接口」区分字段集）。
     -->
     <resultMap id="myReviewMap" type="com.bjtufood.review.dto.MyReviewVO">
@@ -50,7 +50,7 @@
         SELECT
             r.id,
             r.user_id,
-            u.nickname AS user_nickname,
+            u.name AS user_name,
             COALESCE(u.avatar, '') AS user_avatar,
             r.rating,
             COALESCE(r.content, '') AS content,

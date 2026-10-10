@@ -334,7 +334,7 @@ onMounted(() => reloadFirstPage())
             <td><StatusTag :status="item.type" kind="correctionType" /></td>
             <td>{{ item.dishName ?? '菜品已删除' }}</td>
             <!-- 匿名提交 userId = 0 且昵称为空 → 回落「游客」 -->
-            <td>{{ item.userNickname || '游客' }}</td>
+            <td>{{ item.userName || '游客' }}</td>
             <td><StatusTag :status="item.status" kind="correction" /></td>
             <td class="muted">{{ formatDateTime(item.createdAt) }}</td>
             <td class="actions">
@@ -376,7 +376,7 @@ onMounted(() => reloadFirstPage())
       <template v-else-if="detail">
         <div class="ctx">
           <div class="ctx-label">
-            {{ detail.dishName ?? '菜品已删除' }} · {{ detail.userNickname || '游客' }}
+            {{ detail.dishName ?? '菜品已删除' }} · {{ detail.userName || '游客' }}
             <StatusTag :status="detail.type" kind="correctionType" />
           </div>
         </div>
@@ -456,7 +456,7 @@ onMounted(() => reloadFirstPage())
             <div class="meta-row meta-row--span">
               <span class="meta-key">提交人</span>
               <span class="meta-val">
-                {{ detail.userNickname || '游客' }}
+                {{ detail.userName || '游客' }}
                 <span class="muted"> #{{ detail.userId }}</span>
               </span>
             </div>

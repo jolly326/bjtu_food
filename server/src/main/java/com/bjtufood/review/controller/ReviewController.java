@@ -104,7 +104,7 @@ public class ReviewController {
         }
     }
 
-    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userNickname/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "我的评价列表", description = "STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userName/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1", security = @SecurityRequirement(name = "bearerAuth"))
     @PreAuthorize("hasRole('STUDENT')")
     @RequireVerified
     @GetMapping("/my/reviews")

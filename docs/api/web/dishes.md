@@ -37,7 +37,7 @@
 | `name` | string | 菜品名称 |
 | `price` / `originalPrice` | number \| null | 现价（分）/ 原价（分） |
 | `coverImage` | string | **封面图**（取 `images` 首图的派生值；无图为空串） |
-| `categoryId` / `categoryLabel` | number / string | 种类 ID / 种类中文名 |
+| `categoryId` / `categoryName` | number / string | 种类 ID / 种类中文名 |
 | `status` | string | `on` / `off` |
 | `avgRating` | number \| null | 均分（零评价为 `null`） |
 | `ratingCount` | number | 评价数（**列表即删除确认的影响面来源**） |
@@ -68,7 +68,7 @@
 | `price` / `originalPrice` | number \| null | 现价（分）/ 原价（分，可空） |
 | `description` | string | 描述（无为空串） |
 | `images` | string[] | 图片**绝对 URL** 数组（有序、首图作封面；恒为数组） |
-| `categoryId` / `categoryLabel` | number / string | 种类 ID / 种类中文名 |
+| `categoryId` / `categoryName` | number / string | 种类 ID / 种类中文名 |
 | `attributes` | object | 描述属性（键 = **描述维度** ID，值 = **中文**，服务端由取值 ID 翻译；**不含菜品种类**） |
 | `status` | string | `on` / `off` |
 | `avgRating` / `ratingCount` | number \| null / number | 均分 / 评价数（只读展示） |

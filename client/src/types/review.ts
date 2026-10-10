@@ -11,7 +11,7 @@
 export interface Review {
   id: number
   userId: number
-  userNickname: string
+  userName: string
   userAvatar: string
   rating: number
   content: string

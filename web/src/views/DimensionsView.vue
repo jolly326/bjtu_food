@@ -2,10 +2,9 @@
 /**
  * A4 菜品属性维度与取值（页面规格见 [属性维度与取值.md](../../../docs/ui/web/属性维度与取值.md)）。
  *
- * <p>要点：维度列表**不分页**（按 `order` 升序）+ **拖拽排序**（提交**全量行**，非法提交 → `400`）；
- * 表格**只放基础列**（维度 / 取值类型 / 取值数 / 关联菜品 / 更新时间 + 拖拽手柄）；
- * **全部操作**（管理取值 / 编辑 / 删除）都在**详情抽屉**内；抽屉三态：
- * `view`（只读 + 操作）/ `edit`（名称 + 取值类型）/ `values`（取值管理，紧凑表格 + 拖拽排序）。
+ * <p>要点：维度列表**不分页**、按维度 `id` 升序；表格**只放基础列**（维度 / 取值类型 / 取值数 /
+ * 关联菜品 / 更新时间）；**全部操作**（管理取值 / 编辑 / 删除）都在**详情抽屉**内；抽屉三态：
+ * `view`（只读 + 操作）/ `edit`（名称 + 取值类型）/ `values`（取值管理，紧凑表格）。
  *
  * <p>本页维度**全部可编辑 / 可删**（被菜品取值引用的维度由服务端按既有规则拦截删除）。
  */
@@ -15,7 +14,6 @@ import { confirmDelete } from '@/utils/confirm'
 import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
-import { useReorder } from '@/composables/useReorder'
 import {
   createDimension,
   createValue,
@@ -23,8 +21,6 @@ import {
   deleteValue,
   listDimensions,
   listValues,
-  sortDimensions,
-  sortValues,
   updateDimension,
   updateValue,
 } from '@/api/dimensions'
@@ -153,16 +149,13 @@ function removeDimension(row: DishDimensionAdminVO): Promise<void> {
   })
 }
 
-/* ==================== 维度：拖拽排序（提交全量行） ==================== */
-const { onDragStart, onDrop } = useReorder(items, sortDimensions, load)
-
 /* ==================== 取值：抽屉内管理 ==================== */
 const values = ref<DishValueAdminVO[]>([])
 const valuesLoading = ref(false)
 const valuesError = ref<string | null>(null)
-const newLabel = ref('')
+const newValueName = ref('')
 const editingValueId = ref<number | null>(null)
-const editingLabel = ref('')
+const editingValueName = ref('')
 /** 取值表（抽屉内）行内动作并发保护：提交中该行按钮 `:disabled`（与列表行同范式） */
 const busyValueId = ref<number | null>(null)
 
@@ -205,14 +198,14 @@ async function refreshAll(): Promise<void> {
 
 async function addValue(): Promise<void> {
   const dim = current.value
-  const label = newLabel.value.trim()
-  if (!dim || !label) {
+  const name = newValueName.value.trim()
+  if (!dim || !name) {
     ElMessage.warning('请输入取值名称')
     return
   }
   try {
-    await createValue(dim.id, { label })
-    newLabel.value = ''
+    await createValue(dim.id, { name })
+    newValueName.value = ''
     ElMessage.success('已新增')
     // 抽屉保持打开（连续录入）；列表与计数同源刷新
     await refreshAll()
@@ -224,16 +217,16 @@ async function addValue(): Promise<void> {
 
 function startRename(row: DishValueAdminVO): void {
   editingValueId.value = row.id
-  editingLabel.value = row.label
+  editingValueName.value = row.name
 }
 
 async function commitRename(row: DishValueAdminVO): Promise<void> {
   const dim = current.value
-  const label = editingLabel.value.trim()
-  if (!dim || !label) return
+  const name = editingValueName.value.trim()
+  if (!dim || !name) return
   busyValueId.value = row.id
   try {
-    await updateValue(dim.id, row.id, { label })
+    await updateValue(dim.id, row.id, { name })
     editingValueId.value = null
     ElMessage.success('已改名')
     await refreshAll()
@@ -248,7 +241,7 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
   const dim = current.value
   if (!dim) return
   try {
-    await confirmDelete(`确认删除取值「${row.label}」？被菜品引用时将无法删除。`, {
+    await confirmDelete(`确认删除取值「${row.name}」？被菜品引用时将无法删除。`, {
       title: '删除取值',
     })
   } catch {
@@ -265,13 +258,6 @@ async function removeValue(row: DishValueAdminVO): Promise<void> {
     busyValueId.value = null
   }
 }
-
-/* 取值拖拽排序（提交全量行，复用 useReorder） */
-const { onDragStart: onValueDragStart, onDrop: onValueDrop } = useReorder(
-  values,
-  (req) => sortValues(current.value!.id, req),
-  loadValues,
-)
 
 onMounted(() => load())
 </script>
@@ -296,7 +282,6 @@ onMounted(() => load())
       <table class="table">
         <thead>
           <tr>
-            <th class="drag-col"></th>
             <th>维度</th>
             <th>取值类型</th>
             <th>取值数</th>
@@ -306,8 +291,7 @@ onMounted(() => load())
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
-            <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
+          <tr v-for="row in items" :key="row.id">
             <td>{{ row.name }}</td>
             <td>{{ row.valueType === 'single' ? '单选' : '多选' }}</td>
             <td class="num">{{ row.valueCount }}</td>
@@ -327,7 +311,7 @@ onMounted(() => load())
         </tbody>
       </table>
       <p class="foot-note">
-        顺序在行首手柄上拖拽调整；取值在「详情 → 管理取值」内维护（新增 / 改名 / 删除 / 拖拽排序）。
+        维度与取值均按 ID 升序；取值在「详情 → 管理取值」内维护（新增 / 改名 / 删除）。
       </p>
     </div>
 
@@ -355,13 +339,6 @@ onMounted(() => load())
               <span class="meta-val num">
                 #{{ current?.id }}
                 <span class="muted">（= 菜品 attributes 的键）</span>
-              </span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-key">顺序</span>
-              <span class="meta-val num">
-                {{ current?.order }}
-                <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
               </span>
             </div>
             <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
@@ -404,12 +381,12 @@ onMounted(() => load())
         </div>
       </template>
 
-      <!-- ③ 取值管理态（紧凑表格 + 拖拽排序） -->
+      <!-- ③ 取值管理态（紧凑表格，按取值 ID 升序） -->
       <template v-else>
         <div class="add-row">
           <input
             class="form-input"
-            v-model="newLabel"
+            v-model="newValueName"
             placeholder="新增取值名称（≤32 字）"
             @keyup.enter="addValue"
           />
@@ -429,7 +406,6 @@ onMounted(() => load())
           <table class="table table--compact">
             <thead>
               <tr>
-                <th class="drag-col"></th>
                 <th>取值</th>
                 <th>引用菜品</th>
                 <th>更新时间</th>
@@ -437,22 +413,16 @@ onMounted(() => load())
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="(v, index) in values"
-                :key="v.id"
-                @dragover.prevent
-                @drop="onValueDrop(index)"
-              >
-                <td class="drag-col"><DragHandle @dragstart="onValueDragStart(index)" /></td>
+              <tr v-for="v in values" :key="v.id">
                 <td>
                   <input
                     v-if="editingValueId === v.id"
                     class="form-input inline"
-                    v-model="editingLabel"
+                    v-model="editingValueName"
                     @keyup.enter="commitRename(v)"
                     @keyup.esc="editingValueId = null"
                   />
-                  <span v-else>{{ v.label }}</span>
+                  <span v-else>{{ v.name }}</span>
                 </td>
                 <td class="num">{{ v.dishCount }}</td>
                 <td class="muted">{{ formatDateTime(v.updatedAt) }}</td>

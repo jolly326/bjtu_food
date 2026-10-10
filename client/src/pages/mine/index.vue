@@ -20,8 +20,8 @@
              认证动作的单一入口为宫格「身份认证」格，本段不放「去认证」按钮 -->
         <IdentityCard
           mode="entry"
-          :nickname="userInfo?.nickname"
-          :bind-email="bindEmail"
+          :name="userInfo?.name"
+          :email="email"
           :avatar="userInfo?.avatar"
           :verified="isVerified"
           @enter="onUserCardTap"
@@ -114,10 +114,10 @@ const userStore = useUserStore()
 const authStore = useAuthStore()
 const notifyStore = useNotifyStore()
 const userInfo = computed(() => userStore.userInfo)
-/** 已认证（bindEmail 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分 */
+/** 已认证（email 非空）——微信静默登录后恒有登录态，游客 / 认证由 isVerified() 单点派生区分 */
 const isVerified = computed(() => userStore.isVerified())
-/** 校园邮箱展示值：唯一来源 `bindEmail`（认证态副行） */
-const bindEmail = computed(() => userInfo.value?.bindEmail || '')
+/** 校园邮箱展示值：唯一来源 `email`（认证态副行） */
+const email = computed(() => userInfo.value?.email || '')
 /** 版本号：构建期由 vite.config.ts 从 manifest.json versionName 注入（小程序运行时读不到 manifest） */
 const appVersion = __APP_VERSION__
 

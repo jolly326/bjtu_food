@@ -385,7 +385,7 @@ class CorrectionServiceImplTest {
         page.setRecords(List.of(withFloor, withoutFloor));
         page.setTotal(2);
         when(correctionMapper.selectPage(any(), any())).thenReturn(page);
-        when(userService.mapNicknameByIds(any())).thenReturn(Map.of(1L, "交大干饭王", 2L, "食堂常客"));
+        when(userService.mapNameByIds(any())).thenReturn(Map.of(1L, "交大干饭王", 2L, "食堂常客"));
         when(dishService.mapNameByIds(any())).thenReturn(Map.of(3L, "牛肉拉面"));
 
         List<DishCorrectionAdminVO> records = service().listForAdmin(null, null, 1, 10).getRecords();
@@ -630,7 +630,7 @@ class CorrectionServiceImplTest {
         when(correctionMapper.selectById(anyLong())).thenReturn(c);
         when(dishService.existsById(anyLong())).thenReturn(true);
         CorrectionServiceImpl svc = service();
-        when(userService.mapNicknameByIds(any())).thenReturn(Map.of(1L, "交大干饭王"));
+        when(userService.mapNameByIds(any())).thenReturn(Map.of(1L, "交大干饭王"));
 
         DishCorrectionDetailVO vo = svc.getDetail(9L);
 

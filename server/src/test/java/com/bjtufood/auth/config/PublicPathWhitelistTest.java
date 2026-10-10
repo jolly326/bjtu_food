@@ -52,8 +52,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         SecurityConfig.class,
         JwtAuthFilter.class,
         AdminAuthFilter.class,
-        // 管理端操作审计（AdminAuthFilter 构造依赖）：切片内装配真实记录器 + 打桩其 Mapper 与告警通道
-        com.bjtufood.common.audit.AdminAuditRecorder.class,
         AdminJwtUtil.class,
         JwtUtil.class,
         TokenBlacklist.class
@@ -92,14 +90,6 @@ class PublicPathWhitelistTest {
     /** AdminAuthFilter 依赖账号回查（凭证吊销，TD-25）；切片打桩避免上下文缺 bean */
     @MockBean
     private com.bjtufood.auth.service.AdminAccountService adminAccountService;
-
-    /** 审计写入依赖的 Mapper：切片不连库，打桩 */
-    @MockBean
-    private com.bjtufood.common.audit.mapper.AdminAuditLogMapper adminAuditLogMapper;
-
-    /** 安全告警通道：打桩，避免测试真的发起 HTTP 推送 */
-    @MockBean
-    private com.bjtufood.common.alert.SecurityAlertNotifier securityAlertNotifier;
 
     /**
      * 核心用例：游客（无 Authorization 头）访问 {@code GET /dishes} 必须放行。

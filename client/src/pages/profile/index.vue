@@ -38,10 +38,10 @@
           />
         </view>
 
-        <!-- 校园邮箱（只读）：唯一来源 bindEmail（认证判据同源；未认证以 '--' 占位） -->
+        <!-- 校园邮箱（只读）：唯一来源 email（认证判据同源；未认证以 '--' 占位） -->
         <view class="info-row">
           <text class="info-label">校园邮箱</text>
-          <text class="info-value info-value-email">{{ bindEmail || EMPTY_FIELD_TEXT }}</text>
+          <text class="info-value info-value-email">{{ email || EMPTY_FIELD_TEXT }}</text>
         </view>
       </view>
     </scroll-view>
@@ -90,8 +90,8 @@ onMounted(() => {
 
 const userStore = useUserStore()
 const userInfo = computed(() => userStore.userInfo)
-/** 校园邮箱展示值：唯一来源 bindEmail（未认证为空，行内以 '--' 占位，不空白） */
-const bindEmail = computed(() => userInfo.value?.bindEmail || '')
+/** 校园邮箱展示值：唯一来源 email（未认证为空，行内以 '--' 占位，不空白） */
+const email = computed(() => userInfo.value?.email || '')
 
 // N07/审计#2 修复：userInfo 在 setup 时可能仍为 null（静默登录异步回填），
 // 直接用快照会导致头像/昵称永久空白且回写空值。改为响应式派生 + watch immediate 回填。
@@ -109,7 +109,7 @@ watch(
   (u) => {
     if (!u) return
     if (u.avatar) avatar.value = u.avatar
-    if (u.nickname) nickname.value = u.nickname
+    if (u.name) nickname.value = u.name
     initialNickname.value = nickname.value
     initialAvatar.value = avatar.value
   },
@@ -172,7 +172,7 @@ async function save() {
   }
   saving.value = true
   try {
-    await userStore.updateProfile({ nickname: name, avatar: avatar.value })
+    await userStore.updateProfile({ name, avatar: avatar.value })
     toastSuccess('已保存')
     if (navTimer) clearTimeout(navTimer)
     navTimer = setTimeout(backToHome, 400)

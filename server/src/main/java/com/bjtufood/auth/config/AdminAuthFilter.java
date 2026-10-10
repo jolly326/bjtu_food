@@ -3,8 +3,6 @@ package com.bjtufood.auth.config;
 import com.bjtufood.auth.entity.AdminAccount;
 import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.support.AdminJwtUtil;
-import com.bjtufood.common.audit.AdminAuditRecorder;
-import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
@@ -47,7 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li><b>fail-closed（启动级）</b>：未配置 secret 时<b>启动即失败</b>
  *       （{@code AdminJwtUtil#validateSecretOnStartup}），而非「启动后所有请求静默通过」；</li>
  *   <li><b>fail-closed（请求级）</b>：缺 token / 签名无效 / 已过期 / 账号已停用（按 token 内
- *       账号 ID 回查 {@code admin_account.status}）→ 一律 <b>401</b>，绝不降级放行 ——
+ *       账号 ID 回查 {@code admin.status}）→ 一律 <b>401</b>，绝不降级放行 ——
  *       C1「停用账号即刻生效」由此兑现；</li>
  *   <li><b>401 而非 403</b>：401 触发端上「清 token → 跳登录页」，403 不会 —— 这是端上
  *       会话失效处理的唯一依据；</li>
@@ -71,7 +69,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     private final AdminJwtUtil adminJwtUtil;
 
     /**
-     * 账号状态回查（凭证吊销）：验签通过后按 token 内 ID 回查 {@code admin_account.status}，
+     * 账号状态回查（凭证吊销）：验签通过后按 token 内 ID 回查 {@code admin.status}，
      * 停用 / 不存在即 401。管理端请求低频（限频 60/分），逐请求回查成本可接受；
      * <b>不引入缓存</b> —— 状态一旦变更必须立即生效，缓存反而破坏「即刻生效」语义。
      */
@@ -85,20 +83,9 @@ public class AdminAuthFilter extends OncePerRequestFilter {
      */
     private final IpRateLimiter ipRateLimiter;
 
-    /**
-     * 操作审计写入点：{@code /admin/**} 下的**写操作**（POST / PUT / DELETE / PATCH）落库。
-     * <p>
-     * 覆盖范围由「路径前缀 + HTTP 方法」判定 —— 新增写端点自动纳入，不存在「忘了挂审计」的漏挂面。
-     * 审计写入失败不阻塞业务（见 {@link AdminAuditRecorder}）。
-     */
-    private final AdminAuditRecorder adminAuditRecorder;
-
     private static final Logger log = LoggerFactory.getLogger(AdminAuthFilter.class);
 
-    /** User-Agent 头名（审计留痕用） */
-    private static final String USER_AGENT_HEADER = "User-Agent";
-
-    /** 角色取值（与 {@code admin_account.role} 一致） */
+    /** 角色取值（与 {@code admin.role} 一致） */
     private static final String ROLE_SUPER = "super";
 
     private static final String ROLE_OPERATOR = "operator";
@@ -296,23 +283,11 @@ public class AdminAuthFilter extends OncePerRequestFilter {
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
                         new SimpleGrantedAuthority("ROLE_ADMIN_" + role.toUpperCase(Locale.ROOT)))));
         clearFailure(clientIp);
-        String httpMethod = request.getMethod();
         try {
             filterChain.doFilter(request, response);
         } finally {
             // 无状态体系：请求结束必须清理，避免容器线程复用导致认证残留
             SecurityContextHolder.clearContext();
-            // 操作审计：写操作落库（读请求不落，避免审计表被浏览类请求刷爆）。
-            // 变更前后值快照由 Service 侧登记在本线程上下文中，此处取走并落库（取走即清除）。
-            if (adminAuditRecorder.isAuditable(httpMethod)) {
-                String result = response.getStatus() < 400 ? "success" : "fail:" + response.getStatus();
-                String[] snapshot = AuditSnapshot.take();
-                adminAuditRecorder.record(accountId, httpMethod, applicationPath(request), result,
-                        clientIp, request.getHeader(USER_AGENT_HEADER), snapshot[0], snapshot[1]);
-            } else {
-                // 读请求：清掉可能残留的登记（容器线程复用，绝不跨请求带出）
-                AuditSnapshot.clear();
-            }
         }
     }
 

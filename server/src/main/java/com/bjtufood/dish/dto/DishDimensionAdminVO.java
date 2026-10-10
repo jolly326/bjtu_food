@@ -24,9 +24,6 @@ public class DishDimensionAdminVO {
     @Schema(description = "取值类型：single / multi")
     private String valueType;
 
-    @Schema(description = "展示顺序（升序）")
-    private Integer order;
-
     @Schema(description = "使用该维度的菜品数（删除前判断）")
     private Long dishCount;
 

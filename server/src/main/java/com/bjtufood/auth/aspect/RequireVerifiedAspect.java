@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * 认证拦截切面（DEV-13：UGC 写操作前置守卫）
  * <p>
- * 拦截 {@code @RequireVerified} 注解方法，实时查 user.bind_email（认证态唯一判据，
+ * 拦截 {@code @RequireVerified} 注解方法，实时查 user.email（认证态唯一判据，
  * 判据真源 {@code AuthStateUtil}）：未登录 → 401(code 401)、邮箱未绑定 → 403(code 4031)。
  * <p>
  * <b>不信任 JWT 快照</b>：本切面在请求时实时查库（selectById 主键 O(1)，UGC 写 QPS 低），

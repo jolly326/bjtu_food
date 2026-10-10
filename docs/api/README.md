@@ -35,7 +35,6 @@
 | [web/feedback.md](./web/feedback.md) | `/admin/feedbacks*`（意见反馈 + 举报） |
 | [web/corrections.md](./web/corrections.md) | `/admin/corrections*` |
 | [web/users.md](./web/users.md) | `/admin/users*` |
-| [web/alerts.md](./web/alerts.md) | `/admin/alerts`（安全告警记录，只读） |
 | [web/dashboard.md](./web/dashboard.md) | `/admin/dashboard` |
 | [web/upload.md](./web/upload.md) | `/admin/upload` |
 
@@ -67,7 +66,7 @@
 | 403 | 无权限 | Toast 展示 `message` |
 | **429** | **请求过于频繁**（限频，等待后可重试） | Toast 展示 `message` + **退避倒计时**（按文案里的秒数禁用入口，结束后自动恢复） |
 | **4001** | **资源不存在**（含「已下架」对外等价） | 展示文案 + **给恢复路径**（如返回首页） |
-| **4031** | **邮箱未认证**（`bindEmail` 为空） | 跳转身份认证页 `pages/auth/index`，认证后返回原页续接 |
+| **4031** | **邮箱未认证**（`email` 为空） | 跳转身份认证页 `pages/auth/index`，认证后返回原页续接 |
 | 500 | 服务器异常 | 展示可重试失败态 |
 
 > `4001` 与 `4031` 是通用**细分码**：让端上**不必解析 `message` 文本**即可给出差异化引导。
@@ -102,7 +101,9 @@
 
 ### 拖拽排序提交
 
-六个 `PUT .../sort`（[web/dimensions.md](./web/dimensions.md) 维度 / 取值、[web/views.md](./web/views.md) 视图、[web/categories.md](./web/categories.md) 分类（种类字典）、[web/banners.md](./web/banners.md) Banner、[web/report-reasons.md](./web/report-reasons.md) 举报原因）**统一口径**：`items` 仍是该列表的**全量行**（缺行 ⇒ 顺序不完整 → `400`），服务端**整体替换** `order`；`items` 为空 / 含未知 `id` / 含重复 `id` / 同一 `order` 重复 → 一律 `400`「排序提交非法」。
+全站唯一带排序位的资源是 **Banner**（[web/banners.md](./web/banners.md)），其 `PUT /admin/banners/sort` 口径为：`items` 是该列表的**全量行**（缺行 ⇒ 顺序不完整 → `400`），服务端**整体替换** `order`；`items` 为空 / 含未知 `id` / 含重复 `id` / 同一 `order` 重复 → 一律 `400`「排序提交非法」。
+
+> 其余字典类资源（种类 / 维度 / 取值 / 举报原因 / 筛选视图）**不设排序位**，列表与端上下发顺序一律按 `id` 升序（见 [schema/README](../schema/README.md)）。
 
 ### 金额
 
@@ -124,9 +125,9 @@
 | 数组字段**恒为数组** | 无数据时返回 `[]`，**不为 null** |
 | 有意可空的字段 | 逐字段在资源文档中标注「可空 = 是」并说明 `null` 的语义 |
 
-**有意可空字段（逐条登记）**：`originalPrice`（`null` = 无折扣）、`avatar`（`null` = 无头像）、`bindEmail`（`null` = 游客态）—— 与「值为 0 / 空串」语义不同，端上按各资源文档的「可空 = 是」判定。
+**有意可空字段（逐条登记）**：`originalPrice`（`null` = 无折扣）、`avatar`（`null` = 无头像）、`email`（`null` = 游客态）—— 与「值为 0 / 空串」语义不同，端上按各资源文档的「可空 = 是」判定。
 
-> ⚠️ **`avatar` / `bindEmail` 的「空」有两种形态，按端区分**：**管理端 VO**（`/admin/**`）走「字符串恒非空」约定 ⇒ **一律 `COALESCE` 成空串**（见 [web/users.md](./web/users.md)：`bindEmail` 空串 = 未认证）；**登录态 VO**（`GET /auth/profile` 等）保留 **`null`**。前端**按所在端的约定判空**，不得跨端复用判空逻辑。
+> ⚠️ **`avatar` / `email` 的「空」有两种形态，按端区分**：**管理端 VO**（`/admin/**`）走「字符串恒非空」约定 ⇒ **一律 `COALESCE` 成空串**（见 [web/users.md](./web/users.md)：`email` 空串 = 未认证）；**登录态 VO**（`GET /auth/profile` 等）保留 **`null`**。前端**按所在端的约定判空**，不得跨端复用判空逻辑。
 
 ### 鉴权标记
 
@@ -134,7 +135,7 @@
 |---|---|---|
 | 🔓 公开 | 免登录可调用 | — |
 | 🔑 需登录 | 需 JWT 登录（**游客态亦可**，无需邮箱认证） | 401 |
-| 🔐 认证 | 需学号邮箱认证（判据 = `bindEmail` 非空） | **4031** |
+| 🔐 认证 | 需学号邮箱认证（判据 = `email` 非空） | **4031** |
 
 > 端上统一由 `useUserStore().isVerified()` 单点派生认证态，页面 / 组件不得散写判空。
 > 上述标记针对**学生端**；管理端一律走**账密登录 + JWT**（见 [web/auth.md](./web/auth.md)）。

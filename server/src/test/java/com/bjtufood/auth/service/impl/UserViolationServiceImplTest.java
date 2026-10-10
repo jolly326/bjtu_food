@@ -4,11 +4,14 @@ import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.auth.constant.UserConst;
 import com.bjtufood.auth.constant.ViolationConst;
 import com.bjtufood.auth.entity.User;
-import com.bjtufood.auth.entity.UserViolation;
 import com.bjtufood.auth.mapper.UserMapper;
-import com.bjtufood.auth.mapper.UserViolationMapper;
 import com.bjtufood.common.alert.AlertType;
 import com.bjtufood.common.alert.SecurityAlertNotifier;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -16,7 +19,6 @@ import org.mockito.ArgumentCaptor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -25,19 +27,27 @@ import static org.mockito.Mockito.when;
 /**
  * 违规累积梯度处置回归。
  *
- * <p>锁定两条硬约束：① 档位判定（次数 → 处置）不得漂移；② **每次处置动作必须留痕 + 告警**
- * （防「静默封号」）。
+ * <p>锁定三条硬约束：① 档位判定（次数 → 处置）不得漂移；② **每次处置动作必须告警**（防「静默封号」）；
+ * ③ 计数与处置动作直接 upsert 到 user 行（{@code violation_count} / {@code muted_until} / {@code status}），
+ * 不落任何留痕表。
  */
 class UserViolationServiceImplTest {
 
     private final UserMapper userMapper = mock(UserMapper.class);
-    private final UserViolationMapper userViolationMapper = mock(UserViolationMapper.class);
     private final UserStateWriteLock writeLock = new UserStateWriteLock();
     private final TokenBlacklist tokenBlacklist = mock(TokenBlacklist.class);
     private final SecurityAlertNotifier notifier = mock(SecurityAlertNotifier.class);
 
     private final UserViolationServiceImpl service = new UserViolationServiceImpl(
-            userMapper, userViolationMapper, writeLock, tokenBlacklist, notifier);
+            userMapper, writeLock, tokenBlacklist, notifier);
+
+    /** 纯 Mockito 无 Spring 上下文，MyBatis-Plus 的 lambda 缓存需显式初始化 */
+    @BeforeAll
+    static void initMybatisLambdaCache() {
+        MapperBuilderAssistant assistant =
+                new MapperBuilderAssistant(new MybatisConfiguration(), UserViolationServiceImplTest.class.getName());
+        TableInfoHelper.initTableInfo(assistant, User.class);
+    }
 
     private User user(int violationCount) {
         User user = new User();
@@ -62,48 +72,51 @@ class UserViolationServiceImplTest {
     }
 
     @Test
-    @DisplayName("未达处置阈值：只累计计数 + 留痕，不告警、不动账号状态")
+    @DisplayName("未达处置阈值：只累加 user.violation_count，不告警、不动账号状态")
     void belowThresholdOnlyCounts() {
         when(userMapper.selectOne(any())).thenReturn(user(1));
 
         service.recordModerationHit("openid-9");
 
-        ArgumentCaptor<UserViolation> row = ArgumentCaptor.forClass(UserViolation.class);
-        verify(userViolationMapper).insert(row.capture());
-        assertThat(row.getValue().getAction()).isEqualTo(ViolationConst.ACTION_COUNTED);
-        assertThat(row.getValue().getSource()).isEqualTo(ViolationConst.SOURCE_MODERATION);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaUpdateWrapper<User>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+        verify(userMapper).update(org.mockito.ArgumentMatchers.isNull(), captor.capture());
+        // 写面恰为累计计数列：不含 status / muted_until
+        assertThat(captor.getValue().getSqlSet()).contains("violation_count");
+        assertThat(captor.getValue().getSqlSet()).doesNotContain("status").doesNotContain("muted_until");
         verify(notifier, never()).notify(any(), any(), any());
-        verify(userMapper).update(isNull(), any());
-    }
-
-    @Test
-    @DisplayName("达限言档：写留痕 + 推告警（处置不得静默）")
-    void muteThresholdLeavesTraceAndAlerts() {
-        when(userMapper.selectById(9L)).thenReturn(user(5));
-
-        service.recordReportUpheld(9L);
-
-        ArgumentCaptor<UserViolation> row = ArgumentCaptor.forClass(UserViolation.class);
-        verify(userViolationMapper).insert(row.capture());
-        assertThat(row.getValue().getAction()).isEqualTo(ViolationConst.ACTION_MUTE_24H);
-        assertThat(row.getValue().getSource()).isEqualTo(ViolationConst.SOURCE_REPORT);
-        verify(notifier).notify(eq(AlertType.VIOLATION_PENALTY), eq("学生账号违规累积处置"),
-                any(String.class));
-        // 限言不解绑 token（读仍要可用），故不吊销
         verify(tokenBlacklist, never()).revokeUser(any());
     }
 
     @Test
-    @DisplayName("达封禁档：吊销该用户全部 token（存量凭证立即失效）")
-    void banThresholdRevokesTokens() {
+    @DisplayName("达限言档：写 muted_until + 推告警（处置不得静默），不吊销 token（读仍可用）")
+    void muteThresholdUpdatesMuteAndAlerts() {
+        when(userMapper.selectById(9L)).thenReturn(user(5));
+
+        service.recordReportUpheld(9L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaUpdateWrapper<User>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+        verify(userMapper).update(org.mockito.ArgumentMatchers.isNull(), captor.capture());
+        assertThat(captor.getValue().getSqlSet()).contains("violation_count").contains("muted_until");
+        verify(notifier).notify(eq(AlertType.VIOLATION_PENALTY), eq("学生账号违规累积处置"),
+                any(String.class));
+        verify(tokenBlacklist, never()).revokeUser(any());
+    }
+
+    @Test
+    @DisplayName("达封禁档：写 status 并吊销该用户全部 token（存量凭证立即失效）")
+    void banThresholdBansAndRevokesTokens() {
         when(userMapper.selectById(9L)).thenReturn(user(11));
 
         service.recordReportUpheld(9L);
 
-        ArgumentCaptor<UserViolation> row = ArgumentCaptor.forClass(UserViolation.class);
-        verify(userViolationMapper).insert(row.capture());
-        assertThat(row.getValue().getAction()).isEqualTo(ViolationConst.ACTION_BAN);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaUpdateWrapper<User>> captor = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+        verify(userMapper).update(org.mockito.ArgumentMatchers.isNull(), captor.capture());
+        assertThat(captor.getValue().getSqlSet()).contains("violation_count").contains("status");
         verify(tokenBlacklist).revokeUser(9L);
+        verify(notifier).notify(eq(AlertType.VIOLATION_PENALTY), any(), any());
     }
 
     @Test
@@ -115,8 +128,8 @@ class UserViolationServiceImplTest {
 
         service.recordReportUpheld(9L);
 
-        verify(userViolationMapper, never()).insert(any(UserViolation.class));
         verify(userMapper, never()).update(any(), any());
+        verify(notifier, never()).notify(any(), any(), any());
     }
 
     @Test
@@ -125,6 +138,7 @@ class UserViolationServiceImplTest {
         service.recordModerationHit(null);
         service.recordReportUpheld(null);
 
-        verify(userViolationMapper, never()).insert(any(UserViolation.class));
+        verify(userMapper, never()).update(any(), any());
+        verify(userMapper, never()).selectById(any());
     }
 }

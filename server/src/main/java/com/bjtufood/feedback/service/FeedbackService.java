@@ -47,10 +47,10 @@ public interface FeedbackService {
      * <p>
      * **真源 = `report_reason` 表**，由 {@code ReportReasonService#listEnabled()} 供给 —— 字典可维护、免发版、免客户端改动。
      * <p>
-     * 出参结构：恰 {@code value} + {@code label}、无分页；**只下发启用项**，
-     * 顺序来自表（拖拽后的 {@code order}）。
+     * 出参结构：恰 {@code id} + {@code name}、无分页；**只下发启用项**，
+     * 顺序为视图 {@code id} 升序。
      *
-     * @return 举报原因字典项（value 机器值 + label 中文标签，按 `order` 升序，仅启用项）
+     * @return 举报原因字典项（id 原因 ID + name 中文名，按 `id` 升序，仅启用项）
      */
     List<ReportReasonVO> reportReasons();
 

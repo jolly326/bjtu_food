@@ -47,7 +47,7 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `userCount` | number | 用户总数（**不含已注销**） |
-| `verifiedUserCount` | number | 已认证用户数（`bind_email` 非空） |
+| `verifiedUserCount` | number | 已认证用户数（`user.email` 非空） |
 | `onSaleDishCount` | number | 在售菜品数（`status='on'`） |
 | `reviewCount` | number | 评价总数（**含已隐藏**） |
 

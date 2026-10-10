@@ -4,7 +4,9 @@ import { fail } from '@/utils/error'
 
 /**
  * 列表拖拽排序：统一管理 `dragIndex` / `onDragStart` / `onDrop`，落位后调用 `sortApi` 全量保存并 `load` 刷新。
- * 视图 / 举报原因 / Banner / 维度四个管理视图的 onDrop 算法完全一致，仅 `sortApi` 不同，收口至此。
+ *
+ * <p>消费方**只有 A5 首页 Banner**（`banner` 是全站唯一保留排序位的资源，见
+ * [api/web/banners.md](../../../docs/api/web/banners.md)）：其余字典类资源一律按 `id` 升序、无排序入口。
  */
 export function useReorder<T extends { id: number }>(
   items: Ref<T[]>,

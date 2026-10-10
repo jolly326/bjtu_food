@@ -51,10 +51,6 @@ public class Stall {
     @Schema(description = "档口描述")
     private String description;
 
-    /** 排序权重 */
-    @Schema(description = "排序权重")
-    private Integer sortOrder;
-
     /** 更新时间（DB 时钟：UPDATE 由 `ON UPDATE CURRENT_TIMESTAMP` 维护，应用层不写、不填充） */
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;

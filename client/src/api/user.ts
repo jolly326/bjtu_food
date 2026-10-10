@@ -4,17 +4,17 @@ import type { UserInfoVO, LoginVO } from './shared'
 import { DEFAULT_NICKNAME } from '@/constants/copy'
 
 /**
- * 账号信息映射（`UserInfoVO` 4 字段：id / nickname / avatar / bindEmail）。
- * 不读取：`verified`（由 bindEmail 单点派生）、`email`（恒空，校园邮箱唯一来源 = bindEmail）、
- * `status` / `createdAt` / `guestShortId` / `username`（身份副行统一渲染 bindEmail，裸学号不展示）。
+ * 账号信息映射（`UserInfoVO` 4 字段：id / name / avatar / email）。
+ * 不读取：`verified`（由 email 单点派生，非空即已认证）、
+ * `status` / `createdAt` / `guestShortId` / `username`（身份副行统一渲染 email，裸学号不展示）。
  */
 function toUserInfo(raw: UserInfoVO): UserInfo {
   return {
     id: Number(raw.id ?? 0),
-    nickname: raw.nickname || DEFAULT_NICKNAME,
+    name: raw.name || DEFAULT_NICKNAME,
     avatar: raw.avatar || '',
-    // 微信登录体系：bindEmail 由后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
-    bindEmail: raw.bindEmail || undefined,
+    // 已认证绑定校园邮箱：后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
+    email: raw.email || undefined,
   }
 }
 
@@ -46,8 +46,8 @@ export async function wechatLogin(code: string): Promise<AuthResult> {
 }
 
 /**
- * 学号邮箱认证：验证码绑定当前微信 → 落库 bindEmail
- * （认证态唯一写入点）；JWT 不含 bind_email、实时查库，不重发 token。
+ * 学号邮箱认证：验证码绑定当前微信 → 写入 email
+ * （认证态唯一写入点）；JWT 不含 email、实时查库，不重发 token。
  * **出参 `data` 直接为 `UserInfoVO`（无 `userInfo` 外层包装）**。
  */
 export async function verifyEmail(code: string): Promise<UserInfo> {
@@ -61,7 +61,7 @@ export async function getProfile(): Promise<UserInfo> {
   return toUserInfo(resp)
 }
 
-export async function updateProfile(data: { nickname?: string; avatar?: string }): Promise<UserInfo> {
+export async function updateProfile(data: { name?: string; avatar?: string }): Promise<UserInfo> {
   const resp = await put<UserInfoVO>('/auth/profile', data)
   return toUserInfo(resp)
 }

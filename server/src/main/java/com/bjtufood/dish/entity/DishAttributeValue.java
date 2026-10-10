@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * <p>
  * <b>模型反转</b>：取值有独立行与 ID；`dish.attributes` 存的是**取值 ID**
  * （`single` 为数字 / `multi` 为数字数组），出参经服务端翻译为中文 ⇒ 客户端展示契约不变。
- * 因此改 `label` 只改一行、**全站生效（改名免费）**。
+ * 因此改 {@code name} 只改一行、**全站生效（改名免费）**。
  * <p>
  * 删除约束：被菜品引用时禁止删除（应用层统计 `dishCount`），避免菜品属性读到悬空 ID。
  * 口径真源：docs/schema/dish_attribute_value.md 与 docs/api/web/dimensions.md。
@@ -31,11 +31,7 @@ public class DishAttributeValue {
     private Long dimensionId;
 
     @Schema(description = "取值中文名（展示用；可改，改名免费）", example = "半荤")
-    private String label;
-
-    /** 组内展示顺序（升序） */
-    @Schema(description = "组内展示顺序（升序）", example = "1")
-    private Integer sortOrder;
+    private String name;
 
     /** 更新时间（管理端列表出参；本表**无 created_at**；DB 时钟 `ON UPDATE CURRENT_TIMESTAMP`，应用层不写、不填充） */
     @Schema(description = "更新时间")

@@ -25,18 +25,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SaveReqFieldSetTest {
 
     @Test
-    @DisplayName("CanteenSaveReq 字段集 = {name, location, description, images, sortOrder}：时间列 / 派生统计不在写入面内")
+    @DisplayName("CanteenSaveReq 字段集 = {name, location, description, images}：时间列 / 派生统计不在写入面内")
     void canteenSaveReqExposesOnlyEditableFields() {
         assertThat(instanceFieldNames(CanteenSaveReq.class))
-                .containsExactlyInAnyOrder("name", "location", "description", "images", "sortOrder");
+                .containsExactlyInAnyOrder("name", "location", "description", "images");
     }
 
     @Test
-    @DisplayName("StallSaveReq 字段集 = {canteenId, name, floor, windowNo, location, description, images, sortOrder}")
+    @DisplayName("StallSaveReq 字段集 = {canteenId, name, floor, windowNo, location, description, images}")
     void stallSaveReqExposesOnlyEditableFields() {
         assertThat(instanceFieldNames(StallSaveReq.class))
                 .containsExactlyInAnyOrder("canteenId", "name", "floor", "windowNo",
-                        "location", "description", "images", "sortOrder");
+                        "location", "description", "images");
     }
 
     /**

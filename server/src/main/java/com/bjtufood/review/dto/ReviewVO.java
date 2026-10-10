@@ -10,7 +10,7 @@ import java.util.List;
  * 评价视图对象（VO）—— **公开视角，恰 8 字段**。
  * <p>
  * 公开评价列表（{@code GET /dishes/{id}/reviews}）恰返回 8 字段：
- * {@code id}、{@code userId}、{@code userNickname}、{@code userAvatar}、
+ * {@code id}、{@code userId}、{@code userName}、{@code userAvatar}、
  * {@code rating}、{@code content}、{@code images}、{@code createdAt}。
  * <p>
  * 字段集**严格限定公开视角**：{@code dishId} / {@code dishName} / {@code isHidden} 三字段
@@ -28,7 +28,7 @@ public class ReviewVO {
     private Long userId;
 
     @Schema(description = "评价者昵称", example = "张三")
-    private String userNickname;
+    private String userName;
 
     @Schema(description = "评价者头像URL")
     private String userAvatar;

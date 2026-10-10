@@ -16,8 +16,8 @@
           <!-- 身份版面（条纹 / 头像 / 主副行 / 「编辑个人信息」胶囊）全部由公共组件承担 -->
           <IdentityCard
             mode="edit"
-            :nickname="userInfo?.nickname"
-            :bind-email="bindEmail"
+            :name="userInfo?.name"
+            :email="email"
             :avatar="userInfo?.avatar"
             :verified="isVerified"
             @edit="goProfileEdit"
@@ -120,7 +120,7 @@ const userStore = useUserStore()
 const authStore = useAuthStore()
 const userInfo = computed(() => userStore.userInfo)
 const isVerified = computed(() => userStore.isVerified())
-const bindEmail = computed(() => userInfo.value?.bindEmail || '')
+const email = computed(() => userInfo.value?.email || '')
 /** 游客态（列表空态分支 + 跳过需登录请求）；认证成功后重进本页（onShow 重拉闸门）自动切换为真实列表 */
 const isGuest = computed(() => !userStore.isVerified())
 /** 空态说明文案：游客 = 认证引导；认证态 = 写评价引导 */

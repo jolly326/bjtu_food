@@ -74,10 +74,10 @@ class DishCacheBenchmarkTest {
     private static final int CALLS = 5;
 
     private static final List<DishAttributeDimension> DIMENSIONS = List.of(
-            dimension(1L, "饮食属性", "single", 1),
-            dimension(2L, "辣度", "single", 2),
-            dimension(3L, "口味", "multi", 3),
-            dimension(4L, "出餐温度", "single", 4));
+            dimension(1L, "饮食属性", "single"),
+            dimension(2L, "辣度", "single"),
+            dimension(3L, "口味", "multi"),
+            dimension(4L, "出餐温度", "single"));
 
     private DishMapper dishMapper;
     private DishViewLogMapper dishViewLogMapper;
@@ -100,18 +100,17 @@ class DishCacheBenchmarkTest {
      */
     private static List<DishAttributeValue> attributeValues() {
         return List.of(
-                value(10L, 1L, "清淡", 1), value(11L, 1L, "半荤", 2),
-                value(20L, 2L, "微辣", 1), value(21L, 2L, "中辣", 2), value(22L, 2L, "重辣", 3),
-                value(30L, 3L, "酸", 1), value(31L, 3L, "辣", 2),
-                value(40L, 4L, "热食", 1), value(41L, 4L, "冷食", 2));
+                value(10L, 1L, "清淡"), value(11L, 1L, "半荤"),
+                value(20L, 2L, "微辣"), value(21L, 2L, "中辣"), value(22L, 2L, "重辣"),
+                value(30L, 3L, "酸"), value(31L, 3L, "辣"),
+                value(40L, 4L, "热食"), value(41L, 4L, "冷食"));
     }
 
-    private static DishAttributeValue value(Long id, Long dimensionId, String label, int order) {
+    private static DishAttributeValue value(Long id, Long dimensionId, String name) {
         DishAttributeValue v = new DishAttributeValue();
         v.setId(id);
         v.setDimensionId(dimensionId);
-        v.setLabel(label);
-        v.setSortOrder(order);
+        v.setName(name);
         return v;
     }
 
@@ -139,11 +138,11 @@ class DishCacheBenchmarkTest {
         when(attributeAdminService.translateForRead(any()))
                 .thenAnswer(inv -> JsonMapUtil.parseObject(inv.getArgument(0)));
         when(dishMapper.selectById(1L)).thenReturn(onSaleDish(sampleAttributesJson(0)));
-        // A6：视图 = 纯数据 —— 「为你推荐」（条件空）+ 一个种类视图；可见性靠 enabled + 匹配数判定
+        // A6：视图 = 纯数据 —— 「为你推荐」（不按种类过滤）+ 一个种类视图；可见性靠 enabled + 匹配数判定
         viewMapper = mock(DishFilterViewMapper.class);
         when(viewMapper.selectList(any())).thenReturn(List.of(
-                view(1L, "为你推荐", "[]", "random", 1),
-                view(2L, "面食粉类", "[{\"field\":\"categoryId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2)));
+                view(1L, "为你推荐", null),
+                view(2L, "面食粉类", 7L)));
         // 匹配数 > 0 ⇒ 可见（匹配数 0 不下发）
         when(dishMapper.selectCount(any())).thenReturn(1L);
 
@@ -238,9 +237,9 @@ class DishCacheBenchmarkTest {
         // 若只缓存原始行，这里会是「视图数」次计数查询。
         assertThat(repeatCalls).isZero();
         assertThat(second).isEqualTo(first);
-        // 可见性靠 enabled + 匹配数判定，顺序按 order 升序；出参恰 id + label
+        // 可见性靠 enabled + 匹配数判定，顺序按 id 升序；出参恰 id + name
         assertThat(first).extracting(DishViewVO::getId).containsExactly(1L, 2L);
-        assertThat(first).extracting(DishViewVO::getLabel).containsExactly("为你推荐", "面食粉类");
+        assertThat(first).extracting(DishViewVO::getName).containsExactly("为你推荐", "面食粉类");
 
         // 写后显式失效 ⇒ 保存即生效（不必等 TTL）
         viewCatalog.invalidateViews();
@@ -299,25 +298,21 @@ class DishCacheBenchmarkTest {
                 + mockingDetails(viewMapper).getInvocations().size();
     }
 
-    /** 视图行样本（A6）：条件与排序口径同表存储（除文案 / 顺序外全在行内） */
-    private static DishFilterView view(Long id, String label, String conditions, String sortKind, int order) {
+    /** 视图行样本（A6）：归属种类决定取数是否按种类过滤（除文案 / 启停外全在行内） */
+    private static DishFilterView view(Long id, String name, Long categoryId) {
         DishFilterView v = new DishFilterView();
         v.setId(id);
-        v.setLabel(label);
-        v.setConditions(conditions);
-        v.setSortKind(sortKind);
-        v.setSortOrder(order);
+        v.setName(name);
+        v.setCategoryId(categoryId);
         v.setEnabled(true);
         return v;
     }
 
-    private static DishAttributeDimension dimension(Long id, String name,
-                                                    String valueType, Integer order) {
+    private static DishAttributeDimension dimension(Long id, String name, String valueType) {
         DishAttributeDimension dim = new DishAttributeDimension();
         dim.setId(id);
         dim.setName(name);
         dim.setValueType(valueType);
-        dim.setSortOrder(order);
         return dim;
     }
 

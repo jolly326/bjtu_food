@@ -58,7 +58,7 @@ describe('ImagePlaceholder · 占位变体', () => {
 })
 
 describe('IdentityCard · 头像渲染', () => {
-  const base = { nickname: '食客 1234', bindEmail: '1234@bjtu.edu.cn', verified: true }
+  const base = { name: '食客 1234', email: '1234@bjtu.edu.cn', verified: true }
 
   it('有头像时渲染图片（定尺盒在页面模板内，不依赖组件宿主节点）', () => {
     const w = mount(IdentityCard, { props: { ...base, avatar: 'https://cdn.example.com/a.jpg' } })

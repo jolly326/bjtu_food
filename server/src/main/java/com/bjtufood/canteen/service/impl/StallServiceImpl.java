@@ -11,7 +11,6 @@ import com.bjtufood.canteen.mapper.CanteenMapper;
 import com.bjtufood.canteen.mapper.StallMapper;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.canteen.support.ImageColumnWriter;
-import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -141,7 +140,7 @@ public class StallServiceImpl implements StallService {
     }
 
     /**
-     * 写入 4 个可选列（位置 / 描述 / 图片 / 排序位）。
+     * 写入 3 个可选列（位置 / 描述 / 图片）。
      * <p>
      * <b>null = 保持原值</b>（局部实体不带该列 ⇒ updateById 的 NOT_NULL 策略跳过；
      * 新建时可空列即落 NULL），给值即覆盖（空串 / 空数组表达「清空」）——
@@ -157,9 +156,6 @@ public class StallServiceImpl implements StallService {
         if (req.getImages() != null) {
             entity.setImages(ImageColumnWriter.encode(imageUrlUtil, req.getImages(), IMAGES_JSON_MAX,
                     "档口图片地址过长（序列化后不得超过 " + IMAGES_JSON_MAX + " 字符）"));
-        }
-        if (req.getSortOrder() != null) {
-            entity.setSortOrder(req.getSortOrder());
         }
     }
 
@@ -212,8 +208,6 @@ public class StallServiceImpl implements StallService {
         if (current == null) {
             throw new BusinessException(4001, "档口不存在");
         }
-        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
-        AuditSnapshot.before(current);
         stallMapper.deleteById(id);
     }
 
@@ -221,7 +215,7 @@ public class StallServiceImpl implements StallService {
      * 定点写回档口楼层（纠错采纳专用，见接口契约）。
      * <p>
      * 用<b>部分实体</b>（只带 id + floor）走 {@code updateById}：MyBatis-Plus 的 NOT_NULL 更新策略
-     * 保证 name / canteen_id / location / window_no / sort_order 等既有列原样保留，
+     * 保证 name / canteen_id / location / window_no 等既有列原样保留，
      * 不会把楼层纠错放大成一次整行覆盖。
      * <p>
      * {@code updateById} 影响 0 行 ⇒ 目标档口已不存在（档口无删除能力，属并发/脏 id 兜底），
@@ -335,11 +329,9 @@ public class StallServiceImpl implements StallService {
         List<Stall> stalls = canteen != null
                 ? stallMapper.selectList(new LambdaQueryWrapper<Stall>()
                         .eq(Stall::getCanteenId, canteen.getId())
-                        .orderByAsc(Stall::getSortOrder))
+                        .orderByAsc(Stall::getId))
                 : stallMapper.selectList(new LambdaQueryWrapper<Stall>()
-                        .orderByAsc(Stall::getCanteenId)
-                        .orderByAsc(Stall::getSortOrder)
-                        .orderByDesc(Stall::getUpdatedAt));
+                        .orderByAsc(Stall::getId));
         return stalls.stream()
                 .map(s -> new StallBriefVO(s.getId(), s.getName()))
                 .toList();
@@ -437,7 +429,6 @@ public class StallServiceImpl implements StallService {
         // 档口评分统一实时聚合（均分不落库，与 toVO 同口径，避免两端不一致）
         // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.00 兜底
         vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
-        vo.setSortOrder(stall.getSortOrder());
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;
     }

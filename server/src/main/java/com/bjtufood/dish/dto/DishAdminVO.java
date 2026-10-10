@@ -71,5 +71,5 @@ public class DishAdminVO {
 
     /** 分类中文名（A6 种类字典派生；列表直接可读，端上零硬编码） */
     @Schema(description = "分类中文名", example = "面食粉类")
-    private String categoryLabel;
+    private String categoryName;
 }

@@ -1,7 +1,5 @@
 package com.bjtufood.common.alert;
 
-import com.bjtufood.common.alert.entity.SecurityAlert;
-import com.bjtufood.common.utils.ClientIpUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -23,8 +21,8 @@ import java.util.concurrent.Executors;
 /**
  * 安全事件实时告警（飞书 / 企业微信机器人 Webhook）。
  *
- * <p><b>为什么需要它</b>：「账号被拿下」这件事目前没有任何人会知道 —— 攻击者可以慢慢删、
- * 慢慢改，直到下次登录才发现。告警把「有人在爆破」与「爆破成功了」变成**立刻可见**。
+ * <p><b>为什么需要它</b>：「账号被拿下」这件事若无人知晓，攻击者可以慢慢删、慢慢改，
+ * 直到下次登录才发现。告警把「有人在爆破」与「爆破成功了」变成**立刻可见**。
  *
  * <p><b>通道配置</b>：{@code alert.webhook-url}（环境变量 {@code ALERT_WEBHOOK_URL}）与
  * {@code alert.webhook-secret}（{@code ALERT_WEBHOOK_SECRET}，机器人开启签名校验后必填）。
@@ -32,13 +30,14 @@ import java.util.concurrent.Executors;
  *
  * <p><b>推送口径</b>：
  * <ul>
+ *   <li><b>只推送、不落库</b> —— 告警是实时信号，推送即达；不引入告警表、不设管理端告警面板；</li>
  *   <li><b>异步</b> —— 单线程守护线程池，告警链路绝不阻塞业务请求；</li>
- *   <li><b>先落库、再推送</b> —— 每条告警都写成一行可查询记录（管理端「安全告警」面板据此回看），
- *       群消息会被刷走，库里的记录不会；</li>
  *   <li><b>3 秒超时</b> —— 连接与读取均设上限，推送失败只记 ERROR，不影响主流程；</li>
  *   <li><b>不推送敏感值</b> —— 调用方只传已脱敏的标题与明细（口令 / token / 密钥一律不进告警）；</li>
  *   <li><b>签名校验</b> —— 配置密钥后每条推送附带 {@code timestamp} 与 {@code sign}。</li>
  * </ul>
+ *
+ * @see AlertType 类型与级别口径
  */
 @Slf4j
 @Component
@@ -57,9 +56,6 @@ public class SecurityAlertNotifier {
     /** 机器人签名密钥（为空则不签名） */
     private final String webhookSecret;
 
-    /** 告警记录写入点（面板数据源） */
-    private final SecurityAlertRecorder securityAlertRecorder;
-
     private final RestTemplate restTemplate;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
@@ -69,11 +65,9 @@ public class SecurityAlertNotifier {
     });
 
     public SecurityAlertNotifier(@Value("${alert.webhook-url:}") String webhookUrl,
-                                 @Value("${alert.webhook-secret:}") String webhookSecret,
-                                 SecurityAlertRecorder securityAlertRecorder) {
+                                 @Value("${alert.webhook-secret:}") String webhookSecret) {
         this.webhookUrl = webhookUrl == null ? "" : webhookUrl.trim();
         this.webhookSecret = webhookSecret == null ? "" : webhookSecret.trim();
-        this.securityAlertRecorder = securityAlertRecorder;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(TIMEOUT_MS);
         factory.setReadTimeout(TIMEOUT_MS);
@@ -86,30 +80,39 @@ public class SecurityAlertNotifier {
     }
 
     /**
-     * 记一条安全告警：落库（面板可查）+ 推送（群消息即时可见）。
+     * 推一条安全告警：级别 / 类型决定信号强度，标题与明细描述发生了什么。
      *
-     * <p>两者都在告警线程池内完成，业务线程只承担「取当前请求 IP + 组装行对象」这点开销。
+     * <p>推送在告警线程池内完成。明细中的来源 IP 由调用方在**请求线程**取好传入 ——
+     * 告警线程没有 Web 上下文，异步之后再取只会得到 {@code null}。
      *
-     * @param type   告警类型（决定级别与标签，见 {@link AlertType}）
+     * @param type   告警类型（决定级别与类型标签，见 {@link AlertType}）
      * @param title  告警标题（不得含口令 / token / 密钥等敏感值）
      * @param detail 告警明细（同上）
      */
     public void notify(AlertType type, String title, String detail) {
-        // IP 必须在**调用线程**取：告警线程池没有 Web 上下文，异步后再取只会得到 null
-        SecurityAlert row = securityAlertRecorder.buildRow(type, title, detail, ClientIpUtil.resolveCurrent());
+        String text = buildText(type, title, detail);
         // 未配置通道时降级为本地日志（仍然留痕，便于事后检索；不静默丢弃）
         if (webhookUrl.isEmpty()) {
             log.warn("[ALERT] {} —— {}", title, detail);
+            return;
         }
-        executor.submit(() -> {
-            securityAlertRecorder.save(row);
-            if (!webhookUrl.isEmpty()) {
-                send(title, detail);
-            }
-        });
+        executor.submit(() -> send(text));
     }
 
-    private void send(String title, String detail) {
+    /** 告警正文：级别键与类型标签取自 {@link AlertType}（同一类事件的严重度是固定的）。 */
+    private static String buildText(AlertType type, String title, String detail) {
+        StringBuilder text = new StringBuilder(TITLE_PREFIX)
+                .append('[').append(type.severity().key()).append(']')
+                .append(type.label())
+                .append('\n')
+                .append(title);
+        if (detail != null && !detail.isBlank()) {
+            text.append('\n').append(detail);
+        }
+        return text.toString();
+    }
+
+    private void send(String text) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -121,7 +124,7 @@ public class SecurityAlertNotifier {
                 body.put("sign", sign(timestamp));
             }
             body.put("msg_type", "text");
-            body.put("content", Map.of("text", TITLE_PREFIX + title + "\n" + detail));
+            body.put("content", Map.of("text", text));
             restTemplate.postForEntity(webhookUrl, new HttpEntity<>(body, headers), String.class);
         } catch (Exception e) {
             // 只记异常摘要，不记请求体（避免签名与地址进日志）

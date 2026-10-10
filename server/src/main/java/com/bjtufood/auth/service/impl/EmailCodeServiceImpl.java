@@ -29,7 +29,6 @@ public class EmailCodeServiceImpl implements EmailCodeService {
 
     private static final long SEND_INTERVAL_SECONDS = 60;
     private static final long CODE_EXPIRE_MINUTES = 10;
-    private static final String PURPOSE = "verify";
 
     /**
      * 发件人显示名 —— 收件人在邮箱列表里看到的「来源名称」。
@@ -90,7 +89,7 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         String normalizedEmail = resolveEmail(username);
         validateCampusEmail(normalizedEmail);
 
-        checkRateLimit(normalizedEmail, PURPOSE);
+        checkRateLimit(normalizedEmail);
 
         String code = String.format("%06d", secureRandom.nextInt(1_000_000));
 
@@ -98,7 +97,6 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         EmailVerificationCode record = new EmailVerificationCode();
         record.setEmail(normalizedEmail);
         record.setCodeHash(passwordEncoder.encode(code));
-        record.setPurpose(PURPOSE);
         record.setExpiresAt(DateTimeUtil.now().plusMinutes(CODE_EXPIRE_MINUTES));
         emailVerificationCodeMapper.insert(record);
 
@@ -180,11 +178,10 @@ public class EmailCodeServiceImpl implements EmailCodeService {
         }
     }
 
-    private void checkRateLimit(String email, String purpose) {
+    private void checkRateLimit(String email) {
         EmailVerificationCode lastRecord = emailVerificationCodeMapper.selectOne(
                 new LambdaQueryWrapper<EmailVerificationCode>()
                         .eq(EmailVerificationCode::getEmail, email)
-                        .eq(EmailVerificationCode::getPurpose, purpose)
                         .orderByDesc(EmailVerificationCode::getCreatedAt)
                         .last("LIMIT 1"));
 

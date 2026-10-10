@@ -28,8 +28,8 @@ public interface DishMapper extends BaseMapper<Dish> {
      * <p>
      * 出参为**列表专用** {@link DishListItemVO}（8 字段，D 项拆分）；
      * 取数条件与排序口径均由 {@link DishListQuery}（视图解析结果）决定：
-     * keyword 三路模糊 / `conditions`（字段白名单 + 参数化，见 DishViewConditions），
-     * 以及 sortKind 决定的 ORDER BY（7 种口径）。
+     * keyword 三路模糊 / 按 `categoryId` 过滤（NULL = 不按种类过滤），
+     * 以及固定随机序 ORDER BY（CRC32(seed:ID) 会话稳定伪随机）。
      */
     IPage<DishListItemVO> selectDishPage(Page<?> page, @Param("q") DishListQuery q);
 

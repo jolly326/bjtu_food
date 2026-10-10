@@ -203,7 +203,7 @@ public class SecurityConfig {
      * ② 邮箱验证码：{@code EmailCodeServiceImpl#passwordEncoder.encode(验证码)} 与
      * {@code AuthServiceImpl#passwordEncoder.matches(输入码, code_hash)} 依赖它。
      * <p>
-     * 管理端账号由 {@code admin_account} 表承载（TD-16，见 docs/schema/admin_account.md），
+     * 管理端账号由 {@code admin} 表承载（TD-16，见 docs/schema/admin.md），
      * 密码以 BCrypt 摘要落库。
      *
      * @return PasswordEncoder

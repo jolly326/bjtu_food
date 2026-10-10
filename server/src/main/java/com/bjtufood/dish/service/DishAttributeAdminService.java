@@ -1,6 +1,5 @@
 package com.bjtufood.dish.service;
 
-import com.bjtufood.common.dto.SortItem;
 import com.bjtufood.dish.dto.DishDimensionAdminVO;
 import com.bjtufood.dish.dto.DishValueAdminVO;
 
@@ -24,10 +23,10 @@ import java.util.Map;
  */
 public interface DishAttributeAdminService {
 
-    /** 维度列表（按 `order` 升序，带 `dishCount` / `valueCount`） */
+    /** 维度列表（按 `id` 升序，带 `dishCount` / `valueCount`） */
     List<DishDimensionAdminVO> listDimensions();
 
-    /** 新增维度（默认排最后） */
+    /** 新增维度 */
     DishDimensionAdminVO createDimension(String name, String valueType);
 
     /**
@@ -44,23 +43,17 @@ public interface DishAttributeAdminService {
      */
     void deleteDimension(Long id);
 
-    /** 维度排序（拖拽后整体提交全量行） */
-    void sortDimensions(List<SortItem> items);
-
-    /** 某维度下的取值列表（按 `order` 升序，带 `dishCount`） */
+    /** 某维度下的取值列表（按 `id` 升序，带 `dishCount`） */
     List<DishValueAdminVO> listValues(Long dimensionId);
 
-    /** 新增取值（同维度下 `label` 唯一，默认排最后） */
-    DishValueAdminVO createValue(Long dimensionId, String label);
+    /** 新增取值（同维度下 `name` 唯一） */
+    DishValueAdminVO createValue(Long dimensionId, String name);
 
-    /** 改名（只改 `label`，改名免费） */
-    void updateValue(Long dimensionId, Long valueId, String label);
+    /** 改名（只改 `name`，改名免费） */
+    void updateValue(Long dimensionId, Long valueId, String name);
 
     /** 删除取值（被菜品引用 → 400） */
     void deleteValue(Long dimensionId, Long valueId);
-
-    /** 取值排序（拖拽后整体提交全量行） */
-    void sortValues(Long dimensionId, List<SortItem> items);
 
     /**
      * **写入口径转换**：把请求里的 `attributes`（键 = 维度 ID，值 = 取值 ID 或**中文名**）解析为**取值 ID** 形态。
@@ -85,5 +78,5 @@ public interface DishAttributeAdminService {
     Map<String, Object> translateForRead(String attributesJson);
 
     /** 该维度下的取值 `id → 中文`（供出参翻译批量复用） */
-    Map<Long, String> labelByIdForDimension(Long dimensionId);
+    Map<Long, String> nameByIdForDimension(Long dimensionId);
 }

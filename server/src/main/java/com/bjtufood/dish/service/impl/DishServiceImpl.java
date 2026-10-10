@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.canteen.service.StallService;
-import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.PageUtil;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -39,7 +38,6 @@ import com.bjtufood.dish.service.DishCategoryAdminService;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.dish.service.DishViewCatalog;
 import com.bjtufood.dish.view.DishListQuery;
-import com.bjtufood.dish.view.DishViewResolver;
 import com.bjtufood.dish.view.DishViewVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
@@ -133,15 +131,18 @@ public class DishServiceImpl implements DishService {
         if (req.getKeyword() != null && req.getKeyword().length() > 30) {
             throw new BusinessException("关键词不能超过 30 字");
         }
-        // 视图解析（查表取全部口径，PR-06）：空值 = 首个启用视图（按 `sort_order` 升序）；
+        // 视图解析（查表取归属种类，PR-06）：空值 = 首个启用视图（按 `id` 升序）；
         // 未登记的 ID 400 报错，不静默降级。
-        // 筛选条件与排序口径都存在视图行（见 DishViewResolver 与 DishViewConditions），
-        // API 层不感知 category_id / 价格等字段，端上也无排序入口。
+        // 取数口径 = 「categoryId 为 NULL 不按种类过滤，否则按该种类过滤 + 随机序 + 在售」，
+        // 全部收在视图行与服务端（见 DishViewCatalog 与 DishListQuery），端上无排序入口。
         DishFilterView view = viewCatalog.byId(req.getView());
-        DishListQuery query = DishViewResolver.resolve(view, req.getKeyword(), req.getSeed());
-        if (query == null) {
+        if (view == null) {
             throw new BusinessException("筛选视图不合法：" + req.getView());
         }
+        // 随机序种子：端上传会话级 seed（同 seed 全序恒定，翻页不重不漏）；
+        // 未传的调用（第三方 / 直连 Swagger）补一次性随机值，保证仍是随机序。
+        String effectiveSeed = StringUtils.hasText(req.getSeed()) ? req.getSeed() : UUID.randomUUID().toString();
+        DishListQuery query = new DishListQuery(req.getKeyword(), effectiveSeed, view.getCategoryId());
         // 列表出参为 DishListItemVO（8 字段）：图片只下发首图 coverImage，由 enrichCoverImage 从 imageUrls 取首图
         return dishMapper.selectDishPage(new Page<>(req.getPage(), req.getPageSize()), query)
                 .convert(this::enrichCoverImage);
@@ -150,10 +151,10 @@ public class DishServiceImpl implements DishService {
     @Override
     // 表驱动（A6）：视图目录与「enabled / 匹配数为 0 不下发」规则全部收在 DishViewCatalog；
     // **缓存也随之上移**（DISH_VIEWS 由目录持有，写侧显式失效 ⇒ 保存即生效）。
-    // 出参恰 [id, label] 两项：筛选条件与排序口径是服务端资产，端上不感知。
+    // 出参恰 [id, name] 两项：取数口径是服务端资产，端上不感知。
     public List<DishViewVO> listDishViews() {
         return viewCatalog.visible().stream()
-                .map(v -> new DishViewVO(v.getId(), v.getLabel()))
+                .map(v -> new DishViewVO(v.getId(), v.getName()))
                 .toList();
     }
 
@@ -324,15 +325,15 @@ public class DishServiceImpl implements DishService {
         // A3：列表走**瘦身列表 VO**（不含 description / attributes / 全量 images）
         IPage<DishAdminListItemVO> result = dishMapper.selectAdminListPage(new Page<>(page, pageSize), effective);
         // 种类中文名（A6 种类字典 dish_category）：列表直接可读，端上零硬编码；字典量级极小，逐页取一次
-        Map<Long, String> categoryLabels = categoryAdminService.listAll().stream()
-                .collect(Collectors.toMap(DishCategoryAdminVO::getId, DishCategoryAdminVO::getLabel,
+        Map<Long, String> categoryNames = categoryAdminService.listAll().stream()
+                .collect(Collectors.toMap(DishCategoryAdminVO::getId, DishCategoryAdminVO::getName,
                         (a, b) -> a));
         // 近 30 天浏览量：一次性按当前页 dish_id 批量聚合（BE 惯用法，避免 N+1）；
         // 🔴 走 dish_view_log 滚动窗口而非 dish.view_count（后者已停写且是历史累计，语义不同）
         Map<Long, Long> recentViews = loadRecentViewCounts(result.getRecords());
         return PageUtil.toVoPage(result, recs -> recs.stream()
                 .map(vo -> {
-                    vo.setCategoryLabel(categoryLabels.getOrDefault(
+                    vo.setCategoryName(categoryNames.getOrDefault(
                             vo.getCategoryId() == null ? 0L : vo.getCategoryId(), ""));
                     vo.setCoverImage(toAbsoluteCover(vo.getCoverImage()));
                     // 无浏览记录的菜品不在聚合结果里 ⇒ 显式补 0（端上不渲染「—」）
@@ -646,8 +647,6 @@ public class DishServiceImpl implements DishService {
         if (dish == null) {
             throw new BusinessException("菜品不存在");
         }
-        // 审计变更前值：物理删除 + 级联删评价不可逆，快照是误删后重建的唯一依据
-        AuditSnapshot.before(dish);
         // 级联清理该菜品下的全部评价（BE-108）：发布领域事件，由 review 域监听器删除评价行，
         // dish 域不持有 review 表知识（P0-1）。同步监听 → 仍在本次事务内执行，失败一并回滚。
         eventPublisher.publishEvent(new DishDeletedEvent(id));

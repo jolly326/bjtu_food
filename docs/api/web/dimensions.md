@@ -23,12 +23,11 @@
 | `id` | number | 维度 ID（`dish.attributes` JSON 的键） |
 | `name` | string | 维度中文名 |
 | `valueType` | string | `single` / `multi` |
-| `order` | number | 展示顺序 |
 | `dishCount` | number | 使用该维度的菜品数（删除前判断） |
 | `valueCount` | number | 该维度下的**取值数**（删除确认文案用） |
 | `updatedAt` | string | 更新时间（`yyyy-MM-dd HH:mm:ss`） |
 
-**排序**：按 `order` 升序。
+**排序**：按 `id` 升序（维度顺序即 `DishDetailVO.attributes[]` 的返回顺序，字典不设排序位）。
 
 ---
 
@@ -41,8 +40,6 @@
 |---|---|---|---|
 | `name` | string | **是** | 维度中文名（1~32 字，如「原料」「口味」） |
 | `valueType` | string | **是** | `single` 单值 / `multi` 多值 |
-
-> **不含 `order`** —— 展示顺序由列表拖拽维护（`PUT /admin/dish-dimensions/sort`）。
 
 ### 响应 `data` = `DishDimensionAdminVO`
 新建的维度。
@@ -82,18 +79,6 @@
 
 ---
 
-## PUT /admin/dish-dimensions/sort
-
-**用途**：**维度排序**（拖拽后整体提交）
-
-### 请求体 `SortItemsReq`
-`items`：`[{ id, order }]` 数组，整体替换顺序。**边界（全量行 / 非法提交 → `400`）见 [api/README 的「拖拽排序提交」](../README.md#拖拽排序提交)**。
-
-### 响应 `data`
-`null`。
-
----
-
 ## GET /admin/dish-dimensions/{dimensionId}/values
 
 **用途**：取值列表
@@ -107,12 +92,11 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `id` | number | 取值 ID（经 `dish.attributes` 引用） |
-| `label` | string | 取值中文名 |
-| `order` | number | 组内展示顺序 |
+| `name` | string | 取值中文名 |
 | `dishCount` | number | 引用该取值的菜品数（删除前判断） |
 | `updatedAt` | string | 更新时间（`yyyy-MM-dd HH:mm:ss`） |
 
-**排序**：按 `order` 升序。
+**排序**：按 `id` 升序（组内顺序，字典不设排序位）。
 
 ---
 
@@ -128,9 +112,9 @@
 ### 请求体 `DishValueSaveReq`
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `label` | string | **是** | 取值中文名（1~32 字；**同维度下唯一**） |
+| `name` | string | **是** | 取值中文名（1~32 字；**同维度下唯一**） |
 
-> 取值的**机器键（ID）由后端生成**，管理员只填中文 `label`；**不含 `order`**（组内顺序由拖拽维护）。
+> 取值的**机器键（ID）由后端生成**，管理员只填中文 `name`。
 
 ### 响应 `data` = `DishValueAdminVO`
 新建的取值。
@@ -139,7 +123,7 @@
 
 ## PUT /admin/dish-dimensions/{dimensionId}/values/{valueId}
 
-**用途**：修改取值（`label`）
+**用途**：修改取值（`name`）
 
 ### 路径参数
 | 名称 | 类型 | 必填 | 说明 |
@@ -170,28 +154,11 @@
 
 ---
 
-## PUT /admin/dish-dimensions/{dimensionId}/values/sort
-
-**用途**：**取值排序**（拖拽后整体提交）
-
-### 路径参数
-| 名称 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `dimensionId` | number | 是 | 维度 ID |
-
-### 请求体 `SortItemsReq`
-`items`：`[{ id, order }]` 数组，整体替换顺序。**边界见 [api/README 的「拖拽排序提交」](../README.md#拖拽排序提交)**。
-
-### 响应 `data`
-`null`。
-
----
-
 ## 错误码
 
 | code | 条件 |
 |---|---|
-| `400` | `name` / `label` 非法或重名；`valueType` 非法；删除时维度 / 取值仍被引用；排序提交非法 |
+| `400` | `name` 非法或重名；`valueType` 非法；删除时维度 / 取值仍被引用 |
 | `4001` | 维度 / 取值不存在 |
 | `401` | 未带 / token 失效 |
 
@@ -199,5 +166,5 @@
 - **名称全部可改、且免费**：维度名、取值名都只是展示，数据锚在**维度 ID / 取值 ID** ⇒ 改名**不影响任何菜品数据**。
 - **灵活取值**：管理端录入菜品时可直接输入新值 → 自动登记进取值字典；反馈提交的新值仅当反馈被**采纳**时按中文查字典（命中即用；未命中自动新建）。
 - **删除约束**：维度 / 取值**被菜品引用时禁止删除**（`400`），防止静默丢数据。
-- **排序一律「拖拽 + 批量端点」**：一次原子提交比逐条填 `order` 更不易出错；`order` 仍在 VO 回显，但不从保存请求传入。
+- **字典不设排序位**：维度与取值一律按 `id` 升序（无 `order` 入参 / 出参，无排序端点）。
 - **`dish.attributes` 用 JSON 列**（存取值 ID），不引入关联表；若将来需要「按属性筛选菜品」，再迁移为关联表（演进预留）。

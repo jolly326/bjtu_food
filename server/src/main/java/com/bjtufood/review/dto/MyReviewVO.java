@@ -11,11 +11,11 @@ import java.util.List;
  * <p>
  * <b>与公开视角分型</b>（docs/func/client/README.md R9）：同一契约的两视角 MUST 是两个类型，
  * 端上 SHALL NOT 用单一 interface 复用，故本类<b>不继承</b> {@link ReviewVO}
- * （继承会让类型系统宣称「我的评价也有 userId / userNickname / userAvatar」，
+ * （继承会让类型系统宣称「我的评价也有 userId / userName / userAvatar」，
  * 而这三个字段在本人视角恒等于本人、属零信息，不得下发）。
  * <p>
  * 字段构成 = 公开视角 {@link ReviewVO} 8 字段中去掉作者标识三项
- * （{@code userId} / {@code userNickname} / {@code userAvatar}）后的 5 项
+ * （{@code userId} / {@code userName} / {@code userAvatar}）后的 5 项
  * （{@code id} / {@code rating} / {@code content} / {@code images} / {@code createdAt}）
  * + 本人视角专属 2 项（{@code dishId} / {@code dishName}）。
  * <p>

@@ -24,12 +24,11 @@
 | `location` | string | 食堂位置（恒非空串，无为空串） |
 | `description` | string | 食堂描述（恒非空串） |
 | `images` | string[] | 食堂图片绝对 URL 数组（有序，首图作封面；无图 `[]`） |
-| `sortOrder` | number | 排序位（**本列表的排序键**，见下） |
 | `updatedAt` | string | 更新时间（`yyyy-MM-dd HH:mm:ss`） |
 
-**排序**：`sortOrder` 升序 → `updatedAt` 降序。
+**排序**：按 `id` 升序（食堂不设排序位）。
 
-> **全部业务列均可达**（[schema/README「管理端字段可达性」](../../schema/README.md)）：`location` / `description` / `images` / `sortOrder` 与 `name` 一样可读可写，在 **A1 详情抽屉**内查看与编辑（`sortOrder` 是**排序位**，本页**无拖拽排序入口**，直接在该表单里维护数值）。
+> **全部业务列均可达**（[schema/README「管理端字段可达性」](../../schema/README.md)）：`location` / `description` / `images` 与 `name` 一样可读可写，在 **A1 详情抽屉**内查看与编辑。
 
 ---
 
@@ -44,7 +43,6 @@
 | `location` | string | 否 | `@Size(max=128)`「食堂位置不能超过 128 字」 | ≤128 字；空串 = 空 |
 | `description` | string | 否 | `@Size(max=512)`「食堂描述不能超过 512 字」 | ≤512 字；空串 = 空 |
 | `images` | string[] | 否 | `@Size(max=5)`「食堂图片最多 5 张」；序列化后 ≤1024（服务层硬校验） | 有序，**首图作封面**；超长 `400`「食堂图片地址过长（序列化后不得超过 1024 字符）」 |
-| `sortOrder` | number | 否 | 整数 | 排序位（升序，越小越靠前）；缺省落库默认 `0` |
 
 > **不接收（服务端自持）**：`id`（走路径参数）、`updatedAt`（**时间列由 DB 时钟维护**，见 [schema/README「时间戳写入来源」](../../schema/README.md)）、`stallCount`（联表派生统计）。请求体中出现这些字段**一律忽略**（不落库、不回写）。
 
@@ -75,7 +73,6 @@
 | `name` | **`400`**「食堂名称不能为空」（必填） | 整体替换（全站查重） |
 | `location` / `description` | **保持原值** | 覆盖；`""` = 清空 |
 | `images` | **保持原值** | 整体替换；`[]` = 清空 |
-| `sortOrder` | **保持原值** | 覆盖 |
 
 ### 响应 `data`
 `null`（成功即 `code=200`）。
@@ -120,15 +117,14 @@
 | `description` | string | 档口描述（恒非空串） |
 | `images` | string[] | 档口展示图片绝对 URL 数组（有序，首图作封面；无图 `[]`） |
 | `avgRating` | number | **平均评分**（实时聚合，2 位小数；**无 approved 评价按 `0.00`，不为 `null`**） |
-| `sortOrder` | number | 排序位（纠错候选档口列表的排序键；**本列表不按其排序**） |
 | `dishCount` | number | **其下菜品数**（联表统计，供删除前判断） |
 | `updatedAt` | string | 更新时间（`yyyy-MM-dd HH:mm:ss`） |
 
-**排序**：`canteenId` 升序 → `name` 升序 → `updatedAt` 降序；**不分页**。
+**排序**：按 `id` 升序（档口不设排序位，管理端列表与纠错候选档口列表同一口径）；**不分页**。
 
 > **`dishCount`**：无菜品按 `0` 补齐（联表统计，供删除前判断）。
 > **空值口径**：`location` / `floor` / `windowNo` / `description` 走 [api/README「可空性约定」](../README.md#可空性约定) 的**字符串恒非空**（可空列由服务端 `COALESCE(..., '')` 兜底，端上**无需判空**）—— 与 client 侧菜品详情的 `COALESCE(s.floor, '')`（`DishMapper.xml`）同口径。
-> **全部业务列均可达**（[schema/README「管理端字段可达性」](../../schema/README.md)）：`location` / `description` / `images` / `sortOrder` 与 `canteenId` / `name` / `floor` / `windowNo` 一样可读可写，在 **A2 详情抽屉**内查看与编辑。
+> **全部业务列均可达**（[schema/README「管理端字段可达性」](../../schema/README.md)）：`location` / `description` / `images` 与 `canteenId` / `name` / `floor` / `windowNo` 一样可读可写，在 **A2 详情抽屉**内查看与编辑。
 
 ---
 
@@ -146,7 +142,6 @@
 | `location` | string | 否 | `@Size(max=128)`「档口位置不能超过 128 字」 | ≤128 字；`""` = 清空 |
 | `description` | string | 否 | `@Size(max=512)`「档口描述不能超过 512 字」 | ≤512 字；`""` = 清空 |
 | `images` | string[] | 否 | `@Size(max=5)`「档口图片最多 5 张」；序列化后 ≤1024（服务层硬校验） | 有序，**首图作封面**；超长 `400`「档口图片地址过长（序列化后不得超过 1024 字符）」 |
-| `sortOrder` | number | 否 | 整数 | 排序位；缺省落库默认 `0` |
 
 > **不接收（服务端自持）**：`id`（走路径参数）、`updatedAt`（**时间列由 DB 时钟维护**，见 [schema/README「时间戳写入来源」](../../schema/README.md)）、`canteenName` / `dishCount` / `avgRating`（联表 / 派生统计）。请求体中出现这些字段**一律忽略**（不落库、不回写）。
 
@@ -165,7 +160,7 @@
 | `id` | number | 是 | 档口 ID |
 
 ### 请求体 `StallSaveReq`
-同 `POST`（`canteenId` / `name` 必填；`floor` / `windowNo` / `location` / `description` / `images` / `sortOrder` 可选）。
+同 `POST`（`canteenId` / `name` 必填；`floor` / `windowNo` / `location` / `description` / `images` 可选）。
 
 **逐字段空值语义**：
 | 字段 | 缺省 / `null` | 给值 |
@@ -176,7 +171,6 @@
 | `windowNo` | **保持原值** | 覆盖；`""` = 清空 |
 | `location` / `description` | **保持原值** | 覆盖；`""` = 清空 |
 | `images` | **保持原值** | 整体替换；`[]` = 清空（入库前还原相对路径） |
-| `sortOrder` | **保持原值** | 覆盖 |
 
 ### 响应 `data`
 `null`。
@@ -214,5 +208,5 @@
 
 ### 接口选型说明
 - **动词与命名**：资源导向 + 复数名词（`/admin/canteens` / `/admin/stalls`）+ 标准动词（`GET` / `POST` / `PUT` / `DELETE`）。
-- **`PUT` 而非 `PATCH`**：食堂 5 个 / 档口 8 个可编辑字段，且 web 端详情表单**恒全量提交**；必填字段走「整体替换」、可选字段走「缺省 = 保持原值」——与 [`PUT /admin/dishes/{id}`](./dishes.md) 的「未传字段不修改」同口径，**不引入 `PATCH`**。
+- **`PUT` 而非 `PATCH`**：食堂 4 个 / 档口 7 个可编辑字段，且 web 端详情表单**恒全量提交**；必填字段走「整体替换」、可选字段走「缺省 = 保持原值」——与 [`PUT /admin/dishes/{id}`](./dishes.md) 的「未传字段不修改」同口径，**不引入 `PATCH`**。
 - **不引入 HTTP `409`**：业务冲突（重名 / 删除受阻）归 `400` + 明确 `message`。

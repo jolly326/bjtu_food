@@ -3,23 +3,21 @@
  * A7 举报原因管理（页面规格见 [A7-举报原因管理](../../../docs/func/web/A-主数据维护/A7-举报原因管理.md)）。
  *
  * <p>要点：维护举报弹层的「原因」单选字典（**可维护、免发版**）；数据锚在原因 ID（历史举报按它落库）
- * ⇒ 新建只填中文标签、**没有「改 ID」入口**；改名免费；**删除受引用约束**（下线一律用停用）；
+ * ⇒ 新建只填中文名、**没有「改 ID」入口**；改名免费；**删除受引用约束**（下线一律用停用）；
  * 三条不变量由服务端强制（至少 1 条启用 / 启用 ≤8 / 引用禁删），前端只负责把错误原文透出。
  *
- * <p>表格**只放基础检索列**（原因 / 引用举报 / 状态 / 更新时间 + 拖拽手柄）；顺序位与
+ * <p>表格**只放基础检索列**（原因 / 引用举报 / 状态 / 更新时间，按原因 ID 升序）；
  * **全部操作**（改名 / 启停 / 删除）都在**详情抽屉**内。
  */
 import { computed, onMounted, ref } from 'vue'
 import { confirmDelete } from '@/utils/confirm'
 import { canDelete, canWrite } from '@/utils/permissions'
 import { formatDateTime } from '@/utils/datetime'
-import { useReorder } from '@/composables/useReorder'
 import {
   createReportReason,
   deleteReportReason,
   listReportReasons,
   renameReportReason,
-  sortReportReasons,
   updateReportReasonStatus,
 } from '@/api/reportReasons'
 import type { OnOffStatus, ReportReasonAdminVO } from '@/types/common'
@@ -42,27 +40,27 @@ const enabledCount = computed(() => items.value.filter((r) => r.status === 'on')
 
 /* ==================== 新建（文案，1 控件 ⇒ 弹窗） ==================== */
 const createOpen = ref(false)
-const newLabel = ref('')
+const newName = ref('')
 const saving = ref(false)
 
 function openCreate(): void {
-  newLabel.value = ''
+  newName.value = ''
   createOpen.value = true
 }
 
 async function submitCreate(): Promise<void> {
-  if (!newLabel.value.trim()) {
-    ElMessage.warning('请填写中文标签')
+  if (!newName.value.trim()) {
+    ElMessage.warning('请填写中文名')
     return
   }
   saving.value = true
   try {
-    await createReportReason({ label: newLabel.value.trim() })
+    await createReportReason({ name: newName.value.trim() })
     ElMessage.success('已新建')
     createOpen.value = false
     await load()
   } catch (e) {
-    // 标签重名 / 启用数已达上限 8 → 后端原文（400）
+    // 名称重名 / 启用数已达上限 8 → 后端原文（400）
     fail(e, '新建失败')
   } finally {
     saving.value = false
@@ -76,30 +74,30 @@ type DrawerMode = 'view' | 'edit'
 const drawerOpen = ref(false)
 const mode = ref<DrawerMode>('view')
 const current = ref<ReportReasonAdminVO | null>(null)
-const renameLabel = ref('')
+const renameName = ref('')
 /** 进入编辑态时的快照：用于「未保存修改」二次确认（BaseDrawer 的 dirty） */
 const snapshot = ref('')
 
 const drawerTitle = computed(() => (mode.value === 'view' ? '举报原因详情' : '原因改名'))
-const dirty = computed(() => mode.value === 'edit' && renameLabel.value !== snapshot.value)
+const dirty = computed(() => mode.value === 'edit' && renameName.value !== snapshot.value)
 
 function openDetail(row: ReportReasonAdminVO): void {
   current.value = row
-  renameLabel.value = row.label
-  snapshot.value = row.label
+  renameName.value = row.name
+  snapshot.value = row.name
   mode.value = 'view'
   drawerOpen.value = true
 }
 
 function startRename(): void {
-  renameLabel.value = current.value?.label ?? ''
-  snapshot.value = renameLabel.value
+  renameName.value = current.value?.name ?? ''
+  snapshot.value = renameName.value
   mode.value = 'edit'
 }
 
 function cancelEdit(): void {
   if (current.value) {
-    renameLabel.value = current.value.label
+    renameName.value = current.value.name
     mode.value = 'view'
   }
 }
@@ -107,20 +105,20 @@ function cancelEdit(): void {
 async function submitRename(): Promise<void> {
   const row = current.value
   if (!row) return
-  if (!renameLabel.value.trim()) {
-    ElMessage.warning('请输入中文标签')
+  if (!renameName.value.trim()) {
+    ElMessage.warning('请输入中文名')
     return
   }
   saving.value = true
   try {
-    await renameReportReason(row.id, { label: renameLabel.value.trim() })
+    await renameReportReason(row.id, { name: renameName.value.trim() })
     ElMessage.success('已改名（历史举报的中文翻译同步生效）')
     await load()
     const refreshed = items.value.find((r) => r.id === row.id)
     if (refreshed) {
       current.value = refreshed
-      renameLabel.value = refreshed.label
-      snapshot.value = refreshed.label
+      renameName.value = refreshed.name
+      snapshot.value = refreshed.name
       mode.value = 'view'
     } else {
       drawerOpen.value = false
@@ -146,8 +144,8 @@ function toggle(row: ReportReasonAdminVO): Promise<void> {
   const next: OnOffStatus = row.status === 'on' ? 'off' : 'on'
   const hint =
     next === 'on'
-      ? `确认启用「${row.label}」？举报弹层将再次出现该选项（启用数上限 8 条）。`
-      : `确认停用「${row.label}」？停用后举报弹层不再展示该选项（历史举报仍能翻译出中文），但不能停用最后一条启用。`
+      ? `确认启用「${row.name}」？举报弹层将再次出现该选项（启用数上限 8 条）。`
+      : `确认停用「${row.name}」？停用后举报弹层不再展示该选项（历史举报仍能翻译出中文），但不能停用最后一条启用。`
   return runRowAction({
     id: row.id,
     action: async () => {
@@ -185,9 +183,6 @@ function remove(row: ReportReasonAdminVO): Promise<void> {
   })
 }
 
-/* ==================== 拖拽排序（提交全量行） ==================== */
-const { onDragStart, onDrop } = useReorder(items, sortReportReasons, load)
-
 onMounted(() => load())
 </script>
 
@@ -216,7 +211,6 @@ onMounted(() => load())
       <table class="table">
         <thead>
           <tr>
-            <th class="drag-col"></th>
             <th>原因</th>
             <th>引用举报</th>
             <th>状态</th>
@@ -225,9 +219,8 @@ onMounted(() => load())
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
-            <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
-            <td>{{ row.label }}</td>
+          <tr v-for="row in items" :key="row.id">
+            <td>{{ row.name }}</td>
             <td class="num">{{ row.feedbackCount }}</td>
             <td><StatusTag :status="row.status" kind="onoff" /></td>
             <td class="muted">{{ formatDateTime(row.updatedAt) }}</td>
@@ -245,8 +238,8 @@ onMounted(() => load())
         </tbody>
       </table>
       <p class="foot-note">
-        原因 ID
-        是历史举报的数据锚点（由后端生成，不可修改）；下线一律用「停用」；顺序在行首手柄上拖拽调整。
+        原因 ID 是历史举报的数据锚点（由后端生成，不可修改）；下线一律用「停用」；列表按原因 ID
+        升序。
       </p>
     </div>
 
@@ -254,22 +247,15 @@ onMounted(() => load())
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
       <template v-if="mode === 'view' && canWrite()">
-        <!-- 分组：投放信息（顺序 / 状态并列）→ 引用与标识 -->
+        <!-- 分组：投放信息（名称 / 状态并列）→ 引用与标识 -->
         <div class="detail-group">
           <div class="detail-group-title">投放信息</div>
           <div class="detail-meta detail-meta--grid">
-            <DetailMetaRow k="中文标签">{{ current?.label }}</DetailMetaRow>
+            <DetailMetaRow k="原因名称">{{ current?.name }}</DetailMetaRow>
             <div class="meta-row">
               <span class="meta-key">状态</span>
               <span class="meta-val">
                 <StatusTag :status="current?.status ?? 'off'" kind="onoff" />
-              </span>
-            </div>
-            <div class="meta-row">
-              <span class="meta-key">顺序</span>
-              <span class="meta-val num">
-                {{ current?.order }}
-                <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
               </span>
             </div>
             <div class="meta-row">
@@ -291,14 +277,14 @@ onMounted(() => load())
         </div>
       </template>
 
-      <!-- ② 改名态（只改 label） -->
+      <!-- ② 改名态（只改 `name`） -->
       <template v-else>
         <div class="field">
-          <label for="rr-rename-label">中文标签</label>
+          <label for="rr-rename-name">原因名称</label>
           <input
-            id="rr-rename-label"
+            id="rr-rename-name"
             class="form-input"
-            v-model="renameLabel"
+            v-model="renameName"
             maxlength="32"
             @keyup.enter="submitRename"
           />
@@ -344,14 +330,14 @@ onMounted(() => load())
       </template>
     </BaseDrawer>
 
-    <!-- 新建：中文标签（1 控件） -->
+    <!-- 新建：中文名（1 控件） -->
     <BaseModal title="新建举报原因" :open="createOpen" @close="createOpen = false">
       <div class="field">
-        <label for="rr-new-label">中文标签</label>
+        <label for="rr-new-name">原因名称</label>
         <input
-          id="rr-new-label"
+          id="rr-new-name"
           class="form-input"
-          v-model="newLabel"
+          v-model="newName"
           maxlength="32"
           placeholder="如 垃圾广告 / 营销刷屏"
         />

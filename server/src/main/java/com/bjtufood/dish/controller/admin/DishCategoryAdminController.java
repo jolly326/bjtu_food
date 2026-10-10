@@ -1,6 +1,5 @@
 package com.bjtufood.dish.controller.admin;
 
-import com.bjtufood.common.dto.SortItemsReq;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.dish.dto.DishCategoryAdminVO;
 import com.bjtufood.dish.dto.DishCategoryRenameReq;
@@ -32,7 +31,7 @@ import java.util.List;
  * 数据锚在 `id`（`dish.category_id` 存的就是它）⇒ **改名免费**、零菜品迁移。
  */
 @Tag(name = "07. 后台分类（菜品种类）管理", description = "管理员维护菜品种类字典（`dish_category`，`dish.category_id` 的取值域）："
-        + "列表 / 登记 / 重命名 / 排序。数据锚在种类 ID，改名免费。需要管理员 token。")
+        + "列表 / 登记 / 重命名。数据锚在种类 ID，改名免费。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/dish-categories")
 @RequiredArgsConstructor
@@ -41,31 +40,24 @@ public class DishCategoryAdminController {
 
     private final DishCategoryAdminService service;
 
-    @Operation(summary = "分类列表", description = "用途：分类（种类）维护入口（按 order 升序，不分页）；带 dishCount（引用该种类的菜品数）。")
+    @Operation(summary = "分类列表", description = "用途：分类（种类）维护入口（按 id 升序，不分页）；带 dishCount（引用该种类的菜品数）。")
     @GetMapping
     public Result<List<DishCategoryAdminVO>> list() {
         return Result.success(service.listAll());
     }
 
-    @Operation(summary = "登记分类", description = "用途：登记新种类。种类的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、全表唯一。")
+    @Operation(summary = "登记分类", description = "用途：登记新种类。种类的 ID 由后端生成；名 1~32 字、全表唯一。")
     @PostMapping
     public Result<DishCategoryAdminVO> create(@Valid @RequestBody DishCategorySaveReq req) {
-        return Result.success(service.create(req.getLabel()));
+        return Result.success(service.create(req.getName()));
     }
 
-    @Operation(summary = "分类排序", description = "用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。")
-    @PutMapping("/sort")
-    public Result<Void> sort(@Valid @RequestBody SortItemsReq req) {
-        service.sort(req.getItems());
-        return Result.success();
-    }
-
-    @Operation(summary = "重命名分类", description = "用途：**只改 label**（改名免费，零菜品迁移）；重名 400；不存在 4001。")
+    @Operation(summary = "重命名分类", description = "用途：**只改 name**（改名免费，零菜品迁移）；重名 400；不存在 4001。")
     @PutMapping("/{id}")
     public Result<Void> rename(
             @Parameter(description = "种类ID", example = "3") @PathVariable Long id,
             @Valid @RequestBody DishCategoryRenameReq req) {
-        service.rename(id, req.getLabel());
+        service.rename(id, req.getName());
         return Result.success();
     }
 }

@@ -12,7 +12,7 @@ onLaunch(() => {
     wxApi.cloud.init({ env: WX_CLOUD_ENV, traceUser: true });
   }
   // #endif
-  // 微信自动静默登录：打开小程序即登录为游客态（bindEmail 为空）；有 token 则刷新资料
+  // 微信自动静默登录：打开小程序即登录为游客态（email 为空）；有 token 则刷新资料
   // 失败（如后端不可达）仅打点，不阻断浏览与菜单栏渲染
   useUserStore().silentLogin().catch(() => {})
 });

@@ -15,7 +15,7 @@ function toReview(raw: ReviewVO): Review {
   return {
     id: Number(raw.id),
     userId: Number(raw.userId ?? 0),
-    userNickname: raw.userNickname ?? ANONYMOUS_AUTHOR,
+    userName: raw.userName ?? ANONYMOUS_AUTHOR,
     userAvatar: raw.userAvatar || '',
     rating: Number(raw.rating || 0),
     content: raw.content || '',
@@ -27,7 +27,7 @@ function toReview(raw: ReviewVO): Review {
 
 /**
  * 本人视角行映射（`GET /my/reviews`，7 字段）：公开 5 字段 + `dishId` / `dishName`；
- * **不含 `userId` / `userNickname` / `userAvatar`**（恒等于本人、零信息）。
+ * **不含 `userId` / `userName` / `userAvatar`**（恒等于本人、零信息）。
  */
 function toMyReview(raw: MyReviewVO): MyReview {
   return {

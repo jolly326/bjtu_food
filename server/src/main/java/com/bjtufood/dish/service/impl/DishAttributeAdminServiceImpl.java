@@ -1,12 +1,9 @@
 package com.bjtufood.dish.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.bjtufood.common.dto.SortItem;
-import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.common.utils.JsonMapUtil;
-import com.bjtufood.common.utils.SortReorderUtil;
 import com.bjtufood.dish.dto.DishDimensionAdminVO;
 import com.bjtufood.dish.dto.DishValueAdminVO;
 import com.bjtufood.dish.entity.Dish;
@@ -34,7 +31,7 @@ import java.util.Map;
  * <p>
  * <b>计数策略</b>：维度 / 取值的引用计数（`dishCount`）与「被引用不可删」判据都需扫菜品行 ——
  * 引用一律在 `dish.attributes`；以「一次拉回 id + attributes 后在内存聚合」实现
- * （管理端低频操作，口径与 `DishAttributeCatalog` 的候选聚合一致，
+ * （管理端低频操作，口径与 {@code DishAttributeCatalog} 的候选聚合一致，
  * 避免为每个维度/取值单发 COUNT 造成 N+1）。
  */
 @Service
@@ -43,7 +40,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
 
     private static final String TYPE_SINGLE = "single";
     private static final String TYPE_MULTI = "multi";
-    private static final int LABEL_MAX = 32;
+    private static final int NAME_MAX = 32;
 
     private final DishAttributeDimensionMapper dimensionMapper;
     private final DishAttributeValueMapper valueMapper;
@@ -62,14 +59,13 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
     @Override
     public List<DishDimensionAdminVO> listDimensions() {
         List<DishAttributeDimension> dimensions = dimensionMapper.selectList(
-                new LambdaQueryWrapper<DishAttributeDimension>().orderByAsc(DishAttributeDimension::getSortOrder));
+                new LambdaQueryWrapper<DishAttributeDimension>().orderByAsc(DishAttributeDimension::getId));
         Usage usage = scanUsage();
         return dimensions.stream().map(d -> {
             DishDimensionAdminVO vo = new DishDimensionAdminVO();
             vo.setId(d.getId());
             vo.setName(d.getName());
             vo.setValueType(d.getValueType());
-            vo.setOrder(d.getSortOrder());
             vo.setDishCount(usage.dishCountByDimensionId.getOrDefault(d.getId(), 0L));
             vo.setValueCount(usage.valueCountByDimensionId.getOrDefault(d.getId(), 0L));
             vo.setUpdatedAt(d.getUpdatedAt());
@@ -80,19 +76,18 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DishDimensionAdminVO createDimension(String name, String valueType) {
-        String dimensionName = requireText(name, "维度名", LABEL_MAX);
+        String dimensionName = requireText(name, "维度名");
         String type = requireValueType(valueType);
         DishAttributeDimension entity = new DishAttributeDimension();
         entity.setName(dimensionName);
         entity.setValueType(type);
-        entity.setSortOrder(nextDimensionOrder());
         dimensionMapper.insert(entity);
+        invalidateCatalog();
         DishAttributeDimension saved = dimensionMapper.selectById(entity.getId());
         DishDimensionAdminVO vo = new DishDimensionAdminVO();
         vo.setId(saved.getId());
         vo.setName(saved.getName());
         vo.setValueType(saved.getValueType());
-        vo.setOrder(saved.getSortOrder());
         vo.setDishCount(0L);
         vo.setValueCount(0L);
         vo.setUpdatedAt(saved.getUpdatedAt());
@@ -106,7 +101,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (current == null) {
             throw new BusinessException(4001, "维度不存在");
         }
-        String dimensionName = requireText(name, "维度名", LABEL_MAX);
+        String dimensionName = requireText(name, "维度名");
         String type = requireValueType(valueType);
         boolean typeChanged = !type.equals(current.getValueType());
         DishAttributeDimension update = new DishAttributeDimension();
@@ -118,6 +113,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (typeChanged) {
             migrateShape(current.getId(), type);
         }
+        invalidateCatalog();
     }
 
     @Override
@@ -127,8 +123,6 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (current == null) {
             throw new BusinessException(4001, "维度不存在");
         }
-        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
-        AuditSnapshot.before(current);
         Usage usage = scanUsage();
         long used = usage.dishCountByDimensionId.getOrDefault(current.getId(), 0L);
         if (used > 0) {
@@ -138,20 +132,7 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         valueMapper.delete(new LambdaQueryWrapper<DishAttributeValue>()
                 .eq(DishAttributeValue::getDimensionId, id));
         dimensionMapper.deleteById(id);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void sortDimensions(List<SortItem> items) {
-        List<Long> existing = dimensionMapper.selectList(null).stream()
-                .map(DishAttributeDimension::getId).toList();
-        Map<Long, Integer> ordered = SortReorderUtil.resolve(items, existing);
-        for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
-            DishAttributeDimension update = new DishAttributeDimension();
-            update.setId(e.getKey());
-            update.setSortOrder(e.getValue());
-            dimensionMapper.updateById(update);
-        }
+        invalidateCatalog();
     }
 
     // ==================== 取值 ====================
@@ -161,36 +142,37 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         requireDimension(dimensionId);
         List<DishAttributeValue> values = valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
                 .eq(DishAttributeValue::getDimensionId, dimensionId)
-                .orderByAsc(DishAttributeValue::getSortOrder));
+                .orderByAsc(DishAttributeValue::getId));
         Usage usage = scanUsage();
         return values.stream().map(v -> toValueVO(v, usage)).toList();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public DishValueAdminVO createValue(Long dimensionId, String label) {
+    public DishValueAdminVO createValue(Long dimensionId, String name) {
         requireDimension(dimensionId);
-        String text = requireText(label, "取值名", LABEL_MAX);
-        requireLabelUnique(dimensionId, text, null);
+        String text = requireText(name, "取值名");
+        requireNameUnique(dimensionId, text, null);
         DishAttributeValue entity = new DishAttributeValue();
         entity.setDimensionId(dimensionId);
-        entity.setLabel(text);
-        entity.setSortOrder(nextValueOrder(dimensionId));
+        entity.setName(text);
         valueMapper.insert(entity);
+        invalidateCatalog();
         return toValueVO(valueMapper.selectById(entity.getId()), scanUsage());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void updateValue(Long dimensionId, Long valueId, String label) {
+    public void updateValue(Long dimensionId, Long valueId, String name) {
         DishAttributeValue current = requireValue(dimensionId, valueId);
-        String text = requireText(label, "取值名", LABEL_MAX);
-        requireLabelUnique(dimensionId, text, current.getId());
+        String text = requireText(name, "取值名");
+        requireNameUnique(dimensionId, text, current.getId());
         DishAttributeValue update = new DishAttributeValue();
         update.setId(valueId);
-        update.setLabel(text);
+        update.setName(text);
         // 改名免费：菜品存的是 ID，无需迁移任何菜品数据
         valueMapper.updateById(update);
+        invalidateCatalog();
     }
 
     @Override
@@ -202,25 +184,8 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (used > 0) {
             throw new BusinessException("仍有 " + used + " 个菜品引用该取值，不能删除");
         }
-        // 审计变更前值（物理删除不可逆，快照是误删后重建的依据）
-        AuditSnapshot.before(valueMapper.selectById(valueId));
         valueMapper.deleteById(valueId);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void sortValues(Long dimensionId, List<SortItem> items) {
-        requireDimension(dimensionId);
-        List<Long> existing = valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
-                        .eq(DishAttributeValue::getDimensionId, dimensionId))
-                .stream().map(DishAttributeValue::getId).toList();
-        Map<Long, Integer> ordered = SortReorderUtil.resolve(items, existing);
-        for (Map.Entry<Long, Integer> e : ordered.entrySet()) {
-            DishAttributeValue update = new DishAttributeValue();
-            update.setId(e.getKey());
-            update.setSortOrder(e.getValue());
-            valueMapper.updateById(update);
-        }
+        invalidateCatalog();
     }
 
     // ==================== 属性值读写口径转换 ====================
@@ -296,17 +261,16 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         } else {
             existing = valueMapper.selectOne(new LambdaQueryWrapper<DishAttributeValue>()
                     .eq(DishAttributeValue::getDimensionId, dimension.getId())
-                    .eq(DishAttributeValue::getLabel, text)
+                    .eq(DishAttributeValue::getName, text)
                     .last("LIMIT 1"));
             if (existing == null) {
                 // 未命中 ⇒ 自动登记（管理端录入新值 / 纠错采纳共用同一逻辑）
-                if (text.length() > LABEL_MAX) {
-                    throw new BusinessException("属性取值不能超过 " + LABEL_MAX + " 字");
+                if (text.length() > NAME_MAX) {
+                    throw new BusinessException("属性取值不能超过 " + NAME_MAX + " 字");
                 }
                 DishAttributeValue created = new DishAttributeValue();
                 created.setDimensionId(dimension.getId());
-                created.setLabel(text);
-                created.setSortOrder(nextValueOrder(dimension.getId()));
+                created.setName(text);
                 valueMapper.insert(created);
                 existing = created;
             }
@@ -320,45 +284,45 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         if (parsed.isEmpty()) {
             return new LinkedHashMap<>();
         }
-        // 全量字典一次拉回：id → label（取值规模极小，几十行）
-        Map<Long, String> labelById = new HashMap<>();
+        // 全量字典一次拉回：id → 中文名（取值规模极小，几十行）
+        Map<Long, String> nameById = new HashMap<>();
         for (DishAttributeValue v : valueMapper.selectList(null)) {
-            labelById.put(v.getId(), v.getLabel());
+            nameById.put(v.getId(), v.getName());
         }
         Map<String, Object> out = new LinkedHashMap<>();
         parsed.forEach((dimensionKey, value) -> {
             if (value instanceof Collection<?> items) {
-                List<String> labels = new ArrayList<>(items.size());
+                List<String> names = new ArrayList<>(items.size());
                 for (Object item : items) {
-                    labels.add(toLabel(labelById, item));
+                    names.add(toName(nameById, item));
                 }
-                out.put(dimensionKey, labels);
+                out.put(dimensionKey, names);
             } else {
-                out.put(dimensionKey, toLabel(labelById, value));
+                out.put(dimensionKey, toName(nameById, value));
             }
         });
         return out;
     }
 
     /** 取值 ID → 中文；悬空 ID 原样保留，不丢数据 */
-    private static String toLabel(Map<Long, String> labelById, Object value) {
+    private static String toName(Map<Long, String> nameById, Object value) {
         if (value == null) {
             return null;
         }
         String text = String.valueOf(value).trim();
         if (text.matches("\\d+")) {
-            String label = labelById.get(Long.valueOf(text));
-            return label != null ? label : text;
+            String name = nameById.get(Long.valueOf(text));
+            return name != null ? name : text;
         }
         return text;
     }
 
     @Override
-    public Map<Long, String> labelByIdForDimension(Long dimensionId) {
+    public Map<Long, String> nameByIdForDimension(Long dimensionId) {
         Map<Long, String> map = new HashMap<>();
         for (DishAttributeValue v : valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
                 .eq(DishAttributeValue::getDimensionId, dimensionId))) {
-            map.put(v.getId(), v.getLabel());
+            map.put(v.getId(), v.getName());
         }
         return map;
     }
@@ -455,10 +419,10 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         return value;
     }
 
-    private void requireLabelUnique(Long dimensionId, String label, Long excludeId) {
+    private void requireNameUnique(Long dimensionId, String name, Long excludeId) {
         LambdaQueryWrapper<DishAttributeValue> wrapper = new LambdaQueryWrapper<DishAttributeValue>()
                 .eq(DishAttributeValue::getDimensionId, dimensionId)
-                .eq(DishAttributeValue::getLabel, label);
+                .eq(DishAttributeValue::getName, name);
         if (excludeId != null) {
             wrapper.ne(DishAttributeValue::getId, excludeId);
         }
@@ -469,33 +433,19 @@ public class DishAttributeAdminServiceImpl implements DishAttributeAdminService 
         DishValueAdminVO vo = new DishValueAdminVO();
         vo.setId(v.getId());
         vo.setDimensionId(v.getDimensionId());
-        vo.setLabel(v.getLabel());
-        vo.setOrder(v.getSortOrder());
+        vo.setName(v.getName());
         vo.setDishCount(usage.dishCountByValueId.getOrDefault(v.getId(), 0L));
         vo.setUpdatedAt(v.getUpdatedAt());
         return vo;
     }
 
-    private int nextDimensionOrder() {
-        List<DishAttributeDimension> all = dimensionMapper.selectList(
-                new LambdaQueryWrapper<DishAttributeDimension>().orderByDesc(DishAttributeDimension::getSortOrder));
-        return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
-    }
-
-    private int nextValueOrder(Long dimensionId) {
-        List<DishAttributeValue> all = valueMapper.selectList(new LambdaQueryWrapper<DishAttributeValue>()
-                .eq(DishAttributeValue::getDimensionId, dimensionId)
-                .orderByDesc(DishAttributeValue::getSortOrder));
-        return all.isEmpty() || all.get(0).getSortOrder() == null ? 1 : all.get(0).getSortOrder() + 1;
-    }
-
-    private static String requireText(String text, String what, int max) {
+    private static String requireText(String text, String what) {
         String v = text == null ? null : text.trim();
         if (!StringUtils.hasText(v)) {
             throw new BusinessException(what + "不能为空");
         }
-        if (v.length() > max) {
-            throw new BusinessException(what + "不能超过 " + max + " 字");
+        if (v.length() > NAME_MAX) {
+            throw new BusinessException(what + "不能超过 " + NAME_MAX + " 字");
         }
         return v;
     }

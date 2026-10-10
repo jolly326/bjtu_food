@@ -13,6 +13,6 @@ public class UserOverviewVO {
     @Schema(description = "用户总数（不含已注销）")
     private Long userCount;
 
-    @Schema(description = "已认证用户数（bind_email 非空）")
+    @Schema(description = "已认证用户数（email 非空）")
     private Long verifiedUserCount;
 }

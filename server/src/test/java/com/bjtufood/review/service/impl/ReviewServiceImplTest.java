@@ -226,11 +226,11 @@ class ReviewServiceImplTest {
 
         assertThat(vos).hasSize(3);
         assertThat(vos.get(0).getUserAvatar()).isEqualTo("http://host/api/v1/images/a.jpg");
-        assertThat(vos.get(0).getUserNickname()).isEqualTo("小明");
+        assertThat(vos.get(0).getUserName()).isEqualTo("小明");
         assertThat(vos.get(1).getUserAvatar()).isNull();
         // 用户不在契约返回图中（用户已注销被剔除等）：头像同样为 null，不得抛 NPE
         assertThat(vos.get(2).getUserAvatar()).isNull();
-        assertThat(vos.get(2).getUserNickname()).isNull();
+        assertThat(vos.get(2).getUserName()).isNull();
     }
 
     // ==================== deleteByDishId：级联清理 ====================

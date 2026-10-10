@@ -19,10 +19,7 @@ public class DishCategoryAdminVO {
     private Long id;
 
     @Schema(description = "种类中文名（可改，改名免费）", example = "面食粉类")
-    private String label;
-
-    @Schema(description = "展示顺序")
-    private Integer order;
+    private String name;
 
     @Schema(description = "引用该种类的菜品数（删除前判断）")
     private Long dishCount;

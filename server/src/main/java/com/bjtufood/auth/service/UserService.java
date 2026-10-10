@@ -23,27 +23,17 @@ import java.util.Map;
 public interface UserService {
 
     /**
-     * 分页查询用户列表（管理端用）
-     * <p>
-     * 支持按状态筛选，结果不返回密码字段
-     *
-     * @param page     页码
-     * @param pageSize 每页条数
-     * @param status   状态筛选（可选）
-     * @return 分页用户列表
-     */
-    /**
      * 管理端用户列表（分页）。
      *
      * @param status  状态筛选（`active`/`disabled`/`deleted`；不传 = 全部）
-     * @param keyword 关键词（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位；可空）
+     * @param keyword 关键词（**昵称 / 微信标识号 / 绑定邮箱**模糊匹配，便于按人定位；可空）
      */
     IPage<UserVO> listUsers(int page, int pageSize, String status, String keyword);
 
     /**
-     * 根据邮箱查询用户。
+     * 根据绑定邮箱查询用户（`email` 非空即已认证，本列同时是认证绑定唯一键）。
      *
-     * @param email 邮箱
+     * @param email 绑定邮箱
      * @return 用户实体，不存在返回 null
      */
     User getByEmail(String email);
@@ -57,7 +47,7 @@ public interface UserService {
     User getByOpenid(String openid);
 
     /**
-     * 新建微信游客账号（游客态 = bind_email 为 NULL；认证态无布尔列，判据见 AuthStateUtil）。
+     * 新建微信游客账号（游客态 = email 为 NULL；认证态无布尔列，判据见 AuthStateUtil）。
      * <p>
      * <b>语义</b>：建号是「INSERT 占位昵称 + 按自增 id 回填最终昵称」两步写库，必须原子完成——
      * 任一步失败都不得留下昵称为占位值的账号。因此本方法声明为**独立 Bean 上的事务方法**
@@ -68,14 +58,6 @@ public interface UserService {
      * @return 新建的游客账号；若并发下已被同 openid 抢先建号则返回既有账号
      */
     User createWechatGuest(String openid);
-
-    /**
-     * 根据已认证绑定邮箱查询用户（bind_email 唯一认证绑定）。
-     *
-     * @param bindEmail 认证绑定邮箱
-     * @return 用户实体，不存在返回 null
-     */
-    User getByBindEmail(String bindEmail);
 
     /**
      * 启用/禁用用户账号（{@code PUT /admin/users/{id}/status}）。
@@ -93,8 +75,8 @@ public interface UserService {
     /**
      * 解绑认证邮箱（{@code DELETE /admin/users/{id}/email}）。
      * <p>
-     * 只置空 {@code bind_email} 一列（认证态唯一判据，置 NULL 即实时回落游客态、UGC 写被拒）；
-     * 不改 {@code status}、不动 {@code email}（账号标识），登录与已发表内容不受影响。
+     * 只置空 {@code email} 一列（认证态唯一判据，置 NULL 即实时回落游客态、UGC 写被拒）；
+     * 不改 {@code status}、不改 {@code wxId}（账号标识），登录与已发表内容不受影响。
      * 绑定邮箱的历史验证码随解绑删除。写操作与启停 / 注销共用同一 userId 临界区
      * （{@code UserStateWriteLock}），不代绑新邮箱（重新认证必须由用户本人走验证码流程）。
      *
@@ -160,9 +142,9 @@ public interface UserService {
      * 批量取昵称（管理端列表补齐「提交人」用，一次 IN 查询消除 N+1）。
      *
      * @param userIds 用户ID集合（null/空集合返回空 Map，不发起查询）
-     * @return userId → nickname 映射（昵称缺失的账号不入图，与旧实现 put(null) 后 VO 留空等价）
+     * @return userId → name 映射（昵称缺失的账号不入图）
      */
-    Map<Long, String> mapNicknameByIds(Collection<Long> userIds);
+    Map<Long, String> mapNameByIds(Collection<Long> userIds);
 
     /**
      * 批量取作者展示快照（昵称 + 头像绝对 URL），供 review 管理端列表补齐。
@@ -173,7 +155,7 @@ public interface UserService {
     Map<Long, UserBriefVO> mapBriefByIds(Collection<Long> userIds);
 
     /**
-     * 用户规模计数（D1 看板概况）：总数（**不含已注销**）+ 已认证数（`bind_email` 非空）。
+     * 用户规模计数（D1 看板概况）：总数（**不含已注销**）+ 已认证数（`email` 非空）。
      *
      * @return 用户规模计数
      */

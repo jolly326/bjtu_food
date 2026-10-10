@@ -8,12 +8,12 @@ import { DEFAULT_NICKNAME, GUEST_NICKNAME, GUEST_SUB_TEXT, EMPTY_FIELD_TEXT } fr
  */
 
 /** 主行昵称：认证态缺省「食客」，游客态缺省「游客」 */
-export function displayNickname(nickname: string | undefined, verified: boolean): string {
-  return nickname || (verified ? DEFAULT_NICKNAME : GUEST_NICKNAME)
+export function displayNickname(name: string | undefined, verified: boolean): string {
+  return name || (verified ? DEFAULT_NICKNAME : GUEST_NICKNAME)
 }
 
 /** 副行：认证态 = 校园邮箱（空则占位符）；游客态 = 固定引导文案 */
-export function displaySubLine(bindEmail: string | undefined, verified: boolean): string {
+export function displaySubLine(email: string | undefined, verified: boolean): string {
   if (!verified) return GUEST_SUB_TEXT
-  return bindEmail || EMPTY_FIELD_TEXT
+  return email || EMPTY_FIELD_TEXT
 }

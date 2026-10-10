@@ -47,7 +47,7 @@ export const useUserStore = defineStore('user', () => {
   const lastLoginError = ref('')
 
   /**
-   * 微信静默登录：微信打开小程序自动登录为游客态（bindEmail 为空）。
+   * 微信静默登录：微信打开小程序自动登录为游客态（email 为空）。
    * - 已有 token → 刷新 /auth/profile 资料（游客态即可读），失败则重登；
    * - 无 token → wx.login 拿 code → POST /auth/wechat-login 静默建号/取号。
    * 并发去重：同一时间仅执行一次（App 启动 / 401 重登 / 页面 onLoad 并发安全）。
@@ -96,7 +96,7 @@ export const useUserStore = defineStore('user', () => {
     return silentLoginPromise
   }
 
-  /** 学号邮箱认证：验证码绑定当前微信 → 写入 bindEmail（认证判据即其非空），返回最新 userInfo */
+  /** 学号邮箱认证：验证码绑定当前微信 → 写入 email（认证判据即其非空），返回最新 userInfo */
   async function verifyEmail(code: string) {
     // 兜底：认证需微信登录态，若静默登录未就绪（如启动竞态）或失败，先补一次。
     // 透传真实失败原因（如「微信登录未配置」/「凭证无效」），避免误导为网络问题。
@@ -110,7 +110,7 @@ export const useUserStore = defineStore('user', () => {
     }
     loading.value = true
     try {
-      // 仅刷新 userInfo：JWT 不含 bind_email、后端实时查库判定认证态，无需（也不应）替换 token
+      // 仅刷新 userInfo：JWT 不含 email、后端实时查库判定认证态，无需（也不应）替换 token
       const info = await userApi.verifyEmail(code)
       persistUserInfo(info)
       return info
@@ -119,7 +119,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function updateProfile(data: { nickname?: string; avatar?: string }) {
+  async function updateProfile(data: { name?: string; avatar?: string }) {
     const res = await userApi.updateProfile(data)
     persistUserInfo(res)
     return res
@@ -145,11 +145,11 @@ export const useUserStore = defineStore('user', () => {
   /**
    * 是否已邮箱认证（权限矩阵）：true 解锁 UGC 写操作；false = 游客态。
    *
-   * **唯一判据 = `bindEmail` 非空**：出参不含 `verified` 布尔（与 bindEmail 同源冗余），
-   * 故全端判定收敛在本方法一处；页面 / 组件不得散写 `!!userInfo.bindEmail` 造成判据分裂。
+   * **唯一判据 = `email` 非空**：出参不含 `verified` 布尔（与 email 同源冗余），
+   * 故全端判定收敛在本方法一处；页面 / 组件不得散写 `!!userInfo.email` 造成判据分裂。
    */
   function isVerified(): boolean {
-    return !!userInfo.value?.bindEmail
+    return !!userInfo.value?.email
   }
 
   /**

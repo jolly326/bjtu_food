@@ -18,7 +18,6 @@ import com.bjtufood.review.dto.ReviewReq;
 import com.bjtufood.review.dto.ReviewVO;
 import com.bjtufood.review.dto.ReviewAdminVO;
 import com.bjtufood.review.dto.ReviewRelatedBriefVO;
-import com.bjtufood.common.audit.AuditSnapshot;
 import com.bjtufood.review.entity.Review;
 import com.bjtufood.review.event.ReviewSubmittedEvent;
 import com.bjtufood.review.mapper.ReviewMapper;
@@ -178,7 +177,7 @@ public class ReviewServiceImpl implements ReviewService {
      * 鉴权 = 作者本人（非本人 403）；未认证由 Controller 的 @RequireVerified 给出 4031。
      */
     /**
-     * UGC 作者准入：已认证（bind_email 非空，判据唯一真源在 auth，经
+     * UGC 作者准入：已认证（email 非空，判据唯一真源在 auth，经
      * {@link UserService#getAuthContext(Long)} 折算为布尔值下发）且 openid 非空
      * （msgSecCheck v2 必填 openid）。
      * <p>
@@ -296,7 +295,7 @@ public class ReviewServiceImpl implements ReviewService {
         for (Review r : records) {
             ReviewAdminVO vo = toAdminVO(r);
             UserBriefVO u = r.getUserId() == null ? null : userMap.get(r.getUserId());
-            vo.setUserNickname(u != null ? u.getNickname() : null);
+            vo.setUserName(u != null ? u.getName() : null);
             // 头像由 auth 域完成相对路径 → 绝对 URL 转换，本处原样透传
             vo.setUserAvatar(u != null ? u.getAvatarUrl() : null);
             vo.setDishName(r.getDishId() == null ? null : dishNameMap.get(r.getDishId()));
@@ -312,13 +311,10 @@ public class ReviewServiceImpl implements ReviewService {
         if (review == null) {
             throw new BusinessException(4001, "评价不存在");
         }
-        // 审计变更前后值：可见性跃迁是可逆的状态变更，快照使「谁把它隐藏/恢复的」可精确追溯
-        AuditSnapshot.before(review);
         review.setIsHidden(hidden ? 1 : 0);
         // 附注只属「隐藏」：恢复显示时清空，避免旧附注残留到下一条回执
         review.setHiddenNote(hidden ? normalizeHiddenNote(note) : null);
         reviewMapper.updateById(review);
-        AuditSnapshot.after(review);
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
         if (hidden) {
             // 隐藏后该评价对作者本人亦不可见（见 B1「客户端可见性」）⇒ 回执是作者唯一解释渠道
@@ -336,8 +332,6 @@ public class ReviewServiceImpl implements ReviewService {
         if (review == null) {
             throw new BusinessException(4001, "评价不存在");
         }
-        // 审计变更前值：物理删除不可逆，快照（含正文与配图）是误删后重建的唯一依据
-        AuditSnapshot.before(review);
         reviewMapper.deleteById(id);
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
         // 物理删除、作者侧完全不可见 ⇒ 必须投递回执

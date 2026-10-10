@@ -29,7 +29,7 @@ public class ReviewAdminVO {
     private String dishName;
 
     @Schema(description = "评价者昵称", example = "张三")
-    private String userNickname;
+    private String userName;
 
     @Schema(description = "评价者头像URL")
     private String userAvatar;

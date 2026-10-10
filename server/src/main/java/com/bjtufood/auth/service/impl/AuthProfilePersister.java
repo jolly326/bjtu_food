@@ -26,19 +26,19 @@ public class AuthProfilePersister {
     /**
      * 按字段局部更新昵称 / 头像（事务边界仅包住这一次 update）。
      * <p>
-     * 沿用 <b>LambdaUpdateWrapper 局部更新</b>而非整行覆盖：避免把 {@code bind_email} / {@code status}
-     * 等列重新写回，与「邮箱认证写 bind_email」等并发写操作产生 lost update。
+     * 沿用 <b>LambdaUpdateWrapper 局部更新</b>而非整行覆盖：避免把 {@code email} / {@code status}
+     * 等列重新写回，与「邮箱认证写 email」等并发写操作产生 lost update。
      *
      * @param userId   目标用户
-     * @param nickname 新昵称（为空表示不更新）
+     * @param name     新昵称（为空表示不更新）
      * @param avatar   新头像（为空表示不更新）
      */
     @Transactional(rollbackFor = Exception.class)
-    public void updateNicknameAndAvatar(Long userId, String nickname, String avatar) {
+    public void updateNameAndAvatar(Long userId, String name, String avatar) {
         LambdaUpdateWrapper<User> updater = new LambdaUpdateWrapper<>();
         updater.eq(User::getId, userId);
-        if (StringUtils.hasText(nickname)) {
-            updater.set(User::getNickname, nickname);
+        if (StringUtils.hasText(name)) {
+            updater.set(User::getName, name);
         }
         if (StringUtils.hasText(avatar)) {
             updater.set(User::getAvatar, avatar);

@@ -29,7 +29,7 @@
 |---|---|---|
 | `id` | number | 评价 ID |
 | `userId` | number | 评价者用户 ID |
-| `userNickname` / `userAvatar` | string | 评价者昵称 / 头像（联表带出）。头像为**绝对 URL**；作者无头像（游客 / 未设置 / 已注销）→ **`null`**，前端走统一占位（灰底 + 人形），不出 `openid` 等敏感字段 |
+| `userName` / `userAvatar` | string | 评价者昵称 / 头像（联表带出）。头像为**绝对 URL**；作者无头像（游客 / 未设置 / 已注销）→ **`null`**，前端走统一占位（灰底 + 人形），不出 `openid` 等敏感字段 |
 | `dishId` / `dishName` | number / string | 关联菜品 ID / 名称 |
 | `rating` | number | 评分（1~5） |
 | `content` | string | 评价正文（空串兜底） |

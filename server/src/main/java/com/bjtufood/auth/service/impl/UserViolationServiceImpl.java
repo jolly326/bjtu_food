@@ -6,9 +6,7 @@ import com.bjtufood.auth.config.TokenBlacklist;
 import com.bjtufood.auth.constant.UserConst;
 import com.bjtufood.auth.constant.ViolationConst;
 import com.bjtufood.auth.entity.User;
-import com.bjtufood.auth.entity.UserViolation;
 import com.bjtufood.auth.mapper.UserMapper;
-import com.bjtufood.auth.mapper.UserViolationMapper;
 import com.bjtufood.auth.service.UserViolationService;
 import com.bjtufood.common.alert.AlertType;
 import com.bjtufood.common.alert.SecurityAlertNotifier;
@@ -55,8 +53,6 @@ public class UserViolationServiceImpl implements UserViolationService {
 
     private final UserMapper userMapper;
 
-    private final UserViolationMapper userViolationMapper;
-
     /**
      * 与启停 / 解绑邮箱 / 注销**共用同一把** userId 锁：违规处置写的是同一行账号状态，
      * 与管理员的手工启停必须互斥，否则并发下会出现「自动封禁 + 人工启用」交错后状态与黑名单不一致。
@@ -78,7 +74,7 @@ public class UserViolationServiceImpl implements UserViolationService {
         if (user == null) {
             return;
         }
-        record(user, ViolationConst.SOURCE_MODERATION, "机审命中违规内容（已被拦截，未入库）");
+        record(user, ViolationConst.SOURCE_MODERATION);
     }
 
     @Override
@@ -91,13 +87,15 @@ public class UserViolationServiceImpl implements UserViolationService {
         if (user == null) {
             return;
         }
-        record(user, ViolationConst.SOURCE_REPORT, "举报成立（管理端处置结论为通过）");
+        record(user, ViolationConst.SOURCE_REPORT);
     }
 
     /**
-     * 记一次违规：累加计数 → 按新计数判定处置 → 落留痕 → 达处置档位即告警。
+     * 记一次违规：累加计数 → 按新计数判定处置 → 达处置档位即告警。
+     *
+     * @param source 违规来源（{@link ViolationConst}；随处置告警一并推送，便于事后核对依据）
      */
-    private void record(User user, String source, String detail) {
+    private void record(User user, String source) {
         // 已注销账号不再处置（其内容已匿名化归属，继续升级处置无意义）
         if (UserConst.STATUS_DELETED.equals(user.getStatus())) {
             return;
@@ -105,13 +103,6 @@ public class UserViolationServiceImpl implements UserViolationService {
         int count = (user.getViolationCount() == null ? 0 : user.getViolationCount()) + 1;
         String action = actionFor(count);
         apply(user.getId(), count, action);
-
-        UserViolation row = new UserViolation();
-        row.setUserId(user.getId());
-        row.setSource(source);
-        row.setDetail(detail);
-        row.setAction(action);
-        userViolationMapper.insert(row);
 
         if (!ViolationConst.ACTION_COUNTED.equals(action)) {
             // 🔴 每次处置动作必须告警：防「静默封号」—— 学生账号被封必须有人（运维）立刻知道

@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * 对应表 `report_reason` —— 举报弹层「原因」单选的**可维护字典**。
  * <ul>
  *   <li>{@code id}：**数据锚点**（历史举报按它落库到 `user_feedback.sub_reason_id`）；</li>
- *   <li>{@code label}：中文标签，**改名免费**（历史举报的中文翻译随表实时生效）；</li>
+ *   <li>{@code name}：中文名，**改名免费**（历史举报的中文翻译随表实时生效）；</li>
  *   <li>{@code status}：`on` / `off` —— 公开端点只下发启用项，提交白名单同样只认启用项；</li>
  *   <li>删除受引用约束：被任一举报引用即 `400`（下线一律用停用）。</li>
  * </ul>
@@ -30,14 +30,9 @@ public class ReportReason {
     @Schema(description = "原因ID")
     private Long id;
 
-    /** 中文标签（可改，改名免费） */
-    @Schema(description = "中文标签", example = "垃圾广告 / 营销刷屏")
-    private String label;
-
-    /** 展示顺序（升序；列名用 sort_order，避开 MySQL 保留字 order） */
-    @TableField("sort_order")
-    @Schema(description = "展示顺序（升序）")
-    private Integer sortOrder;
+    /** 中文名（可改，改名免费） */
+    @Schema(description = "中文名", example = "垃圾广告 / 营销刷屏")
+    private String name;
 
     /** 状态：on=启用 / off=停用 */
     @Schema(description = "状态：on=启用 / off=停用")

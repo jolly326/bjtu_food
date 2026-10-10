@@ -7,8 +7,8 @@ import lombok.Data;
  * 菜品列表查询参数（**完整参数集恰为 5 项**：page / pageSize / keyword / view / seed）。
  * <p>
  * {@code view} 是<b>筛选视图 ID</b>（值域见 {@code GET /dishes/views}），<b>不是</b>菜品入库字段
- * {@code categoryId}：种类只是视图的一种（视图条件 {@code categoryId} 按 {@code dish.category_id} 取数），
- * 「折扣」等视图按别的口径取数，端上无须改动。
+ * {@code categoryId}：视图行的归属种类（{@code categoryId}，可空）决定取数是否按种类过滤，
+ * 取数口径固定为「种类过滤（可空）+ 随机序 + 在售」，端上无须改动。
  * <p>
  * 不接受参数（SHALL NOT 回流）：
  * <ul>
@@ -16,10 +16,9 @@ import lombok.Data;
  *   <li>{@code spiceLevel} —— 由描述维度承载；</li>
  *   <li>{@code stallId} —— 无档口筛选入口；</li>
  *   <li>{@code sortBy} / {@code sortOrder} —— 排序口径收敛为服务端决定：
- *       视图按自身 {@code sortKind} 取数，{@code seed} 只是数据顺序种子而非排序参数，
- *       端上仍无排序入口）；</li>
+ *       固定随机序，{@code seed} 只是数据顺序种子而非排序参数，端上无排序入口；</li>
  *   <li>{@code canteenId} / {@code minPrice} / {@code maxPrice} —— **食堂 / 价格筛选全量下线**；</li>
- *   <li>菜品分类 —— 由所选视图的条件（{@code categoryId}）表达，不作为独立查询参数。</li>
+ *   <li>菜品分类 —— 由所选视图的归属种类表达，不作为独立查询参数。</li>
  * </ul>
  */
 @Data
@@ -39,7 +38,7 @@ public class DishQueryReq {
             example = "2")
     private Long view;
 
-    @Schema(description = "推荐流会话随机种子（可选；仅「推荐」类视图（sortKind=SEED_RANDOM）且无 keyword 时参与排序，"
-            + "服务端按 CRC32(seed:ID) 稳定伪随机序；其余视图忽略本参数、按各自排序口径）", example = "m3k9x7q2")
+    @Schema(description = "推荐流会话随机种子（可选）：服务端按 CRC32(seed:ID) 稳定伪随机序取数，"
+            + "同一次会话内多次进入拿到同一批内容；未传时服务端补一次性随机值（仍为随机序）", example = "m3k9x7q2")
     private String seed;
 }

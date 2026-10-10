@@ -49,19 +49,18 @@ class ReportReasonServiceImplTest {
         return new ReportReasonServiceImpl(reportReasonMapper, feedbackMapper);
     }
 
-    private static ReportReason reason(Long id, String status, int sortOrder) {
+    private static ReportReason reason(Long id, String status) {
         ReportReason r = new ReportReason();
         r.setId(id);
-        r.setLabel("标签");
+        r.setName("标签");
         r.setStatus(status);
-        r.setSortOrder(sortOrder);
         return r;
     }
 
     @Test
     @DisplayName("updateStatus：停用最后一条启用 → 400（举报入口不能被配空）")
     void updateStatus_disablingLastEnabled_rejected400() {
-        when(reportReasonMapper.selectById(1L)).thenReturn(reason(1L, "on", 1));
+        when(reportReasonMapper.selectById(1L)).thenReturn(reason(1L, "on"));
         // countEnabled 只数到 1 条启用
         when(reportReasonMapper.selectCount(any())).thenReturn(1L);
 
@@ -74,7 +73,7 @@ class ReportReasonServiceImplTest {
     @Test
     @DisplayName("updateStatus：启用数已达上限 8 → 400")
     void updateStatus_beyondEnabledCap_rejected400() {
-        when(reportReasonMapper.selectById(2L)).thenReturn(reason(2L, "off", 2));
+        when(reportReasonMapper.selectById(2L)).thenReturn(reason(2L, "off"));
         when(reportReasonMapper.selectCount(any())).thenReturn(8L);
 
         assertThatThrownBy(() -> service().updateStatus(2L, "on"))
@@ -97,7 +96,7 @@ class ReportReasonServiceImplTest {
     @Test
     @DisplayName("delete：被举报记录引用 → 400（删掉会让历史举报翻不出中文）")
     void delete_referencedByReport_rejected400() {
-        when(reportReasonMapper.selectById(1L)).thenReturn(reason(1L, "on", 1));
+        when(reportReasonMapper.selectById(1L)).thenReturn(reason(1L, "on"));
         when(feedbackMapper.selectCount(any())).thenReturn(3L);
 
         assertThatThrownBy(() -> service().delete(1L))
@@ -116,14 +115,14 @@ class ReportReasonServiceImplTest {
     }
 
     @Test
-    @DisplayName("listEnabled：只下发启用项（查询条件含 status='on'）")
+    @DisplayName("listEnabled：只下发启用项（查询条件含 status='on'），出参 id + name")
     void listEnabled_returnsEnabledOnly() {
-        when(reportReasonMapper.selectList(any())).thenReturn(List.of(reason(1L, "on", 1)));
+        when(reportReasonMapper.selectList(any())).thenReturn(List.of(reason(1L, "on")));
 
         var vos = service().listEnabled();
 
         assertThat(vos).hasSize(1);
         assertThat(vos.get(0).getId()).isEqualTo(1L);
-        assertThat(vos.get(0).getLabel()).isEqualTo("标签");
+        assertThat(vos.get(0).getName()).isEqualTo("标签");
     }
 }

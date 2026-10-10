@@ -21,6 +21,8 @@ export interface AdminMe {
   username: string
   /** 最近登录成功时间（`yyyy-MM-dd HH:mm:ss`）；从未登录过时字段不下发 */
   lastLoginAt?: string
+  /** 账号行最近更新时间（`yyyy-MM-dd HH:mm:ss`）—— 端上无可视展示位，仅保持与契约同形 */
+  updatedAt?: string
   /** 角色：供端上按角色隐显入口（**真正的门控在服务端**） */
   role?: string
   /** 口令是否已超期（>180 天）⇒ 端上提示改密，**不强制踢出** */

@@ -10,7 +10,7 @@ public class ProfileUpdateReq {
 
     @Size(max = 20, message = "昵称最多20字")
     @Schema(description = "新的昵称", example = "新的昵称")
-    private String nickname;
+    private String name;
 
     @Schema(description = "头像图片路径。小程序端先调用 /upload/cloud-image 获取 URL。", example = "/images/seed/dishes/tomato-egg.jpg")
     private String avatar;

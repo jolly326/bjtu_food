@@ -2,13 +2,12 @@
 /**
  * A6 首页筛选视图管理（页面规格见 [首页筛选视图.md](../../../docs/ui/web/首页筛选视图.md)）。
  *
- * <p>视图是**纯数据**：文案 / 顺序 / 启停 / **筛选条件** / **排序口径**全部落库，
- * 本页支持**新建 / 编辑 / 启用停用 / 删除 / 拖拽排序**（全部免发版）。
- * 条件与排序口径受后端白名单约束（见 [api/web/views.md](../../../docs/api/web/views.md)），
- * 端上只负责把它们组装成结构化载荷；字段 / 操作符 / 取值形态的最终校验以服务端 `400` 原文为准。
+ * <p>视图是**纯数据**：文案 / 筛选种类 / 启停全部落库，本页支持**新建 / 编辑 / 启用停用 / 删除**
+ * （全部免发版）。筛选面只有「种类」一维 —— `categoryId = null` 即「为你推荐」（不按种类筛），
+ * 无可配条件语言；取值合法性由服务端裁决（见 [api/web/views.md](../../../docs/api/web/views.md)）。
  *
- * <p>表格**只放基础列**（tab 文案 / 条件摘要 / 匹配 / 状态 / 更新时间 + 拖拽手柄）；
- * 顺序位与**全部操作**都在**详情抽屉**内。
+ * <p>表格**只放基础列**（tab 文案 / 筛选种类 / 匹配 / 状态 / 更新时间）；
+ * **全部操作**（编辑 / 启停 / 删除）都在**详情抽屉**内；列表按视图 ID 升序。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -16,22 +15,12 @@ import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { confirmDelete } from '@/utils/confirm'
 import { canDelete, canWrite } from '@/utils/permissions'
-import { useReorder } from '@/composables/useReorder'
-import { createView, deleteView, listViews, sortViews, updateView } from '@/api/views'
+import { createView, deleteView, listViews, updateView } from '@/api/views'
 import { listCategories } from '@/api/categories'
-import { listCanteens } from '@/api/canteens'
-import { listStalls } from '@/api/stalls'
-import type {
-  CanteenAdminVO,
-  DishCategoryAdminVO,
-  DishSortKind,
-  DishViewAdminVO,
-  DishViewCondition,
-  DishViewField,
-  StallAdminVO,
-} from '@/types/common'
+import type { DishCategoryAdminVO, DishViewAdminVO } from '@/types/common'
 import { useSimpleList } from '@/composables/useSimpleList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
+import DetailMetaRow from '@/components/DetailMetaRow.vue'
 import ListState from '@/components/ListState.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { useRowAction } from '@/composables/useRowAction'
@@ -39,171 +28,27 @@ import { useRowAction } from '@/composables/useRowAction'
 const { items, firstLoading, isEmpty, hasData, error, sessionInvalid, load } =
   useSimpleList<DishViewAdminVO>(() => listViews())
 
-/* ==================== 条件字段 / 操作符元数据（与后端白名单同构） ==================== */
+/* ==================== 筛选种类（唯一筛选配置） ==================== */
 
-/** 取值控件形态：无值 / 数值 / 区间 / 天数 / 实体下拉 */
-type ValueKind = 'valueless' | 'number' | 'range' | 'days' | 'dishKind' | 'stall' | 'canteen'
+/** 「为你推荐（不筛种类）」在下拉里的取值（= 契约的 `categoryId = null`） */
+const NO_CATEGORY = ''
 
-interface FieldMeta {
-  label: string
-  ops: string[]
-  kind: ValueKind
-}
-
-const FIELD_META: Record<DishViewField, FieldMeta> = {
-  categoryId: { label: '种类', ops: ['=', 'in'], kind: 'dishKind' },
-  discount: { label: '有折扣', ops: ['isTrue'], kind: 'valueless' },
-  price: { label: '现价（分）', ops: ['between', '>=', '<='], kind: 'range' },
-  stallId: { label: '档口', ops: ['=', 'in'], kind: 'stall' },
-  canteenId: { label: '食堂', ops: ['=', 'in'], kind: 'canteen' },
-  avgRating: { label: '均分', ops: ['>='], kind: 'number' },
-  createdAt: { label: '上新', ops: ['withinDays'], kind: 'days' },
-}
-
-const FIELD_OPTIONS = (Object.keys(FIELD_META) as DishViewField[]).map((field) => ({
-  value: field,
-  label: FIELD_META[field].label,
-}))
-
-const SORT_KIND_OPTIONS: { value: DishSortKind; label: string }[] = [
-  { value: 'random', label: '会话种子随机' },
-  { value: 'priceAsc', label: '现价升序' },
-  { value: 'priceDesc', label: '现价降序' },
-  { value: 'discountDesc', label: '折扣力度' },
-  { value: 'ratingDesc', label: '均分降序' },
-  { value: 'newest', label: '上新倒序' },
-]
-
-const OP_LABEL: Record<string, string> = {
-  '=': '等于',
-  in: '属于',
-  isTrue: '成立',
-  between: '区间',
-  '>=': '不小于',
-  '<=': '不大于',
-  withinDays: '近 N 天',
-}
-
-/** 编辑态的一行条件（UI 形态；提交时收敛为契约的 `{ field, op, value? , values? }`） */
-interface ConditionRow {
-  field: DishViewField | ''
-  op: string
-  /** 单值（`=` / `>=` / `<=` / `withinDays`；`in` 时不用） */
-  value: string
-  /** 多值（`in`） */
-  values: string[]
-  /** 区间下界 / 上界（`between`） */
-  low: string
-  high: string
-}
-
-function emptyRow(): ConditionRow {
-  const field: DishViewField = 'categoryId'
-  return { field, op: FIELD_META[field].ops[0] ?? '', value: '', values: [], low: '', high: '' }
-}
-
-/** 字段 / 操作符候选（随行内已选字段联动） */
-function opsOf(row: ConditionRow): string[] {
-  return row.field ? FIELD_META[row.field].ops : []
-}
-
-function kindOf(row: ConditionRow): ValueKind | null {
-  return row.field ? FIELD_META[row.field].kind : null
-}
-
-/* ==================== 实体候选（种类 / 档口 / 食堂下拉的数据源） ==================== */
+/** 种类候选（菜品种类字典，按种类 `id` 升序） */
 const categories = ref<DishCategoryAdminVO[]>([])
-const stalls = ref<StallAdminVO[]>([])
-const canteens = ref<CanteenAdminVO[]>([])
 
-const kindOptions = computed(() =>
-  categories.value.map((c) => ({ value: String(c.id), label: c.label })),
-)
-const stallOptions = computed(() =>
-  stalls.value.map((s) => ({ value: String(s.id), label: `${s.canteenName} · ${s.name}` })),
-)
-const canteenOptions = computed(() =>
-  canteens.value.map((c) => ({ value: String(c.id), label: c.name })),
-)
+/** 下拉选项：固定首项「为你推荐（不筛种类）」+ 种类字典 */
+const categoryOptions = computed<{ value: string; label: string }[]>(() => [
+  { value: NO_CATEGORY, label: '为你推荐（不筛种类）' },
+  ...categories.value.map((c) => ({ value: String(c.id), label: c.name })),
+])
 
-function optionsOf(row: ConditionRow): { value: string; label: string }[] {
-  switch (kindOf(row)) {
-    case 'dishKind':
-      return kindOptions.value
-    case 'stall':
-      return stallOptions.value
-    case 'canteen':
-      return canteenOptions.value
-    default:
-      return []
-  }
+/** 种类 ID → 中文名（`null` = 为你推荐）；列表行与详情**同一套渲染** */
+function categoryText(categoryId: number | null): string {
+  if (categoryId == null) return '为你推荐'
+  return categories.value.find((c) => c.id === categoryId)?.name ?? `#${categoryId}`
 }
 
-/** ID 类取值的中文名（条件摘要与详情展示用；查不到回落 `#id`） */
-function labelOfValue(field: DishViewField | '', raw: string): string {
-  const options = optionsOf({ ...emptyRow(), field })
-  const hit = options.find((o) => o.value === raw)
-  return hit ? hit.label : `#${raw}`
-}
-
-/** 条件摘要（列表列 / 详情与只读展示共用；端上只做「可读化」，不改变语义） */
-function describeCondition(c: DishViewCondition): string {
-  const meta = FIELD_META[c.field as DishViewField]
-  const name = meta ? meta.label : c.field
-  switch (c.op) {
-    case 'isTrue':
-      return name
-    case 'in': {
-      const labels = (c.values ?? []).map((v) => labelOfValue(c.field, v))
-      return `${name} ∈ {${labels.join('、')}}`
-    }
-    case 'between': {
-      const values = c.values ?? []
-      return `${name} ${values[0] ?? ''}~${values[1] ?? ''}`
-    }
-    case 'withinDays':
-      return `${name} 近 ${c.value ?? ''} 天`
-    case '>=':
-    case '<=':
-      return `${name} ${c.op === '>=' ? '≥' : '≤'} ${c.value ?? ''}`
-    default:
-      return `${name} = ${isIdField(c.field) ? labelOfValue(c.field, c.value ?? '') : (c.value ?? '')}`
-  }
-}
-
-/** 取值是实体 ID（摘要展示时换成中文名）的字段 */
-function isIdField(field: DishViewField | ''): boolean {
-  return field === 'categoryId' || field === 'stallId' || field === 'canteenId'
-}
-
-function describeConditions(conditions: DishViewCondition[]): string {
-  if (!conditions || conditions.length === 0) return '不筛选'
-  return conditions.map(describeCondition).join(' 且 ')
-}
-
-/** 契约条件 → 编辑行 */
-function toRow(c: DishViewCondition): ConditionRow {
-  const row = emptyRow()
-  row.field = c.field
-  row.op = c.op
-  if (c.op === 'in') row.values = [...(c.values ?? [])]
-  else if (c.op === 'between') {
-    row.low = c.values?.[0] ?? ''
-    row.high = c.values?.[1] ?? ''
-  } else row.value = c.value ?? ''
-  return row
-}
-
-/** 编辑行 → 契约条件（`isTrue` 无值；`in` 用 values；`between` 用 values 两项） */
-function fromRow(row: ConditionRow): DishViewCondition {
-  const field = row.field as DishViewField
-  if (row.op === 'isTrue') return { field, op: row.op }
-  if (row.op === 'in') return { field, op: row.op, values: [...row.values] }
-  if (row.op === 'between') return { field, op: row.op, values: [row.low, row.high] }
-  return { field, op: row.op, value: row.value }
-}
-
-/* ==================== 抽屉三态之外的两态：查看 / 编辑 ==================== */
+/* ==================== 抽屉两态：查看 / 新建或编辑 ==================== */
 type DrawerMode = 'view' | 'edit'
 
 const drawerOpen = ref(false)
@@ -213,11 +58,8 @@ const saving = ref(false)
 /** 进入编辑态时的快照：用于「未保存修改」二次确认（BaseDrawer 的 dirty） */
 const snapshot = ref('')
 
-const form = ref<{ label: string; sortKind: DishSortKind; conditions: ConditionRow[] }>({
-  label: '',
-  sortKind: 'random',
-  conditions: [],
-})
+/** 表单态：`category` 用字符串承接下拉取值（`NO_CATEGORY` = 不筛种类） */
+const form = ref<{ name: string; category: string }>({ name: '', category: NO_CATEGORY })
 
 const drawerTitle = computed(() => {
   if (mode.value === 'view') return '视图详情'
@@ -240,7 +82,7 @@ function openDetail(row: DishViewAdminVO): void {
 
 function openCreate(): void {
   current.value = null
-  form.value = { label: '', sortKind: 'random', conditions: [] }
+  form.value = { name: '', category: NO_CATEGORY }
   snapshot.value = formSnapshot()
   mode.value = 'edit'
   drawerOpen.value = true
@@ -249,11 +91,7 @@ function openCreate(): void {
 function startEdit(): void {
   const row = current.value
   if (!row) return
-  form.value = {
-    label: row.label,
-    sortKind: row.sortKind,
-    conditions: row.conditions.map(toRow),
-  }
+  form.value = { name: row.name, category: row.categoryId == null ? '' : String(row.categoryId) }
   snapshot.value = formSnapshot()
   mode.value = 'edit'
 }
@@ -266,65 +104,29 @@ function cancelEdit(): void {
   }
 }
 
-/* ==================== 条件编辑 ==================== */
-
-function addCondition(): void {
-  form.value.conditions.push(emptyRow())
-}
-
-function removeCondition(index: number): void {
-  form.value.conditions.splice(index, 1)
-}
-
-/** 字段切换时重置取值形态与操作符（避免「换字段后操作符不属该字段」的非法载荷） */
-function onFieldChange(row: ConditionRow): void {
-  const ops = opsOf(row)
-  row.op = ops[0] ?? ''
-  row.value = ''
-  row.values = []
-  row.low = ''
-  row.high = ''
-}
-
-/** 操作符切换时清掉不适用的取值（提交前仍以服务端白名单为准） */
-function onOpChange(row: ConditionRow): void {
-  row.value = ''
-  row.values = []
-  row.low = ''
-  row.high = ''
-}
-
 /* ==================== 保存 / 启停 / 删除 ==================== */
 
-function buildConditions(): DishViewCondition[] {
-  return form.value.conditions.filter((row) => row.field).map(fromRow)
+/** 表单 → 契约入参的 `categoryId`（不筛种类下发 `null`） */
+function selectedCategoryId(): number | null {
+  return form.value.category === NO_CATEGORY ? null : Number(form.value.category)
 }
 
 async function save(): Promise<void> {
-  const label = form.value.label.trim()
-  if (!label) {
+  const name = form.value.name.trim()
+  if (!name) {
     ElMessage.warning('请填写 tab 文案')
     return
   }
-  if (label.length > 32) {
+  if (name.length > 32) {
     ElMessage.warning('tab 文案最多 32 字')
     return
   }
-  if (!form.value.sortKind) {
-    ElMessage.warning('请选择排序口径')
-    return
-  }
   saving.value = true
-  const conditions = buildConditions()
+  const categoryId = selectedCategoryId()
   try {
     if (current.value) {
-      // 四字段整体替换：`enabled` 原样回传（本端点不表达「启停」，启停走独立动作）
-      await updateView(current.value.id, {
-        label,
-        enabled: current.value.enabled,
-        conditions,
-        sortKind: form.value.sortKind,
-      })
+      // 三字段整体替换：`enabled` 原样回传（本端点不表达「启停」，启停走详情内的独立动作）
+      await updateView(current.value.id, { name, categoryId, enabled: current.value.enabled })
       ElMessage.success('已保存（客户端即时生效）')
       await load()
       const refreshed = items.value.find((r) => r.id === current.value?.id)
@@ -333,13 +135,13 @@ async function save(): Promise<void> {
         mode.value = 'view'
       }
     } else {
-      await createView({ label, conditions, sortKind: form.value.sortKind })
+      await createView({ name, categoryId })
       ElMessage.success('已新建（默认启用）')
       await load()
       drawerOpen.value = false
     }
   } catch (e) {
-    // 文案为空 / 超长、条件或排序口径不在白名单 → 后端原文
+    // 文案为空 / 超长、种类 ID 不存在、停用最后一个启用视图 → 后端原文
     fail(e, '保存失败')
   } finally {
     saving.value = false
@@ -356,13 +158,7 @@ function toggle(row: DishViewAdminVO): Promise<void> {
   const next = !row.enabled
   return runRowAction({
     id: row.id,
-    action: () =>
-      updateView(row.id, {
-        label: row.label,
-        enabled: next,
-        conditions: row.conditions,
-        sortKind: row.sortKind,
-      }),
+    action: () => updateView(row.id, { name: row.name, categoryId: row.categoryId, enabled: next }),
     successMessage: next ? '已启用' : '已停用',
     refresh: load,
     syncAfterRefresh: syncCurrent,
@@ -373,7 +169,7 @@ function remove(row: DishViewAdminVO): Promise<void> {
   return runRowAction({
     id: row.id,
     action: async () => {
-      await confirmDelete(`确认删除视图「${row.label}」？该 tab 将从首页筛选栏移除。`, {
+      await confirmDelete(`确认删除视图「${row.name}」？该 tab 将从首页筛选栏移除。`, {
         title: '删除视图',
       })
       await deleteView(row.id)
@@ -389,16 +185,10 @@ function remove(row: DishViewAdminVO): Promise<void> {
   })
 }
 
-/* ==================== 拖拽排序（提交全量行） ==================== */
-const { onDragStart, onDrop } = useReorder(items, sortViews, load)
-
 onMounted(async () => {
-  // 条件编辑的下拉候选：失败不阻塞列表（条件仍可手填 ID）
+  // 筛选种类的候选：失败不阻塞列表（详情退回 `#id` 展示）
   try {
-    const [cs, ss, kinds] = await Promise.all([listCanteens(), listStalls(), listCategories()])
-    canteens.value = cs
-    stalls.value = ss
-    categories.value = kinds
+    categories.value = await listCategories()
   } catch {
     /* 列表仍可展示 */
   }
@@ -426,9 +216,8 @@ onMounted(async () => {
       <table class="table">
         <thead>
           <tr>
-            <th class="drag-col"></th>
             <th>tab 文案</th>
-            <th>条件</th>
+            <th>筛选种类</th>
             <th>匹配</th>
             <th>状态</th>
             <th>更新时间</th>
@@ -436,10 +225,9 @@ onMounted(async () => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
-            <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
-            <td>{{ row.label }}</td>
-            <td class="muted">{{ describeConditions(row.conditions) }}</td>
+          <tr v-for="row in items" :key="row.id">
+            <td>{{ row.name }}</td>
+            <td>{{ categoryText(row.categoryId) }}</td>
             <td class="num">
               {{ row.matchedCount }}
               <span v-if="row.matchedCount === 0" class="no-match">无匹配，客户端不显示</span>
@@ -460,7 +248,8 @@ onMounted(async () => {
         </tbody>
       </table>
       <p class="foot-note">
-        下发规则：启用中且匹配数不为 0 的视图才会出现在首页筛选栏；顺序在行首手柄上拖拽调整。
+        下发规则：启用中且匹配数不为 0 的视图才会出现在首页筛选栏；列表与首页筛选栏的顺序均为视图 ID
+        升序。
       </p>
     </div>
 
@@ -468,23 +257,18 @@ onMounted(async () => {
     <BaseDrawer :title="drawerTitle" :open="drawerOpen" :dirty="dirty" @close="drawerOpen = false">
       <!-- ① 查看态 -->
       <template v-if="mode === 'view' && canWrite() && current">
-        <!-- 分组：投放信息（两栏）→ 筛选与排序（长文本整行） -->
         <div class="detail-group">
-          <div class="detail-group-title">投放信息</div>
+          <div class="detail-group-title">视图信息</div>
           <div class="detail-meta detail-meta--grid">
-            <DetailMetaRow k="tab 文案">{{ current.label }}</DetailMetaRow>
+            <DetailMetaRow k="视图 ID" num>#{{ current.id }}</DetailMetaRow>
+            <DetailMetaRow k="tab 文案">{{ current.name }}</DetailMetaRow>
+            <DetailMetaRow k="筛选种类">
+              {{ categoryText(current.categoryId) }}
+            </DetailMetaRow>
             <div class="meta-row">
               <span class="meta-key">状态</span>
               <span class="meta-val">
                 <StatusTag :status="current.enabled ? 'on' : 'off'" kind="onoff" />
-              </span>
-            </div>
-            <DetailMetaRow k="视图 ID" num>#{{ current.id }}</DetailMetaRow>
-            <div class="meta-row">
-              <span class="meta-key">顺序</span>
-              <span class="meta-val num">
-                {{ current.order }}
-                <span class="muted">（升序；在列表行首手柄上拖拽调整）</span>
               </span>
             </div>
             <div class="meta-row">
@@ -497,28 +281,16 @@ onMounted(async () => {
             <DetailMetaRow k="更新时间">{{ formatDateTime(current.updatedAt) }}</DetailMetaRow>
           </div>
         </div>
-
-        <div class="detail-group">
-          <div class="detail-group-title">筛选与排序</div>
-          <div class="detail-meta">
-            <!-- 筛选条件是整段表达式，长文本占满整行（不进两栏网格） -->
-            <DetailMetaRow k="筛选条件">{{ describeConditions(current.conditions) }}</DetailMetaRow>
-            <DetailMetaRow k="排序口径">{{
-              SORT_KIND_OPTIONS.find((o) => o.value === current?.sortKind)?.label ??
-              current.sortKind
-            }}</DetailMetaRow>
-          </div>
-        </div>
       </template>
 
       <!-- ② 新建 / 编辑态 -->
       <template v-else>
         <div class="field">
-          <label for="view-label">tab 文案</label>
+          <label for="view-name">tab 文案</label>
           <input
-            id="view-label"
+            id="view-name"
             class="form-input"
-            v-model="form.label"
+            v-model="form.name"
             maxlength="32"
             placeholder="如 面食粉类"
           />
@@ -526,66 +298,12 @@ onMounted(async () => {
         </div>
 
         <div class="field">
-          <label for="view-sort">排序口径</label>
-          <select id="view-sort" class="form-input" v-model="form.sortKind">
-            <option v-for="o in SORT_KIND_OPTIONS" :key="o.value" :value="o.value">
+          <label for="view-category">筛选种类</label>
+          <select id="view-category" class="form-input" v-model="form.category">
+            <option v-for="o in categoryOptions" :key="o.value" :value="o.value">
               {{ o.label }}
             </option>
           </select>
-          <div class="hint">「会话种子随机」下客户端每次会话内顺序稳定、重进小程序重洗</div>
-        </div>
-
-        <div class="cond-block">
-          <div class="cond-title">筛选条件（多条之间为「且」；不添加条件 = 不筛选）</div>
-          <div v-if="!form.conditions.length" class="muted cond-empty">暂无条件</div>
-          <div v-for="(row, index) in form.conditions" :key="index" class="cond-row">
-            <select class="form-input" v-model="row.field" @change="onFieldChange(row)">
-              <option v-for="o in FIELD_OPTIONS" :key="o.value" :value="o.value">
-                {{ o.label }}
-              </option>
-            </select>
-            <select class="form-input" v-model="row.op" @change="onOpChange(row)">
-              <option v-for="op in opsOf(row)" :key="op" :value="op">
-                {{ OP_LABEL[op] ?? op }}
-              </option>
-            </select>
-
-            <!-- 取值控件随字段类型切换：无值 / 数值 / 区间 / 天数 / 实体下拉（单选或 in 多选） -->
-            <span v-if="kindOf(row) === 'valueless'" class="muted cond-fixed">无需取值</span>
-
-            <template v-else-if="kindOf(row) === 'range'">
-              <input class="form-input" v-model="row.low" placeholder="下界" />
-              <input class="form-input" v-model="row.high" placeholder="上界" />
-            </template>
-
-            <template v-else-if="kindOf(row) === 'number' || kindOf(row) === 'days'">
-              <input
-                class="form-input"
-                v-model="row.value"
-                :placeholder="kindOf(row) === 'days' ? '天数' : '数值'"
-              />
-            </template>
-
-            <template v-else-if="row.op === 'in'">
-              <select class="form-input" multiple v-model="row.values">
-                <option v-for="o in optionsOf(row)" :key="o.value" :value="o.value">
-                  {{ o.label }}
-                </option>
-              </select>
-            </template>
-
-            <template v-else>
-              <select class="form-input" v-model="row.value">
-                <option value="" disabled>请选择</option>
-                <option v-for="o in optionsOf(row)" :key="o.value" :value="o.value">
-                  {{ o.label }}
-                </option>
-              </select>
-            </template>
-
-            <button class="link danger" type="button" @click="removeCondition(index)">删除</button>
-          </div>
-          <button class="btn-secondary" type="button" @click="addCondition">＋ 添加条件</button>
         </div>
       </template>
 
@@ -634,31 +352,5 @@ onMounted(async () => {
   margin-left: var(--space-2);
   color: var(--text-muted);
   font-size: var(--font-xs);
-}
-.cond-block {
-  border-top: 1px dashed var(--border-light);
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-}
-.cond-title {
-  font-size: var(--font-sm);
-  color: var(--text-muted);
-  margin-bottom: var(--space-2);
-}
-.cond-empty {
-  margin-bottom: var(--space-2);
-}
-.cond-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-.cond-row .form-input {
-  width: 150px;
-}
-.cond-fixed {
-  width: 150px;
 }
 </style>

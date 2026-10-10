@@ -13,7 +13,7 @@
       <!-- 处理承诺（48 小时内处理，纯人工，无自动动作） -->
       <text class="rp-note">请选择举报原因，举报将在 48 小时内处理</text>
 
-      <!-- 原因单选列表（字典下发，展示顺序 = 后端 order） -->
+      <!-- 原因单选列表（字典下发，展示顺序 = 后端下发次序，id 升序） -->
       <view v-if="reasons.length" class="rp-list">
         <view
           v-for="r in reasons"
@@ -22,14 +22,14 @@
           :class="{ on: selected === r.id }"
           role="radio"
           :aria-checked="selected === r.id ? 'true' : 'false'"
-          :aria-label="r.label"
+          :aria-label="r.name"
           @tap="selected = r.id"
         >
           <!-- 选中标记：橙色勾（纯图形；选中语义由 aria-checked 表达） -->
           <view class="rp-check" aria-hidden="true">
             <AppIcon v-if="selected === r.id" name="check" :size="24" :color="COLOR_MAP['primary']" />
           </view>
-          <text class="rp-option-text">{{ r.label }}</text>
+          <text class="rp-option-text">{{ r.name }}</text>
         </view>
       </view>
       <!-- 字典加载失败：轻提示 + 关闭重开重拉（低频动作，不引入重试块） -->

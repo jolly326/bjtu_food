@@ -2,9 +2,9 @@
 /**
  * A2 档口管理（页面规格见 [列表页模板.md 的 A2 差异节](../../../docs/ui/web/列表页模板.md)）。
  *
- * <p>要点：**不分页**；可选 `canteenId` 筛选；列表按「食堂 → 档口名」；
- * 表格**只放基础检索列**（档口名 / 所属食堂 / 菜品数 / 更新时间）—— 楼层、窗口号、图片、地点、描述、
- * 排序位与**全部操作**（编辑 / 删除）都在**详情抽屉**内（同一抽屉两态：查看 ⇄ 编辑）；
+ * <p>要点：**不分页**；可选 `canteenId` 筛选；列表按 `id` 升序；
+ * 表格**只放基础检索列**（档口名 / 所属食堂 / 菜品数 / 更新时间）—— 楼层、窗口号、图片、地点、描述
+ * 与**全部操作**（编辑 / 删除）都在**详情抽屉**内（同一抽屉两态：查看 ⇄ 编辑）；
  * 楼层为**下拉（楼层字典，值即汉字）**；删除受阻（其下仍有菜品 → `400` 原文透出）。
  */
 import ActiveFilters from '@/components/ActiveFilters.vue'
@@ -45,7 +45,6 @@ const mode = ref<DrawerMode>('view')
 const current = ref<StallAdminVO | null>(null)
 const saving = ref(false)
 
-/** 表单态（`sortOrder` 用字符串承接空输入 = 不下发该字段 ⇒ 保持原值） */
 const form = ref({
   canteenId: 0,
   name: '',
@@ -53,7 +52,6 @@ const form = ref({
   windowNo: '',
   location: '',
   description: '',
-  sortOrder: '',
   images: [] as ImageItem[],
 })
 /** 进入编辑态时的快照：用于「未保存修改」二次确认（BaseDrawer 的 dirty） */
@@ -73,7 +71,6 @@ function fillForm(row: StallAdminVO | null): void {
     windowNo: row?.windowNo ?? '',
     location: row?.location ?? '',
     description: row?.description ?? '',
-    sortOrder: row == null ? '' : String(row.sortOrder),
     images: (row?.images ?? []).map((url) => ({ url })),
   }
   snapshot.value = JSON.stringify(form.value)
@@ -128,14 +125,6 @@ async function save(): Promise<void> {
     images: form.value.images.map((img) => img.url),
   }
   if (form.value.floor) req.floor = form.value.floor
-  if (form.value.sortOrder.trim() !== '') {
-    const order = Number(form.value.sortOrder)
-    if (!Number.isInteger(order)) {
-      ElMessage.warning('排序位须为整数')
-      return
-    }
-    req.sortOrder = order
-  }
   saving.value = true
   try {
     if (current.value) {
@@ -289,7 +278,7 @@ onMounted(async () => {
         </tbody>
       </table>
       <p class="foot-note">
-        「档口名 + 所属食堂」是快速检索列；楼层、窗口号、图片、地点、描述、排序位与编辑 /
+        「档口名 + 所属食堂」是快速检索列；楼层、窗口号、图片、地点、描述与编辑 /
         删除入口都在行内「详情」内。
       </p>
     </div>
@@ -373,13 +362,6 @@ onMounted(async () => {
           <div class="detail-meta detail-meta--grid">
             <DetailMetaRow k="档口 ID" num>#{{ current?.id }}</DetailMetaRow>
             <DetailMetaRow k="更新时间">{{ formatDateTime(current?.updatedAt) }}</DetailMetaRow>
-            <div class="meta-row">
-              <span class="meta-key">排序位</span>
-              <span class="meta-val num">
-                {{ current?.sortOrder }}
-                <span class="muted">（纠错候选档口列表按它升序）</span>
-              </span>
-            </div>
             <DetailMetaRow k="描述">{{ current?.description || '—' }}</DetailMetaRow>
           </div>
         </div>
@@ -435,20 +417,6 @@ onMounted(async () => {
             rows="3"
             maxlength="512"
           />
-        </div>
-        <div class="field">
-          <label for="stall-sort">排序位</label>
-          <input
-            id="stall-sort"
-            class="form-input"
-            type="number"
-            step="1"
-            v-model="form.sortOrder"
-            placeholder="升序，越小越靠前"
-          />
-          <div class="hint">
-            留空 = 保持原值；纠错候选档口列表按它升序（本列表按「食堂 → 档口名」）
-          </div>
         </div>
         <div class="field">
           <label>档口图片（有序，首图作封面，≤5 张）</label>
