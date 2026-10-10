@@ -63,6 +63,7 @@ export interface DashboardVO {
   health: {
     dishesWithoutImage: number
     dishesWithoutStall: number
+    /** 分类为空的菜品数（`dish.category_id IS NULL`） */
     dishesWithoutCategory: number
     stallsWithoutDish: number
   }
@@ -160,9 +161,10 @@ export interface DishAdminListItemVO {
   originalPrice: number | null
   /** 封面图绝对 URL（首图派生；无图为空串） */
   coverImage: string
-  mealTypeId: number
-  /** 分类中文名（A6 分类值字典派生） */
-  mealTypeLabel?: string
+  /** 菜品种类 ID（= `dish.category_id`，值域来自 A6 种类字典 `dish_category`） */
+  categoryId: number
+  /** 种类中文名（服务端按 `dish_category.id` 查名带出） */
+  categoryLabel?: string
   status: OnOffStatus
   avgRating: number | null
   /** 评价数（删除确认的影响面来源） */
@@ -188,10 +190,10 @@ export interface DishAdminVO {
   stallId: number
   stallName: string
   canteenName: string
-  /** 分类值 ID（= `dish.meal_type`，值域来自 A6 分类值字典） */
-  mealTypeId: number
-  /** 分类中文名（A6 分类值字典派生，列表直接展示，端上零硬编码） */
-  mealTypeLabel?: string
+  /** 菜品种类 ID（= `dish.category_id`，值域来自 A6 种类字典 `dish_category`） */
+  categoryId: number
+  /** 种类中文名（服务端按 `dish_category.id` 查名带出，列表直接展示，端上零硬编码） */
+  categoryLabel?: string
   attributes: DishAttributes | null
   status: OnOffStatus
   avgRating: number | null
@@ -206,8 +208,8 @@ export interface DishSaveReq {
   stallId: number
   price: number
   originalPrice?: number | null
-  /** 分类值 ID（须存在于 A6 分类值字典） */
-  mealTypeId: number
+  /** 菜品种类 ID（须存在于 A6 种类字典 `dish_category`） */
+  categoryId: number
   description?: string
   /** 0~5 张、有序、首图作封面 */
   images: string[]
@@ -220,7 +222,8 @@ export interface DishListParams {
   keyword?: string
   canteenId?: number
   stallId?: number
-  mealTypeId?: number
+  /** 菜品种类筛选（值 = `dish_category.id`） */
+  categoryId?: number
   status?: OnOffStatus | ''
 }
 
@@ -229,9 +232,8 @@ export interface DishDimensionAdminVO {
   /** 维度 ID（= `dish.attributes` JSON 的键） */
   id: number
   name: string
+  /** 取值类型（`single` 单值 / `multi` 多值；全部维度均可改） */
   valueType: 'single' | 'multi'
-  /** 是否**系统维度**（true = 菜品种类：取值类型不可改、维度不可删、取值不写入 attributes） */
-  system: boolean
   order: number
   dishCount: number
   valueCount: number
@@ -290,7 +292,7 @@ export type DishSortKind =
 
 /** 筛选条件字段白名单（唯一真源 = 后端条件引擎；操作符随字段而定） */
 export type DishViewField =
-  | 'mealTypeId'
+  | 'categoryId'
   | 'discount'
   | 'price'
   | 'stallId'
@@ -338,12 +340,12 @@ export interface DishViewUpdateReq {
   sortKind: DishSortKind
 }
 
-/** A6 菜品种类（系统维度取值；`dish.meal_type_id` 存它的 `id`，无机器键） */
+/** A6 菜品种类（独立字典表 `dish_category`；`dish.category_id` 存它的 `id`，无机器键） */
 export interface DishCategoryAdminVO {
   id: number
   label: string
   order: number
-  /** 引用该种类的菜品数（删除前判断） */
+  /** 引用该种类的菜品数（> 0 时不可删除；本端点不提供删除） */
   dishCount: number
   updatedAt: string
 }

@@ -7,8 +7,7 @@
  * **全部操作**（管理取值 / 编辑 / 删除）都在**详情抽屉**内；抽屉三态：
  * `view`（只读 + 操作）/ `edit`（名称 + 取值类型）/ `values`（取值管理，紧凑表格 + 拖拽排序）。
  *
- * <p>**系统维度**（`system = true`，菜品种类）：名称旁标「系统」；取值类型置灰、删除置灰
- * （取值被 `dish.meal_type_id` 引用）；取值仍可登记 / 改名 / 排序（与 A6 分类抽屉同一批行）。
+ * <p>本页维度**全部可编辑 / 可删**（被菜品取值引用的维度由服务端按既有规则拦截删除）。
  */
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -60,9 +59,6 @@ const dirty = computed(() => mode.value === 'edit' && JSON.stringify(form.value)
 
 /** 行内 / 抽屉动作并发保护：提交中该行（或抽屉当前行）动作置灰（列表页模板 §1.3「并发保护」） */
 const { busyId, isBusy, runRowAction } = useRowAction()
-
-/** 系统维度（菜品种类）：取值类型不可改、维度不可删 —— 端上置灰，服务端另有 400 兜底 */
-const systemDimension = computed(() => Boolean(current.value?.system))
 
 function openDetail(row: DishDimensionAdminVO): void {
   current.value = row
@@ -312,10 +308,7 @@ onMounted(() => load())
         <tbody>
           <tr v-for="(row, index) in items" :key="row.id" @dragover.prevent @drop="onDrop(index)">
             <td class="drag-col"><DragHandle @dragstart="onDragStart(index)" /></td>
-            <td>
-              {{ row.name }}
-              <span v-if="row.system" class="sys-tag">系统</span>
-            </td>
+            <td>{{ row.name }}</td>
             <td>{{ row.valueType === 'single' ? '单选' : '多选' }}</td>
             <td class="num">{{ row.valueCount }}</td>
             <td class="num">{{ row.dishCount }}</td>
@@ -348,16 +341,13 @@ onMounted(() => load())
           <div class="detail-meta detail-meta--grid">
             <div class="meta-row">
               <span class="meta-key">维度名</span>
-              <span class="meta-val">
-                {{ current?.name }}
-                <span v-if="current?.system" class="sys-tag">系统</span>
-              </span>
+              <span class="meta-val">{{ current?.name }}</span>
             </div>
             <div class="meta-row">
               <span class="meta-key">取值类型</span>
               <span class="meta-val">
                 {{ current?.valueType === 'single' ? '单选' : '多选' }}
-                <span v-if="current?.system" class="muted">（系统维度恒单值，不可改）</span>
+                <span class="muted">（可在「编辑」内切换）</span>
               </span>
             </div>
             <div class="meta-row">
@@ -406,22 +396,11 @@ onMounted(() => load())
         </div>
         <div class="field">
           <label for="dim-value-type">取值类型</label>
-          <select
-            id="dim-value-type"
-            class="form-input"
-            v-model="form.valueType"
-            :disabled="systemDimension"
-          >
+          <select id="dim-value-type" class="form-input" v-model="form.valueType">
             <option value="single">单选</option>
             <option value="multi">多选</option>
           </select>
-          <div class="hint">
-            {{
-              systemDimension
-                ? '系统维度（菜品种类）恒单值：取值类型不可修改'
-                : '切换取值类型会自动迁移该维度下菜品的数据形状'
-            }}
-          </div>
+          <div class="hint">切换取值类型会自动迁移该维度下菜品的数据形状</div>
         </div>
       </template>
 
@@ -546,8 +525,7 @@ onMounted(() => load())
             v-if="canDelete()"
             class="link danger"
             type="button"
-            :disabled="isBusy(current?.id) || systemDimension"
-            :title="systemDimension ? '系统维度：取值被菜品种类引用，不可删除' : undefined"
+            :disabled="isBusy(current?.id)"
             @click="current && removeDimension(current)"
           >
             删除
@@ -574,14 +552,6 @@ onMounted(() => load())
 </template>
 
 <style scoped>
-.sys-tag {
-  margin-left: var(--space-2);
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-pill);
-  background: var(--bg-gray);
-  color: var(--text-secondary);
-  font-size: var(--font-xs);
-}
 .add-row {
   display: flex;
   gap: var(--space-2);

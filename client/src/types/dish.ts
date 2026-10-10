@@ -86,7 +86,8 @@ export interface MixedResultItem {
 /**
  * 列表查询参数（`GET /dishes`，**完整参数集恰为 5 项**：page / pageSize / keyword / view / seed）。
  *
- * `view` 是**筛选视图 ID**（值域由 `GET /dishes/views` 下发），**不是**菜品字段 `mealTypeId`：
+ * `view` 是**筛选视图 ID**（值域由 `GET /dishes/views` 下发）；筛选口径（含菜品种类 `dish.category_id`）
+ * 全在服务端完成，端上不感知菜品字段：
  * 种类只是视图的一种，将来「折扣」等视图按别的口径取数，端上无须改动。
  * `canteenId` / `minPrice` / `maxPrice` / `sortBy` / `sortOrder` 均不传（筛选与排序由所选视图唯一决定）。
  */

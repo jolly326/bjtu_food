@@ -5,7 +5,7 @@
 **鉴权**：全部端点需管理端 JWT（见 [web/auth.md](./auth.md)）｜ 缺 / 失效 `401`
 
 > 首页筛选 tab 的**全部口径都在这里**：文案 / 顺序 / 显隐 + **筛选条件** + **排序口径**。视图是纯数据（见 [schema/dish_filter_view.md](../../schema/dish_filter_view.md)），新增 / 删除视图均为后台自助操作、**免发版**。
-> 种类取值（`/admin/dish-categories`）见 [web/categories.md](./categories.md)。
+> 菜品种类字典（`/admin/dish-categories`）见 [web/categories.md](./categories.md)。
 > 客户端下发契约（`GET /dishes/views` / `GET /dishes?view=`）见 [dishes.md](../client/dishes.md)。
 
 ---
@@ -18,7 +18,7 @@
 
 | `field` | 含义 | 操作符 | 取值形态 |
 |---|---|---|---|
-| `mealTypeId` | 菜品种类 | `=` / `in` | **取值 ID**（系统维度取值的 `id`，见 [web/categories.md](./categories.md)）；`=` 用 `value`，`in` 用 `values` |
+| `categoryId` | 菜品种类 | `=` / `in` | **种类 ID**（[dish_category](../../schema/dish_category.md) 的 `id`，见 [web/categories.md](./categories.md)）；`=` 用 `value`，`in` 用 `values` |
 | `discount` | 有折扣 | `isTrue` | **无值**（派生 `original_price > price`） |
 | `price` | 现价（分） | `between` / `>=` / `<=` | `between` 用 `values`（恰两项）；其余用 `value` |
 | `stallId` | 档口 | `=` / `in` | 档口 ID（[web/stalls.md](./stalls.md)） |

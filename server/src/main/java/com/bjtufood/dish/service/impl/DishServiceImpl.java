@@ -108,7 +108,7 @@ public class DishServiceImpl implements DishService {
     private final DishAttributeAdminService attributeAdminService;
 
     /**
-     * 菜品种类字典（A6；系统维度取值的别名面）：负责种类取值的存在性校验与中文名回填。
+     * 菜品种类字典（A6，表 `dish_category`）：负责种类存在性校验与中文名回填。
      */
     private final DishCategoryAdminService categoryAdminService;
 
@@ -136,7 +136,7 @@ public class DishServiceImpl implements DishService {
         // 视图解析（查表取全部口径，PR-06）：空值 = 首个启用视图（按 `sort_order` 升序）；
         // 未登记的 ID 400 报错，不静默降级。
         // 筛选条件与排序口径都存在视图行（见 DishViewResolver 与 DishViewConditions），
-        // API 层不感知 meal_type_id / 价格等字段，端上也无排序入口。
+        // API 层不感知 category_id / 价格等字段，端上也无排序入口。
         DishFilterView view = viewCatalog.byId(req.getView());
         DishListQuery query = DishViewResolver.resolve(view, req.getKeyword(), req.getSeed());
         if (query == null) {
@@ -317,14 +317,14 @@ public class DishServiceImpl implements DishService {
         DishAdminListQuery effective = new DishAdminListQuery(
                 query == null ? null : query.stallId(),
                 query == null ? null : query.canteenId(),
-                query == null ? null : query.mealTypeId(),
+                query == null ? null : query.categoryId(),
                 query == null ? null
                         : ParamValidator.optionalInWhitelist(query.status(), DishConst.QUERY_STATUSES, "上架状态"),
                 query == null || !StringUtils.hasText(query.keyword()) ? null : query.keyword().trim());
         // A3：列表走**瘦身列表 VO**（不含 description / attributes / 全量 images）
         IPage<DishAdminListItemVO> result = dishMapper.selectAdminListPage(new Page<>(page, pageSize), effective);
-        // 种类中文名（A6 种类字典）：列表直接可读，端上零硬编码；字典量级极小，逐页取一次
-        Map<Long, String> mealTypeLabels = categoryAdminService.listAll().stream()
+        // 种类中文名（A6 种类字典 dish_category）：列表直接可读，端上零硬编码；字典量级极小，逐页取一次
+        Map<Long, String> categoryLabels = categoryAdminService.listAll().stream()
                 .collect(Collectors.toMap(DishCategoryAdminVO::getId, DishCategoryAdminVO::getLabel,
                         (a, b) -> a));
         // 近 30 天浏览量：一次性按当前页 dish_id 批量聚合（BE 惯用法，避免 N+1）；
@@ -332,8 +332,8 @@ public class DishServiceImpl implements DishService {
         Map<Long, Long> recentViews = loadRecentViewCounts(result.getRecords());
         return PageUtil.toVoPage(result, recs -> recs.stream()
                 .map(vo -> {
-                    vo.setMealTypeLabel(mealTypeLabels.getOrDefault(
-                            vo.getMealTypeId() == null ? 0L : vo.getMealTypeId(), ""));
+                    vo.setCategoryLabel(categoryLabels.getOrDefault(
+                            vo.getCategoryId() == null ? 0L : vo.getCategoryId(), ""));
                     vo.setCoverImage(toAbsoluteCover(vo.getCoverImage()));
                     // 无浏览记录的菜品不在聚合结果里 ⇒ 显式补 0（端上不渲染「—」）
                     vo.setRecentViewCount(recentViews.getOrDefault(vo.getId(), 0L));
@@ -428,9 +428,9 @@ public class DishServiceImpl implements DishService {
                 .and(w -> w.isNull(Dish::getImages).or().apply("JSON_LENGTH(images) = 0"))));
         vo.setWithoutStall(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                 .and(w -> w.isNull(Dish::getStallId).or().eq(Dish::getStallId, 0L))));
-        // 种类缺失 = dish.meal_type_id 为空（系统维度取值的引用列）
+        // 种类缺失 = dish.category_id 为空（种类字典的引用列）
         vo.setWithoutCategory(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
-                .isNull(Dish::getMealTypeId)));
+                .isNull(Dish::getCategoryId)));
         return vo;
     }
 
@@ -492,7 +492,7 @@ public class DishServiceImpl implements DishService {
         copy.setDescription(source.getDescription());
         copy.setImages(source.getImages());
         copy.setAttributes(source.getAttributes());
-        copy.setMealTypeId(source.getMealTypeId());
+        copy.setCategoryId(source.getCategoryId());
         // 副本是「半成品」：默认下架，确认内容后再上架（见 A3 备注）
         copy.setStatus(DishConst.STATUS_OFF);
         // 评价 / 浏览量归零、均分置空（副本自带独立评分聚合）
@@ -538,7 +538,7 @@ public class DishServiceImpl implements DishService {
         vo.setRatingCount(dish.getRatingCount());
         vo.setCreatedAt(dish.getCreatedAt());
         vo.setUpdatedAt(dish.getUpdatedAt());
-        vo.setMealTypeId(dish.getMealTypeId());
+        vo.setCategoryId(dish.getCategoryId());
         // 出参翻译：库里存的是**取值 ID**（A4）⇒ 统一翻译为中文；找不到对应取值的原样保留
         vo.setAttributes(attributeAdminService.translateForRead(dish.getAttributes()));
         // 归属名称：档口名 + 所属食堂名（管理端编辑回填需要显示，避免再发一次列表请求）
@@ -560,7 +560,7 @@ public class DishServiceImpl implements DishService {
         // 且需额外补丁才能表达「清空」这一个语义。
         //
         // 「null 的语义」逐字段定死（避免误清空）：
-        //   · name / mealTypeId：**必填**（空 → 400）—— 表单式编辑恒会提交；
+        //   · name / categoryId：**必填**（空 → 400）—— 表单式编辑恒会提交；
         //   · originalPrice：0 / null ⇒ **清空**（本次显式 set null）；
         //   · description：null ⇒ 空串（与详情出参「无为空串」同口径）；
         //   · images / attributes / stallId：null ⇒ **不修改**（不传即不动；要清空请传空数组 / 空对象）。
@@ -575,10 +575,10 @@ public class DishServiceImpl implements DishService {
         if (req.getPrice() == null || req.getPrice() <= 0) {
             throw new BusinessException("价格必须大于 0（单位：分）");
         }
-        if (req.getMealTypeId() == null) {
+        if (req.getCategoryId() == null) {
             throw new BusinessException("请填写菜品分类");
         }
-        categoryAdminService.requireExists(req.getMealTypeId());
+        categoryAdminService.requireExists(req.getCategoryId());
 
         Long stallId = resolveStallId(req);
         String attributesJson = req.getAttributes() == null ? null
@@ -590,7 +590,7 @@ public class DishServiceImpl implements DishService {
                 .set(Dish::getPrice, req.getPrice())
                 .set(Dish::getOriginalPrice, normalizeDiscount(req.getOriginalPrice(), "原价"))
                 .set(Dish::getDescription, req.getDescription() == null ? "" : req.getDescription())
-                .set(Dish::getMealTypeId, req.getMealTypeId());
+                .set(Dish::getCategoryId, req.getCategoryId());
         if (stallId != null) {
             wrapper.set(Dish::getStallId, stallId);
         }
@@ -728,7 +728,7 @@ public class DishServiceImpl implements DishService {
         dish.setDescription(req.getDescription());
         dish.setImages(JsonListUtil.toJson(req.getImages()));
 
-        // 描述属性（动态属性模型）：JSON 对象，键 = **描述维度** ID（系统维度不接受，见 resolveForWrite）。
+        // 描述属性（动态属性模型）：JSON 对象，键 = **描述维度** ID（维度白名单见 resolveForWrite）。
         // **值 = 取值 ID**（A4 落地）：入参允许「取值 ID」或「中文名」，中文名同维度内未命中即**自动登记**
         // 为新取值后返回其 ID；未传 = 不修改（NOT_NULL 策略跳过），空对象 = 清空整列。
         if (req.getAttributes() == null) {
@@ -738,14 +738,14 @@ public class DishServiceImpl implements DishService {
             dish.setAttributes(resolved.isEmpty() ? null : JsonMapUtil.toJson(resolved));
         }
 
-        // 菜品种类（入库字段 `meal_type_id`；值域 = 系统维度「菜品种类」下的取值 id）：
-        // 必须属于该系统维度（不属于 → 400）；null = 不修改
-        // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过，行内部分更新不会误清种类）。
-        if (req.getMealTypeId() == null) {
-            dish.setMealTypeId(null);
+        // 菜品分类（入库字段 `category_id`；值域 = `dish_category.id`）：
+        // 必须是种类字典内的行（不存在 → 400）；null = 不修改
+        // （编辑路径 MyBatis-Plus NOT_NULL 策略跳过，行内部分更新不会误清分类）。
+        if (req.getCategoryId() == null) {
+            dish.setCategoryId(null);
         } else {
-            categoryAdminService.requireExists(req.getMealTypeId());
-            dish.setMealTypeId(req.getMealTypeId());
+            categoryAdminService.requireExists(req.getCategoryId());
+            dish.setCategoryId(req.getCategoryId());
         }
 
         dish.setStatus(req.getStatus());

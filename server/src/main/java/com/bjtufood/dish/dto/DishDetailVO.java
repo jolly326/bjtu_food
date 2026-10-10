@@ -19,7 +19,7 @@ import java.util.List;
  * 以下字段已从公开响应删除且不得回流：{@code status}（公开接口恒只返回在售）、{@code createdAt}、
  * {@code canteenId}、{@code stallId}、{@code viewCount}、{@code promoPrice}、{@code tags}、
  * {@code spiceLevel}、{@code region}、{@code windowNo}、{@code updatedAt}、{@code latitude}、
- * {@code longitude}、{@code mealType}（大类只参与筛选与字典下发，不进公开出参）、
+ * {@code longitude}、{@code categoryId}（分类只参与筛选与管理端维护，不进公开出参）、
  * {@code ratingCount}（零消费）、{@code ratingDistribution}（零消费）、
  * {@code dietType} / {@code ingredients} / {@code flavorTags} / {@code serveTemp}
  * （四维已收敛为 {@code attributes} 动态属性）。

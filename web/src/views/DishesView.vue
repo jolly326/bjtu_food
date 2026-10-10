@@ -9,8 +9,9 @@
  * <p>列表行是**瘦身 VO**（不带 `description` / `images` / `attributes`）而 `PUT` 是整体替换
  * ⇒ 详情与编辑都必须先用 `GET /admin/dishes/{id}` 取全字段，否则保存会把这些字段当成「未传 / 空」而清空。
  *
- * <p>**菜品种类字典**（系统维度取值，`dish.meal_type_id` 的取值域）的维护入口挂在本页分类下拉旁
- * （分类抽屉），不单设菜单项 —— 与 [web/categories.md](../../../docs/api/web/categories.md) 的入口口径一致。
+ * <p>**菜品种类字典**（独立字典表 `dish_category`，即 `dish.category_id` 的取值域）的维护入口挂在本页
+ * 分类下拉旁（分类抽屉），不单设菜单项 —— 与
+ * [web/categories.md](../../../docs/api/web/categories.md) 的入口口径一致。
  */
 import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
@@ -61,13 +62,12 @@ import { useRowAction } from '@/composables/useRowAction'
 
 const canteens = ref<CanteenAdminVO[]>([])
 const stalls = ref<StallAdminVO[]>([])
+/** 描述属性维度：属性子表单按 `order` 渲染（种类已独立成字典，不在属性维度内） */
 const dimensions = ref<DishDimensionAdminVO[]>([])
-/** 描述属性维度（**排除系统维度「菜品种类」**）：属性子表单只渲染这些维度 */
-const attributeDimensions = computed(() => dimensions.value.filter((d) => !d.system))
-/** A6 菜品种类字典：分类**筛选下拉**与编辑表单分类下拉、以及「分类中文名」展示的真源 */
+/** A6 菜品种类字典：分类**筛选下拉**与编辑表单分类下拉、以及「种类中文名」展示的真源 */
 const categories = ref<DishCategoryAdminVO[]>([])
 /**
- * 取值字典（按维度 ID 分组）—— A4 落地后**属性的候选真源**。
+ * 取值字典（按维度 ID 分组）—— **属性的候选真源**。
  *
  * <p>表单用 `input` + `datalist`：既给出字典建议，又保留「**自由输入新值**」能力
  * （服务端在同维度内未命中即**自动登记**为新取值，见 A4 的「灵活取值」）。
@@ -78,7 +78,7 @@ const valuesByDimensionId = ref<Record<string, DishValueAdminVO[]>>({})
 const fKeyword = ref('')
 const fCanteenId = ref(0)
 const fStallId = ref(0)
-const fMealTypeId = ref(0)
+const fCategoryId = ref(0)
 const fStatus = ref<OnOffStatus | ''>('')
 
 function params(): DishListParams {
@@ -86,7 +86,7 @@ function params(): DishListParams {
     keyword: fKeyword.value || undefined,
     canteenId: fCanteenId.value || undefined,
     stallId: fStallId.value || undefined,
-    mealTypeId: fMealTypeId.value || undefined,
+    categoryId: fCategoryId.value || undefined,
     status: fStatus.value || undefined,
   }
 }
@@ -130,7 +130,7 @@ const form = ref({
   stallId: 0,
   priceYuan: '',
   originalPriceYuan: '',
-  mealTypeId: 0,
+  categoryId: 0,
   description: '',
   /** 组件态 = `{ url }` 对象数组（ImageUpload 契约）；提交时映射回 `images: string[]` */
   images: [] as ImageItem[],
@@ -172,7 +172,7 @@ function resetForm(): void {
     stallId: stalls.value[0]?.id ?? 0,
     priceYuan: '',
     originalPriceYuan: '',
-    mealTypeId: categories.value[0]?.id ?? 0,
+    categoryId: categories.value[0]?.id ?? 0,
     description: '',
     images: [],
   }
@@ -188,14 +188,14 @@ function fillFormFrom(d: DishAdminVO): void {
     stallId: d.stallId,
     priceYuan: String(fenToYuan(d.price)),
     originalPriceYuan: d.originalPrice == null ? '' : String(fenToYuan(d.originalPrice)),
-    mealTypeId: d.mealTypeId,
+    categoryId: d.categoryId,
     description: d.description,
     // 编辑回显：契约出参 `images: string[]`（有序）映射为组件对象数组，顺序不变 ⇒ 首图仍是封面
     images: d.images.map((url) => ({ url })),
   }
   attrSingle.value = {}
   attrMulti.value = {}
-  for (const dim of attributeDimensions.value) {
+  for (const dim of dimensions.value) {
     const v = d.attributes?.[String(dim.id)]
     if (Array.isArray(v)) attrMulti.value[String(dim.id)] = v.join('、')
     else if (typeof v === 'string') attrSingle.value[String(dim.id)] = v
@@ -248,8 +248,8 @@ function cancelEdit(): void {
 
 function buildAttributes(): Record<string, string | string[]> {
   const out: Record<string, string | string[]> = {}
-  for (const d of attributeDimensions.value) {
-    // 键 = 描述维度 ID 字符串（`dish.attributes` JSON 键形态）；系统维度（菜品种类）只走 mealTypeId
+  for (const d of dimensions.value) {
+    // 键 = 维度 ID 字符串（`dish.attributes` JSON 键形态）；种类走独立的 categoryId，不进 attributes
     const key = String(d.id)
     if (d.valueType === 'single') {
       const v = (attrSingle.value[key] ?? '').trim()
@@ -278,7 +278,7 @@ async function save(): Promise<void> {
     ElMessage.warning('请至少上传一张封面图')
     return
   }
-  if (!form.value.mealTypeId) {
+  if (!form.value.categoryId) {
     ElMessage.warning('请选择菜品分类')
     return
   }
@@ -299,7 +299,7 @@ async function save(): Promise<void> {
     stallId: form.value.stallId,
     price,
     originalPrice,
-    mealTypeId: form.value.mealTypeId,
+    categoryId: form.value.categoryId,
     description: form.value.description,
     // 提交映射：按数组顺序回 `images: string[]`（首图即封面，后端 / client 契约零变更）
     images: form.value.images.map((img) => img.url),
@@ -464,7 +464,7 @@ async function commitRenameCategory(row: DishCategoryAdminVO): Promise<void> {
   }
 }
 
-/** 种类取值拖拽排序（整体提交全量行） */
+/** 种类拖拽排序（整体提交全量行） */
 const { onDragStart: onCatDragStart, onDrop: onCatDrop } = useReorder(
   categories,
   sortCategories,
@@ -475,7 +475,7 @@ function reset(): void {
   fKeyword.value = ''
   fCanteenId.value = 0
   fStallId.value = 0
-  fMealTypeId.value = 0
+  fCategoryId.value = 0
   fStatus.value = ''
   reloadFirstPage()
 }
@@ -496,8 +496,8 @@ const activeFilters = computed(() => {
   if (fCanteenId.value)
     out.push({ key: 'canteen', label: '食堂', value: canteenLabel(fCanteenId.value) })
   if (fStallId.value) out.push({ key: 'stall', label: '档口', value: stallLabel(fStallId.value) })
-  if (fMealTypeId.value)
-    out.push({ key: 'category', label: '分类', value: categoryLabel(fMealTypeId.value) })
+  if (fCategoryId.value)
+    out.push({ key: 'category', label: '分类', value: categoryLabel(fCategoryId.value) })
   if (fStatus.value)
     out.push({
       key: 'status',
@@ -512,7 +512,7 @@ function clearFilter(key: string): void {
   if (key === 'keyword') fKeyword.value = ''
   if (key === 'canteen') fCanteenId.value = 0
   if (key === 'stall') fStallId.value = 0
-  if (key === 'category') fMealTypeId.value = 0
+  if (key === 'category') fCategoryId.value = 0
   if (key === 'status') fStatus.value = ''
   reloadFirstPage()
 }
@@ -565,8 +565,8 @@ onMounted(async () => {
         <option :value="0">全部档口</option>
         <option v-for="s in filteredStalls" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
-      <!-- A6 种类字典驱动的下拉：筛选值 = 种类取值 ID -->
-      <select class="form-input" v-model.number="fMealTypeId" @change="reloadFirstPage">
+      <!-- A6 种类字典驱动的下拉：筛选值 = 种类 ID（`dish_category.id`） -->
+      <select class="form-input" v-model.number="fCategoryId" @change="reloadFirstPage">
         <option :value="0">全部分类</option>
         <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.label }}</option>
       </select>
@@ -605,7 +605,7 @@ onMounted(async () => {
         <tbody>
           <tr v-for="row in items" :key="row.id">
             <td>{{ row.name }}</td>
-            <td>{{ row.mealTypeLabel || '—' }}</td>
+            <td>{{ row.categoryLabel || '—' }}</td>
             <td class="num">{{ formatYuan(row.price) }}</td>
             <td><StatusTag :status="row.status" kind="dish" /></td>
             <td class="muted">{{ formatDateTime(row.updatedAt) }}</td>
@@ -689,8 +689,8 @@ onMounted(async () => {
             <div class="meta-row">
               <span class="meta-key">分类</span>
               <span class="meta-val">
-                {{ detail.mealTypeLabel || '—'
-                }}<span class="muted"> #{{ detail.mealTypeId }}</span>
+                {{ detail.categoryLabel || '—'
+                }}<span class="muted"> #{{ detail.categoryId }}</span>
               </span>
             </div>
             <div class="meta-row">
@@ -791,13 +791,13 @@ onMounted(async () => {
           </div>
         </div>
         <div class="field">
-          <label for="dish-meal-type">菜品分类</label>
-          <select id="dish-meal-type" class="form-input" v-model.number="form.mealTypeId">
+          <label for="dish-category">菜品分类</label>
+          <select id="dish-category" class="form-input" v-model.number="form.categoryId">
             <option :value="0" disabled>请选择分类</option>
             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.label }}</option>
           </select>
           <div class="hint">
-            菜品种类在页头「管理分类」内维护（登记 / 改名 / 拖拽排序；改名免费）
+            菜品种类在页头「管理分类」内维护（登记 / 改名 / 拖拽排序；种类是独立字典表，改名免费）
           </div>
         </div>
         <div class="field">
@@ -813,9 +813,9 @@ onMounted(async () => {
           <label>配图（首图为封面，必填，≤5 张）</label>
           <ImageUpload v-model="form.images" :max="5" :aria-label="'配图'" />
         </div>
-        <div v-if="attributeDimensions.length" class="dim-block">
+        <div v-if="dimensions.length" class="dim-block">
           <div class="dim-title">描述属性（下拉给出字典建议；填新值保存时自动登记）</div>
-          <div class="field" v-for="d in attributeDimensions" :key="d.id">
+          <div class="field" v-for="d in dimensions" :key="d.id">
             <label>{{ d.name }}{{ d.valueType === 'multi' ? '（多值）' : '' }}</label>
             <!-- 字典建议 + 自由录入：value 为中文，服务端同维度内未命中即自动登记为新取值；
                  键 = 维度 ID 字符串（`dish.attributes` JSON 键形态）。
@@ -910,7 +910,7 @@ onMounted(async () => {
       </template>
     </BaseModal>
 
-    <!-- 分类管理（抽屉）：种类字典的登记 / 改名 / 拖拽排序（取值 ID 由后端生成） -->
+    <!-- 分类管理（抽屉）：种类字典的登记 / 改名 / 拖拽排序（种类 ID 由后端生成） -->
     <BaseDrawer title="菜品分类" :open="catOpen" @close="catOpen = false">
       <div class="add-row">
         <input
@@ -968,7 +968,8 @@ onMounted(async () => {
           </tbody>
         </table>
         <p class="foot-note">
-          菜品种类是系统维度取值：改名免费（菜品存的是取值 ID，零迁移）；拖拽排序整体提交全量行。
+          菜品种类是独立字典表：菜品存的是种类 ID，改名免费（已归类菜品无需迁移）；
+          被菜品引用时不可删除（本抽屉不提供删除入口）；拖拽排序整体提交全量行。
         </p>
       </div>
     </BaseDrawer>

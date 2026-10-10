@@ -64,7 +64,7 @@ class DishViewCatalogTest {
     void validRows_visibleAndResolvable() {
         DishFilterView recommend = view(1L, "为你推荐", "[]", "random", 1);
         DishFilterView noodle = view(2L, "面食粉类",
-                "[{\"field\":\"mealTypeId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2);
+                "[{\"field\":\"categoryId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2);
         when(viewMapper.selectList(any())).thenReturn(List.of(recommend, noodle));
         when(dishMapper.selectCount(any())).thenReturn(2L);
 
@@ -92,7 +92,7 @@ class DishViewCatalogTest {
     @DisplayName("解析：条件与排序口径都取自视图行（同一行可解析出取数参数）")
     void resolve_usesRowConditions() {
         DishFilterView view = view(2L, "面食粉类",
-                "[{\"field\":\"mealTypeId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2);
+                "[{\"field\":\"categoryId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2);
 
         DishListQuery query = DishViewResolver.resolve(view, null, "seed-1");
 
@@ -100,7 +100,7 @@ class DishViewCatalogTest {
         assertThat(query.sortKind()).isEqualTo(DishListQuery.SortKind.SEED_RANDOM);
         assertThat(query.seed()).isEqualTo("seed-1");
         assertThat(query.conditions()).singleElement()
-                .satisfies(c -> assertThat(c.getField()).isEqualTo("mealTypeId"))
+                .satisfies(c -> assertThat(c.getField()).isEqualTo("categoryId"))
                 .satisfies(c -> assertThat(c.getValue()).isEqualTo("7"));
     }
 

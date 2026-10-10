@@ -1,14 +1,14 @@
 # dish_attribute_value — 菜品描述属性取值
 
-**用途**：某个**维度**下的可选取值（**取值字典**）。描述维度的取值经 `dish.attributes` 引用其 `id`；**系统维度（菜品种类）的取值经 `dish.meal_type_id` 引用其 `id`**。管理侧设计见 [A4 菜品属性维度与取值管理](../func/web/A-主数据维护/A4-菜品属性维度管理.md)。
+**用途**：某个**描述维度**下的可选取值（**取值字典**），经 `dish.attributes` 引用其 `id`。管理侧设计见 [A4 菜品属性维度与取值管理](../func/web/A-主数据维护/A4-菜品属性维度管理.md)。
 **对应实体**：`com.bjtufood.dish.entity.DishAttributeValue`（已实现）
 
 ## 列定义
 
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
-| `id` | BIGINT | NO | AUTO_INCREMENT | PK | 取值 ID（**菜品 `attributes` / `dish.meal_type_id` 引用的就是它**） |
-| `dimension_id` | BIGINT | NO | 0 | KEY | 所属维度（`dish_attribute_dimension.id`；`system = 1` 者为**菜品种类字典**） |
+| `id` | BIGINT | NO | AUTO_INCREMENT | PK | 取值 ID（**菜品 `attributes` 引用的就是它**） |
+| `dimension_id` | BIGINT | NO | 0 | KEY | 所属维度（`dish_attribute_dimension.id`） |
 | `label` | VARCHAR(32) | NO | `''` | | 取值中文名（展示用；**可改，改名免费**） |
 | `sort_order` | INT | NO | 0 | | 组内展示顺序（升序） |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参 `updatedAt`） |
@@ -25,25 +25,17 @@
 ## 关键设计
 
 ### 名称可改 = 数据锚在 ID
-描述维度的取值在 `dish.attributes` 中存的是**取值的 `id`**、菜品种类在 `dish.meal_type_id` 中存的也是**取值的 `id`**（都不是中文），故改 `label` 只改一行、**全站生效**（如「牛肉」→「牛」、「面食」→「面食粉类」）。
-
-### 系统维度下的取值 = 菜品种类字典
-`dimension_id` 指向**系统维度**（`dish_attribute_dimension.system = 1`）的行即**菜品种类字典**：菜品录入时从它下拉选取、存入 `dish.meal_type_id`；取值**被菜品引用时禁止删除**（引用判据见下）。
+取值在 `dish.attributes` 中存的是**取值的 `id`**（不是中文），故改 `label` 只改一行、**全站生效**（如「牛肉」→「牛」）。
 
 ### 时间列
 本表**无 `created_at`**；`updated_at` 只用于管理端列表展示「最近改动」。
 
 ### 删除约束
-取值**被菜品引用时禁止删除**（应用层统计 `dishCount`，`> 0` 即拦截），避免菜品属性读到悬空 ID。引用判据按所属维度取：
-
-| 所属维度 | 引用判据 |
-|---|---|
-| 描述维度 | `dish.attributes` 中该取值 ID 的出现次数 |
-| 系统维度（菜品种类） | `dish.meal_type_id = 取值 ID` 的菜品数 |
+取值**被菜品引用时禁止删除**（应用层统计 `dishCount`，即 `dish.attributes` 中该取值 ID 的出现次数，`> 0` 即拦截），避免菜品属性读到悬空 ID。
 
 ### 取值登记入口
 两处共用同一登记逻辑：
-1. 管理端录入菜品时**输入新值 → 自动登记**（**仅描述维度**；菜品种类只能从字典选取）；
+1. 管理端录入菜品时**输入新值 → 自动登记**；
 2. **反馈采纳**时按中文查字典，未命中**自动新建**（用户提交菜品问题反馈本身**不写库**）。
 
 ## 关联
@@ -52,7 +44,6 @@
 |---|---|---|
 | N→1 | `dish_attribute_dimension.id` | 所属维度 |
 | N→n | `dish.attributes`（JSON 内引用 `id`） | 描述属性（**非外键**） |
-| 1→n | `dish.meal_type_id`（**非外键**，存系统维度取值 `id`） | 菜品所属种类 |
 
 > **不设外键** —— 与全库约定一致：JSON 内的引用无法用外键约束，关系由应用层维护。
 

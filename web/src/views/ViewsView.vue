@@ -51,7 +51,7 @@ interface FieldMeta {
 }
 
 const FIELD_META: Record<DishViewField, FieldMeta> = {
-  mealTypeId: { label: '种类', ops: ['=', 'in'], kind: 'dishKind' },
+  categoryId: { label: '种类', ops: ['=', 'in'], kind: 'dishKind' },
   discount: { label: '有折扣', ops: ['isTrue'], kind: 'valueless' },
   price: { label: '现价（分）', ops: ['between', '>=', '<='], kind: 'range' },
   stallId: { label: '档口', ops: ['=', 'in'], kind: 'stall' },
@@ -98,7 +98,7 @@ interface ConditionRow {
 }
 
 function emptyRow(): ConditionRow {
-  const field: DishViewField = 'mealTypeId'
+  const field: DishViewField = 'categoryId'
   return { field, op: FIELD_META[field].ops[0] ?? '', value: '', values: [], low: '', high: '' }
 }
 
@@ -173,7 +173,7 @@ function describeCondition(c: DishViewCondition): string {
 
 /** 取值是实体 ID（摘要展示时换成中文名）的字段 */
 function isIdField(field: DishViewField | ''): boolean {
-  return field === 'mealTypeId' || field === 'stallId' || field === 'canteenId'
+  return field === 'categoryId' || field === 'stallId' || field === 'canteenId'
 }
 
 function describeConditions(conditions: DishViewCondition[]): string {

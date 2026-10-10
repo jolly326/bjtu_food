@@ -56,11 +56,11 @@ public class DishAdminListItemVO {
     @Schema(description = "封面图绝对 URL（首图派生；无图为空串）")
     private String coverImage;
 
-    @Schema(description = "种类取值 ID（值域 = 种类字典 /admin/dish-categories）", example = "3")
-    private Long mealTypeId;
+    @Schema(description = "菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories）", example = "3")
+    private Long categoryId;
 
-    @Schema(description = "种类中文名（A6 种类字典派生，端上零硬编码）", example = "面食粉类")
-    private String mealTypeLabel;
+    @Schema(description = "分类中文名（A6 种类字典派生，端上零硬编码）", example = "面食粉类")
+    private String categoryLabel;
 
     @Schema(description = "上架状态：on / off")
     private String status;

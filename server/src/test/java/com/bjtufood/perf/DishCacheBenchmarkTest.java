@@ -143,7 +143,7 @@ class DishCacheBenchmarkTest {
         viewMapper = mock(DishFilterViewMapper.class);
         when(viewMapper.selectList(any())).thenReturn(List.of(
                 view(1L, "为你推荐", "[]", "random", 1),
-                view(2L, "面食粉类", "[{\"field\":\"mealTypeId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2)));
+                view(2L, "面食粉类", "[{\"field\":\"categoryId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2)));
         // 匹配数 > 0 ⇒ 可见（匹配数 0 不下发）
         when(dishMapper.selectCount(any())).thenReturn(1L);
 

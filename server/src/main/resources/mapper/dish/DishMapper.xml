@@ -109,7 +109,7 @@
         d.created_at,
         d.updated_at,
         d.attributes,
-        d.meal_type_id,
+        d.category_id,
         COALESCE(s.name, '') AS stall_name,
         COALESCE(c.name, '') AS canteen_name
     </sql>
@@ -137,15 +137,15 @@
              与 DishViewConditions#toWrapper（计数 / 预览 / 抽样用）保持**同一套口径**。 -->
         <foreach collection="q.conditions" item="c">
             <choose>
-                <when test="c.field == 'mealTypeId'">
-                    <!-- mealTypeId 条件值 = 种类取值 ID（系统维度「菜品种类」下的取值行）；
-                         直接匹配 dish.meal_type_id（走 idx_dish_meal_type），取值经 #{} 预编译参数绑定 -->
+                <when test="c.field == 'categoryId'">
+                    <!-- categoryId 条件值 = 种类 ID（dish_category.id）；
+                         直接匹配 dish.category_id（走 idx_dish_category），取值经 #{} 预编译参数绑定 -->
                     <choose>
                         <when test="c.op == 'in'">
-                            AND d.meal_type_id IN
+                            AND d.category_id IN
                             <foreach collection="c.values" item="v" open="(" separator="," close=")">#{v}</foreach>
                         </when>
-                        <otherwise>AND d.meal_type_id = #{c.value}</otherwise>
+                        <otherwise>AND d.category_id = #{c.value}</otherwise>
                     </choose>
                 </when>
                 <when test="c.field == 'discount'">
@@ -243,7 +243,7 @@
         <result property="stallId" column="stall_id"/>
         <result property="name" column="name"/>
         <result property="originalPrice" column="original_price"/>
-        <result property="mealTypeId" column="meal_type_id"/>
+        <result property="categoryId" column="category_id"/>
     </resultMap>
 
     <!-- 管理端列表行（A3「列表 / 详情 VO 分离」，2026-10-03）：
@@ -260,7 +260,7 @@
         d.avg_rating,
         d.rating_count,
         d.updated_at,
-        d.meal_type_id,
+        d.category_id,
         COALESCE(s.name, '') AS stall_name,
         COALESCE(c.name, '') AS canteen_name
     </sql>
@@ -270,12 +270,12 @@
         <!-- 仅声明下划线列名与属性名不同者，其余按 mapUnderscoreToCamelCase 自动映射 -->
         <result property="originalPrice" column="original_price"/>
         <result property="coverImage" column="cover_image"/>
-        <result property="mealTypeId" column="meal_type_id"/>
+        <result property="categoryId" column="category_id"/>
         <result property="stallName" column="stall_name"/>
         <result property="canteenName" column="canteen_name"/>
     </resultMap>
 
-    <!-- 管理端列表筛选条件（A3）：stallId / canteenId（经档口间接）/ mealTypeId / status / keyword。
+    <!-- 管理端列表筛选条件（A3）：stallId / canteenId（经档口间接）/ categoryId / status / keyword。
          keyword 与公开列表**同口径**（菜名 / 档口名 / 食堂名三路模糊）—— 该形态无法走索引，
          属已知取舍（与 client 搜索同源，见本文件顶部「技术债」登记）。 -->
     <sql id="adminDishWhere">
@@ -286,8 +286,8 @@
             <if test="q.canteenId != null">
                 AND s.canteen_id = #{q.canteenId}
             </if>
-            <if test="q.mealTypeId != null">
-                AND d.meal_type_id = #{q.mealTypeId}
+            <if test="q.categoryId != null">
+                AND d.category_id = #{q.categoryId}
             </if>
             <if test="q.status != null and q.status != ''">
                 AND d.status = #{q.status}

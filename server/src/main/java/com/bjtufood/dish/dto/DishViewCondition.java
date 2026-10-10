@@ -12,15 +12,15 @@ import java.util.List;
  * <b>字段 / 操作符 / 值三层白名单</b>：后台不可写 SQL / 表达式 / 函数，全部经
  * {@code DishViewConditions} 校验后**参数化**绑定。
  *
- * <p>取值形态：单值用 {@link #value}（如 `price >= 1000`、`mealTypeId = 3`）；
+ * <p>取值形态：单值用 {@link #value}（如 `price >= 1000`、`categoryId = 3`）；
  * 多值用 {@link #values}（`in` / `between`）；`discount.isTrue` **无值**。
  */
 @Data
 @Schema(description = "视图筛选条件项")
 public class DishViewCondition {
 
-    @Schema(description = "条件字段（白名单：mealTypeId/discount/price/stallId/canteenId/avgRating/createdAt）",
-            example = "mealTypeId")
+    @Schema(description = "条件字段（白名单：categoryId/discount/price/stallId/canteenId/avgRating/createdAt）",
+            example = "categoryId")
     private String field;
 
     @Schema(description = "操作符（白名单，随字段而定：= / in / isTrue / between / >= / <= / withinDays）",

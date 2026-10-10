@@ -66,10 +66,10 @@ public class DishAdminVO {
             example = "{\"1\":\"半荤\",\"2\":[\"蛋\"],\"3\":[\"酸\",\"甜\"],\"4\":\"热食\"}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品种类 ID（值域 = 种类字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）", example = "3")
-    private Long mealTypeId;
+    @Schema(description = "菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories；管理端录入下拉 + 编辑回填）", example = "3")
+    private Long categoryId;
 
-    /** 种类中文名（A6 种类字典派生；列表直接可读，端上零硬编码） */
+    /** 分类中文名（A6 种类字典派生；列表直接可读，端上零硬编码） */
     @Schema(description = "分类中文名", example = "面食粉类")
-    private String mealTypeLabel;
+    private String categoryLabel;
 }

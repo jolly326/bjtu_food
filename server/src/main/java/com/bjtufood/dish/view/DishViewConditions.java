@@ -42,7 +42,7 @@ public final class DishViewConditions {
 
     /** 字段 → 允许的操作符（白名单表；**这是新增筛选语义的唯一改动点**）。 */
     private static final Map<String, Set<String>> ALLOWED_OPS = Map.of(
-            "mealTypeId", Set.of("=", "in"),
+            "categoryId", Set.of("=", "in"),
             "discount", Set.of("isTrue"),
             "price", Set.of("between", ">=", "<="),
             "stallId", Set.of("=", "in"),
@@ -156,8 +156,8 @@ public final class DishViewConditions {
         }
         for (DishViewCondition c : conditions) {
             switch (c.getField()) {
-                // mealTypeId 条件值 = 种类取值 ID（系统维度「菜品种类」下的取值行）
-                case "mealTypeId" -> applyInOrEq(wrapper, "meal_type_id", c, true);
+                // categoryId 条件值 = 种类 ID（dish_category.id）
+                case "categoryId" -> applyInOrEq(wrapper, "category_id", c, true);
                 case "stallId" -> applyInOrEq(wrapper, "stall_id", c, true);
                 case "canteenId" -> {
                     if ("in".equals(c.getOp())) {
@@ -208,7 +208,7 @@ public final class DishViewConditions {
         if ("between".equals(op) && (c.getValues() == null || c.getValues().size() != 2)) {
             throw new BusinessException("between 需要恰好两个取值：" + field);
         }
-        if (Set.of("stallId", "canteenId", "price", "mealTypeId").contains(field)) {
+        if (Set.of("stallId", "canteenId", "price", "categoryId").contains(field)) {
             if ("in".equals(op)) {
                 c.getValues().forEach(DishViewConditions::requireLong);
             } else if ("between".equals(op)) {

@@ -6,7 +6,7 @@
 
 > 维护菜品属性的**维度**（`dish_attribute_dimension`）与**取值字典**（`dish_attribute_value`）。菜品存的是**取值 ID**，出参由服务端翻译成中文 ⇒ **客户端契约不变**。
 >
-> **系统维度**（`system = true`，当前 = 「菜品种类」）：其取值即**菜品种类字典**，被 `dish.meal_type_id` 引用（别名面契约见 [web/categories.md](./categories.md)）。该行**取值类型不可改、不可删**；其取值被菜品引用时同样不可删（引用判据 = `dish.meal_type_id = 取值 ID`）。
+> 本组端点只管**描述维度**（与菜品 **m:n**，取值存 `dish.attributes`）。菜品「种类」是**另一实体**（与菜品 **1:1**，独立字典表 `dish_category`），走 [web/categories.md](./categories.md)，不出现在本组端点。
 
 ---
 
@@ -20,10 +20,9 @@
 ### 响应 `data` = `DishDimensionAdminVO[]`
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `id` | number | 维度 ID（`dish.attributes` JSON 的键；系统维度为菜品种类锚点） |
+| `id` | number | 维度 ID（`dish.attributes` JSON 的键） |
 | `name` | string | 维度中文名 |
-| `valueType` | string | `single` / `multi`（系统维度恒为 `single`） |
-| `system` | boolean | **是否系统维度**（`true` = 菜品种类：取值类型不可改、维度不可删；且其取值不写入 `attributes`） |
+| `valueType` | string | `single` / `multi` |
 | `order` | number | 展示顺序 |
 | `dishCount` | number | 使用该维度的菜品数（删除前判断） |
 | `valueCount` | number | 该维度下的**取值数**（删除确认文案用） |
@@ -66,7 +65,6 @@
 `null`。
 
 > **单 / 多选可切换**：后端在同一事务内自动迁移该维度下菜品的数据形状（单值 `id` ↔ 多值 `[id]`）。
-> **系统维度**：只允许改 `name`；提交与现状不同的 `valueType` → `400`（菜品种类恒单值）。
 
 ---
 
@@ -81,8 +79,6 @@
 
 ### 响应 `data`
 `null`。
-
-> **系统维度恒不可删** → `400`（其取值被 `dish.meal_type_id` 引用，删除即产生悬空 ID）。
 
 ---
 
@@ -110,10 +106,10 @@
 ### 响应 `data` = `DishValueAdminVO[]`
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `id` | number | 取值 ID（描述属性经 `dish.attributes` 引用；系统维度取值经 `dish.meal_type_id` 引用） |
+| `id` | number | 取值 ID（经 `dish.attributes` 引用） |
 | `label` | string | 取值中文名 |
 | `order` | number | 组内展示顺序 |
-| `dishCount` | number | 引用该取值的菜品数（删除前判断；系统维度按 `dish.meal_type_id` 统计） |
+| `dishCount` | number | 引用该取值的菜品数（删除前判断） |
 | `updatedAt` | string | 更新时间（`yyyy-MM-dd HH:mm:ss`） |
 
 **排序**：按 `order` 升序。
@@ -195,7 +191,7 @@
 
 | code | 条件 |
 |---|---|
-| `400` | `name` / `label` 非法或重名；`valueType` 非法；**系统维度改取值类型 / 删除**；删除时维度 / 取值仍被引用；排序提交非法 |
+| `400` | `name` / `label` 非法或重名；`valueType` 非法；删除时维度 / 取值仍被引用；排序提交非法 |
 | `4001` | 维度 / 取值不存在 |
 | `401` | 未带 / token 失效 |
 

@@ -84,11 +84,11 @@ class DishViewAdminServiceImplTest {
         return req;
     }
 
-    private static DishViewCondition mealTypeIs(String valueId) {
+    private static DishViewCondition categoryIs(String categoryId) {
         DishViewCondition c = new DishViewCondition();
-        c.setField("mealTypeId");
+        c.setField("categoryId");
         c.setOp("=");
-        c.setValue(valueId);
+        c.setValue(categoryId);
         return c;
     }
 
@@ -98,13 +98,13 @@ class DishViewAdminServiceImplTest {
         when(viewMapper.selectList(any())).thenReturn(List.of(row(1L, "为你推荐", "[]", "random", 1, true)));
         when(viewMapper.selectById(any())).thenReturn(row(2L, "面食粉类", "[]", "random", 2, true));
 
-        service.create(createReq("面食粉类", List.of(mealTypeIs("7")), "random"));
+        service.create(createReq("面食粉类", List.of(categoryIs("7")), "random"));
 
         var captor = org.mockito.ArgumentCaptor.forClass(DishFilterView.class);
         verify(viewMapper).insert(captor.capture());
         DishFilterView inserted = captor.getValue();
         assertThat(inserted.getLabel()).isEqualTo("面食粉类");
-        assertThat(inserted.getConditions()).contains("mealTypeId").contains("\"7\"");
+        assertThat(inserted.getConditions()).contains("categoryId").contains("\"7\"");
         assertThat(inserted.getSortKind()).isEqualTo("random");
         assertThat(inserted.getSortOrder()).isEqualTo(2);
         assertThat(inserted.getEnabled()).isTrue();
@@ -132,12 +132,12 @@ class DishViewAdminServiceImplTest {
     void update_replacesAllFields() {
         when(viewMapper.selectById(1L)).thenReturn(row(1L, "面食", "[]", "random", 1, true));
 
-        service.update(1L, updateReq("面食粉类", true, List.of(mealTypeIs("7")), "priceAsc"));
+        service.update(1L, updateReq("面食粉类", true, List.of(categoryIs("7")), "priceAsc"));
 
         var captor = org.mockito.ArgumentCaptor.forClass(DishFilterView.class);
         verify(viewMapper).updateById(captor.capture());
         assertThat(captor.getValue().getLabel()).isEqualTo("面食粉类");
-        assertThat(captor.getValue().getConditions()).contains("mealTypeId");
+        assertThat(captor.getValue().getConditions()).contains("categoryId");
         assertThat(captor.getValue().getSortKind()).isEqualTo("priceAsc");
         verify(viewCatalog).invalidateViews();
     }
@@ -147,9 +147,9 @@ class DishViewAdminServiceImplTest {
     void update_illegalCondition_rejected400() {
         when(viewMapper.selectById(1L)).thenReturn(row(1L, "面食", "[]", "random", 1, true));
         DishViewCondition ghost = new DishViewCondition();
-        ghost.setField("mealType");
+        ghost.setField("category");
         ghost.setOp("=");
-        ghost.setValue("noodle");
+        ghost.setValue("1");
 
         assertThatThrownBy(() -> service.update(1L, updateReq("面食", true, List.of(ghost), "random")))
                 .isInstanceOf(BusinessException.class);
@@ -202,7 +202,7 @@ class DishViewAdminServiceImplTest {
     void listAll_echoesConditionsAndSortKind() {
         when(viewCatalog.all()).thenReturn(List.of(
                 row(1L, "为你推荐", "[]", "random", 1, true),
-                row(2L, "面食粉类", "[{\"field\":\"mealTypeId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2, true)));
+                row(2L, "面食粉类", "[{\"field\":\"categoryId\",\"op\":\"=\",\"value\":\"7\"}]", "random", 2, true)));
         when(viewCatalog.matchedCount(any(DishFilterView.class))).thenReturn(3L);
 
         var list = service.listAll();
@@ -210,7 +210,7 @@ class DishViewAdminServiceImplTest {
         assertThat(list).hasSize(2);
         assertThat(list.get(0).getConditions()).isEmpty();
         assertThat(list.get(1).getConditions()).singleElement()
-                .satisfies(c -> assertThat(c.getField()).isEqualTo("mealTypeId"));
+                .satisfies(c -> assertThat(c.getField()).isEqualTo("categoryId"));
         assertThat(list.get(1).getSortKind()).isEqualTo("random");
         assertThat(list.get(1).getMatchedCount()).isEqualTo(3L);
     }

@@ -48,26 +48,26 @@ class DishViewConditionsTest {
         assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("1=1 --", "=", "x"))))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        // 种类条件只认取值 ID 字段；旧式「分类键」字段名不是白名单成员
-        assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("mealType", "=", "noodle"))))
+        // 种类条件字段只认 categoryId；其余写法不是白名单成员
+        assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("category", "=", "1"))))
                 .isInstanceOf(BusinessException.class);
     }
 
     @Test
-    @DisplayName("种类条件：取值为数值（系统维度取值 ID），直接等值匹配 dish.meal_type_id")
-    void mealTypeIdTranslatesToColumn() {
+    @DisplayName("种类条件：取值为数值（种类 ID），直接等值匹配 dish.category_id")
+    void categoryIdTranslatesToColumn() {
         QueryWrapper<Dish> wrapper = DishViewConditions.toWrapper(
-                DishViewConditions.validate(List.of(condition("mealTypeId", "=", "7"))), true);
+                DishViewConditions.validate(List.of(condition("categoryId", "=", "7"))), true);
 
-        assertThat(wrapper.getSqlSegment()).contains("meal_type_id");
+        assertThat(wrapper.getSqlSegment()).contains("category_id");
         // 取值不走 SQL 文本拼接（参数占位符形态：形参映射）
         assertThat(wrapper.getParamNameValuePairs()).containsValue(7L);
     }
 
     @Test
-    @DisplayName("白名单：操作符不属该字段 → 400（如 mealTypeId 不支持 >=）")
+    @DisplayName("白名单：操作符不属该字段 → 400（如 categoryId 不支持 >=）")
     void illegalOpForField_rejected400() {
-        assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("mealTypeId", ">=", "7"))))
+        assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("categoryId", ">=", "7"))))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("discount", "=", "true"))))
@@ -81,7 +81,7 @@ class DishViewConditionsTest {
                 .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("stallId", "=", "abc"))))
                 .isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("mealTypeId", "=", "noodle"))))
+        assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("categoryId", "=", "noodle"))))
                 .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> DishViewConditions.validate(List.of(condition("createdAt", "withinDays", "0"))))
                 .isInstanceOf(BusinessException.class);
@@ -114,16 +114,16 @@ class DishViewConditionsTest {
     @DisplayName("翻译：种类 / 档口走参数占位符，canteenId 走子查询，其余取值参数化")
     void translate_toParameterizedWrapper() {
         DishViewCondition in = new DishViewCondition();
-        in.setField("mealTypeId");
+        in.setField("categoryId");
         in.setOp("in");
         in.setValues(List.of("7", "9"));
 
         QueryWrapper<Dish> wrapper = DishViewConditions.toWrapper(
-                DishViewConditions.validate(List.of(condition("mealTypeId", "=", "7"), in,
+                DishViewConditions.validate(List.of(condition("categoryId", "=", "7"), in,
                         condition("canteenId", "=", "2"), condition("avgRating", ">=", "4"))), true);
 
         String sql = wrapper.getSqlSegment();
-        assertThat(sql).contains("meal_type_id").contains("avg_rating");
+        assertThat(sql).contains("category_id").contains("avg_rating");
         // canteenId 经 stall 子查询（避免为计数引入联表）
         assertThat(sql).contains("SELECT id FROM stall WHERE canteen_id = 2");
         assertThat(wrapper.getParamNameValuePairs()).containsValue(7L).containsValue(9L);
@@ -133,7 +133,7 @@ class DishViewConditionsTest {
     @DisplayName("JSON 往返：序列化后再解析等价；空条件 → 空列表，序列化为 []（列 NOT NULL）")
     void jsonRoundTripAndEmpty() {
         List<DishViewCondition> conditions =
-                DishViewConditions.validate(List.of(condition("mealTypeId", "=", "7")));
+                DishViewConditions.validate(List.of(condition("categoryId", "=", "7")));
 
         String json = DishViewConditions.toJson(conditions);
 

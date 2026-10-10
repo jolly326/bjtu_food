@@ -8,10 +8,10 @@
 > **变更流程**：先改对应表文档 → 再在数据库执行 `ALTER` / `CREATE` → 两者必须一致。
 
 > **设计注记 / 已知事项**：
-> - **管理端列表统一带 `updated_at`**：凡管理端出参 `updatedAt` 的表（`canteen` / `stall` / `dish_attribute_dimension` / `dish_attribute_value` / `dish_filter_view` / `report_reason`）均有 `updated_at` 列（`DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`）。`created_at` 只在确有「创建时间」语义的表保留：`dish` / `banner` / `user` / `review` / `user_feedback` / `dish_correction` / `notification` / `email_verification_code`。
+> - **管理端列表统一带 `updated_at`**：凡管理端出参 `updatedAt` 的表（`canteen` / `stall` / `dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `dish_filter_view` / `report_reason`）均有 `updated_at` 列（`DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`）。`created_at` 只在确有「创建时间」语义的表保留：`dish` / `banner` / `user` / `review` / `user_feedback` / `dish_correction` / `notification` / `email_verification_code`。
 > - **匿名提交 `user_id = 0`**：`dish_correction.user_id` 为 `BIGINT NOT NULL DEFAULT 0`（与 `user_feedback` 同口径），列注释写明「匿名提交为 0」。
 > - **DDL 注释口径**：`user_feedback.sub_reason_id`（仅 `type='report'` 有效：举报原因 ID）、`user_feedback.reject_reason`（`status='handled'` 且结论不采纳时必填）、`stall.floor`（受控字典，值即汉字）。
-> - **库表实况**：`dish.meal_type_id` 已建列与索引（`idx_dish_meal_type`）；`canteen` / `stall` 两表的实际列与其列定义一致（只含 `updated_at`，不含 `created_at`）。
+> - **库表实况**：`dish.category_id` 与索引 `idx_dish_category`、`dish_category`（6 条种子）均与本文档列定义一致；`canteen` / `stall` 两表的实际列与其列定义一致（只含 `updated_at`，不含 `created_at`）。
 > - ⚠️ **MySQL 版本**：生产为 MySQL 5.7（TDSQL-C）；变更脚本须用 5.7 可执行语法（避免 `JSON_TABLE` 等 8.0 特性）。
 > - **`dish.images VARCHAR(1024)` 超长**：管理端 ≤5 张为硬校验；序列化后长度 > 1024 → `400`，禁止静默截断。
 > - **名称唯一性并发口径**：`canteen.name` / `stall.name` 仅靠应用层查重，并发建档可写入重名 → 查重与写入须在同一事务；如需强约束可加唯一索引（先核查存量数据）。
@@ -24,8 +24,9 @@
 | `dish_view_log` | 菜品浏览明细日志（30 天滚动窗口，**不参与排序**） | [dish_view_log.md](./dish_view_log.md) |
 | `stall` | 档口（菜品的位置归属） | [stall.md](./stall.md) |
 | `canteen` | 食堂（档口的上级归属） | [canteen.md](./canteen.md) |
-| `dish_attribute_dimension` | 属性维度定义（表驱动；含**系统维度**「菜品种类」） | [dish_attribute_dimension.md](./dish_attribute_dimension.md) |
-| `dish_attribute_value` | 属性取值字典（维度下的可选值；系统维度下 = **菜品种类字典**） | [dish_attribute_value.md](./dish_attribute_value.md) |
+| `dish_category` | 菜品种类字典（`dish.category_id` 的取值域） | [dish_category.md](./dish_category.md) |
+| `dish_attribute_dimension` | 描述属性维度定义（表驱动） | [dish_attribute_dimension.md](./dish_attribute_dimension.md) |
+| `dish_attribute_value` | 描述属性取值字典（维度下的可选值） | [dish_attribute_value.md](./dish_attribute_value.md) |
 | `dish_filter_view` | 首页筛选视图（文案 / 顺序 / 显隐 + **筛选条件** + **排序口径**） | [dish_filter_view.md](./dish_filter_view.md) |
 | `report_reason` | 举报原因字典（`GET /report-reasons` 的数据源） | [report_reason.md](./report_reason.md) |
 | `banner` | 首页轮播运营位 | [banner.md](./banner.md) |
@@ -40,7 +41,7 @@
 | `admin_audit_log` | 管理端操作审计日志（**只追加**，覆盖全部管理端写操作） | [admin_audit_log.md](./admin_audit_log.md) |
 | `security_alert` | 安全告警记录（**只追加**，推送的同时落库供面板回看） | [security_alert.md](./security_alert.md) |
 
-**表清单以本目录为准（当前 **19 张**）** —— 新增表时同步补一份 `schema/<表名>.md` 并登记于此。
+**表清单以本目录为准（当前 **20 张**）** —— 新增表时同步补一份 `schema/<表名>.md` 并登记于此。
 
 ## 实体关系
 
@@ -57,11 +58,11 @@ user 1 ── n user_violation    (user_id)
 user 1 ─── email_verification_code (按 email 关联，非 user_id)
 
 
+dish ── dish_category   经 dish.category_id 引用种类 ID（N→1 单值，非外键）
 dish ── dish_attribute_dimension   经 attributes JSON 的键（= 描述维度 ID）关联（非外键）
 dish_attribute_dimension 1 ── n dish_attribute_value   维度下的取值字典
 dish.attributes ── dish_attribute_value   经 JSON 内的取值 ID 引用（描述维度取值，非外键）
-dish.meal_type_id ── dish_attribute_value   经取值 ID 引用（**系统维度（菜品种类）** 的取值，非外键）
-dish_filter_view.conditions ── dish_attribute_value   种类条件经取值 ID 引用（非外键）
+dish_filter_view.conditions ── dish_category   种类条件经种类 ID 引用（非外键）
 user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非外键）
 ```
 
@@ -76,7 +77,8 @@ user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非�
 | `canteen` | 名称 / 图片 / 地点 / 描述 / 排序位（A1 **详情抽屉**内可编辑）；档口数、更新时间为只读 | — |
 | `stall` | 所属食堂 / 名称 / 楼层 / 窗口号 / 图片 / 地点 / 描述 / 排序位（A2 详情抽屉内可编辑）；菜品数、均分、更新时间为只读 | — |
 | `dish` | 归属档口 / 名称 / 现价 / 原价 / 菜品种类 / 描述 / 图片 / 描述属性（A3 详情抽屉内可编辑）；评分数、浏览量为只读 | `view_count` —— **停写的只读历史列**（浏览量由 `dish_view_log` 的 30 天窗口承载），无消费方；`avg_rating` / `rating_count` —— **派生缓存列**，可编辑会与重算链路互相覆盖（见 [dish.md 派生与缓存列](./dish.md)） |
-| `dish_attribute_dimension` | 维度名 / 取值类型（A4 详情抽屉内可编辑）；顺序位（拖拽）、取值数、关联菜品数、时间为只读 | 系统维度（`system = 1`，菜品种类）：**取值类型不可改、不可删** —— 其取值被 `dish.meal_type_id` 引用（保护规则见 [dish_attribute_dimension.md](./dish_attribute_dimension.md)） |
+| `dish_category` | 种类名（A3 分类抽屉内可编辑）；顺序位（拖拽）、引用菜品数、时间为只读 | —（**无删除入口**：种类是 `dish.category_id` 的锚点，下线一律「改名 + 把菜品改到别的种类」，见 [dish_category.md](./dish_category.md)） |
+| `dish_attribute_dimension` | 维度名 / 取值类型（A4 详情抽屉内可编辑）；顺序位（拖拽）、取值数、关联菜品数、时间为只读 | — |
 | `dish_attribute_value` | 取值名（A4「管理取值」抽屉内可编辑）；顺序位（拖拽）、引用菜品数、时间为只读 | `dimension_id` 由**所在维度**决定（改归属 = 换维度，非本行字段） |
 | `dish_filter_view` | tab 文案 / 筛选条件 / 排序口径 / 启停 / 顺序位（全部可改） | — |
 | `report_reason` | 中文标签 / 启停 / 顺序位 | — |
@@ -111,7 +113,7 @@ user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非�
 | **评分** | `DECIMAL(3,2)` | 保留两位小数 |
 | 计数 | `INT NOT NULL DEFAULT 0` | — |
 | 图片 / 数组 | `VARCHAR` 或 `JSON` 存序列化字符串 | 见下 |
-| 布尔 | `TINYINT` | 全库仅四处：`review.is_hidden`、`notification.is_read`、`dish_filter_view.enabled`、`dish_attribute_dimension.system`；其余状态一律字符串枚举 |
+| 布尔 | `TINYINT` | 全库仅三处：`review.is_hidden`、`notification.is_read`、`dish_filter_view.enabled`；其余状态一律字符串枚举 |
 | 时间 | `DATETIME`，`NOT NULL DEFAULT CURRENT_TIMESTAMP` | 时区 Asia/Shanghai |
 | 更新时间 | `ON UPDATE CURRENT_TIMESTAMP` | 免去应用层维护 |
 

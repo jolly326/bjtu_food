@@ -49,7 +49,7 @@ public class DishAdminReq {
     private List<String> images;
 
     /**
-     * 描述属性（动态属性模型）：键 = **描述维度** {@code id}（字符串形态；**系统维度不接受**），
+     * 描述属性（动态属性模型）：键 = **描述维度** {@code id}（字符串形态；必须在维度字典内），
      * 值 = **取值 ID 或中文名**（{@code single} 维度为标量 / {@code multi} 维度数组）。
      * 中文名在同维度内未命中即自动登记为新取值。
      */
@@ -57,8 +57,8 @@ public class DishAdminReq {
             example = "{\"1\":2,\"2\":[\"蛋\"],\"3\":[\"酸\",\"甜\"],\"4\":\"热食\"}")
     private Map<String, Object> attributes;
 
-    @Schema(description = "菜品种类 ID（值域 = 种类字典 /admin/dish-categories；必须属于系统维度（菜品种类），否则 400；不传 = 不修改）", example = "3")
-    private Long mealTypeId;
+    @Schema(description = "菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories；必须存在，否则 400；不传 = 不修改）", example = "3")
+    private Long categoryId;
 
     @Schema(description = "状态：on=上架，off=下架", example = "on")
     private String status;

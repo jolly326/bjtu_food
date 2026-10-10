@@ -50,13 +50,13 @@
 | 方向 | 目标 | 关系 |
 |---|---|---|
 | — | [dish](./dish.md)（**只读统计**） | 匹配数 `matchedCount` |
-| — | [dish_attribute_value](./dish_attribute_value.md)（系统维度取值） | 种类条件的取值 ID（`conditions` 内为 JSON 标量，**非外键**） |
+| — | [dish_category](./dish_category.md)（菜品种类） | 种类条件的取值 ID（`conditions` 内为 JSON 标量，**非外键**） |
 
-> 条件的 `mealTypeId` 值引用**系统维度（菜品种类）**下 [dish_attribute_value](./dish_attribute_value.md) 的 `id`。
+> 条件的 `categoryId` 值引用 [dish_category](./dish_category.md) 的 `id`。
 
 ## 注意事项
 
 - 本表已落地（表 + 7 条种子）；实体 `DishFilterView` / Mapper / 目录 `DishViewCatalog` / 条件引擎 `DishViewConditions` / `/admin/dish-views` 五个端点均已实现。
 - **写后须失效 `GET /dishes/views` 缓存**：该出参走 `@Cacheable`（TTL 2 分钟），写后显式失效，做到保存即生效。
-- 条件字段中 `stallId` / `canteenId` / `price` / `avgRating` / `createdAt` 若无索引，取数会退化为全表扫描 + filesort（与 `%keyword%` 搜索同类），属已知取舍；`mealTypeId` 走 `dish.idx_dish_meal_type`。
+- 条件字段中 `stallId` / `canteenId` / `price` / `avgRating` / `createdAt` 若无索引，取数会退化为全表扫描 + filesort（与 `%keyword%` 搜索同类），属已知取舍；`categoryId` 走 `dish.idx_dish_category`。
 - **列改名上线顺序**：线上库（TDSQL-C 5.7 内核）须**先执行** ``ALTER TABLE dish_filter_view CHANGE `order` sort_order INT NOT NULL DEFAULT 0 COMMENT '展示顺序';``（该内核不支持 `RENAME COLUMN` 语法），**再部署**读取 `sort_order` 的后端版本；管理端 API 出参字段仍为 `order`，前端零改动。

@@ -3,22 +3,23 @@ import { submitSort } from './shared'
 import type { DishCategoryAdminVO, SortItemsReq } from '@/types/common'
 
 /**
- * A6 菜品种类字典（`/admin/dish-categories`）。
+ * A6 菜品种类字典（`/admin/dish-categories`，落库表 `dish_category`）。
  *
  * <p>契约真源：[web/categories.md](../../../docs/api/web/categories.md)。
- * <p>本模块是**系统维度（菜品种类）取值的别名面**：列表 / 登记 / 重命名 / **拖拽排序**
- * （**改名免费**，数据锚在取值 `id`）；管理员只填中文名，ID 由后端生成。
- * 同一批行也可经 A4 的取值端点读写（见 `api/dimensions.ts`）。
+ * <p>本模块封装**种类字典**的列表 / 登记 / 重命名 / **拖拽排序**：
+ * 种类是独立字典表，数据锚在其 `id` 上 ⇒ **改名免费**（菜品侧零迁移）；
+ * 被菜品引用时不可删除，本端点也不提供删除。
+ * 管理员只填中文名，ID 由后端生成。
  * <p>维护入口挂在 A3 菜品管理（分类下拉旁），**不单设菜单项**（见
  * [列表页模板.md](../../../docs/ui/web/列表页模板.md)）。
  */
 
-/** 种类取值列表（按 `order` 升序；带 `dishCount`） */
+/** 种类列表（按 `order` 升序；带 `dishCount`） */
 export function listCategories(): Promise<DishCategoryAdminVO[]> {
   return get<DishCategoryAdminVO[]>('/admin/dish-categories')
 }
 
-/** 登记新种类取值（只填中文名；ID 由后端生成、组内顺序由拖拽维护） */
+/** 登记新种类（只填中文名；ID 由后端生成、顺序由拖拽维护） */
 export function createCategory(label: string): Promise<DishCategoryAdminVO> {
   return post<DishCategoryAdminVO>('/admin/dish-categories', { label })
 }

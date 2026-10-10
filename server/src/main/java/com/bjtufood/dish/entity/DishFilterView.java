@@ -33,7 +33,7 @@ public class DishFilterView {
     private String label;
 
     /** 筛选条件 JSON 原文（`[]` = 不筛选；结构与白名单见 {@code DishViewConditions}） */
-    @Schema(description = "筛选条件（JSON 数组；[] = 不筛选）", example = "[{\"field\":\"mealTypeId\",\"op\":\"=\",\"value\":\"3\"}]")
+    @Schema(description = "筛选条件（JSON 数组；[] = 不筛选）", example = "[{\"field\":\"categoryId\",\"op\":\"=\",\"value\":\"3\"}]")
     private String conditions;
 
     /** 排序口径（白名单：random / priceAsc / priceDesc / discountDesc / ratingDesc / newest） */

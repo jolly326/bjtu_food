@@ -75,19 +75,6 @@ public interface DishMapper extends BaseMapper<Dish> {
     int recalcRatingBySubquery(@Param("dishId") Long dishId);
 
     /**
-     * 查询「当前存在在售菜品」的菜品大类枚举键（去重）。
-     * <p>
-     * 供 {@code GET /dishes/views} 字典下发使用：
-     * **空类自动隐藏**——某大类在售菜品数为 0 时不下发；重新有菜后自动出现。
-     * 标签文案与顺序由视图字典表提供（单一真源），本查询只回答「哪些类目下当前有菜」。
-     *
-     * @return 在售菜品覆盖的大类枚举键（去重）
-     */
-    // 方法下线（2026-10-03，A6 落地）：selectInStockMealTypes 的原消费方是「常量视图 + 在售大类集合」
-    // 驱动的 GET /dishes/views 空类过滤；视图改表驱动后，下发改由 DishViewCatalog.visible() 按
-    // **条件匹配数**判定（口径更准：支持任意条件，不只是大类），本方法全仓零消费，已连同 XML 一并删除。
-
-    /**
      * 列出「有评价」的菜品 ID（评分对账用，D3）。
      * <p>
      * 只取 {@code rating_count > 0} 的行：零评价菜品的 {@code avg_rating}/{@code rating_count}

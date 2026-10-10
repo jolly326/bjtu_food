@@ -7,8 +7,8 @@ import lombok.Data;
  * 菜品列表查询参数（**完整参数集恰为 5 项**：page / pageSize / keyword / view / seed）。
  * <p>
  * {@code view} 是<b>筛选视图 ID</b>（值域见 {@code GET /dishes/views}），<b>不是</b>菜品入库字段
- * {@code mealTypeId}：种类只是视图的一种（按 {@code dish.meal_type_id} 取数），「折扣」等视图按别的
- * 口径取数，端上无须改动。
+ * {@code categoryId}：种类只是视图的一种（视图条件 {@code categoryId} 按 {@code dish.category_id} 取数），
+ * 「折扣」等视图按别的口径取数，端上无须改动。
  * <p>
  * 不接受参数（SHALL NOT 回流）：
  * <ul>
@@ -19,7 +19,7 @@ import lombok.Data;
  *       视图按自身 {@code sortKind} 取数，{@code seed} 只是数据顺序种子而非排序参数，
  *       端上仍无排序入口）；</li>
  *   <li>{@code canteenId} / {@code minPrice} / {@code maxPrice} —— **食堂 / 价格筛选全量下线**；</li>
- *   <li>菜品种类 —— 由所选视图的条件表达，不作为独立查询参数。</li>
+ *   <li>菜品分类 —— 由所选视图的条件（{@code categoryId}）表达，不作为独立查询参数。</li>
  * </ul>
  */
 @Data

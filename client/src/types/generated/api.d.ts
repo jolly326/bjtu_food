@@ -136,12 +136,12 @@ export interface paths {
   "/admin/dish-dimensions/{dimensionId}": {
     /**
      * 修改维度
-     * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；系统维度（菜品种类）提交不同的取值类型 → 400；不存在 → 4001。
+     * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；取值类型非法 → 400；不存在 → 4001。
      */
     put: operations["updateDimension"];
     /**
      * 删除维度
-     * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；**系统维度（菜品种类）恒不可删 → 400**；不存在 → 4001。
+     * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
      */
     delete: operations["deleteDimension"];
   };
@@ -173,14 +173,14 @@ export interface paths {
   };
   "/admin/dish-categories/{id}": {
     /**
-     * 重命名分类值
+     * 重命名分类
      * @description 用途：**只改 label**（改名免费，零菜品迁移）；重名 400；不存在 4001。
      */
     put: operations["rename_1"];
   };
   "/admin/dish-categories/sort": {
     /**
-     * 分类值排序
+     * 分类排序
      * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
      */
     put: operations["sort_2"];
@@ -416,13 +416,13 @@ export interface paths {
   };
   "/admin/dish-categories": {
     /**
-     * 分类值列表
+     * 分类列表
      * @description 用途：分类（种类）维护入口（按 order 升序，不分页）；带 dishCount（引用该种类的菜品数）。
      */
     get: operations["list_4"];
     /**
-     * 登记分类值
-     * @description 用途：登记新种类取值。取值的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、同维度下唯一。
+     * 登记分类
+     * @description 用途：登记新种类。种类的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、全表唯一。
      */
     post: operations["create_2"];
   };
@@ -895,10 +895,10 @@ export interface components {
       };
       /**
        * Format: int64
-       * @description 菜品种类 ID（值域 = 种类字典 /admin/dish-categories；必须属于系统维度（菜品种类），否则 400；不传 = 不修改）
+       * @description 菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories；必须存在，否则 400；不传 = 不修改）
        * @example 3
        */
-      mealTypeId?: number;
+      categoryId?: number;
       /**
        * @description 状态：on=上架，off=下架
        * @example on
@@ -916,8 +916,8 @@ export interface components {
     /** @description 视图筛选条件项 */
     DishViewCondition: {
       /**
-       * @description 条件字段（白名单：mealTypeId/discount/price/stallId/canteenId/avgRating/createdAt）
-       * @example mealTypeId
+       * @description 条件字段（白名单：categoryId/discount/price/stallId/canteenId/avgRating/createdAt）
+       * @example categoryId
        */
       field?: string;
       /**
@@ -971,10 +971,10 @@ export interface components {
        */
       label: string;
     };
-    /** @description 菜品种类取值重命名请求 */
+    /** @description 菜品种类重命名请求 */
     DishCategoryRenameReq: {
       /**
-       * @description 分类中文名（1~32 字；分类名唯一）
+       * @description 种类中文名（1~32 字；全表唯一）
        * @example 面食粉类
        */
       label: string;
@@ -1454,15 +1454,15 @@ export interface components {
       };
       /**
        * Format: int64
-       * @description 菜品种类 ID（值域 = 种类字典 /admin/dish-categories；管理端录入下拉 + 编辑回填）
+       * @description 菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories；管理端录入下拉 + 编辑回填）
        * @example 3
        */
-      mealTypeId?: number;
+      categoryId?: number;
       /**
        * @description 分类中文名
        * @example 面食粉类
        */
-      mealTypeLabel?: string;
+      categoryLabel?: string;
     };
     /** @description 统一响应结果 */
     ResultDishAdminVO: {
@@ -1568,8 +1568,6 @@ export interface components {
       name?: string;
       /** @description 取值类型：single / multi */
       valueType?: string;
-      /** @description 是否系统维度（true = 菜品种类：取值类型不可改、维度不可删） */
-      system?: boolean;
       /**
        * Format: int32
        * @description 展示顺序（升序）
@@ -1654,19 +1652,19 @@ export interface components {
       message?: string;
       data?: components["schemas"]["DishValueAdminVO"];
     };
-    /** @description 菜品种类取值登记请求 */
+    /** @description 菜品种类登记请求 */
     DishCategorySaveReq: {
       /**
-       * @description 种类中文名（1~32 字；同维度下唯一）
+       * @description 种类中文名（1~32 字；全表唯一）
        * @example 面食粉类
        */
       label: string;
     };
-    /** @description 管理端菜品种类取值出参 */
+    /** @description 管理端菜品种类出参 */
     DishCategoryAdminVO: {
       /**
        * Format: int64
-       * @description 取值ID（= dish.meal_type_id 的存储值）
+       * @description 种类ID（= dish.category_id 的存储值，值域 = dish_category.id）
        */
       id?: number;
       /**
@@ -1676,7 +1674,7 @@ export interface components {
       label?: string;
       /**
        * Format: int32
-       * @description 组内展示顺序
+       * @description 展示顺序
        */
       order?: number;
       /**
@@ -2662,15 +2660,15 @@ export interface components {
       coverImage?: string;
       /**
        * Format: int64
-       * @description 种类取值 ID（值域 = 种类字典 /admin/dish-categories）
+       * @description 菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories）
        * @example 3
        */
-      mealTypeId?: number;
+      categoryId?: number;
       /**
-       * @description 种类中文名（A6 种类字典派生，端上零硬编码）
+       * @description 分类中文名（A6 种类字典派生，端上零硬编码）
        * @example 面食粉类
        */
-      mealTypeLabel?: string;
+      categoryLabel?: string;
       /** @description 上架状态：on / off */
       status?: string;
       /** @description 均分（零评价为 null） */
@@ -2792,7 +2790,7 @@ export interface components {
       dishesWithoutStall?: number;
       /**
        * Format: int64
-       * @description 种类为空的菜品数（meal_type_id 为空）
+       * @description 种类为空的菜品数（category_id 为空）
        */
       dishesWithoutCategory?: number;
       /**
@@ -4155,7 +4153,7 @@ export interface operations {
   };
   /**
    * 修改维度
-   * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；系统维度（菜品种类）提交不同的取值类型 → 400；不存在 → 4001。
+   * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；取值类型非法 → 400；不存在 → 4001。
    */
   updateDimension: {
     parameters: {
@@ -4207,7 +4205,7 @@ export interface operations {
   };
   /**
    * 删除维度
-   * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；**系统维度（菜品种类）恒不可删 → 400**；不存在 → 4001。
+   * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
    */
   deleteDimension: {
     parameters: {
@@ -4457,14 +4455,14 @@ export interface operations {
     };
   };
   /**
-   * 重命名分类值
+   * 重命名分类
    * @description 用途：**只改 label**（改名免费，零菜品迁移）；重名 400；不存在 4001。
    */
   rename_1: {
     parameters: {
       path: {
         /**
-         * @description 取值ID
+         * @description 种类ID
          * @example 3
          */
         id: number;
@@ -4509,7 +4507,7 @@ export interface operations {
     };
   };
   /**
-   * 分类值排序
+   * 分类排序
    * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 → 400。
    */
   sort_2: {
@@ -5705,8 +5703,8 @@ export interface operations {
         stallId?: number;
         /** @description 按食堂筛选（经档口间接） */
         canteenId?: number;
-        /** @description 按分类筛选（A6 种类字典的取值 ID） */
-        mealTypeId?: number;
+        /** @description 按分类筛选（种类字典 dish_category 的 ID） */
+        categoryId?: number;
         /** @description 按上架状态筛选：on / off；不传 = 全部（含已下架） */
         status?: string;
         /** @description 关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径） */
@@ -5760,7 +5758,7 @@ export interface operations {
          *   "stallId": 1,
          *   "name": "测试菜品",
          *   "price": 1200,
-         *   "mealTypeId": 3,
+         *   "categoryId": 3,
          *   "description": "Swagger UI 测试新增菜品",
          *   "images": [
          *     "/images/seed/dishes/tomato-egg.jpg"
@@ -6130,7 +6128,7 @@ export interface operations {
     };
   };
   /**
-   * 分类值列表
+   * 分类列表
    * @description 用途：分类（种类）维护入口（按 order 升序，不分页）；带 dishCount（引用该种类的菜品数）。
    */
   list_4: {
@@ -6168,8 +6166,8 @@ export interface operations {
     };
   };
   /**
-   * 登记分类值
-   * @description 用途：登记新种类取值。取值的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、同维度下唯一。
+   * 登记分类
+   * @description 用途：登记新种类。种类的 ID 由后端生成、顺序由拖拽维护；名 1~32 字、全表唯一。
    */
   create_2: {
     requestBody: {
