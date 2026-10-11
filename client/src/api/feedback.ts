@@ -19,7 +19,7 @@ export async function createFeedback(payload: FeedbackSubmit): Promise<void> {
 
 /**
  * 提交评价举报（举报对象在路径中）。
- * 公开可提交（游客允许）；`reasonId` 必选（字典 `GET /report-reasons` 下发项的 `id`）；
+ * **需登录**（静默登录后恒有登录态，免邮箱认证）；`reasonId` 必选（字典 `GET /report-reasons` 下发项的 `id`）；
  * 补充文本可空（填写则过安检）；被举报评价不存在 / 不可见 → 4001。
  */
 export async function reportReview(reviewId: number, payload: ReportPayload): Promise<void> {
@@ -33,7 +33,8 @@ export async function reportReview(reviewId: number, payload: ReportPayload): Pr
  * - `field`：七字段平铺（局部提交，只传改动项；`price` 单位**分**，端上以元填写、提交前经 `yuanToFen` 转分）；
  * - `gone`：仅 `note`（≤200 字）+ `images`（≤3 张），**均可不传**（提交即成立）。
  *
- * 无 `dishId`（在路径中）。公开可提交（匿名允许）；菜品不存在 → 4001，name 敏感词 → 400 直透。
+ * 无 `dishId`（在路径中）。**需登录**（JWT；静默登录后恒有登录态 ⇒ 提交人恒为真实用户 ID），
+ * 但**不需邮箱认证**；菜品不存在 → 4001，name 敏感词 → 400 直透。
  */
 export async function createDishCorrection(
   dishId: number,

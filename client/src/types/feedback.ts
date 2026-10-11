@@ -1,7 +1,7 @@
 ﻿/**
  * 反馈 / 举报 / 菜品问题反馈写入契约（三条互不耦合的链路）。
  *
- * - **意见反馈**（`POST /feedback`）：3 类型（bug / suggestion / other）+ 描述 + 截图（≤1 张）
+ * - **意见反馈**（`POST /feedback`）：3 类型（bug / suggestion / other）+ 描述 + 截图（≤3 张）
  * - **评价举报**（`POST /reviews/{id}/report`）：RESTful 子资源，举报对象（评价 ID）在路径中，`reasonId` 必选
  * - **菜品问题反馈**（`POST /dishes/{id}/correction`）：**先选 `type`**；`field` 局部提交（只传改动项），
  *   描述属性经 `attributes`（键 = 维度 ID）；`gone` 一键提交（仅选填 `note` / `images`）
@@ -51,7 +51,7 @@ export type DishProblemType = 'field' | 'gone'
  * **`type` 必填**，两类字段集合完全不同：
  *
  * - **`field`（信息有误）· 局部提交（patch）**：只含用户改动过的字段，未传 = 保持原值 ⇒ 全部选填；
- *   无任何改动项时后端返回 400「未提交任何改动」；`images` ≤5 张。
+ *   无任何改动项时后端返回 400「未提交任何改动」；`images` ≤3 张。
  * - **`gone`（已经下架）· 一键提交**：仅用 `note`（≤200 字）与 `images`（≤3 张），
  *   **均为选填、允许全不传**（提交即成立）；传任何差异项字段 → 400。
  *
@@ -74,7 +74,7 @@ export interface DishCorrectionPayload {
   attributes?: Record<string, string | string[]>
   /**
    * 图片 URL 数组（经 ImagePicker → 上传安检）。
-   * `field` 型 ≤5 张（改动后的完整数组）；`gone` 型 **≤3 张**（选填补充）。
+   * 两型统一 **≤3 张**（全站 UGC 上限）：`field` 型为改动后的完整数组，`gone` 型为选填补充。
    */
   images?: string[]
   /**
@@ -92,7 +92,7 @@ export interface FeedbackSubmit {
   type: 'bug' | 'suggestion' | 'other'
   /** 反馈内容（必填，端上 ≤600 字 / 服务端 ≤1000 字） */
   content: string
-  /** 截图（COS URL，≤1 张） */
+  /** 截图（COS URL，≤3 张 —— 与 `UGC_IMAGE_MAX` 同源） */
   images?: string[]
 }
 

@@ -14,8 +14,6 @@
 | `status` | VARCHAR(32) | NO | `'active'` | | `active` 正常 / `disabled` 禁用 / `deleted` 已注销 |
 | `openid` | VARCHAR(64) | YES | NULL | **UNI** | 微信 openid；**登录取号依据**，注销后置 NULL 解绑 |
 | `email` | VARCHAR(128) | YES | NULL | | 已认证绑定的校园邮箱；**认证态的唯一判据**（非空即已认证）；**同一邮箱至多一行非空**由应用层保证（本列无唯一索引）|
-| `violation_count` | INT | NO | `0` | | 累计违规次数（机审 `risky` 命中 + 举报成立）；达阈值触发梯度处置 |
-| `muted_until` | DATETIME | YES | NULL | | 限言到期时刻；**处于未来 = 限言中**（写端点 `403`，读不受限），到期自动恢复 |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | |
 
@@ -48,21 +46,13 @@
 ### 无 `password` / `unionid` / `role` / `last_login_at` 列
 均已随能力退役移除（微信体系无密码；角色收敛为单一学生态）。
 
-### 违规累积用独立列而不是 `status` 复用
-`violation_count` 是「已发生多少次违规」的累计量，`muted_until` 是「临时不能发言」的**有期限状态**，二者都**不能**用 `status` 表达：
-- 用 `status='disabled'` 表达限言 ⇒ 到期后无法自动恢复，且会连**读**一起挡掉；
-- 累计次数必须单调递增，与账号当前形态无关。
-
-处置梯度（口径见 [secur/client/滥用与内容防护.md](../secur/client/滥用与内容防护.md)）：累计 3 次警告 → 6 次限言 24 小时 → 9 次限言 7 天 → 12 次封禁（写 `status='disabled'` 并吊销该 userId 全部 token）。
-每次处置产生一条安全告警（webhook 推送，**不落库**），防止静默封号。
-
 ## 关联
 
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
 | 1→n | `review.user_id` | 本人的评价 | 无外键（`user` 行永不删除） |
 | 1→n | `user_feedback.user_id` | 本人的反馈 | **`FOREIGN KEY (user_id) REFERENCES user(id)`**（无级联 —— `user` 行永不物理删除，外键是纯引用完整性兜底） |
-| 1→n | `dish_correction.user_id` | 本人的菜品问题反馈 | 无外键 |
+| 1→n | `dish_correction.user_id` | 本人的菜品问题反馈 | **外键 `fk_correction_user`（无级联 —— `user` 行永不物理删除，外键是纯引用完整性兜底）** |
 | 1→n | `notification.user_id` | 站内消息 | **`ON DELETE CASCADE`**（外键兜底；应用层注销时已主动硬删） |
 | — | `email_verification_code` | 按 `email` 关联 | **非外键** —— 该表无 `user_id` 列 |
 
@@ -72,4 +62,4 @@
 
 - `openid` 唯一索引**允许 NULL**（MySQL 唯一索引不约束 NULL），这是匿名化后同一微信能重新建号的前提；`wx_id` 注销后写入 `deleted_{id}`（非 NULL），既不占用任何真实账号标识，也不让唯一键悬空。
 - 建号为**两步写入**（INSERT 占位 `name` → 拿到自增 id → UPDATE 回填正式 `name`），两步在**同一事务**内；回填前判等 `name` 是否仍为占位值，避免覆盖已有值。
-- **库表实况 30 行**；其中 id 1–5 为种子数据（`wx_id` 为学号 / 账号名，名下共 40 条评价 + 4 条反馈），与生产账号同表同构。
+- **库表实况 25 行**（直连生产库核对）。

@@ -1,7 +1,7 @@
 /**
  * 举报逻辑 hook（useReport）——菜品详情页包内私有编排（仅本页使用，就近置于页面包）。
  *
- * 举报属免认证行为，游客可直接填写提交。
+ * 举报需登录（静默登录后恒有登录态，免邮箱认证）。
  * 写入口 = `POST /reviews/{id}/report`（RESTful 子资源：举报对象为被举报的评价 ID）。
  */
 import { ref, type Ref } from 'vue'
@@ -11,7 +11,7 @@ import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 interface UseReportReturn {
   reportOpen: Ref<boolean>
   reportSubmitting: Ref<boolean>
-  /** 打开举报弹窗（游客可直达，无需认证）；targetId = 被举报的评价 ID */
+  /** 打开举报弹窗（提交需登录态）；targetId = 被举报的评价 ID */
   openReport: (targetId: number) => void
   /** 提交举报：reasonId = 弹层单选的举报原因 ID（字典下发项） */
   submitReport: (reasonId: number) => Promise<void>

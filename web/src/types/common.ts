@@ -355,8 +355,9 @@ export interface FeedbackAdminVO {
   id: number
   /** 反馈类型（反馈类行 = `bug` / `suggestion` / `other` 等机器值；举报行恒为 `report`） */
   type: string
-  /** 提交人 ID（**`0` = 匿名提交**；静默登录的游客为真实 ID） */
+  /** 提交人 ID（提交恒带登录态 ⇒ **恒为真实用户 ID**） */
   userId: number
+  /** 提交人昵称（联表带出，恒可读到；注销账号为「已注销用户」） */
   userName: string
   content: string
   images: string[]
@@ -410,9 +411,9 @@ export interface CorrectionAdminVO {
   type: CorrectionType
   dishId: number
   dishName: string | null
-  /** 提交人 ID（**`0` = 匿名提交**；昵称为空时页面回落「游客」） */
+  /** 提交人 ID（提交恒带登录态 ⇒ **恒为真实用户 ID**） */
   userId: number
-  /** 提交人昵称（匿名提交为空串 / null） */
+  /** 提交人昵称（联表带出，恒可读到；注销账号为「已注销用户」） */
   userName: string
   /** **仅 `type=gone`**：补充说明（≤200 字，处置时**必须展示**给管理员判读） */
   note: string | null
@@ -437,9 +438,9 @@ export interface CorrectionDetailVO {
   type: CorrectionType
   dishId: number
   dishName: string | null
-  /** 提交人 ID（**`0` = 匿名提交**；昵称为空时页面回落「游客」） */
+  /** 提交人 ID（提交恒带登录态 ⇒ **恒为真实用户 ID**） */
   userId: number
-  /** 提交人昵称（匿名提交为空串 / null） */
+  /** 提交人昵称（联表带出，恒可读到；注销账号为「已注销用户」） */
   userName: string
   status: CorrectionStatus
   /** `field` 型：仍有差异的项（逐项勾选采纳）；`gone` 型：恒空 */

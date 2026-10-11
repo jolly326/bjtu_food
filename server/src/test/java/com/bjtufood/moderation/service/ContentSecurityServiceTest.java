@@ -66,9 +66,7 @@ class ContentSecurityServiceTest {
         wechatProperties.setAppid("wx-appid");
         wechatProperties.setSecret("wx-secret");
         tokenProvider = new WechatAccessTokenProviderImpl(restTemplate, wechatProperties);
-        // 违规累积入口以 mock 注入：本用例聚焦机审判定与拦截，账号维度的累积规则另有其归属
-        contentSecurityService = new ContentSecurityServiceImpl(restTemplate, tokenProvider, wechatProperties,
-                org.mockito.Mockito.mock(com.bjtufood.auth.service.UserViolationService.class));
+        contentSecurityService = new ContentSecurityServiceImpl(restTemplate, tokenProvider, wechatProperties);
     }
 
     private void expectStableToken() {

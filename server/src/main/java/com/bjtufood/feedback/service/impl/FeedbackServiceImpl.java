@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.auth.service.UserViolationService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DuplicateGuard;
 import com.bjtufood.feedback.constant.FeedbackConst;
@@ -16,7 +15,6 @@ import com.bjtufood.common.utils.JsonListUtil;
 import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import com.bjtufood.common.utils.UgcImageValidator;
 import com.bjtufood.moderation.service.ContentSecurityService;
-import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
@@ -60,8 +58,6 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final FeedbackPersister feedbackPersister;
     /** 跨域只读契约：管理端「提交人」昵称投影 + 内容安检取 openid（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
-    /** 跨域只读契约：管理端列表补全「关联菜品名」用（DEV-04）；仅按 id 批量取 name，不参与反馈写入。 */
-    private final DishService dishService;
     private final LocalSensitiveFilter localSensitiveFilter;
     private final NotificationService notificationService;
     /** 举报原因字典真源（report_reason 表，A7 落地后替代原常量） */
@@ -70,11 +66,6 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final ImageUrlUtil imageUrlUtil;
     /** 跨域只读契约：举报目标（评价）存在性与可见性校验（方案 B 举报子资源） */
     private final ReviewService reviewService;
-    /**
-     * 跨域写入契约：举报成立 ⇒ 给被举报内容作者记一次违规累积（规则在账号域，
-     * 本域只负责「举报被判定成立」这一事实的转达）。
-     */
-    private final UserViolationService userViolationService;
 
     /**
      * 提交反馈。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
@@ -172,7 +163,7 @@ public class FeedbackServiceImpl implements FeedbackService {
      * <p>
      * 结果语义：risky 由 {@code checkText} 抛 400 拦截；
      * pass 与内容安全检测 review 均视为放行（无待复核落库值）。
-     * 边界：游客（userId=null）与无 openid 账号无 openid 可用，内容安全检测内部按既有口径跳过放行。
+     * 边界：取不到 openid 的账号（含用户不存在）无 openid 可用，内容安全检测内部按既有口径跳过放行。
      */
     private void checkUgcText(Long userId, String content) {
         if (!StringUtils.hasText(content)) {
@@ -354,38 +345,15 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setRejectReason(rejectReason);
         feedback.setHandledAt(LocalDateTime.now());
         feedbackMapper.updateById(feedback);
-        // 处理结果回执（携带处理结论与不采纳原因）：向「可归属」提交人（提交时带 userId 的登录态，含游客）投递
+        // 处理结果回执（携带处理结论与不采纳原因）：向提交人（提交恒带登录态，user_id 必填）投递
         sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason, hiddenThisTime);
-        // 举报**成立**（结论为通过/已处理）⇒ 给被举报内容作者记一次违规累积：
-        // 「不采纳」不是违规，故只在非 rejected 时计数。
-        if (!rejected && FeedbackConst.TYPE_REPORT.equals(feedback.getType())
-                && feedback.getRelatedId() != null) {
-            recordReportUpheldQuietly(feedback.getRelatedId());
-        }
-    }
-
-    /**
-     * 举报成立 ⇒ 违规累积计数（**尽力而为**）。
-     * <p>
-     * 🔴 计数失败不得影响处置结果本身：管理端已经点了「通过」，若因账号域写库抖动
-     * 让整个处置回滚，管理员会看到「处置失败」而实际结论无从判断 —— 计数丢失远比这轻。
-     *
-     * @param reviewId 被举报评价的 ID
-     */
-    private void recordReportUpheldQuietly(Long reviewId) {
-        try {
-            userViolationService.recordReportUpheld(reviewService.findAuthorId(reviewId));
-        } catch (Exception e) {
-            log.error("[VIOLATION] 举报成立的违规累积计数失败（不影响处置结论）：{}",
-                    e.getClass().getSimpleName(), e);
-        }
     }
 
     /**
      * 反馈处理结果回执（回执携带处理结论；不采纳/退回时一并展示不采纳原因）。
      * <p>
-     * 归属判据：提交时带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
-     * 游客提交的反馈同样保留可回执身份）。
+     * 归属判据：提交恒带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
+     * 静默登录的账号同样收到处理结果）；userId 为空不投递（防御性兜底，见方法体）。
      * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
      *
      * @param rejected      true=处理结论为不采纳/退回（此时 rejectReason 非空，handle 已校验）
@@ -396,11 +364,11 @@ public class FeedbackServiceImpl implements FeedbackService {
     private void sendFeedbackReceipt(Feedback feedback, boolean rejected, String reply, String rejectReason,
                                      boolean hiddenThisTime) {
         Long userId = feedback.getUserId();
+        // 防御性兜底：提交入口一律要求登录态，记录恒有 userId
         if (userId == null) {
             return;
         }
-        // 投递口径（2026-10-01 拍板）：**登录级** —— 不按邮箱认证过滤，
-        // 游客提交的反馈同样收到处理回执（有 userId 即投递）。
+        // 投递口径：**登录级** —— 不按邮箱认证过滤，有 userId 即投递（静默登录的账号同样收到回执）。
         // is_read 由 notify 实现侧统一置 0（P0-1：本域不 import / 构造 notify 实体）
         // B3：**回执文案按 type 分流** —— 举报（type=report）与反馈是两件事，
         // 一律写「反馈已处理 / 反馈未采纳」会让举报人读成语义错位。

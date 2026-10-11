@@ -31,14 +31,14 @@ class SecurityAlertTest {
         assertThat(AlertType.values())
                 .extracting(Enum::name)
                 .containsExactly("LOGIN_SUCCESS", "LOGIN_LOCKOUT", "PASSWORD_CHANGED",
-                        "VIOLATION_PENALTY", "CRAWL_DETECTED");
+                        "CRAWL_DETECTED");
 
         assertThat(AlertType.LOGIN_LOCKOUT.severity()).isEqualTo(AlertType.Severity.CRITICAL);
         assertThat(AlertType.LOGIN_LOCKOUT.key()).isEqualTo("LOGIN_LOCKOUT");
         assertThat(AlertType.LOGIN_LOCKOUT.label()).isEqualTo("登录失败达阈值");
         assertThat(AlertType.LOGIN_SUCCESS.severity().key()).isEqualTo("info");
         assertThat(AlertType.LOGIN_SUCCESS.severity().label()).isEqualTo("提示");
-        assertThat(AlertType.VIOLATION_PENALTY.severity()).isEqualTo(AlertType.Severity.WARN);
+        assertThat(AlertType.PASSWORD_CHANGED.severity()).isEqualTo(AlertType.Severity.WARN);
     }
 
     @Test

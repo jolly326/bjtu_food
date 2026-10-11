@@ -56,7 +56,7 @@ public class FeedbackController {
     }
 
     /**
-     * 举报原因字典（PUB：举报免认证，弹层打开时端上实时拉取）——{@code GET /report-reasons}。
+     * 举报原因字典（PUB：公开只读，弹层打开时端上实时拉取）——{@code GET /report-reasons}。
      * 值域与文案唯一真源 = `report_reason` 表（管理端 A7 维护），本端点只下发**启用项**，
      * 端上与管理端零硬编码（PR-12）。
      * <p>
@@ -71,14 +71,12 @@ public class FeedbackController {
     }
 
     /**
-     * IP 维度滥用防护：POST /feedback 为 permitAll 公开写入口，无频控可被脚本无限灌库；
-     * 接入层防护放 Controller（非业务逻辑），参数校验与业务仍归 FeedbackService。
-     */
-    /**
      * 双维度滥用防护（**IP × 账号**，任一超限即拒）。
      * <p>
-     * 🔴 账号维度是**换 IP 也绕不过**的那一道：写请求已绑定账号，同一账号在多个 IP 上
-     * 灌库同样会被拦；纯 IP 维度在代理池 / 多出口面前形同虚设。
+     * 🔴 账号维度是**换 IP 也绕不过**的那一道：写请求已绑定账号（🔑 需登录），同一账号在多个
+     * IP 上灌库同样会被拦；纯 IP 维度在代理池 / 多出口面前形同虚设。
+     * <p>
+     * 接入层防护放 Controller（非业务逻辑），参数校验与业务仍归 FeedbackService。
      */
     private void checkRateLimit(Long userId) {
         long waitSeconds = ipRateLimiter.tryAcquire(

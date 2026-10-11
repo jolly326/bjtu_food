@@ -251,9 +251,6 @@ class SmokeApiTest {
     /** 管理员账号（TD-16）：切片不连库，登录 / 登录态用例按需打桩 */
     @MockBean
     private AdminAccountService adminAccountService;
-    /** 违规累积入口（FeedbackServiceImpl 构造依赖）：账号维度规则另有其归属，此处打桩 */
-    @MockBean
-    private com.bjtufood.auth.service.UserViolationService userViolationService;
     /** ID 枚举检测（DishController / ReviewController 构造依赖）：打桩避免测试间按 IP 互相污染计数 */
     @MockBean
     private com.bjtufood.common.ratelimit.IdEnumerationGuard idEnumerationGuard;
@@ -540,6 +537,16 @@ class SmokeApiTest {
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"type\":\"other\",\"content\":\"匿名灌库尝试\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(401));
+    }
+
+    /** 菜品问题反馈同口径：无登录态 ⇒ 401（记录恒绑定真实用户，`dish_correction.user_id` 必填 + 外键）。 */
+    @Test
+    void submitCorrection_withoutToken_returns401() throws Exception {
+        mockMvc.perform(post("/dishes/1/correction")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"gone\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(401));
     }

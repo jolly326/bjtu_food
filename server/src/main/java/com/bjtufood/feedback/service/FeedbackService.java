@@ -16,26 +16,26 @@ import java.util.List;
 public interface FeedbackService {
 
     /**
-     * 提交意见反馈（学生/游客），status=pending。
+     * 提交意见反馈（🔑 需登录），status=pending。
      * <p>
      * 写入类型值域 = {@code FeedbackConst.WRITABLE_TYPES}（{@code bug} / {@code suggestion} / {@code other}）；
      * {@code content} 必填（≤1000 字）+ {@code images}（≤3 张）。
      * 文本过微信内容安全检测（msgSecCheck v2，scene=2）：risky 直接拒绝（400），pass/review 一律放行。
      *
-     * @param userId 当前用户ID（游客为 null）
+     * @param userId 当前用户ID（须为真实登录用户；无登录态即 401）
      * @param req    反馈内容
      */
     void submit(Long userId, FeedbackReq req);
 
     /**
-     * 提交评价举报（{@code POST /reviews/{id}/report}），status=pending。
+     * 提交评价举报（{@code POST /reviews/{id}/report}，🔑 需登录、免邮箱认证），status=pending。
      * <p>
-     * 结论以结构化原因（{@code reason}）为准（必选，值域 = {@code FeedbackConst.REPORT_REASON_VALUES}）；
-     * 文本 {@code content} 可空（填写则过内容安检）；同用户对同一评价重复举报 → 400。
+     * 结论以结构化原因为准（{@code reasonId} 必选，值域 = {@code report_reason} 表的启用项）；
+     * 文本 {@code content} 可空（填写则过内容安检）；同一用户对同一评价重复举报 → 400。
      * 落库为 {@code user_feedback} 的 {@code type='report'} 记录
-     * （{@code sub=reason}、{@code related_type=review}、{@code related_id=reviewId}）。
+     * （{@code sub_reason_id=reasonId}、{@code related_type=review}、{@code related_id=reviewId}）。
      *
-     * @param userId   当前用户ID（游客为 null，不做去重）
+     * @param userId   当前用户ID（须为真实登录用户，去重按该维度）
      * @param reviewId 被举报的评价ID（路径参数）
      * @param req      举报内容
      * @throws com.bjtufood.common.exception.BusinessException 原因缺失/非法、评价不存在（4001）、重复举报（400）

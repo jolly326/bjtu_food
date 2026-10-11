@@ -48,8 +48,8 @@ export function useDishReviewComposer(opts: {
 
   /**
    * 「菜品有问题?」（信息卡名称行）：跳**独立纠错页**并携带当前菜品。
-   * 落点用唯一构造函数 `correctionUrl`（禁止手拼 URL）；**免认证** ——
-   * `POST /dishes/{id}/correction` 属公开写，游客同样可直达，故不经 `requireAuth`。
+   * 落点用唯一构造函数 `correctionUrl`（禁止手拼 URL）；该端点**需登录（JWT）但无需邮箱认证**
+   * （静默登录后恒有登录态）⇒ 不经 `requireAuth`。
    */
   function onCorrectDishInfo() {
     if (!dishId.value) return

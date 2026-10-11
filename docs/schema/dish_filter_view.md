@@ -13,7 +13,7 @@
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 视图 ID（端上回传 `view=<id>`） |
 | `name` | VARCHAR(32) | NO | `''` | | tab 文案（如「面食粉类」；**可改**） |
-| `category_id` | BIGINT | YES | NULL | | 该 tab 筛选的**菜品种类**（值域 = `dish_category.id`）；**`NULL` = 「为你推荐」**（不按种类筛） |
+| `category_id` | BIGINT | YES | NULL | **FK** | 该 tab 筛选的**菜品种类**（值域 = `dish_category.id`，**外键 `fk_filter_view_category`**，无级联）；**`NULL` = 「为你推荐」**（不按种类筛） |
 | `enabled` | TINYINT | NO | 1 | | 是否在 client 首页出现（0 = tab 隐藏） |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参 `updatedAt`） |
 
@@ -22,7 +22,9 @@
 | 索引名 | 列 | 类型 |
 |---|---|---|
 | `PRIMARY` | `id` | 主键 |
+| `fk_filter_view_category` | `category_id` | **外键** |
 
+> `fk_filter_view_category` = `REFERENCES dish_category(id)`（**无级联**）。
 > **无排序列** —— tab 顺序一律按 `id` 升序（端上下发顺序与管理端列表顺序同一口径）。
 
 ## 关键设计
@@ -32,7 +34,7 @@
 - `category_id` 非 NULL ⇒ 该 tab = 该种类下的在售菜品（后端按种类筛，走 `dish.idx_dish_category`）；
 - `category_id = NULL` ⇒ 「为你推荐」：不按种类筛，取**全量在售菜品**；
 - **排序口径不入库** —— `GET /dishes` 的排序统一为**会话种子伪随机序**（见 [api/client/dishes.md](../api/client/dishes.md)），tab 之间不区分排序口径；
-- 取值域由服务端校验（必须是已存在的 `dish_category.id`，**非外键**）；
+- 取值域由外键 `fk_filter_view_category` 与**服务端校验**共同保证（必须是已存在的 `dish_category.id`）；
 - 端的可见性判据与首屏落点都由数据决定：`GET /dishes/views` 只下发 **`enabled = 1`** 且**匹配数不为 0** 的视图；顺序 = `id` 升序；`GET /dishes` 不传 `view` → **取首个启用视图**。
 
 ### 端上契约：视图 ID
@@ -56,7 +58,7 @@
 | 方向 | 目标 | 关系 |
 |---|---|---|
 | — | [dish](./dish.md)（**只读统计**） | 匹配数 `matchedCount`（`category_id` 非空时按种类计数） |
-| — | [dish_category](./dish_category.md)（菜品种类） | `category_id` 引用其 `id`（**非外键**） |
+| — | [dish_category](./dish_category.md)（菜品种类） | `category_id` 引用其 `id`（**外键 `fk_filter_view_category`**，无级联） |
 
 ## 注意事项
 

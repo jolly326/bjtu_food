@@ -116,7 +116,8 @@ public interface ReviewService {
      * <p>
      * 隐藏时向作者投递站内回执（口径见 docs/func/web/B-UGC治理/B1-评价管理.md）：
      * 有附注 ⇒ 正文「你的评价已被管理员隐藏。说明：&lt;note&gt;」；无附注 ⇒ 固定文案。
-     * 投递判据 = `userId &gt; 0`（静默登录的游客同样收到；匿名无归属不投递）。已隐藏再隐藏视为幂等改附注。
+     * 投递判据 = 作者 `userId` 有效即投递（静默登录的账号同样收到，不按邮箱认证过滤）。
+     * 已隐藏再隐藏视为幂等改附注。
      *
      * @param id     评价ID
      * @param hidden true=隐藏 false=显示（恢复显示时清空附注）

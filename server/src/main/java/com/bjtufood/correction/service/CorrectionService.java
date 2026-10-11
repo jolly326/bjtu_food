@@ -14,18 +14,18 @@ import com.bjtufood.correction.dto.StallConfirmVO;
 public interface CorrectionService {
 
     /**
-     * 提交菜品信息纠错（PUB：游客与登录用户均可，匿名允许），status=pending。
+     * 提交菜品信息纠错（<b>需登录</b>：写请求必须绑定账号），status=pending。
      * <p>
      * **局部提交（patch）**：只落库用户改动的字段（name / price / canteenName / stallName /
      * floor / attributes / images），未改动列留 NULL（采纳时不覆盖既有值）；**空请求体 → 400「未提交任何改动」**
      * ——仅改楼层（如「一层」→「二层」）同样算「有改动」，不得被该判据拦下。
-     * 校验：菜品须存在且上架（否则 4001）；name 传入时非空 ≤64 字且敏感词命中即 400
+     * 校验：无登录态 → 401；菜品须存在且上架（否则 4001）；name 传入时非空 ≤64 字且敏感词命中即 400
      * （写回字段不放行替换版）；price 传入时为 &gt;0 的整数（分）；canteenName/stallName 传入时非空 ≤64 字；
      * floor 传入时非空、须命中楼层受控字典（值即汉字）、≤16 字（空白 → 400「楼层不能为空」，
      * 字典外 → 400，超长 → 400「楼层超长」，上限与 {@code stall.floor VARCHAR(16)} 对齐）；
      * images ≤3 张且逐项 COS 白名单校验（安检转存发生在上传时）。
      *
-     * @param userId 提交人用户ID（游客为 null）
+     * @param userId 提交人用户ID（登录态，非空；缺失 → 401）
      * @param dishId 目标菜品ID（路径参数）
      */
     void submit(Long userId, Long dishId, DishCorrectionReq req);

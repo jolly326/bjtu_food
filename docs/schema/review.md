@@ -8,7 +8,7 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 评价 ID |
-| `user_id` | BIGINT | NO | 0 | KEY | 评价者；取自 JWT，**禁止信任前端传入** |
+| `user_id` | BIGINT | NO | 0 | KEY | 评价者；取自 JWT，**禁止信任前端传入**；**现行写入路径恒为真实用户** —— 提交评价需学号邮箱认证（[`POST /dishes/{id}/reviews`](../api/client/dishes.md#post-dishesidreviews)），服务端按登录态回填，列默认值 `0` 不承载额外语义 |
 | `dish_id` | BIGINT | NO | 0 | KEY, FK→dish | 所属菜品 |
 | `rating` | INT | NO | 0 | | 评分 **1~5** |
 | `content` | VARCHAR(512) | YES | NULL | | 评价文字；可只打星不写字（底层允许 NULL，出参空串兜底） |

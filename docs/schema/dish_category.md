@@ -53,9 +53,9 @@
 | 方向 | 目标 | 关系 |
 |---|---|---|
 | 1→n | `dish.category_id`（**非外键**，存本表 `id`） | 菜品所属种类 |
-| — | `dish_filter_view.category_id`（**非外键**） | 视图按种类取数的取值锚点 |
+| 1→n | `dish_filter_view.category_id`（**外键 `fk_filter_view_category`**，无级联） | 视图按种类取数的取值锚点（视图筛选该种类） |
 
-> 不设外键 —— 与全库约定一致（关系由应用层维护，见 [README §外键与级联](./README.md)）。
+> `dish.category_id` 不设外键 —— 与全库约定一致（关系由应用层维护，见 [README §外键与级联](./README.md)）。
 
 ## 注意事项
 

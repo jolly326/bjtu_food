@@ -245,7 +245,7 @@ export interface paths {
   "/dishes/{id}/correction": {
     /**
      * 提交菜品问题反馈
-     * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+     * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
      */
     post: operations["submitCorrection"];
   };
@@ -557,7 +557,7 @@ export interface paths {
   "/admin/corrections": {
     /**
      * 问题反馈列表
-     * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
+     * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
      */
     get: operations["list_5"];
   };
@@ -2792,10 +2792,10 @@ export interface components {
       dishName?: string;
       /**
        * Format: int64
-       * @description 提交人用户ID（匿名提交为 0）
+       * @description 提交人用户ID（指向 user 表）
        */
       userId?: number;
-      /** @description 提交人昵称（匿名提交为 null） */
+      /** @description 提交人昵称（账号已查无时为 null） */
       userName?: string;
       /** @description 提交的菜品名称 */
       name?: string;
@@ -2857,11 +2857,6 @@ export interface components {
        * @description 创建时间
        */
       createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 最近更新时间（管理端列表统一带它）
-       */
-      updatedAt?: string;
     };
     /** @description 统一响应结果 */
     ResultAdminPageResultDishCorrectionAdminVO: {
@@ -2904,10 +2899,10 @@ export interface components {
       dishStatus?: string;
       /**
        * Format: int64
-       * @description 提交人用户ID（匿名提交为 0）
+       * @description 提交人用户ID（指向 user 表）
        */
       userId?: number;
-      /** @description 提交人昵称（匿名提交为 null） */
+      /** @description 提交人昵称（账号已查无时为 null） */
       userName?: string;
       /** @description 处理状态：pending/adopted/rejected */
       status?: string;
@@ -4823,7 +4818,7 @@ export interface operations {
   };
   /**
    * 提交菜品问题反馈
-   * @description PUB。游客与登录用户均可提交（dishId 在路径上）。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+   * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
    */
   submitCorrection: {
     parameters: {
@@ -6767,7 +6762,7 @@ export interface operations {
   };
   /**
    * 问题反馈列表
-   * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
+   * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
    */
   list_5: {
     parameters: {

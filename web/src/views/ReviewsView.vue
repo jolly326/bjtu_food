@@ -283,7 +283,8 @@ onMounted(() => reloadFirstPage())
                 <span v-else class="avatar avatar-placeholder" aria-hidden="true">
                   <AppIcon name="user" :size="16" color="var(--text-muted)" />
                 </span>
-                <span>{{ row.userName || '游客' }}</span>
+                <!-- 评价者昵称：服务端联表带出，恒可读到（注销账号为「已注销用户」） -->
+                <span>{{ row.userName }}</span>
               </div>
             </td>
             <!-- 评分格：星形图标（`star-filled`，--color-star）在数字前，走公共 `AppIcon`
@@ -398,7 +399,7 @@ onMounted(() => reloadFirstPage())
                   <AppIcon name="user" :size="16" color="var(--text-muted)" />
                 </span>
                 <span>
-                  {{ current?.userName || '游客'
+                  {{ current?.userName
                   }}<span class="muted"> #{{ current?.userId }}</span>
                 </span>
               </span>

@@ -112,7 +112,7 @@ const props = defineProps<{
   flat?: boolean
   /**
    * **本人视角变体**（「我的评价」页）：`MyReviewVO` 不含 `userId` / `userName` / `userAvatar`
-   * ⇒ 不渲染头像与昵称（恒为本人，渲染即冗余）。
+   * ⇒ 作者标识取当前登录用户资料（恒为本人），版式与公开视角一致。
    */
   mine?: boolean
   /** 菜名行（可选，本人视角列表用）：非空时在 meta 行下展示关联菜品名 */
@@ -138,15 +138,16 @@ const avatarOk = ref(true)
 /**
  * 本人视角的身份补齐：`MyReviewVO` 不含作者字段（「我的评价」页恒为本人、渲染即冗余），
  * 但**头像与昵称仍要展示** —— 取当前登录用户资料，使本页与菜品详情评价的版式完全一致。
- * 未登录 / 资料未回填时回落空串 ⇒ 走 `ImagePlaceholder` 头像占位 + 「用户」昵称。
+ * 资料未回填时回落空串 ⇒ 走 `ImagePlaceholder` 头像占位 + 昵称兜底文案。
  */
 const userStore = useUserStore()
 const displayAvatar = computed(() => (props.mine ? userStore.userInfo?.avatar || '' : authorAvatar.value))
 const displayNickname = computed(() => (props.mine ? userStore.userInfo?.name || ANONYMOUS_AUTHOR : authorNickname.value))
 
 /**
- * 作者标识（**仅公开视角下发**；本人视角恒为本人、零信息 ⇒ 不渲染头像 / 昵称）。
+ * 作者标识（**仅公开视角下发**；本人视角行取当前登录用户资料，见下方 displayNickname / displayAvatar）。
  * 用 `in` 收窄并集：公开视角行含 `userId`，本人视角行含 `dishId`。
+ * `authorNickname` 的兜底只在 `userName` 为空时生效（服务端恒可读到；注销账号为「已注销用户」）。
  */
 const authorAvatar = computed(() => ('userAvatar' in props.review ? props.review.userAvatar : ''))
 const authorNickname = computed(() => {

@@ -165,7 +165,7 @@ class CorrectionModerationTest {
     }
 
     @Test
-    @DisplayName("无 openid（登录态缺失）：仍调用 checkText，由其内部按既有口径跳过机审（不 NPE）")
+    @DisplayName("账号已查无（getAuthContext 返回 null）：以 null openid 送检，不 NPE（放行与否由 checkText 口径决定）")
     void missingOpenidDoesNotBreakSubmit() {
         when(userService.getAuthContext(7L)).thenReturn(null);
 
@@ -174,14 +174,17 @@ class CorrectionModerationTest {
         verify(contentSecurityService).checkText(eq(null), anyString(), eq(2));
         verify(correctionMapper).insert(any(DishCorrection.class));
     }
+
     @Test
-    @DisplayName("userId 为 null（公开入口未登录）：不查用户上下文，直接以 null openid 送检")
-    void nullUserIdSkipsUserLookup() {
-        svc.submit(null, 1L, req("宫保鸡丁"));
+    @DisplayName("userId 为 null（无登录态）：401 拒绝，不查用户上下文、不送检、不落库")
+    void nullUserIdIsRejected() {
+        assertThatThrownBy(() -> svc.submit(null, 1L, req("宫保鸡丁")))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(401));
 
         verify(userService, never()).getAuthContext(any());
-        verify(contentSecurityService).checkText(eq(null), anyString(), eq(2));
-        verify(correctionMapper).insert(any(DishCorrection.class));
+        verify(contentSecurityService, never()).checkText(any(), anyString(), anyInt());
+        verify(correctionMapper, never()).insert(any(DishCorrection.class));
     }
 
     @Test

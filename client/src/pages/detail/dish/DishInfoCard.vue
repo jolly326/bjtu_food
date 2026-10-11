@@ -95,7 +95,7 @@ const props = defineProps<{
 const ratingText = computed(() => formatRating(props.rating))
 
 const emit = defineEmits<{
-  /** 「菜品有问题?」入口：页面侧跳独立反馈页（`correctionUrl(dishId)`，免认证） */
+  /** 「菜品有问题?」入口：页面侧跳独立反馈页（`correctionUrl(dishId)`；不受邮箱认证门禁） */
   (e: 'correct'): void
 }>()
 
@@ -120,7 +120,7 @@ const dims = computed(() => {
 })
 
 /* 注：「菜品有问题?」点击上抛 `correct`，由页面编排
-   `useDishPage.onCorrectDishInfo` 跳独立反馈页（`correctionUrl(dishId)`，免认证、游客可直达）。 */
+   `useDishPage.onCorrectDishInfo` 跳独立反馈页（`correctionUrl(dishId)`；该端点需登录、无需邮箱认证）。 */
 </script>
 
 <style scoped lang="scss">

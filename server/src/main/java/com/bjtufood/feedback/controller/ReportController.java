@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 举报 {@code POST /reviews/{id}/report}（本端点）；三者各为独立 DTO / 校验，
  * 但底层仍共用 {@code user_feedback} 表与处置 / 回执服务。
  * <p>
- * 举报属<b>免认证公开行为</b>（游客可提交）；被举报对象由路径 {@code {id}} 表达（评价 ID）。
+ * 举报🔑 <b>需登录</b>（静默登录后恒有登录态，无需邮箱认证）；被举报对象由路径 {@code {id}} 表达（评价 ID）。
  */
 @Tag(name = "用户反馈", description = "评价举报（RESTful 子资源路径）")
 @RestController

@@ -104,20 +104,27 @@ public class CorrectionServiceImpl implements CorrectionService {
      */
     @Override
     public void submit(Long userId, Long dishId, DishCorrectionReq req) {
+        // dish_correction.user_id 必填真实登录用户（外键 fk_correction_user → user(id)）：无登录态即 401
+        requireLogin(userId);
         // 菜品不存在与已下架同款处理（对公开接口而言「下架」等价于「不存在」，与 DishServiceImpl 详情口径一致）；
         // 存在性 + 在售态口径由 dish 域唯一持有（P0-1：本域不 import Dish 实体/DishConst/DishMapper）
         if (!dishService.existsOnSale(dishId)) {
             throw new BusinessException(4001, "菜品不存在");
         }
-        // 匿名提交归一为 userId = 0（与 user_feedback 同口径：库列 NOT NULL DEFAULT 0，0 = 无归属）
-        long ownerId = userId == null ? ANONYMOUS_USER_ID : userId;
         // type 分派：gone（已经下架）走「一键提交」路径，其余走 field 的局部提交路径。
         // 两条路径的字段集合、校验规则、落库内容完全不同，故在此处分流而非混在一段校验里。
         if (CorrectionConst.TYPE_GONE.equals(req.getType())) {
-            submitGone(ownerId, dishId, req);
+            submitGone(userId, dishId, req);
             return;
         }
-        submitField(ownerId, dishId, req);
+        submitField(userId, dishId, req);
+    }
+
+    /** 登录前置：dish_correction 的提交人恒为真实登录用户（user_id 必填 + 外键）。 */
+    private void requireLogin(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(401, "请先登录");
+        }
     }
 
     /**
@@ -173,12 +180,12 @@ public class CorrectionServiceImpl implements CorrectionService {
     /**
      * 是否已存在同一用户对同一菜品的 gone 型反馈（**不限定处理状态**）。
      * <p>
-     * 匿名提交（{@code userId == 0}）同样参与去重 —— 与命名用户同口径，{@code 0} 即「匿名」这一归属。
+     * 去重键即 {@code user_id}：提交入口已要求登录态，同一登录用户对同一菜品恒只计一次。
      * <p>
      * 不限定 {@code status}：某条已拒绝 / 已采纳后，再次提交也<b>不新增行</b>。去重是<b>防单人刷队列</b>，
      * 不是决策门槛（≥1 条即进待办，是否下架由管理员人工决定）。
      *
-     * @param userId 提交人（{@code 0} = 匿名）
+     * @param userId 提交人用户ID（登录态，非空）
      * @param dishId 菜品
      * @return true = 已有记录，本次不重复落库
      */
@@ -376,19 +383,16 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 判定口径与 feedback / review 完全一致：risky 由 {@code checkText} 统一抛 400 拦截；
      * pass 与 review（疑似）均放行。
      * <p>
-     * <b>边界</b>：纠错为 permitAll 公开入口，登录态缺失时 {@code userId} 为 {@code null}
-     * （如微信静默登录失败、非微信端 H5 联调），取不到 openid → {@code msgSecCheck v2}
-     * 跳过机审放行，<b>由本地词库兜底</b>（{@link LocalSensitiveFilter} 已对该 name 生效）。
+     * <b>送检身份</b>：提交人必为真实登录用户（见 {@link #requireLogin}），openid 由其账号取出；
+     * 账号无 openid（历史学号账号）时 {@code checkText} 按既有 fail-closed 口径拒绝写入，
+     * 绝不静默放行未过检文本。
      */
     private void checkUgcText(Long userId, String text) {
         if (!StringUtils.hasText(text)) {
             return;   // 纯 price / images 改动，无文本可检
         }
-        String openid = null;
-        if (userId != null && userId != ANONYMOUS_USER_ID) {
-            UserAuthContextVO user = userService.getAuthContext(userId);
-            openid = user == null ? null : user.getOpenid();
-        }
+        UserAuthContextVO user = userService.getAuthContext(userId);
+        String openid = user == null ? null : user.getOpenid();
         contentSecurityService.checkText(openid, text, 2);
     }
 
@@ -409,11 +413,11 @@ public class CorrectionServiceImpl implements CorrectionService {
         LambdaQueryWrapper<DishCorrection> wrapper = buildAdminQuery(status, type, dishId);
         IPage<DishCorrection> p = correctionMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
-        // 批量补齐提交人昵称（一次 IN 查询，消除 N+1；匿名 userId=0 不参与）——
+        // 批量补齐提交人昵称（一次 IN 查询，消除 N+1）——
         // 经 auth 域只读契约下发（P0-1：本域不注入 UserMapper）
         List<Long> userIds = p.getRecords().stream()
                 .map(DishCorrection::getUserId)
-                .filter(id -> id != null && id != ANONYMOUS_USER_ID)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
         Map<Long, String> userMap = userService.mapNameByIds(userIds);
@@ -507,7 +511,6 @@ public class CorrectionServiceImpl implements CorrectionService {
         }
         vo.setHandledAt(c.getHandledAt());
         vo.setCreatedAt(c.getCreatedAt());
-        vo.setUpdatedAt(c.getUpdatedAt());
         return vo;
     }
 
@@ -537,9 +540,6 @@ public class CorrectionServiceImpl implements CorrectionService {
     }
 
     // ==================== 管理端详情（GET /admin/corrections/{id}，B4 差异对照） ====================
-
-    /** 匿名提交人（`dish_correction.user_id` NOT NULL DEFAULT 0；与 `user_feedback` 同口径） */
-    private static final long ANONYMOUS_USER_ID = 0L;
 
     /** 差异项键（= 采纳请求 `acceptedFields` 的取值） */
     private static final String FIELD_NAME = "name";
@@ -573,7 +573,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setDishName(dishName);
         vo.setDishStatus(dishStatus);
         vo.setUserId(c.getUserId());
-        vo.setUserName(c.getUserId() == null || c.getUserId() == ANONYMOUS_USER_ID ? null
+        vo.setUserName(c.getUserId() == null ? null
                 : userService.mapNameByIds(List.of(c.getUserId())).get(c.getUserId()));
         vo.setStatus(c.getStatus());
         vo.setNote(c.getNote());
@@ -596,7 +596,7 @@ public class CorrectionServiceImpl implements CorrectionService {
     /**
      * 同菜品待处理的 gone 反馈数（<b>参考值，非下架阈值</b>）。
      * <p>
-     * 用于管理端展示「有 N 人反馈已下架」；同 {@code user_id} 对同一菜品在提交时已去重（匿名按 {@code 0} 计），
+     * 用于管理端展示「有 N 人反馈已下架」；同 {@code user_id} 对同一菜品在提交时已去重，
      * 故此处即独立 {@code user_id} 数。
      */
     private Long countPendingGoneByDish(Long dishId) {
@@ -971,8 +971,8 @@ public class CorrectionServiceImpl implements CorrectionService {
     /**
      * 纠错处理回执（采纳 / 下架 / 驳回统一入口，参考 feedback handle 通知实现）。
      * <p>
-     * 归属判据：提交时带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
-     * 游客提交的反馈同样保留可回执身份）。
+     * 归属判据：提交人即登录用户（{@code user_id} 必填）—— **不按邮箱认证过滤**（消息中心为登录级能力，
+     * 未认证的登录用户同样收到自己反馈的处理结果）。
      * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
      * <p>
      * **标题与正文按结论分派**（文案口径见 B4 功能文档「回执文案」）：
@@ -995,7 +995,8 @@ public class CorrectionServiceImpl implements CorrectionService {
                                        String reply, List<String> adoptedLabels,
                                        List<String> rejectedLabels, String rejectReason) {
         Long userId = correction.getUserId();
-        if (userId == null || userId == ANONYMOUS_USER_ID) {
+        if (userId == null) {
+            // 兜底：提交入口已要求登录态（user_id 必填 + 外键），无归属记录不存在可投递身份
             return;
         }
         String body = receiptBody(outcome, gone, reply, adoptedLabels, rejectedLabels, rejectReason);

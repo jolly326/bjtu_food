@@ -35,10 +35,10 @@ public class DishCorrectionAdminVO {
     @Schema(description = "目标菜品名（实时回查 dish；菜品已物理删除为 null）")
     private String dishName;
 
-    @Schema(description = "提交人用户ID（匿名提交为 0）")
+    @Schema(description = "提交人用户ID（指向 user 表）")
     private Long userId;
 
-    @Schema(description = "提交人昵称（匿名提交为 null）")
+    @Schema(description = "提交人昵称（账号已查无时为 null）")
     private String userName;
 
     @Schema(description = "提交的菜品名称")
@@ -97,7 +97,4 @@ public class DishCorrectionAdminVO {
 
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
-
-    @Schema(description = "最近更新时间（管理端列表统一带它）")
-    private LocalDateTime updatedAt;
 }

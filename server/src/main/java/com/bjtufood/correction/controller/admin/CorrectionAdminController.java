@@ -33,7 +33,7 @@ public class CorrectionAdminController {
 
     @Operation(summary = "问题反馈列表", description = "ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）"
             + "与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。"
-            + "VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称（匿名提交为 null）。"
+            + "VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称。"
             + "**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**")
     @GetMapping
     public Result<AdminPageResult<DishCorrectionAdminVO>> list(

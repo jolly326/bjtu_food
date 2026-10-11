@@ -2,7 +2,9 @@ package com.bjtufood.dish.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableFieldInfo;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishFilterView;
 import com.bjtufood.dish.mapper.DishFilterViewMapper;
@@ -15,7 +17,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.cache.CacheManager;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -101,11 +108,44 @@ class DishViewCatalogTest {
         assertThat(catalog.matchedCount(noodle)).isEqualTo(3L);
         assertThat(catalog.matchedCount(null)).isZero();
 
-        // 护栏：两次计数均带 status='on'；种类视图额外带 category_id 条件
+        // 护栏（结构化判据，不比对 SQL 文本）：
+        // ① 参数值集 —— 两次计数都绑定「在售」值，种类视图额外绑定该视图的 categoryId；
+        // ② 条件字段集 —— 参与条件的列只允许在售态与种类两列，多绑一列即失败。
         ArgumentCaptor<QueryWrapper<Dish>> captor = ArgumentCaptor.forClass(QueryWrapper.class);
         verify(dishMapper, times(2)).selectCount(captor.capture());
         List<QueryWrapper<Dish>> wrappers = captor.getAllValues();
-        assertThat(wrappers.get(0).getSqlSegment()).contains("status");
-        assertThat(wrappers.get(1).getSqlSegment()).contains("status").contains("category_id");
+        assertThat(boundValues(wrappers.get(0))).containsExactly(DishConst.STATUS_ON);
+        assertThat(boundValues(wrappers.get(1))).containsExactlyInAnyOrder(DishConst.STATUS_ON, 7L);
+        assertThat(conditionColumns(wrappers.get(0))).containsExactly("status");
+        assertThat(conditionColumns(wrappers.get(1))).containsExactlyInAnyOrder("status", "category_id");
+    }
+
+    /**
+     * 包装器绑定的参数值集（MyBatis-Plus 的 `MPGENVALn` → 实参值）。
+     * <p>
+     * 先取一次 SQL 片段：MyBatis-Plus 是在**生成片段时**才把实参登记进 {@code paramNameValuePairs}
+     * （惰性占位），不触发则读到空集。
+     */
+    private static Set<Object> boundValues(QueryWrapper<Dish> wrapper) {
+        wrapper.getSqlSegment();
+        return new LinkedHashSet<>(wrapper.getParamNameValuePairs().values());
+    }
+
+    /**
+     * 条件涉及的**列集**：先取 `dish` 表的真实列名，再在 SQL 片段中按标识符匹配——
+     * 只有列名命中才算一项条件字段，故「条件绑错列」「多绑一列」都会被断言捕获。
+     */
+    private static Set<String> conditionColumns(QueryWrapper<Dish> wrapper) {
+        Set<String> dishColumns = TableInfoHelper.getTableInfo(Dish.class).getFieldList().stream()
+                .map(TableFieldInfo::getColumn)
+                .collect(Collectors.toSet());
+        Matcher matcher = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*").matcher(wrapper.getSqlSegment());
+        Set<String> hit = new LinkedHashSet<>();
+        while (matcher.find()) {
+            if (dishColumns.contains(matcher.group())) {
+                hit.add(matcher.group());
+            }
+        }
+        return hit;
     }
 }

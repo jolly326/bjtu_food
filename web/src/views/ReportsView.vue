@@ -204,7 +204,8 @@ onMounted(() => reloadFirstPage())
         <tbody>
           <tr v-for="row in items" :key="row.id">
             <td>{{ row.reasonName }}</td>
-            <td>{{ row.userName || '游客' }}</td>
+            <!-- 举报人昵称：服务端联表带出，恒可读到（注销账号为「已注销用户」） -->
+            <td>{{ row.userName }}</td>
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
@@ -277,7 +278,7 @@ onMounted(() => reloadFirstPage())
           <div class="meta-row meta-row--span">
             <span class="meta-key">举报人</span>
             <span class="meta-val">
-              {{ current?.userName || '游客' }}
+              {{ current?.userName }}
               <span class="muted"> #{{ current?.userId }}</span>
             </span>
           </div>

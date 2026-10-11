@@ -12,7 +12,7 @@ export const GUEST_NICKNAME = '游客'
 export const GUEST_SUB_TEXT = '未完成校园认证'
 /** 只读字段空值占位（校园邮箱等未填写时行内不空白） */
 export const EMPTY_FIELD_TEXT = '--'
-/** 评价作者昵称兜底（历史匿名评价 / 出参缺省） */
+/** 评价作者昵称兜底（`userName` 出参为空时；注销账号由后端下发「已注销用户」） */
 export const ANONYMOUS_AUTHOR = '匿名用户'
 /** 「评价已不存在」收尾提示（后端 4001；该码重试无意义） */
 export const REVIEW_GONE_TEXT = '评价已不存在'

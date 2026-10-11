@@ -20,21 +20,20 @@
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 反馈 ID |
 | `type` | VARCHAR(16) | NO | `'field'` | KEY | **`field`=信息有误 / `gone`=已经下架** |
 | `dish_id` | BIGINT | NO | — | KEY | 被反馈的菜品；**不设外键**（见下） |
-| `user_id` | BIGINT | NO | 0 | | 提交人；**`0` = 匿名提交**（无 token、无归属；不设外键） |
+| `user_id` | BIGINT | NO | — | **FK** | 提交人；**外键 `fk_correction_user` → `user(id)`**（无级联）。提交入口一律需登录态 ⇒ **恒为真实用户 ID** |
 | `name` | VARCHAR(64) | YES | NULL | | 改动后的菜名；**未改动则 NULL**。`gone` 型恒 NULL |
 | `price` | INT | YES | NULL | | 改动后的现价（**单位分**）；未改动为 NULL。`gone` 型恒 NULL |
 | `canteen_name` | VARCHAR(64) | YES | NULL | | 改动后的食堂名；未改动为 NULL。`gone` 型恒 NULL |
 | `stall_name` | VARCHAR(64) | YES | NULL | | 改动后的档口名；未改动为 NULL。`gone` 型恒 NULL |
 | `floor` | VARCHAR(16) | YES | NULL | | 改动后的楼层；未改动为 NULL。**归属档口**，采纳时写回 `stall.floor`。`gone` 型恒 NULL |
 | `attributes` | JSON | YES | NULL | | 改动的描述属性（**仅改动的维度**）；未改动为 NULL。`gone` 型恒 NULL |
-| `images` | JSON | YES | NULL | | 图片数组。**`field` 型**：改动后的图片，**≤5 张**；**`gone` 型**：**可选补充**，**≤3 张** |
+| `images` | JSON | YES | NULL | | 图片数组。**`field` 型**：改动后的图片；**`gone` 型**：**可选补充**。**两类上限同为 3 张**（全站 UGC 配图同档） |
 | `note` | VARCHAR(200) | YES | NULL | | **补充说明**（≤200 字）。**仅 `gone` 型的选填补充**，其余 NULL |
 | `status` | VARCHAR(16) | NO | `'pending'` | KEY | `pending` 待处理 / `adopted` 已采纳 / `rejected` 已拒绝 |
 | `reply` | VARCHAR(1024) | YES | NULL | | 处理回复（**可空、≤600 字**）：采纳时**可传**（缺省用固定文案），不采纳时作为「处理说明」随回执下发（见 [B4](../func/web/B-UGC治理/B4-菜品问题反馈管理.md)） |
 | `reject_reason` | VARCHAR(200) | YES | NULL | | 不采纳原因；不采纳时**必填** |
 | `handled_at` | DATETIME | YES | NULL | | 处理时间 |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | |
-| `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | |
 
 ---
 
@@ -43,6 +42,7 @@
 | 索引名 | 列 | 类型 | 用途 |
 |---|---|---|---|
 | `PRIMARY` | `id` | 主键 | |
+| `fk_correction_user` | `user_id` | **外键** | `REFERENCES user(id)`（**无级联** —— `user` 行永不物理删除，外键是纯引用完整性兜底） |
 | `idx_correction_dish` | `dish_id` | 普通 | 按菜品查反馈 |
 | `idx_correction_status_created` | `status`, `created_at` | 复合 | **管理端筛选**（`WHERE status=? ORDER BY created_at` 无 filesort） |
 | `idx_correction_type_dish` | `type`, `dish_id` | 复合 | **管理端「疑似下架」**：`WHERE type='gone' AND status='pending' GROUP BY dish_id` |
@@ -58,7 +58,7 @@
 |---|---|---|
 | 前提假设 | **这道菜存在，只是信息写错了** | **这道菜消失了** |
 | 差异项列（name/price/…） | 存改动项，未改动为 NULL | **恒全 NULL**（无可对照的原值） |
-| 承载信息 | `images`（≤5）+ `attributes` | **`note`（≤200 字，选填）+ `images`（≤3，选填）** |
+| 承载信息 | `images`（≤3）+ `attributes` | **`note`（≤200 字，选填）+ `images`（≤3，选填）** |
 | 处置动作 | 采纳写回 `dish` / `stall` / `dish_attribute_*` | **仅「下架该菜品」**（`dish.status='off'`），见下方红线 |
 | 处置可逆性 | 采纳本身可人工修正 | **下架可重新上架**（评价完整保留） |
 
@@ -116,15 +116,12 @@
 ### 不纠正原价
 **无 `original_price` 快照列** —— 原价随促销波动、属运营口径，短期打折不构成稳定事实，因此不纳入菜品问题反馈范围。`price` 是唯一可菜品问题反馈的价格字段。
 
-### 匿名提交以 `user_id = 0` 表示
-`0` = **匿名提交**（无 token ⇒ 无归属），后台显示为「游客」。**不设外键、不用 NULL**（列 `NOT NULL DEFAULT 0`）；静默登录的游客**有 userId**，可收回执。
-
 ## 关联
 
 | 方向 | 目标表 | 关系 |
 |---|---|---|
 | N→1 | `dish.id` | 被反馈菜品（**无外键**，见上） |
-| N→1 | `user.id` | 提交人（**无外键**） |
+| N→1 | `user.id` | 提交人 —— **外键 `fk_correction_user`（无级联）**：提交入口一律需登录 ⇒ `user_id` 恒为真实用户；账号注销为匿名化（行保留），无级联需求，外键只保证不悬空 |
 
 `field` 型采纳时写入 `dish` / `stall` / `dish_attribute_*`，由应用层 `CorrectionServiceImpl` 编排；`gone` 型则调 `PUT /admin/dishes/{id}/status` 置 `off`（**不可走删除**）。
 

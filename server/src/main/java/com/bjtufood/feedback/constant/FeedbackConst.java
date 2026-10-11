@@ -45,10 +45,8 @@ public interface FeedbackConst {
             TYPE_ISSUE, TYPE_REPORT,
             TYPE_SUGGESTION, TYPE_ADD, TYPE_ERROR, TYPE_BUG, TYPE_OTHER);
 
-    // 反馈二级分类 sub（DEV-01 补全落库）：写入侧仅 `type=report`（举报原因，取值来自 report_reason 表）消费 sub；
-    // `type=suggestion`（提个想法，历史遗留、禁新增）存量数据的 idea/problem 值仍可读、可筛选。
-    // type 与 sub 不匹配时：未提供（null/空白）按未填处理、落库 NULL；一旦提供（非空白）即 400
-    // （严格模式，用户拍板，不静默忽略），避免跨类型污染。
+    // 反馈二级分类 sub：**写入侧不写该列**（各写路径一律落 NULL），仅历史 `type=suggestion` 存量数据的
+    // idea/problem 值仍可读、可筛选。举报原因不复用本列，落 `user_feedback.sub_reason_id`（见下）。
 
     // ==================== 举报原因 ====================
     // 举报原因字典**表驱动**（`report_reason` 表，A7）：

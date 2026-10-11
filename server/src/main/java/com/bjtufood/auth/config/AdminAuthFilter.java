@@ -76,7 +76,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     private final AdminAccountService adminAccountService;
 
     /**
-     * IP 维度限频器（复用 {@code common.ratelimit.IpRateLimiter}，与其余公开写入口同一实现）。
+     * IP 维度限频器（复用 {@code common.ratelimit.IpRateLimiter}，与其余写入口同一实现）。
      *
      * <p>🔴 <b>限频必须放在验签「之前」</b>：未鉴权的请求恰恰是攻击流量的主体，
      * 若置于其后，它们仍会逐条进过滤器、逐条打日志，线程与日志照样被刷。

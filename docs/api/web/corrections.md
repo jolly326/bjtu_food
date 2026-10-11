@@ -34,14 +34,13 @@
 |---|---|---|
 | `id` | number | 反馈 ID |
 | `dishId` / `dishName` | number / string | 目标菜品 ID / 名称（**实时回查，含已下架**；菜品已物理删除为 null） |
-| `userId` / `userName` | number / string | 提交人（**匿名提交 `userId = 0`** 且昵称为空，后台显示为「游客」）；静默登录的游客为真实 ID |
+| `userId` / `userName` | number / string | 提交人（**恒为真实登录用户**：提交入口一律需登录态，`userId` 为 `user.id`，`userName` 为提交时昵称；注销后为「已注销用户」） |
 | `status` | string | `pending` / `adopted` / `rejected` |
 | `changeCount` | number | **差异项数量**（一眼看出「改了几项」） |
 | `floorImpact` | string \| null | 含 `floor` 改动时的连带影响提示（同档口菜品数） |
 | `reply` / `rejectReason` | string | 处理回复 / 不采纳原因 |
 | `handledAt` | string | 处理时间（未处理为空串） |
 | `createdAt` | string | 提交时间 |
-| `updatedAt` | string | 最近更新时间 |
 
 > 列表**不展开各项内容**（那是详情的事）：列表给「改了几项 + 是否涉及楼层」。
 
@@ -162,5 +161,5 @@
 - **`acceptedFields` 必填、空数组 400**：显式优先；「什么都不采纳」是**拒绝**（有独立动作 + 必填原因）。
 - **楼层联动必须提示**：`floor` 属档口，采纳会**连带改同档口所有菜品**；`differences[].affectsOthers` 标记该行，UI 据此二次确认（受影响菜品数由列表 `floorImpact` 给出）。
 - **两段式档口确认不简化**：它是「错别字 → 重复档口」的唯一防线。
-- **回执文案按 `type` 分流**：`field` 采纳（全部 / 部分项）/ 拒绝；`gone` 分「已下架」/「仍在售」两套文案。部分采纳必须逐项告知未采纳项。投递判据 = `userId` 有效（静默登录的游客亦投递；匿名不投递），失败不阻塞。
+- **回执文案按 `type` 分流**：`field` 采纳（全部 / 部分项）/ 拒绝；`gone` 分「已下架」/「仍在售」两套文案。部分采纳必须逐项告知未采纳项。投递判据 = `userId`（提交恒带登录态 ⇒ **恒投递**），失败不阻塞。
 - **不做批量采纳**（一期不做）。

@@ -58,8 +58,8 @@ import static org.mockito.Mockito.when;
  *   <li><b>采纳幂等与前置校验</b>：非 pending 一律 400（重复点击 = 已处理），菜品物理删除 4001；</li>
  *   <li><b>两段式档口确认</b>：未命中且未确认新建 ⇒ 只返回候选、<b>不得写回 dish</b>；</li>
  *   <li><b>回执投递判据</b>：<b>登录级</b>——userId 非空即投递（2026-10-01 拍板放宽：
- *       消息中心是登录级能力，游客也应收到自己反馈的处理结果）；
- *       游客（userId=null）不投递（无归属可投）；</li>
+ *       消息中心是登录级能力，静默登录的游客也应收到自己反馈的处理结果）；
+ *       userId 为空不投递（兜底分支：提交入口已要求登录态，记录恒有归属）；</li>
  *   <li><b>楼层纠错</b>：floor 传入即非空 / ∈ 楼层字典（值即汉字）/ ≤16 字校验；仅改楼层也算「有改动」；
  *       采纳时 floor 写回<b>目标档口</b>（{@code stall.floor}）而非 dish，且档口未落定前不得写。</li>
  * </ol>
@@ -748,17 +748,17 @@ class CorrectionServiceImplTest {
     // ==================== 回执投递判据 ====================
 
     @Test
-    @DisplayName("回执：提交人已登录（userId 非空）→ 投递（2026-10-01 拍板：消息中心为登录级能力，不再按邮箱认证过滤）")
+    @DisplayName("回执：提交人有归属（userId 非空）→ 投递（消息中心为登录级能力）")
     void receipt_loginOnly_delivers() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
         service().reject(9L, handleReq(null, "已核实", "价格一致"));
-        // 关键断言：口径已由「仅已认证用户」放宽为「登录即投递」
+        // 关键断言：投递判据 = 有归属（userId 非空），与邮箱认证状态无关
         verify(notificationService).notify(any(NotificationCmd.class));
     }
 
     @Test
-    @DisplayName("回执：游客提交（userId=null）不投递 —— 纠错主路径刻意匿名，无归属可投")
-    void receipt_guest_noNotify() {
+    @DisplayName("回执：userId 为空不投递（兜底分支 —— 无归属即无可投对象）")
+    void receipt_withoutOwner_noNotify() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(null));
         service().reject(9L, handleReq(null, "已核实", "价格一致"));
         verify(notificationService, never()).notify(any());

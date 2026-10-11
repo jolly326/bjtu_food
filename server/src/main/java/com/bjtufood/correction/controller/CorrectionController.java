@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 菜品问题反馈接口（用户端，公开写入口）。
+ * 菜品问题反馈接口（用户端，学生端写入口；<b>需登录</b>——写请求必须绑定账号，
+ * 提交记录经 {@code dish_correction.user_id} 外键指向真实用户）。
  * <p>
  * 请求体以 {@code type} 判别两类反馈（字段 / 图片），两类走完全不同的表单与校验
  * （见 {@code CorrectionServiceImpl#submit}）。
@@ -37,7 +38,7 @@ public class CorrectionController {
     private static final IpRateLimiter.Rule RULE_PER_HOUR = new IpRateLimiter.Rule(10, 3_600_000L);
 
     /**
-     * 提交菜品问题反馈（PUB：游客与登录用户均可，匿名允许——对齐 feedback 提交口径）。
+     * 提交菜品问题反馈（需登录；无登录态 → 401，与 feedback 提交同口径）。
      *
      * @param req <b>type 必填</b>：
      *            <b>field（信息有误）</b> —— 局部提交（patch），只传改动项
@@ -47,7 +48,7 @@ public class CorrectionController {
      *            <b>均为选填、允许全不传</b>；但传入任何差异项字段 → 400（语义冲突）。
      *            同一用户对同一菜品的 gone 型<b>只计一次</b>（重复提交返回成功、不重复计数）。
      */
-    @Operation(summary = "提交菜品问题反馈", description = "PUB。游客与登录用户均可提交（dishId 在路径上）。"
+    @Operation(summary = "提交菜品问题反馈", description = "需登录（无登录态 → 401）。dishId 在路径上。"
             + "**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）"
             + "｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；"
             + "传差异项字段 → 400；同用户对同一菜品只计一次）。"

@@ -43,10 +43,10 @@ public class DishCorrectionDetailVO {
     @Schema(description = "目标菜品当前上下架状态（on/off；菜品已物理删除为 null）", example = "on")
     private String dishStatus;
 
-    @Schema(description = "提交人用户ID（匿名提交为 0）")
+    @Schema(description = "提交人用户ID（指向 user 表）")
     private Long userId;
 
-    @Schema(description = "提交人昵称（匿名提交为 null）")
+    @Schema(description = "提交人昵称（账号已查无时为 null）")
     private String userName;
 
     @Schema(description = "处理状态：pending/adopted/rejected")

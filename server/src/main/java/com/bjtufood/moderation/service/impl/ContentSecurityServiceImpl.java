@@ -1,6 +1,5 @@
 package com.bjtufood.moderation.service.impl;
 
-import com.bjtufood.auth.service.UserViolationService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.moderation.dto.SecSuggest;
 import com.bjtufood.moderation.service.ContentSecurityService;
@@ -81,14 +80,6 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     private final WechatProperties wechatProperties;
 
     /**
-     * 违规累积入口（机审 {@code risky} 命中时按 openid 给账号记一次违规）。
-     * <p>
-     * 依赖 auth 域的**接口契约**（非实现类）：内容域只负责「判定为违规」，
-     * 「违规如何累积、累积到几档怎么处置」是账号域的规则。
-     */
-    private final UserViolationService userViolationService;
-
-    /**
      * 激活的 profile（逗号分隔，取自 {@code spring.profiles.active}）。
      * <p>
      * 仅用于「内容安全检测在生产必须可用」的 fail-fast 判定：生产缺凭据属部署漏配，
@@ -102,9 +93,8 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
      * 保留单参构造的「可注入语义」，便于测试整体替换依赖。
      */
     @Autowired
-    public ContentSecurityServiceImpl(WechatAccessTokenProvider tokenProvider, WechatProperties wechatProperties,
-                                      UserViolationService userViolationService) {
-        this(defaultRestTemplate(), tokenProvider, wechatProperties, userViolationService);
+    public ContentSecurityServiceImpl(WechatAccessTokenProvider tokenProvider, WechatProperties wechatProperties) {
+        this(defaultRestTemplate(), tokenProvider, wechatProperties);
     }
 
     /**
@@ -112,12 +102,10 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
      * 生产装配走 {@link #ContentSecurityServiceImpl(WechatAccessTokenProvider, WechatProperties)}。
      */
     public ContentSecurityServiceImpl(RestTemplate restTemplate, WechatAccessTokenProvider tokenProvider,
-                                      WechatProperties wechatProperties,
-                                      UserViolationService userViolationService) {
+                                      WechatProperties wechatProperties) {
         this.restTemplate = restTemplate;
         this.tokenProvider = tokenProvider;
         this.wechatProperties = wechatProperties;
-        this.userViolationService = userViolationService;
     }
 
     /**
@@ -222,27 +210,9 @@ public class ContentSecurityServiceImpl implements ContentSecurityService {
     public SecSuggest checkText(String openid, String content, int scene) {
         SecSuggest suggest = detectText(openid, content, scene);
         if (suggest == SecSuggest.RISKY) {
-            recordViolationQuietly(openid);
             throw new BusinessException(400, "内容包含违规信息，请修改后重试");
         }
         return suggest;
-    }
-
-    /**
-     * 给账号记一次违规累积（**尽力而为**）。
-     * <p>
-     * 🔴 <b>不得影响主判定</b>：计数失败（数据库抖动等）绝不能让「内容违规」这一既有结论
-     * 变成 500 —— 那会把一次明确拦截变成一次不明故障，且用户重试仍会被拦。
-     * 故此处吞掉异常并记 ERROR 留痕（计数丢失比误报故障轻得多）。
-     *
-     * @param openid 违规内容提交者的 openid（为空=历史学号账号，无法定位，跳过）
-     */
-    private void recordViolationQuietly(String openid) {
-        try {
-            userViolationService.recordModerationHit(openid);
-        } catch (Exception e) {
-            log.error("[VIOLATION] 违规累积计数失败（不影响本次拦截）：{}", e.getClass().getSimpleName(), e);
-        }
     }
 
     /**

@@ -75,7 +75,7 @@ const reasons = ref<ReportReason[]>([])
 const reasonsFailed = ref(false)
 const selected = ref(0)
 
-/** 打开时实时拉取原因字典（公开端点，游客可用）；失败静默降级为提示行 */
+/** 打开时实时拉取原因字典（公开只读端点）；失败静默降级为提示行 */
 watch(
   () => props.open,
   (v) => {

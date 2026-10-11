@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -276,11 +275,6 @@ public class UserServiceImpl implements UserService {
         // 这里按 user.status 实时判定，非 active 一律拒绝 UGC 写操作。
         if (!UserConst.STATUS_ACTIVE.equals(user.getStatus())) {
             throw new BusinessException(403, "账号已被禁用");
-        }
-        // 限言：违规累积处置的中间档 —— 写端点一律 403，**读不受限**。
-        // 判据是「到期时刻是否在未来」，故到期后无需任何人工动作即自动恢复。
-        if (user.getMutedUntil() != null && user.getMutedUntil().isAfter(LocalDateTime.now())) {
-            throw new BusinessException(403, "账号已被限制发言，请稍后再试");
         }
         if (!AuthStateUtil.isVerified(user.getEmail())) {
             // 使用细分的业务码 4031 标识「未认证邮箱」，与普通权限拒绝（code=403）区分，

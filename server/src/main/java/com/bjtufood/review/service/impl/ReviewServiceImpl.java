@@ -339,12 +339,6 @@ public class ReviewServiceImpl implements ReviewService {
                 "评价已被删除", "你的评价已被管理员删除。");
     }
 
-    /**
-     * 评价处置回执（隐藏 / 删除统一入口）。
-     * <p>
-     * 投递判据 = <b>`userId` 有效（&gt; 0）</b>：静默登录的游客同样收到；**匿名（`user_id = 0`）无归属不投递**
-     * （与 feedback / correction 同源）。投递失败**不阻塞处置**（独立 try，异常不外抛主流程）。
-     */
     @Override
     public java.util.Map<Long, ReviewRelatedBriefVO> mapRelatedBriefByIds(java.util.Collection<Long> reviewIds) {
         if (reviewIds == null || reviewIds.isEmpty()) {
@@ -393,6 +387,14 @@ public class ReviewServiceImpl implements ReviewService {
         return reviewMapper.selectCount(null);
     }
 
+    /**
+     * 评价处置回执（隐藏 / 删除统一入口）。
+     * <p>
+     * 投递判据 = 作者 `userId` 有效：评价写入需邮箱认证（作者恒为真实登录用户），故回执恒可达，
+     * 与 feedback / correction 同为「登录级」口径（不按邮箱认证过滤）。
+     * `userId` 为空或 ≤ 0 的分支为防御性兜底 —— 现行写入路径不可达，不得据此调整处置行为。
+     * 投递失败**不阻塞处置**（独立 try，异常不外抛主流程）。
+     */
     private void sendReviewReceipt(Long userId, String title, String content) {
         if (userId == null || userId <= 0) {
             return;

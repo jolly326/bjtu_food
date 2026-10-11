@@ -47,8 +47,8 @@ public class DishCorrection {
     @Schema(description = "目标菜品ID")
     private Long dishId;
 
-    /** 提交人用户ID（匿名提交为 0） */
-    @Schema(description = "提交人用户ID（匿名提交为 0）")
+    /** 提交人用户ID（必填真实登录用户，外键 {@code fk_correction_user} → {@code user(id)}） */
+    @Schema(description = "提交人用户ID（必填，指向 user 表）")
     private Long userId;
 
     /** 提交的菜品名称 */
@@ -128,8 +128,4 @@ public class DishCorrection {
     /** 创建时间（DB 时钟：INSERT 由 `DEFAULT CURRENT_TIMESTAMP` 写入，应用层不写、不填充） */
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
-
-    /** 更新时间（DB 时钟：UPDATE 由 `ON UPDATE CURRENT_TIMESTAMP` 维护，应用层不写、不填充） */
-    @Schema(description = "更新时间")
-    private LocalDateTime updatedAt;
 }

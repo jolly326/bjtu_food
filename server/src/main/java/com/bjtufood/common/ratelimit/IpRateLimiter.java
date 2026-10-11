@@ -13,9 +13,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * 本类为项目内**唯一的进程内限频实现**。
  * <p>
- * 适用 permitAll 公开写入口的滥用防护（如 POST /feedback 灌库、POST /auth/email-code
- * 换邮箱刷码、POST /dishes/{id}/correction 刷纠错）：同一客户端 IP 在窗口内的请求次数受多条规则共同约束（如
- * 每分钟 ≤2 条 + 每小时 ≤10 条）。状态仅存 JVM 内存、重启清零（可接受：
+ * 适用写入口的滥用防护（如 POST /feedback 灌库、POST /auth/email-code 换邮箱刷码、
+ * POST /dishes/{id}/correction 刷纠错）：同一客户端 IP 在窗口内的请求次数受多条规则共同约束（如
+ * 每分钟 ≤2 条 + 每小时 ≤10 条）。需登录的写入口（反馈 / 举报 / 纠错 / 评价）另有账号维度限频
+ * （各 Controller 以同一实现按 userId 判定），IP 维度只是其中一道。状态仅存 JVM 内存、重启清零（可接受：
  * 限频为攻防止损，不要求跨实例强一致）。
  * <p>
  * 实现说明：
@@ -57,7 +58,7 @@ public class IpRateLimiter {
      *
      * @param scope 业务隔离域（如 "feedback" / "email-code"），不同接口互不干扰
      * @param ip    客户端IP（ClientIpUtil 解析；为空时放行——fail-open，
-     *              不因解析失败误伤正常请求，且公开写入口仍有业务校验兜底）
+     *              不因解析失败误伤正常请求，且写入口仍有业务校验兜底）
      * @param rules 限频规则（可多条，如「每分钟 ≤2 条 + 每小时 ≤10 条」）
      * @return 0=放行；&gt;0=需等待的秒数
      */

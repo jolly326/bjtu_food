@@ -234,8 +234,8 @@ onMounted(() => reloadFirstPage())
                 <AppIcon name="image" :size="12" />{{ row.images.length }}
               </span>
             </td>
-            <!-- 匿名提交 userId = 0 → 服务端回落「游客」 -->
-            <td>{{ row.userName || '游客' }}</td>
+            <!-- 提交人昵称：服务端联表带出，恒可读到（注销账号为「已注销用户」） -->
+            <td>{{ row.userName }}</td>
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
@@ -261,7 +261,7 @@ onMounted(() => reloadFirstPage())
       <!-- 只读内容区：正文全文（不截断）+ 配图（点击看大图） -->
       <div class="ctx">
         <div class="ctx-label">
-          {{ typeLabel(current?.type ?? '') }} · {{ current?.userName || '游客' }}
+          {{ typeLabel(current?.type ?? '') }} · {{ current?.userName }}
           <StatusTag :status="current?.status ?? 'pending'" kind="feedback" />
         </div>
         <div class="ctx-body">{{ current?.content || '（无内容）' }}</div>
@@ -287,7 +287,7 @@ onMounted(() => reloadFirstPage())
           <div class="meta-row meta-row--span">
             <span class="meta-key">提交人</span>
             <span class="meta-val">
-              {{ current?.userName || '游客' }}
+              {{ current?.userName }}
               <span class="muted"> #{{ current?.userId }}</span>
             </span>
           </div>

@@ -6,7 +6,6 @@ import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
-import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.constant.FeedbackConst;
 import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
@@ -29,7 +28,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -47,11 +45,11 @@ import static org.mockito.Mockito.when;
  *   <li><b>写入口类型白名单</b>（{@code submit}）：仅 {@code bug/suggestion/other} 可写；
  *       举报 / 纠错已迁出独立端点，若放宽为「原样落库」会让拆分后的写入口重新混流；</li>
  *   <li><b>举报目标存在性与去重</b>（{@code report}）：不存在须 4001（端上据此给恢复路径），
- *       同一登录用户重复举报须 400；游客因无身份标识**不去重**；</li>
+ *       同一用户重复举报须 400（去重按 userId 维度）；</li>
  *   <li><b>处理结论与不采纳原因</b>（{@code handle}）：{@code outcome} 白名单、
  *       {@code rejected ⇒ rejectReason 非空且 ≤200 字}、回复必填；</li>
  *   <li><b>回执投递判据</b>：<b>登录级</b>——userId 非空即投递（消息中心是登录级能力，
- *       游客提交的反馈同样收到处理结果）；userId=null 不投递（无归属可投）。</li>
+ *       不按邮箱认证过滤）；userId=null 不投递（防御性兜底：提交入口已要求登录态，记录恒有归属）。</li>
  * </ol>
  * 被测类为纯 POJO：{@code @Transactional} 依赖 Spring 代理，单测中不生效，断言的是方法体内业务逻辑。
  */
@@ -68,7 +66,6 @@ class FeedbackServiceImplTest {
 
     private final FeedbackMapper feedbackMapper = mock(FeedbackMapper.class);
     private final UserService userService = mock(UserService.class);
-    private final DishService dishService = mock(DishService.class);
     private final LocalSensitiveFilter localSensitiveFilter = mock(LocalSensitiveFilter.class);
     private final NotificationService notificationService = mock(NotificationService.class);
     private final ContentSecurityService contentSecurityService = mock(ContentSecurityService.class);
@@ -76,9 +73,6 @@ class FeedbackServiceImplTest {
     private final ReviewService reviewService = mock(ReviewService.class);
     /** 举报原因字典真源（`report_reason` 表） */
     private final ReportReasonService reportReasonService = mock(ReportReasonService.class);
-    /** 违规累积入口（举报成立时给被举报内容作者计数；规则本身另有其归属，此处只关心是否被调用） */
-    private final com.bjtufood.auth.service.UserViolationService userViolationService =
-            mock(com.bjtufood.auth.service.UserViolationService.class);
 
     /**
      * 构造器参数顺序须与 {@code FeedbackServiceImpl} 的 final 字段声明顺序逐字一致（@RequiredArgsConstructor）。
@@ -87,9 +81,9 @@ class FeedbackServiceImplTest {
      * 本类断言仍原样落在 {@code feedbackMapper.insert} 上 —— 这正是「可见行为未变」的直接证据。
      */
     private FeedbackServiceImpl service() {
-        return new FeedbackServiceImpl(feedbackMapper, new FeedbackPersister(feedbackMapper), userService, dishService,
+        return new FeedbackServiceImpl(feedbackMapper, new FeedbackPersister(feedbackMapper), userService,
                 localSensitiveFilter, notificationService, reportReasonService, contentSecurityService, imageUrlUtil,
-                reviewService, userViolationService);
+                reviewService);
     }
 
     /** 本地词库默认原样返回（不脱敏），便于断言落库值 */
@@ -227,7 +221,7 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("report：游客（userId=null）→ 401「请先登录」（user_feedback.user_id 必填真实登录用户），不落库")
+    @DisplayName("report：无登录态（userId=null）→ 401「请先登录」（user_feedback.user_id 必填真实登录用户），不落库")
     void report_guest_rejected401() {
         stubFilterPassThrough();
         when(reviewService.existsVisibleById(anyLong())).thenReturn(true);
@@ -372,7 +366,7 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("handle：游客提交（userId=null）不投递回执（反馈主路径刻意匿名，无归属可投）")
+    @DisplayName("handle：userId=null 不投递回执（防御性兜底：提交入口已要求登录态，记录恒有归属）")
     void handle_guest_noReceipt() {
         when(feedbackMapper.selectById(anyLong())).thenReturn(pendingFeedback(null));
 
@@ -397,7 +391,7 @@ class FeedbackServiceImplTest {
         verify(feedbackMapper).updateById(any());
     }
 
-    // ==================== 机审：游客与有 openid 路径 ====================
+    // ==================== 机审：有 openid 与无 openid 路径 ====================
 
     @Test
     @DisplayName("submit：机审取 openid 走 msgSecCheck（scene=2）；无 openid 账号亦照常调用（由服务内部跳过）")
@@ -413,7 +407,7 @@ class FeedbackServiceImplTest {
     }
 
     @Test
-    @DisplayName("submit：游客（userId=null）→ 401「请先登录」（user_feedback.user_id 必填真实登录用户），不落库")
+    @DisplayName("submit：无登录态（userId=null）→ 401「请先登录」（user_feedback.user_id 必填真实登录用户），不落库")
     void submit_guest_rejected401() {
         stubFilterPassThrough();
 

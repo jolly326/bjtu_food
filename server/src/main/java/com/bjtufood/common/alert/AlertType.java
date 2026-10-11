@@ -10,7 +10,7 @@ package com.bjtufood.common.alert;
  * <p><b>级别口径</b>：
  * <ul>
  *   <li>{@code info} —— 正常但值得知悉的事件（如登录成功）；</li>
- *   <li>{@code warn} —— 账号安全配置或学生账号处置发生变化，需知悉但不紧急；</li>
+ *   <li>{@code warn} —— 账号安全配置发生变化，需知悉但不紧急；</li>
  *   <li>{@code critical} —— 疑似攻击成功，需立即处置。</li>
  * </ul>
  *
@@ -27,9 +27,6 @@ public enum AlertType {
 
     /** 管理端口令修改（既有 token 全部失效） */
     PASSWORD_CHANGED("口令修改", Severity.WARN),
-
-    /** 学生账号违规累积处置（自动限言 / 封禁） */
-    VIOLATION_PENALTY("违规累积处置", Severity.WARN),
 
     /** 爬取特征命中（顺序枚举 ID / 批量命中不存在资源） */
     CRAWL_DETECTED("爬取检测", Severity.WARN);
