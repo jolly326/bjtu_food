@@ -126,8 +126,8 @@ class NotificationServiceImplTest {
     void notifyBuildsEntityInternally() {
         NotificationCmd cmd = new NotificationCmd();
         cmd.setUserId(1L);
-        cmd.setTitle("反馈已处理");
-        cmd.setContent("管理员已回复");
+        cmd.setReplyTitle("反馈已处理");
+        cmd.setReplyContent("管理员已回复");
 
         service().notify(cmd);
 
@@ -135,9 +135,43 @@ class NotificationServiceImplTest {
         verify(notificationMapper).insert(captor.capture());
         Notification saved = captor.getValue();
         assertThat(saved.getUserId()).isEqualTo(1L);
-        assertThat(saved.getTitle()).isEqualTo("反馈已处理");
-        assertThat(saved.getContent()).isEqualTo("管理员已回复");
+        assertThat(saved.getReplyTitle()).isEqualTo("反馈已处理");
+        assertThat(saved.getReplyContent()).isEqualTo("管理员已回复");
         assertThat(saved.getIsRead()).as("新投递通知恒为未读").isZero();
+    }
+
+    /**
+     * {@code notifyNow} 是处置回执的投递入口：与 {@code notify} 的差别只在**事务语义**
+     * （同步 + 并入调用方事务，使「任务行归档 + 回执落库」同生共死），故两条断言缺一不可：
+     * ① 有 {@code @Transactional}（并入调用方事务）；② **无** {@code @Async}（否则又变成另一条线程，事务无从并入）。
+     */
+    @Test
+    @DisplayName("notifyNow：同步投递（无 @Async）+ 并入调用方事务（@Transactional）")
+    void notifyNowIsSynchronousAndTransactional() throws NoSuchMethodException {
+        var method = NotificationServiceImpl.class.getMethod("notifyNow", NotificationCmd.class);
+
+        assertThat(method.getAnnotation(org.springframework.transaction.annotation.Transactional.class))
+                .as("notifyNow 必须开事务，才能并入调用方事务（同一事务内落库）")
+                .isNotNull();
+        assertThat(method.getAnnotation(org.springframework.scheduling.annotation.Async.class))
+                .as("notifyNow 不得标 @Async —— 异步线程没有调用方事务，快照一致性无从保证")
+                .isNull();
+    }
+
+    @Test
+    @DisplayName("notifyNow：与 notify 同一套构造口径（快照列同名、isRead 恒 0）")
+    void notifyNowWritesSameSnapshotColumns() {
+        NotificationCmd cmd = new NotificationCmd(1L, "反馈未采纳", "该问题已在下个版本修复");
+
+        service().notifyNow(cmd);
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationMapper).insert(captor.capture());
+        Notification saved = captor.getValue();
+        assertThat(saved.getUserId()).isEqualTo(1L);
+        assertThat(saved.getReplyTitle()).isEqualTo("反馈未采纳");
+        assertThat(saved.getReplyContent()).isEqualTo("该问题已在下个版本修复");
+        assertThat(saved.getIsRead()).isZero();
     }
 
     @Test

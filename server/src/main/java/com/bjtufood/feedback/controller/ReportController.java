@@ -6,7 +6,7 @@ import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
 import com.bjtufood.feedback.dto.ReportReq;
-import com.bjtufood.feedback.service.FeedbackService;
+import com.bjtufood.feedback.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,10 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 评价举报端点（RESTful 子资源：{@code POST /reviews/{id}/report}）。
  * <p>
- * <b>写入口拆分</b>：举报、意见反馈、菜品问题反馈三条链路各自独立——
- * 反馈 {@code POST /feedback}、纠错 {@code POST /dishes/{id}/correction}、
- * 举报 {@code POST /reviews/{id}/report}（本端点）；三者各为独立 DTO / 校验，
- * 但底层仍共用 {@code user_feedback} 表与处置 / 回执服务。
+ * <b>写入口各自独立</b>：反馈 {@code POST /feedback}、纠错 {@code POST /dishes/{id}/correction}、
+ * 举报 {@code POST /reviews/{id}/report}（本端点）；三者各为独立表、独立 DTO / 校验，
+ * 处置统一外置到 `moderation_task`。
  * <p>
  * 举报🔑 <b>需登录</b>（静默登录后恒有登录态，无需邮箱认证）；被举报对象由路径 {@code {id}} 表达（评价 ID）。
  */
@@ -34,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ReportController {
 
-    private final FeedbackService feedbackService;
+    private final ReportService reportService;
     private final IpRateLimiter ipRateLimiter;
 
     /** IP 限频：同 IP 每分钟 ≤2 条 */
@@ -43,10 +42,10 @@ public class ReportController {
     private static final IpRateLimiter.Rule RULE_PER_HOUR = new IpRateLimiter.Rule(10, 3_600_000L);
 
     @Operation(summary = "举报评价",
-            description = "🔑 需登录。对指定评价提交举报（结构化原因单选为准，文本可空）。"
-                    + "写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。"
+            description = "🔑 需登录。对指定评价提交举报（结论以结构化原因单选为准）。"
+                    + "写入 report（option_id=举报原因、review_id=路径 id），并在同一事务内预建处置任务行。"
                     + "同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。"
-                    + "测试示例：POST /reviews/3/report {\"reasonId\":1}")
+                    + "测试示例：POST /reviews/3/report {\"optionId\":1}")
     @PostMapping("/{id}/report")
     public Result<Void> report(
             @Parameter(description = "被举报的评价ID", example = "3")
@@ -63,7 +62,8 @@ public class ReportController {
         if (waitSeconds > 0) {
             throw BusinessException.tooManyRequests("提交过于频繁，请 " + waitSeconds + " 秒后再试");
         }
-        feedbackService.report(userId, id, req);
+        reportService.submit(userId, id, req);
         return Result.success();
     }
+
 }

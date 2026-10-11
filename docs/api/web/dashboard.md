@@ -22,9 +22,9 @@
 **① `todo`（待办）**
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `pendingFeedbackCount` | number | 待处理**意见反馈**数（`user_feedback`：非举报且 `status='pending'`） |
-| `pendingReportCount` | number | 待处理**举报**数（`type='report'` 且 `status='pending'`） |
-| `pendingCorrectionCount` | number | 待处理**问题反馈**数（`dish_correction`：`status='pending'`，含 `field` + `gone`） |
+| `pendingFeedbackCount` | number | 待处置**意见反馈**数（`moderation_task`：`type='feedback'` 且 `status='pending'`） |
+| `pendingReportCount` | number | 待处置**举报**数（`moderation_task`：`type='report'` 且 `status='pending'`） |
+| `pendingCorrectionCount` | number | 待处置**问题反馈**数（`moderation_task`：`type='correction'` 且 `status='pending'`，含 `field` + `gone`） |
 | `recent` | object[] | **最近 5 条待办**（跨三类合并，按提交时间倒序） |
 
 **`recent[]` 单项结构**
@@ -32,7 +32,7 @@
 |---|---|---|
 | `kind` | string | `feedback` / `report` / `correction`（决定跳转哪个处置页） |
 | `id` | number | 对应记录 ID（跳转定位） |
-| `title` | string | 摘要：反馈 = 正文摘要；举报 = 被举报评价摘要；菜品问题反馈 = 菜品名 + 改动项数 |
+| `title` | string | 摘要：反馈 = 正文摘要；举报 = 被举报评价摘要（**评价已删除时为固定文案**）；菜品问题反馈 = 菜品名 |
 | `submittedAt` | string | 提交时间（`yyyy-MM-dd HH:mm:ss`） |
 
 **② `health`（主数据健康度）** —— 只收**管理员当场能修**的项

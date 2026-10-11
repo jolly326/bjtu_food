@@ -1,41 +1,16 @@
 ﻿/**
  * 反馈 / 举报 / 菜品问题反馈写入契约（三条互不耦合的链路）。
  *
- * - **意见反馈**（`POST /feedback`）：3 类型（bug / suggestion / other）+ 描述 + 截图（≤3 张）
- * - **评价举报**（`POST /reviews/{id}/report`）：RESTful 子资源，举报对象（评价 ID）在路径中，`reasonId` 必选
+ * - **意见反馈**（`POST /feedback`）：类型 = `GET /feedback-options` 字典项（`optionId`）+ 描述 + 截图（≤3 张）
+ * - **评价举报**（`POST /reviews/{id}/report`）：RESTful 子资源，举报对象（评价 ID）在路径中，
+ *   原因 = `GET /report-options` 字典项（`optionId`，请求体仅此一项）
  * - **菜品问题反馈**（`POST /dishes/{id}/correction`）：**先选 `type`**；`field` 局部提交（只传改动项），
  *   描述属性经 `attributes`（键 = 维度 ID）；`gone` 一键提交（仅选填 `note` / `images`）
+ *
+ * 反馈与举报的请求体不再手写副本：直接镜像生成契约（`FeedbackReq` / `ReportReq`），
+ * 后端改字段即编译期报错。反馈类型 / 举报原因的选项文案由字典端点下发，端上零硬编码。
  */
-
-/**
- * 反馈类型三项。
- * - `value` **必须**落在服务端 `FeedbackConst.WRITABLE_TYPES` 内（非法值 400）
- * - `label` / `hint` / `placeholder` 为端上文案（当前不由服务端下发；将来若改由字典端点下发，
- *   只需替换本常量，渲染结构不变）
- */
-export const FEEDBACK_TYPES = [
-  {
-    value: 'bug',
-    label: '程序功能Bug',
-    hint: '页面、图片、评价等程序异常',
-    placeholder: '请描述bug现象、复现步骤',
-  },
-  {
-    value: 'suggestion',
-    label: '产品功能建议',
-    hint: '新功能、交互优化好点子',
-    placeholder: '描述你希望新增或改动的功能想法',
-  },
-  {
-    value: 'other',
-    label: '其他相关问题',
-    hint: '其余平台相关问题反馈',
-    placeholder: '描述你遇到的平台相关问题',
-  },
-] as const
-
-/** 反馈类型机器值（与后端写入值域同源） */
-export type FeedbackType = (typeof FEEDBACK_TYPES)[number]['value']
+import type { FeedbackReq, ReportReq } from '@/api/shared'
 
 /**
  * 菜品问题反馈类型（`dish_correction.type`；与后端 `CorrectionConst.QUERY_TYPES` 同源）
@@ -87,17 +62,8 @@ export interface DishCorrectionPayload {
   note?: string
 }
 
-/** 意见反馈提交（纯反馈三类型）；值域 = 服务端 `FeedbackConst.WRITABLE_TYPES`，非法 / 历史类型 400 */
-export interface FeedbackSubmit {
-  type: 'bug' | 'suggestion' | 'other'
-  /** 反馈内容（必填，端上 ≤600 字 / 服务端 ≤1000 字） */
-  content: string
-  /** 截图（COS URL，≤3 张 —— 与 `UGC_IMAGE_MAX` 同源） */
-  images?: string[]
-}
+/** 意见反馈提交：镜像生成契约 `FeedbackReq`（`optionId` 必填且须命中 `GET /feedback-options` 启用项） */
+export type FeedbackSubmit = FeedbackReq
 
-/** 评价举报请求体：举报对象在**路径**中；请求体无 `type` / `relatedType` / `relatedId` */
-export interface ReportPayload {
-  /** 举报原因 ID（必选，字典端点 `GET /report-reasons` 下发项的 `id`） */
-  reasonId: number
-}
+/** 评价举报请求体：镜像生成契约 `ReportReq`；举报对象在**路径**中，请求体仅携带原因字典项 ID */
+export type ReportPayload = ReportReq

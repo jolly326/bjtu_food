@@ -69,7 +69,7 @@
 | N→1 | `stall.id` | 所属档口（食堂经 stall 间接关联） | 无外键，`stall_id = 0` 为未归入档口 |
 | 1→n | `review.dish_id` | 该菜品的评价列表 | **ON DELETE CASCADE** —— 菜品删除时级联清理其评价（应用层 `ReviewDishCascadeListener` 先删，外键兜底） |
 
-> `dish_correction.dish_id` **不设外键**：菜品删除后反馈记录**有意保留**（它是「用户反馈过什么」的历史痕迹，非菜品附属数据）。
+> `correction.dish_id` **不设外键**：菜品删除后反馈记录**有意保留**（它是「用户反馈过什么」的历史痕迹，非菜品附属数据）。
 
 ## 不出参的内部列
 

@@ -115,7 +115,7 @@ class EntityTimeFieldContractTest {
         assertThat(offenders).as("时间列不得被无条件写入").isEmpty();
         assertThat(checked).as("未覆盖到任何时间属性（属性名口径失真）").isNotEmpty();
         // 至少覆盖到「同时含 createdAt + updatedAt」与「仅 updatedAt」两类表
-        assertThat(checked).contains("dish.createdAt", "canteen.updatedAt", "report_reason.updatedAt");
+        assertThat(checked).contains("dish.createdAt", "canteen.updatedAt", "report_option.updatedAt");
     }
 
     @Test

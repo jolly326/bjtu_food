@@ -9,6 +9,7 @@ import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.support.AdminJwtUtil;
 import com.bjtufood.auth.support.LoginAttemptGuard;
 import com.bjtufood.auth.support.PasswordPolicy;
+import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.common.alert.AlertType;
 import com.bjtufood.common.alert.SecurityAlertNotifier;
 import com.bjtufood.common.exception.BusinessException;
@@ -20,8 +21,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -238,24 +237,12 @@ public class AdminAuthController {
      * @throws UnauthorizedException 账号已删除 / 已停用 —— 按会话失效处理
      */
     private AdminAccount requireCurrentAccount() {
-        AdminAccount account = adminAccountService.findById(currentAccountId());
+        // 当前账号 ID 的唯一取数口径收敛在 auth.support（处置域同样消费它记录处置人）
+        AdminAccount account = adminAccountService.findById(SecurityUtil.getCurrentAdminId());
         if (account == null || !account.isActive()) {
             throw new UnauthorizedException("管理端登录已失效，请重新登录");
         }
         return account;
-    }
-
-    /**
-     * 取 {@code AdminAuthFilter} 放进 SecurityContext 的管理员账号 ID。
-     *
-     * @throws UnauthorizedException 取不到（过滤器未执行或上下文已被清理）—— 按会话失效处理
-     */
-    private Long currentAccountId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof Long accountId)) {
-            throw new UnauthorizedException("管理端登录已失效，请重新登录");
-        }
-        return accountId;
     }
 
     /**

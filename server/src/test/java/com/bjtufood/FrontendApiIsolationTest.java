@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 与学生端 JWT 体系互不通。
  * <p>
  * <b>允许共享什么</b>：<b>非敏感的公开只读字典/枚举端点</b>（如 {@code GET /dishes/views}、
- * {@code GET /report-reasons}）——它们在 {@code SecurityConfig} 内是 {@code permitAll}，
+ * {@code GET /feedback-options} / {@code GET /report-options}）——它们在 {@code SecurityConfig} 内是 {@code permitAll}，
  * 数据本身公开，两端复用不产生安全暴露，也避免为 web 复制一份冗余出口。
  * <p>
  * <b>护栏规则</b>：
@@ -122,35 +122,15 @@ class FrontendApiIsolationTest {
     /**
      * 学生端<b>公开只读</b>路径前缀（permitAll，非敏感字典/枚举）——web 允许复用。
      * <p>
-     * 随 {@code GET /report-reasons} 迁址同步：原 {@code /feedback/} 条目存在的理由是
-     * 让 web 复用「举报原因字典」，字典迁出后 web 已无该前缀的消费方；且反馈<b>写</b>入口本就不该
-     * 被 web 复用（管理端走 {@code /admin/feedbacks}），故换为字典的新路径。
+     * 分类字典（反馈类型 / 举报原因）两条公开路径在列：它们是端上表单与弹层的单选项来源，
+     * 非敏感枚举，两端复用不产生安全暴露（管理端维护入口另在 {@code /admin/*-options}）。
      */
     private static final List<String> PUBLIC_READONLY_PREFIXES = List.of(
             "/dishes/",           // 菜品浏览 + 字典（views / attributes）
-            "/report-reasons",    // 举报原因字典（PUB；2026-09-30 自 /feedback/report-reasons 迁出）
+            "/feedback-options",  // 反馈类型字典（PUB）
+            "/report-options",    // 举报原因字典（PUB）
             "/banners/",          // 轮播
             "/images/");          // 静态图片
-
-    /**
-     * <b>已知缺口（临时白名单 —— 后端补齐后必须逐条清空）</b>。
-     * <p>
-     * 管理后台（web）已按 {@code docs/api/web/*} 的<b>新契约</b>完成完全重写，
-     * 但对应的<b>后端 admin API 尚未实现</b>，这些端点当前请求恒 404。
-     * 为让「web 调用的路径必须在后端存在」这条护栏在<b>后端落地前</b>仍能拦住
-     * 已有端点的误拼写 / 误路径，此处显式登记尚未实现的端点，<b>仅</b>从
-     * {@link #web_calledPathsExistInBackend()} 的 missing 集合中剔除。
-     * <p>
-     * <b>后端逐一补齐后，必须从此表删除对应项；表清空即护栏恢复全量严格。</b>
-     * 归属：web 重写（用户拍板「完全重写」）领先后端；待后端按
-     * {@code docs/api/web/*} 实现 admin API。
-     */
-    // ✅ 2026-10-03 起本表**恒空**（不再有豁免）：
-    //    A4/A5/A6/A7/D1 与后台管理端全部端点均已落地；B4 的 `GET /admin/corrections/{id}`
-    //    （曾因「只比路径、丢弃方法」被假绿掩盖的缺口）也已补齐。
-    //    ⇒ 「web 调用的**方法 + 路径**必须在后端存在」由下面两个用例共同守住（路径 + 方法双维）。
-    //    后续若临时引入待实现端点，必须在此登记，并在后端补齐后**立即删除**（保持本表恒空）。
-    private static final Set<String> PENDING_BACKEND_ADMIN_PATHS = Set.of();
 
     @Test
     @DisplayName("web 禁调需鉴权的学生端路径（web 无 JWT，且多为用户私有数据）")
@@ -208,8 +188,6 @@ class FrontendApiIsolationTest {
         Map<String, List<String>> web = collect("web/src/api");
 
         List<String> missing = web.entrySet().stream()
-                // 已知缺口：web 已按新契约重写、后端 admin API 尚未实现（临时白名单，后端补齐后必须清空）
-                .filter(e -> !PENDING_BACKEND_ADMIN_PATHS.contains(e.getKey()))
                 .filter(e -> !matchesAnyBackendPath(e.getKey(), backend))
                 .map(e -> e.getKey() + "  <- " + String.join(", ", e.getValue()))
                 .toList();
@@ -367,7 +345,6 @@ class FrontendApiIsolationTest {
         Set<String> webCalls = collectWebEndpoints("web/src/api");
 
         List<String> missing = webCalls.stream()
-                .filter(e -> !PENDING_BACKEND_ADMIN_PATHS.contains(e.substring(e.indexOf(' ') + 1)))
                 .filter(e -> !matchesAnyBackendEndpoint(e, backend))
                 .toList();
 

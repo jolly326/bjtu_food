@@ -1,7 +1,7 @@
 /**
- * UGC 内容审核模块（package {@code com.bjtufood.moderation}）。
+ * UGC 治理模块（package {@code com.bjtufood.moderation}）：内容审核 + 管理端处置状态机。
  * <p>
- * <b>职责</b>：微信 msgSecCheck v2 与 imgSecCheck 权威判定（<b>主防线</b>），
+ * <b>职责一 · 内容审核</b>：微信 msgSecCheck v2 与 imgSecCheck 权威判定（<b>主防线</b>），
  * 加本地 DFA 敏感词兜底。
  * <p>
  * <b>两者的分工</b>：微信机审是主防线，已覆盖全部四条 UGC 写链路的文本
@@ -17,9 +17,16 @@
  * <b>故本地词库不是冗余副本，而是微信链路的必要补丁</b>——其词库文件缺失/为空时
  * {@code init()} 会 fail-fast 拒绝启动，避免兜底在无感知中失效。
  * <p>
- * <b>依赖方向</b>：common、wechat（端点常量与凭据）
+ * <b>职责二 · 管理端处置状态机</b>：{@code moderation_task} 承载三类用户提交
+ * （意见反馈 / 评价举报 / 菜品问题反馈）的「处置状态 + 处置结论 + 处置文案 + 处置人」，
+ * 提交时由工单属主域在<b>同一事务</b>内预建 {@code status=pending} 行，
+ * 处置时更新该行并投递站内回执快照（{@code ModerationTaskService}）。
+ * 看板待处置数 = 本表单表 {@code COUNT}，故三类工单的「待办」判据天然一致。
  * <p>
- * <b>对外契约</b>：ContentSecurityService（只管是否违规）、LocalSensitiveFilter（本地词库过滤）
+ * <b>依赖方向</b>：common、wechat（端点常量与凭据）、auth（处置人登录名投影）、notification（回执投递）
+ * <p>
+ * <b>对外契约</b>：ContentSecurityService（只管是否违规）、LocalSensitiveFilter（本地词库过滤）、
+ * ModerationTaskService（处置状态机读写）、ModerationTaskFilters（按处置状态 / 处置文案筛选工单的条件片段）
  * <p>
  * <b>领域事件</b>：无
  * <p>

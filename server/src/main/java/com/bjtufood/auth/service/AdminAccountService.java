@@ -2,6 +2,9 @@ package com.bjtufood.auth.service;
 
 import com.bjtufood.auth.entity.AdminAccount;
 
+import java.util.Collection;
+import java.util.Map;
+
 /**
  * 管理员账号服务（TD-19）。
  *
@@ -36,4 +39,12 @@ public interface AdminAccountService {
 
     /** 改密：写新哈希、记录改密时刻并自增凭证版本（既有 token 因此全部失效）。 */
     void updatePassword(Long accountId, String passwordHash);
+
+    /**
+     * 批量取登录名（管理端列表补齐「处置人」用，一次 IN 查询消除 N+1）。
+     *
+     * @param accountIds 账号 ID 集合（null / 空集合返回空 Map，不发起查询）
+     * @return accountId → username 映射（账号已删除的 ID 不入图）
+     */
+    Map<Long, String> mapUsernameByIds(Collection<Long> accountIds);
 }

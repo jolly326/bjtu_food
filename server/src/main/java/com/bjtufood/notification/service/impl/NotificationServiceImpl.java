@@ -66,16 +66,40 @@ public class NotificationServiceImpl implements NotificationService {
     @Async("taskExecutor")
     @Transactional(rollbackFor = Exception.class)
     public void notify(NotificationCmd cmd) {
-        // 实体只在 notify 内部构造：isRead 恒 0（未读），投递方不再触达实体（P0-1 跨域契约收敛）
+        insert(cmd);
+    }
+
+    /**
+     * 写入一条通知（**同步**，并入调用方事务）。
+     * <p>
+     * 与 {@link #notify} 的差别只在事务语义：本方法**不加 {@code @Async}**，
+     * 走默认 {@code REQUIRED} 传播 ⇒ 并入调用方事务（如处置任务的
+     * {@code ModerationTaskServiceImpl#handle}），使「任务行归档 + 回执落库」同生共死。
+     * <p>
+     * 不加 {@code REQUIRES_NEW}：那会挂起调用方事务另开一条连接，使单请求峰值占用 2 条连接
+     * （池上限 20），并发写叠加即成倍放大连接需求（同 {@link #notify} 的 D2 结论）。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void notifyNow(NotificationCmd cmd) {
+        insert(cmd);
+    }
+
+    /**
+     * 落库一条通知（两入口共用）：实体只在这里构造，{@code isRead} 恒 0（未读）。
+     * <p>
+     * 写入失败一律就地记 error 后抛出：{@link #notify} 为 {@code @Async}，异常不回传调用方，
+     * 日志是唯一可观测手段；{@link #notifyNow} 在调用方事务内，抛出后由调用方一并回滚。
+     */
+    private void insert(NotificationCmd cmd) {
         Notification notification = new Notification();
         notification.setUserId(cmd.getUserId());
         notification.setIsRead(0);
-        notification.setTitle(cmd.getTitle());
-        notification.setContent(cmd.getContent());
+        notification.setReplyTitle(cmd.getReplyTitle());
+        notification.setReplyContent(cmd.getReplyContent());
         try {
             notificationMapper.insert(notification);
         } catch (Exception e) {
-            // 异步线程内异常不会传播到调用方，必须就地记日志，否则写入失败将完全静默
             log.error("通知写入失败（userId={}）", cmd.getUserId(), e);
             throw e;
         }
@@ -136,8 +160,8 @@ public class NotificationServiceImpl implements NotificationService {
     private NotificationVO toVO(Notification n) {
         NotificationVO vo = new NotificationVO();
         vo.setId(n.getId());
-        vo.setTitle(n.getTitle());
-        vo.setContent(n.getContent());
+        vo.setReplyTitle(n.getReplyTitle());
+        vo.setReplyContent(n.getReplyContent());
         // 存储 0/1 → 契约布尔（列不变，仅在 API 边界转换）
         vo.setIsRead(n.getIsRead() != null && n.getIsRead() == 1);
         vo.setCreatedAt(n.getCreatedAt());

@@ -29,6 +29,23 @@ public interface NotificationService {
     void notify(NotificationCmd cmd);
 
     /**
+     * 写入一条通知（**同步**，并入调用方事务）。
+     * <p>
+     * 与 {@link #notify} 的分工是<b>事务语义</b>而非文案：
+     * <ul>
+     *   <li>{@code notify}（{@code @Async} 新事务）：投递失败不阻塞业务主流程 —— 适用于
+     *       「通知是副产物」的场景（如管理员隐藏评价后的告知）；</li>
+     *   <li>{@code notifyNow}（同步、并入调用方事务）：通知与业务写动作**同生共死** ——
+     *       适用于「通知承载处置结论本身」的场景（三类工单的处置回执是任务行文案的快照，
+     *       出现「任务已归档、用户收不到回执」即为状态分叉，故必须同事务）。</li>
+     * </ul>
+     * 调用方须处于事务中（否则退化为单条 INSERT 的独立事务，快照一致性由调用方负责）。
+     *
+     * @param cmd 通知入参
+     */
+    void notifyNow(NotificationCmd cmd);
+
+    /**
      * 我的通知列表：按创建时间倒序，可选 isRead 过滤，分页归一化
      *
      * @param userId   接收用户ID（SecurityUtil 取当前用户，不信任前端）

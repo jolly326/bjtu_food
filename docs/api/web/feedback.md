@@ -1,90 +1,76 @@
-# web/feedback — 意见反馈与举报处置
+# web/feedback — 意见反馈管理
 
 **归属**：`FeedbackAdminController`
 **通用约定**见 [api/README.md](../README.md)
 **鉴权**：全部端点需管理端 JWT（见 [web/auth.md](./auth.md)）｜ 缺 / 失效 `401`
 
-> `user_feedback` **一表两用**：**意见反馈**（非举报）与**举报**（`type='report'`）**同表、同端点**，按 `category` 分流列表。两类数据的处理流程完全相同（提交 → 管理员处理 → 回执）。
+> 处理学生提交的**意见反馈**（独立资源 `feedback`）。举报是独立资源，见 [web/reports.md](./reports.md)。
+> 表格本身**只存提交事实**：处置状态与处置文案挂靠 [`moderation_task`](../../schema/moderation_task.md)，列表按类型 / 状态 / 提交人 / 关键词筛选。
 
 ---
 
 ## GET /admin/feedbacks
 
-**用途**：反馈 / 举报列表（分页）
+**用途**：反馈列表（分页）
 
 ### 请求参数
 | 名称 | 类型 | 必填 | 默认 | 说明 |
 |---|---|---|---|---|
-| `page` | number | 否 | 1 | 页码 |
-| `pageSize` | number | 否 | 20 | 每页条数；上限 **50** |
-| `category` | string | 否 | — | **列表分流**：`feedback` = 所有非举报 / `report` = 只举报；**不传 = 全部**（全局检索） |
-| `status` | string | 否 | — | `pending` 待处理 / `handled` 已处理；**不传 = 全部** |
-| `type` | string | 否 | — | 页面内类型下拉 = 写入白名单 `bug` / `suggestion` / `other`（`report` 行由 `category=report` 承载，不作筛选值）；服务端查询白名单另含历史类型 `issue` / `add` / `error`（存量已清零，见 [schema/user_feedback.md](../../schema/user_feedback.md)「存量口径」）；非法值 `400` |
-| `userId` | number | 否 | — | 按提交人筛选 |
-| `keyword` | string | 否 | — | 关键词（**对反馈正文 或 管理员回复**模糊匹配） |
+| `page` / `pageSize` | number | 否 | 1 / 20 | 页码 / 每页条数（上限 **50**） |
+| `status` | string | 否 | — | `pending` 待处置 / `handled` 已处置；**不传 = 全部**；非法值 `400` |
+| `optionId` | number | 否 | — | 按反馈类型（`feedback_option` 字典项）筛选 |
+| `userId` | number | 否 | — | 按提交人筛选（用户行为聚合用） |
+| `keyword` | string | 否 | — | 关键词（**对反馈正文 或 处置文案**模糊匹配） |
 
 **排序**：`createdAt DESC`。
 
-> **`category` 而不是枚举 `type`**：`feedback` 用一句话表达「非举报」，历史与将来新增的类型自动包含。**举报页固定传 `category=report`**（`type` 恒为 `report`，无需类型下拉）。
+> `status` **以处置任务表为判据**（`moderation_task` 的 `type='feedback'` 行 + `status`）；`keyword` 的「处置文案」分支同样查任务表。
+> **无板块分流参数** —— 举报独立成表、独立端点，本列表只有单一资源。
 
 ### 响应 `data` = `AdminPageResult<FeedbackAdminVO>`
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `id` | number | 反馈 ID |
-| `userId` | number | 提交人 ID（恒为真实用户 ID —— 列带外键 `fk_feedback_user → user(id)`） |
+| `userId` | number | 提交人 ID（**恒为真实用户 ID** —— 列带外键 `fk_feedback_user → user(id)`） |
 | `userName` | string | 提交人昵称（联表带出；注销账号显示「已注销用户」） |
-| `type` | string | 反馈类型（`bug` / `suggestion` / `other` / `report`；服务端另容忍历史类型 `issue` / `add` / `error` 的存量行） |
-| `sub` | string | 二级分类；仅历史 `suggestion` 存量可能为 `idea` / `problem`；其余行为空 |
+| `optionId` | number | 反馈类型 ID（`feedback_option` 字典项） |
+| `optionName` | string | 反馈类型中文名（由 `feedback_option` 字典实时翻译，**停用类型仍可译出**） |
 | `content` | string | 反馈正文（空串兜底） |
 | `images` | string[] | 配图**绝对 URL** 数组（≤3 张；恒为数组） |
-| `relatedType` | string \| null | 关联类型：举报为 `review`；信息纠错为 `dish`；其余为 `null` |
-| `relatedId` | number \| null | 关联对象 ID（举报：评价 ID）；其余为 `null` |
 | `status` | string | `pending` / `handled` |
-| `outcome` | string \| null | 处理结论：`handled` / `rejected`；**`pending` 为 `null`**（由 `status` + `rejectReason` 派生，无物理列） |
-| `reply` | string | 管理员回复（可为空串） |
-| `rejectReason` | string | 不采纳原因（`rejected` 时非空） |
+| `outcome` | string \| null | 处置结论：`handled` 通过 / `rejected` 不采纳；**未处置为 `null`** |
+| `replyTitle` | string \| null | 处置回执短标题（未处置为 `null`） |
+| `replyContent` | string \| null | 处置文案 / 不采纳原因（未处置为 `null`；单一列） |
+| `handledByName` | string \| null | 处置人登录名（未处置 / 账号已删除为 `null`） |
 | `createdAt` | string | 提交时间（`yyyy-MM-dd HH:mm:ss`） |
-| `handledAt` | string | 处理时间（未处理为空串） |
-| `updatedAt` | string | 最近更新时间 |
+| `handledAt` | string \| null | 处置时间（未处置为 `null`） |
 
-**举报行私有字段**（`type='report'` 时填充；与主表字段同为扁平结构，非举报行为 `null`）：
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `subReasonId` | number | **举报原因 ID**（`report_reason.id`） |
-| `reasonName` | string | 举报原因中文名（由 `report_reason` 字典实时翻译，停用原因仍可译出） |
-| `reviewId` | number | 被举报评价 ID（= `relatedId`） |
-| `reviewContent` | string | 被举报评价正文**摘要**（截断，完整内容去评价管理看；评价已删除为 `null`） |
-| `reviewDishName` | string | 被举报评价所属菜品名（联表带出；评价已删除为 `null`） |
-| `reviewHidden` | boolean | 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰） |
+> 列表的处置字段来自处置任务表：**任务行缺失时保持 `null`**，不伪造成「未处置」。
 
 ---
 
 ## PUT /admin/feedbacks/{id}
 
-**用途**：**处置**（**通过 / 不采纳**；举报可联动隐藏被举报评价）
+**用途**：**处置**（通过 / 不采纳）
 
 ### 路径参数
 | 名称 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `id` | number | 是 | 反馈 / 举报记录 ID |
+| `id` | number | 是 | 反馈 ID |
 
-### 请求体 `FeedbackHandleReq`
+### 请求体 `ModerationHandleReq`
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| `outcome` | string | 否 | `handled` 通过 / 已处理（**缺省**）｜ `rejected` 不采纳 / 退回 |
-| `reply` | string | 条件 | 处理回复（**≤600 字**）。`handled` 时**可选**（缺省回执用固定文案）；`rejected` 时作为**「处理说明」**随回执下发 |
-| `rejectReason` | string | 条件 | 不采纳原因（≤200 字）；**`outcome=rejected` 时必填**，纯空白 → `400` |
-| `hideReview` | boolean | 否 | **是否联动隐藏被举报评价**（缺省 `false`）。仅 `category/type = report` 且 `relatedType='review'` 时消费；**受理举报通常应传 `true`** |
-
-**联动口径**：
-- `handled` + `hideReview=true` → 隐藏被举报评价（幂等：评价已隐藏 / 已删除时**静默成功**）；
-- `handled` + `hideReview=false` → 只记录「已受理」，不动评价；
-- `rejected` → `hideReview` **不消费**，`rejectReason` **必填**。
+| `replyTitle` | string | 否 | 回执短标题（**≤40 字**）；留空按（类型 + 结论）用缺省文案 |
+| `replyContent` | string | 条件 | 处置文案（**≤600 字**）。`outcome=handled` 时可空（缺省文案）；**`outcome=rejected` 时必填** —— 即为**不采纳原因**，纯空白 → `400` |
+| `outcome` | string | 否 | `handled` 通过 / 已处理（**缺省**）｜ `rejected` 不采纳 / 退回；非法值 → `400` |
 
 ### 响应 `data`
 `null`。
 
-> **已处理（`status != 'pending'`）再处理 → `400`「该记录已处理」**（防结论被静默改写 + 回执重复投递）。
+**处置动作**（同一事务）：更新 `moderation_task` 行（`status='handled'` / `outcome` / `reply_title` / `reply_content` / `handled_by` / `handled_at`）+ 投递站内回执（`reply_title` / `reply_content` 快照）。
+
+> **已处置再处理 → `400`「该记录已处理」**（防结论被静默改写 + 回执重复投递）。
 
 ---
 
@@ -92,15 +78,12 @@
 
 | code | 条件 |
 |---|---|
-| `400` | `outcome` 非法；`handled` 时 `reply` 超长；**`rejected` 时 `rejectReason` 缺失 / 纯空白 / 超长**；`type` / `status` 非法值；`hideReview` 取值非布尔；**已处理再处理** |
-| `4001` | 记录不存在 |
+| `400` | `outcome` 非法；**`rejected` 时 `replyContent` 缺失 / 纯空白**；`replyTitle` >40 字；`replyContent` >600 字；`status` 非法值；**已处置再处理** |
+| `4001` | 反馈不存在 |
 | `401` | 未带 / token 失效 |
 
-> **举报特有**：`hideReview=true` 但被举报评价已不存在 → **静默成功，不报错**（目标已达成）。
-
 ### 备注
-- **合表理由**：两类数据流程完全相同，拆表 / 拆端点会把整套逻辑复制一份；**分流只发生在列表参数**（`category`），处理逻辑完全复用。
-- **`outcome` 不落物理列**：由 `status` + `reject_reason` 派生（`rejected ⇒ reject_reason 非空`；`handled ⇒ reject_reason 为 NULL`）。
-- **回执按 `type` 分流文案**：举报人收到「举报已受理 / 不予处理」、反馈人收到「反馈已处理 / 未采纳」；受理且顺带隐藏了评价时正文写明「已隐藏该评价」。投递判据 = `user_id` 有效（提交恒带登录态 ⇒ **恒投递**），失败不阻塞处置。
-- **联动隐藏是「一次性动作」而非状态**：恢复显示走 [web/reviews.md](./reviews.md) 的「恢复显示」。
+- **`outcome` 是任务表的物理列**（`status='handled'` 时必填）—— 「通过 / 不采纳」不靠文案推断。
+- **文案只有一列**：不采纳原因并入 `replyContent`，无独立的「拒绝理由」字段。
+- **回执文案按结论分流**：通过 → 「反馈已处理」，不采纳 → 「反馈未采纳」（正文即管理员填写的处置文案 / 不采纳原因）。投递判据 = 提交人 `userId` 有效（提交恒带登录态 ⇒ **恒投递**），投递与处置同事务。
 - **不做批量处置**（一期不做，留作演进）。

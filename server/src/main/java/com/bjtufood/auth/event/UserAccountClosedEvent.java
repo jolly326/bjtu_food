@@ -8,7 +8,7 @@ package com.bjtufood.auth.event;
  * 订阅方：{@code notify.event.NotificationAccountCleanListener} —— 硬删该用户全部站内消息。
  * <p>
  * <b>唯一订阅方的原因是口径本身如此</b>：注销对业务内容的处理是「保留 + 匿名化展示」——
- * review / user_feedback 的行与 {@code user_id} 一律不动（正文有内容价值），展示昵称由
+ * review 与三类用户提交（feedback / report / correction）的行与 {@code user_id} 一律不动（正文有内容价值），展示昵称由
  * join user 实时取「已注销用户」（user 行软删：{@code status='deleted'}、昵称改写、身份列置 NULL）。
  * 只有 notification 属「账号维度的过程性数据、注销后无任何读取方」，才随注销物理删除。
  * <p>

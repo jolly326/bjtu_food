@@ -37,7 +37,7 @@ import java.nio.charset.StandardCharsets;
  * - 认证类：POST /auth/wechat-login（微信静默登录）、POST /auth/email-code（发验证码）、POST /auth/verify-email（邮箱认证）
  * - 管理端：仅 POST /admin/auth/login 公开（否则登录请求自身被拦、必 401）；其余 /admin/** 由 AdminAuthFilter 校验管理端 JWT
  * - 只读浏览：GET /dishes/**（列表 / 详情 / 筛选视图 / 属性 / 猜你喜欢 / 评价列表）、GET /banners（首页轮播）
- * - 只读字典：GET /report-reasons（举报原因枚举）
+ * - 只读字典：GET /feedback-options（反馈类型枚举）、GET /report-options（举报原因枚举）
  * <p>
  * 🔴 <b>用户写入口（意见反馈 / 举报评价 / 菜品问题反馈）一律需登录</b>：UGC 写请求必须可绑定账号 ——
  * 否则匿名脚本可无 token 直接灌库，且既无法归因、也无法按账号维度限频（只能按 IP，换 IP 即绕过）。
@@ -83,8 +83,9 @@ public class SecurityConfig {
             "/auth/wechat-login",
             "/auth/email-code",
             "/auth/verify-email",
-            // 举报原因字典（PUB：只读枚举，端上举报弹层实时拉取）
-            "/report-reasons",
+            // 分类字典（PUB：只读枚举，端上反馈页 / 举报弹层实时拉取）
+            "/feedback-options",
+            "/report-options",
             // 管理端账密登录（TD-19）：🔴 **必须在白名单内** —— 否则登录请求自身先被鉴权拦，
             //    表现为「登录永远 401」，功能完全不可用。/admin/auth/me 与其余 /admin/** 需 token。
             "/admin/auth/login",

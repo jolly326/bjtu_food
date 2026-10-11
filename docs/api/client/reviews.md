@@ -1,6 +1,6 @@
 # client/reviews — 评价操作与举报
 
-**归属**：`ReviewController`（删除）· `ReportController`（举报）· `FeedbackController`（举报原因字典）
+**归属**：`ReviewController`（删除）· `ReportController`（举报）· `OptionDictionaryController`（举报原因字典）
 **通用约定**见 [api/README.md](../README.md)
 
 > 评价**列表**与**提交**端点在 [dishes.md](./dishes.md#post-dishesidreviews)；本文只覆盖「按评价 ID 操作」的部分。
@@ -32,26 +32,27 @@
 |---|---|---|
 | `review` | 物理删除该行 | 事务内 |
 | `dish.avg_rating` / `rating_count` | 重算 | **异步 AFTER_COMMIT** |
+| `report.review_id` | **置 `NULL`**（外键 `ON DELETE SET NULL`） | 事务内 —— 该评价的举报行**保留**，举报人 / 原因 / 处置状态完整，管理端显示「被举报评价已删除」 |
 
 > 该菜品的评分与评价数随之重算，**不影响他人评价**。二次确认由端上承担（破坏性操作必备）。
 
 ---
 
-## GET /report-reasons
+## GET /report-options
 
 **鉴权**：🔓 公开 ｜ **用途**：举报原因字典
 
 ### 请求参数
 无。
 
-### 响应 `data` = `ReportReason[]`
+### 响应 `data` = `OptionVO[]`
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
-| `id` | number | 否 | 原因 ID（提交举报时作为 `reasonId` 上送） |
+| `id` | number | 否 | 原因 ID（提交举报时作为 `optionId` 上送） |
 | `name` | string | 否 | 中文名（弹层直接渲染） |
 
 > **恰好 2 个字段**，按 **`id` 升序**下发（**仅启用项**），端上**零硬编码**、不排序（展示顺序即数组顺序）。
-> 值域由 `report_reason` 字典驱动（管理端 [A7](../../func/web/A-主数据维护/A7-举报原因管理.md) 维护，新增原因免发版；种子见 [schema/report_reason.md](../../schema/report_reason.md)）。
+> 值域由 `report_option` 字典驱动（管理端 [web/report-options.md](../web/report-options.md) 维护，新增原因免发版；种子见 [schema/report_option.md](../../schema/report_option.md)）。
 
 ---
 
@@ -67,12 +68,9 @@
 ### 请求体 `ReportReq`
 | 字段 | 类型 | 必填 | 约束 |
 |---|---|---|---|
-| `reasonId` | number | **是** | 原因 ID；值域 = `GET /report-reasons` 下发项的 `id`，非法 / 缺失 → 400 |
-| `content` | string | 否 | **可空** —— 结论以结构化原因为准，文本仅作补充；≤1000 字，仍过内容安检 |
-| `images` | string[] | 否 | 佐证配图，≤3 张；须为经 `POST /upload/cloud-image` 转存的 COS 地址 |
+| `optionId` | number | **是** | 举报原因 ID；值域 = `GET /report-options` 下发项的 `id`，非法 / 缺少 / 已停用 → 400 |
 
-> 请求体**无 `type`、无关联对象字段** —— 被举报对象由路径 `{id}` 表达，类型固定为「评价举报」。
-> **不要求填写文本**：举报结论以结构化原因为准，管理员据此直接处置。
+> 请求体**只有原因一项** —— 被举报对象由路径 `{id}` 表达；举报**不带补充说明与配图**（需要补充说明的场景走 [feedback.md](./feedback.md)）。
 
 ### 响应 `data`
 `null`（成功即 `code=200`）
@@ -81,20 +79,23 @@
 | code | 条件 |
 |---|---|
 | **4001** | 被举报的评价不存在（含已隐藏 / 已删除） |
-| 400 | `reasonId` 缺失或非法（非启用项） / 重复举报 / 超频 / 补充文本安检 `risky` |
+| 400 | `optionId` 缺失或非法（非启用项） / **重复举报** |
+| **429** | 限频（同 IP 或同账号超限） |
 
-### 限频（同 IP）
+### 限频（同 IP 与同账号**双维度**，任一超限即拒）
 | 维度 | 阈值 |
 |---|---|
 | 每分钟 | ≤2 条 |
 | 每小时 | ≤10 条 |
 
-> 超限返回 400，`message` 含剩余等待秒数。
+> 超限返回 **429**，`message` 含剩余等待秒数（端上据此退避倒计时）。
 
 ### 副作用
 | 目标 | 变化 |
 |---|---|
-| `user_feedback` | INSERT（`type='report'`、`sub_reason_id=reasonId`、`related_type='review'`、`related_id={id}`、`status='pending'`；`user_id` = 提交人（**恒为真实用户 ID**，本端点需登录）） |
-| `notification` | 管理员处理后异步 INSERT 回执 |
+| `report` | INSERT（`user_id` = 举报人（**恒为真实用户 ID**，本端点需登录）、`review_id` = 路径 `{id}`、`option_id` = `optionId`） |
+| `moderation_task` | **同一事务**预建一行（`type='report'`、`status='pending'`） |
+| `notification` | 管理员处置后投递回执（投递与处置同一事务） |
 
 > **回执恒可达**：`user_id` 恒为登录用户，处理完成后必投递站内回执（不依赖邮箱认证级）。
+> **去重**：同一用户对同一评价重复举报不新增记录（服务端查重后 `400`）。

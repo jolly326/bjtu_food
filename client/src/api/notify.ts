@@ -11,14 +11,16 @@ import {
 } from './shared'
 
 /**
- * 通知行（`NotificationVO`，5 字段：id / title / content / isRead / createdAt）。
+ * 通知行（`NotificationVO`，5 字段：id / replyTitle / replyContent / isRead / createdAt）。
  * 契约不含 `type` / `relatedId` —— 通知卡只渲染「标题 + 正文 + 时间 + 未读态」，**从不按类型分支**；
  * 将来要做「按类型跳转」须先由 UI 文档定义交互，再扩字段。
  */
 export interface Notification {
   id: number
-  title: string
-  content: string
+  /** 处置回执短标题 */
+  replyTitle: string
+  /** 处置文案 / 回执正文 */
+  replyContent: string
   /** 是否已读：`true`=已读 / `false`=未读（**布尔契约**；由 0/1 数字改） */
   isRead: boolean
   createdAt?: string
@@ -29,8 +31,8 @@ function toNotification(raw: NotificationVO): Notification | null {
   if (!raw) return null
   return {
     id: Number(raw.id),
-    title: raw.title || '',
-    content: raw.content || '',
+    replyTitle: raw.replyTitle || '',
+    replyContent: raw.replyContent || '',
     // 契约已是布尔；保留 0/1 兼容（历史数据），不改变已读判定语义
     isRead: raw.isRead === true || (raw.isRead as unknown) === 1,
     createdAt: raw.createdAt,

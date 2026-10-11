@@ -29,8 +29,11 @@ export const CODE_UNAUTHORIZED = 401
 // ===== 通用状态枚举（文案以 设计变量.md 的「状态文案总表」为准） =====
 export type OnOffStatus = 'on' | 'off'
 export type UserStatus = 'active' | 'disabled' | 'deleted'
-export type FeedbackStatus = 'pending' | 'handled'
-export type CorrectionStatus = 'pending' | 'adopted' | 'rejected'
+/**
+ * 菜品问题反馈处置状态（以处置任务表 `moderation_task` 为判据，不由工单表自身列表达）。
+ * **已处置的两种结论由 `outcome` 区分**（采纳或已下架 / 不采纳）。
+ */
+export type CorrectionStatus = 'pending' | 'handled'
 
 /**
  * 菜品问题反馈类型（`dish_correction.type`）
@@ -304,15 +307,134 @@ export interface DishCategoryAdminVO {
   updatedAt: string
 }
 
-// ===== A7 举报原因 =====
-export interface ReportReasonAdminVO {
-  /** 原因 ID（落库列 = `user_feedback.sub_reason_id`） */
+// ===== 工单字典（举报原因 / 反馈类型，两族同形：见 web/report-options.md 与 web/feedback-options.md） =====
+
+/**
+ * 字典项出参（`OptionAdminVO`，举报原因与反馈类型共用形状）。
+ *
+ * <p>**数据锚在 ID**：ID 由后端生成、历史工单按它落库；`name` 只是展示文案。
+ * 列表按 `id` 升序（字典不设排序位），**含已停用**项。
+ */
+export interface OptionAdminVO {
+  /** 字典项 ID（客户端提交字段名 = `optionId`） */
   id: number
+  /** 中文名（端上直接渲染） */
   name: string
   status: OnOffStatus
-  /** 被举报记录引用次数（`type='report'` 且 `sub_reason_id = id`）—— 删除前判断 */
-  feedbackCount: number
+  /** 被同族工单记录引用次数（举报原因 = `report.option_id`；反馈类型 = `feedback.option_id`） */
+  usageCount: number
   updatedAt: string
+}
+
+/** 字典项新增入参（`OptionSaveReq`：只填 `name`，ID 由后端生成；默认启用、排在末尾） */
+export interface OptionSaveReq {
+  /** 中文名（1~32 字） */
+  name: string
+}
+
+// ===== B2 意见反馈 =====
+
+/** 工单处置状态（以处置任务表 `moderation_task` 为判据，不由工单表自身列表达） */
+export type ModerationStatus = 'pending' | 'handled'
+
+/** 工单处置结论（`outcome` 是任务表物理列；未处置为 `null`） */
+export type ModerationOutcome = 'handled' | 'rejected'
+
+export interface FeedbackAdminVO {
+  id: number
+  /** 提交人 ID（**恒为真实用户 ID** —— 列带外键） */
+  userId: number
+  /** 提交人昵称（联表带出；注销账号显示「已注销用户」） */
+  userName: string
+  /** 反馈类型 ID（`feedback_option` 字典项） */
+  optionId: number
+  /** 反馈类型中文名（由字典实时翻译，停用类型仍可译出） */
+  optionName: string
+  /** 反馈正文（空串兜底） */
+  content: string
+  /** 配图绝对 URL 数组（≤3 张；恒为数组） */
+  images: string[]
+  status: ModerationStatus
+  outcome: ModerationOutcome | null
+  /** 处置回执短标题（未处置为 `null`） */
+  replyTitle: string | null
+  /** 处置文案 / 不采纳原因（未处置为 `null`；**单一列**，无独立「拒绝理由」字段） */
+  replyContent: string | null
+  /** 处置人登录名（未处置 / 账号已删除为 `null`） */
+  handledByName: string | null
+  createdAt: string
+  handledAt: string | null
+}
+
+export interface FeedbackListParams {
+  page?: number
+  pageSize?: number
+  /** `pending` 待处置 / `handled` 已处置；不传 = 全部 */
+  status?: ModerationStatus | ''
+  /** 按反馈类型（`feedback_option` 字典项）筛选 */
+  optionId?: number
+  /** 按提交人筛选 */
+  userId?: number
+  /** 关键词（对反馈正文 或 处置文案模糊匹配） */
+  keyword?: string
+}
+
+// ===== B3 举报（独立资源，独立端点 `/admin/reports`） =====
+
+export interface ReportAdminVO {
+  id: number
+  /** 举报人 ID（**恒为真实用户 ID** —— 列带外键） */
+  userId: number
+  /** 举报人昵称（联表带出；注销账号显示「已注销用户」） */
+  userName: string
+  /** 举报原因 ID（`report_option` 字典项） */
+  optionId: number
+  /** 举报原因中文名（由字典实时翻译，停用原因仍可译出） */
+  optionName: string
+  /** 被举报评价 ID；**评价已删除为 `null`** */
+  reviewId: number | null
+  /** 被举报评价是否已删除（`reviewId` 为 `null` 即 `true`；此时摘要与可见性均为 `null`） */
+  reviewDeleted: boolean
+  /** 被举报评价正文摘要（截断；评价已删除为 `null`） */
+  reviewContent: string | null
+  /** 被举报评价所属菜品名（评价已删除为 `null`） */
+  reviewDishName: string | null
+  /** 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰；评价已删除为 `null`） */
+  reviewHidden: boolean | null
+  status: ModerationStatus
+  outcome: ModerationOutcome | null
+  replyTitle: string | null
+  replyContent: string | null
+  handledByName: string | null
+  createdAt: string
+  handledAt: string | null
+}
+
+export interface ReportListParams {
+  page?: number
+  pageSize?: number
+  status?: ModerationStatus | ''
+  /** 按举报人筛选 */
+  userId?: number
+}
+
+// ===== 工单处置请求（反馈 `PUT /admin/feedbacks/{id}`、举报 `PUT /admin/reports/{id}`、
+// 菜品问题反馈驳回 `PUT /admin/corrections/{id}`（outcome 固定 rejected）同体） =====
+export interface ModerationHandleReq {
+  /** 回执短标题（≤40 字；留空按（类型 + 结论）用缺省文案） */
+  replyTitle?: string
+  /**
+   * 处置文案（≤600 字）。`outcome=handled` 时可空（缺省文案）；
+   * **`outcome=rejected` 时必填**（即为不采纳原因，纯空白 → 400）
+   */
+  replyContent?: string
+  /** `handled` 受理 / 通过（**缺省**）｜ `rejected` 不予处理 / 不采纳；非法值 → 400 */
+  outcome?: ModerationOutcome
+  /**
+   * **举报专用**：是否联动隐藏被举报评价（缺省 `false`；仅受理时消费，未受理忽略）。
+   * 联动隐藏是「一次性动作」而非状态，恢复显示走评价管理。
+   */
+  hideReview?: boolean
 }
 
 // ===== B1 评价 =====
@@ -350,59 +472,6 @@ export interface ReviewHiddenReq {
   note?: string
 }
 
-// ===== B2 / B3 反馈与举报（同一端点，`category` 分流） =====
-export interface FeedbackAdminVO {
-  id: number
-  /** 反馈类型（反馈类行 = `bug` / `suggestion` / `other` 等机器值；举报行恒为 `report`） */
-  type: string
-  /** 提交人 ID（提交恒带登录态 ⇒ **恒为真实用户 ID**） */
-  userId: number
-  /** 提交人昵称（联表带出，恒可读到；注销账号为「已注销用户」） */
-  userName: string
-  content: string
-  images: string[]
-  status: FeedbackStatus
-  /** 处理结论（表无物理列，按 `status` + `rejectReason` 派生；`pending` 为 null） */
-  outcome: 'handled' | 'rejected' | null
-  reply: string | null
-  rejectReason: string | null
-  createdAt: string
-  handledAt: string | null
-}
-
-/** B3 举报行 = 反馈行 + 被举报评价摘要与可见性 */
-export interface ReportAdminVO extends FeedbackAdminVO {
-  /** 举报原因 ID（= `user_feedback.sub_reason_id` = `report_reason.id`） */
-  subReasonId: number
-  /** 举报原因中文名（服务端按 ID 实时翻译） */
-  reasonName: string
-  reviewId: number
-  reviewContent: string | null
-  reviewDishName: string | null
-  /** 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰） */
-  reviewHidden: boolean
-}
-
-export interface FeedbackListParams {
-  page?: number
-  pageSize?: number
-  /** `feedback` = 意见反馈（B2）｜`report` = 举报（B3）｜不传 = 全部 */
-  category?: 'feedback' | 'report' | ''
-  status?: FeedbackStatus | ''
-  type?: string
-  keyword?: string
-  userId?: number
-}
-
-export interface FeedbackHandleReq {
-  /** 处理回复（≤600 字；`handled` 时可选、`rejected` 时作为处理说明随回执下发） */
-  reply?: string
-  outcome?: 'handled' | 'rejected'
-  /** 不采纳原因（`rejected` 必填，≤200 字） */
-  rejectReason?: string
-  /** B3 专用：处置举报时**同时隐藏**被举报评价（默认勾选；评价已隐藏时置灰） */
-  hideReview?: boolean
-}
 
 // ===== B4 菜品问题反馈 =====
 export interface CorrectionAdminVO {
@@ -418,8 +487,14 @@ export interface CorrectionAdminVO {
   /** **仅 `type=gone`**：补充说明（≤200 字，处置时**必须展示**给管理员判读） */
   note: string | null
   status: CorrectionStatus
-  reply: string | null
-  rejectReason: string | null
+  /** 处置结论：`handled` 采纳或已下架 / `rejected` 不采纳；未处置为 `null` */
+  outcome: ModerationOutcome | null
+  /** 处置回执短标题（未处置为 `null`） */
+  replyTitle: string | null
+  /** 处置文案 / 不采纳原因（未处置为 `null`；单一列） */
+  replyContent: string | null
+  /** 处置人登录名（未处置 / 账号已删除为 `null`） */
+  handledByName: string | null
   /** 差异项数量（`field` 型「改了几项」；`gone` 型恒 0） */
   changeCount: number
   /** `field` 型含 `floor` 改动时的连带影响提示（同档口菜品数，文案由服务端下发）；否则为 null */
@@ -442,7 +517,6 @@ export interface CorrectionDetailVO {
   userId: number
   /** 提交人昵称（联表带出，恒可读到；注销账号为「已注销用户」） */
   userName: string
-  status: CorrectionStatus
   /** `field` 型：仍有差异的项（逐项勾选采纳）；`gone` 型：恒空 */
   differences: CorrectionDifference[]
   /** `gone` 型：用户选填补充说明（≤200 字） */
@@ -450,8 +524,15 @@ export interface CorrectionDetailVO {
   /** `gone` 型：同菜品待处理反馈数（已按用户去重）—— ⚠️ **仅参考，非下架阈值**（≥1 即进队列，是否下架人工决定） */
   goneUserCount: number | null
   images: string[]
-  reply: string | null
-  rejectReason: string | null
+  status: CorrectionStatus
+  /** 处置结论：`handled` 采纳或已下架 / `rejected` 不采纳；未处置为 `null` */
+  outcome: ModerationOutcome | null
+  /** 处置回执短标题（未处置为 `null`） */
+  replyTitle: string | null
+  /** 处置文案 / 不采纳原因（未处置为 `null`；单一列） */
+  replyContent: string | null
+  /** 处置人登录名（未处置 / 账号已删除为 `null`） */
+  handledByName: string | null
   createdAt: string
   handledAt: string | null
 }
@@ -476,26 +557,19 @@ export interface CorrectionListParams {
   dishId?: number
 }
 
-/** 采纳请求：`field` 型带 `acceptedFields`；`gone` 型无差异项（只认 `reply`） */
+/** 采纳请求：`field` 型带 `acceptedFields`；`gone` 型无差异项（只带可选附注） */
 export interface CorrectionAdoptReq {
   /** 采纳哪些差异项（`field` 型**必填且非空**；取值 = `differences[].field`） */
   acceptedFields?: string[]
   stallId?: number
   createIfMissing?: boolean
   /** 采纳附注（可选，≤600 字；随回执下发，留空用服务端固定文案） */
-  reply?: string
+  replyContent?: string
 }
 
 export interface StallConfirmVO {
   needStallConfirm: true
   candidates: { id: number; name: string }[]
-}
-
-export interface CorrectionRejectReq {
-  /** 处理说明（≤1000 字）—— **可选**（B4 起 reply 可选；留空时回执以不采纳原因为正文） */
-  reply?: string
-  /** 不采纳原因（必填，≤200 字） */
-  rejectReason: string
 }
 
 // ===== C2 用户 =====

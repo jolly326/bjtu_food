@@ -1,5 +1,6 @@
 package com.bjtufood.correction.dto;
 
+import com.bjtufood.moderation.constant.ModerationConst;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -13,7 +14,7 @@ import java.util.List;
  * 勾选后把**选中项的 `field`** 放进 {@link #acceptedFields}。取值必须是该清单里的键
  * （`name` / `price` / `canteenName` / `stallName` / `floor` / `images` / `attributes.<维度ID>`）。
  * <ul>
- *   <li><b>必填且非空</b>：空数组 → `400`（「什么都不采纳」不是采纳，是**拒绝**，有独立动作与必填原因）；</li>
+ *   <li><b>必填且非空</b>：空数组 → `400`（「什么都不采纳」不是采纳，是**拒绝**，有独立动作与必填文案）；</li>
  *   <li><b>只写回选中项</b>：管理员的判断粒度是「逐项取舍」，而非「全采纳 / 全拒绝」；</li>
  *   <li>选中项若**已无差异**（管理员已手工改成同值）→ `400`，避免「采纳一个已经相同的值」。</li>
  * </ul>
@@ -44,6 +45,6 @@ public class DishCorrectionAdoptReq {
     private Boolean createIfMissing;
 
     @Schema(description = "采纳附注（可选，≤600 字；缺省用固定文案「已采纳，菜品信息已更新」随回执下发）")
-    @Size(max = 600, message = "采纳附注不能超过 600 字")
-    private String reply;
+    @Size(max = ModerationConst.REPLY_CONTENT_MAX_LENGTH, message = "采纳附注不能超过 600 字")
+    private String replyContent;
 }

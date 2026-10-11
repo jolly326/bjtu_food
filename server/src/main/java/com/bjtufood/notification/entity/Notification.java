@@ -23,11 +23,13 @@ public class Notification {
     @Schema(description = "接收用户ID")
     private Long userId;
 
+    /** 通知标题（与 `moderation_task.reply_title` 同名列：处置回执为同句两份快照） */
     @Schema(description = "通知标题")
-    private String title;
+    private String replyTitle;
 
+    /** 通知正文（与 `moderation_task.reply_content` 同名列：处置回执为同句两份快照） */
     @Schema(description = "通知正文")
-    private String content;
+    private String replyContent;
 
     /** 是否已读：0=未读 1=已读 */
     @Schema(description = "是否已读：0=未读 1=已读")

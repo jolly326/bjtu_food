@@ -51,4 +51,23 @@ public class SecurityUtil {
             return null;
         }
     }
+
+    /**
+     * 获取当前登录的**管理员账号 ID**（{@code /admin/**} 处置动作的「处置人」来源）。
+     * <p>
+     * 管理端鉴权链路由 {@link com.bjtufood.auth.config.AdminAuthFilter} 唯一把关，
+     * 验签与账号状态回查通过后把<b>账号 ID</b>写入 {@code Authentication.principal}；
+     * 本方法即从同一处取回，故「处置人」恒为库里存在的启用账号，不接受请求体自述。
+     *
+     * @return 当前管理员账号 ID
+     * @throws UnauthorizedException 上下文缺失或非管理端凭证
+     */
+    public static Long getCurrentAdminId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof Long accountId)) {
+            throw new UnauthorizedException("管理端登录已失效，请重新登录");
+        }
+        return accountId;
+    }
 }

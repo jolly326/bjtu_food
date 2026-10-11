@@ -76,6 +76,11 @@ class AdminAuthFilterTest {
             public void updatePassword(Long accountId, String passwordHash) {
                 // no-op
             }
+
+            @Override
+            public java.util.Map<Long, String> mapUsernameByIds(java.util.Collection<Long> accountIds) {
+                return java.util.Map.of();
+            }
         };
     }
 

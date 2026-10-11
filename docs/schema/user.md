@@ -41,7 +41,7 @@
 | `wx_id` | `'deleted_{id}'` | 释放唯一键，且不含任何个人信息 |
 | `openid` / `email` / `avatar` | `NULL` | 解绑，允许同一微信重新建号 |
 
-**不删行**的原因：`review` / `user_feedback` 等历史内容保留并经 JOIN 取昵称，物理删除会让这些内容失去归属。
+**不删行**的原因：`review` / `feedback` / `report` / `correction` 等历史内容保留并经 JOIN 取昵称，物理删除会让这些内容失去归属。
 
 ### 无 `password` / `unionid` / `role` / `last_login_at` 列
 均已随能力退役移除（微信体系无密码；角色收敛为单一学生态）。
@@ -51,8 +51,9 @@
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
 | 1→n | `review.user_id` | 本人的评价 | 无外键（`user` 行永不删除） |
-| 1→n | `user_feedback.user_id` | 本人的反馈 | **`FOREIGN KEY (user_id) REFERENCES user(id)`**（无级联 —— `user` 行永不物理删除，外键是纯引用完整性兜底） |
-| 1→n | `dish_correction.user_id` | 本人的菜品问题反馈 | **外键 `fk_correction_user`（无级联 —— `user` 行永不物理删除，外键是纯引用完整性兜底）** |
+| 1→n | `feedback.user_id` | 本人的意见反馈 | **外键 `fk_feedback_user`（无级联 —— `user` 行永不物理删除，外键是纯引用完整性兜底）** |
+| 1→n | `report.user_id` | 本人的举报 | **外键 `fk_report_user`（无级联 —— 同上）** |
+| 1→n | `correction.user_id` | 本人的菜品问题反馈 | **外键 `fk_correction_user`（无级联 —— 同上）** |
 | 1→n | `notification.user_id` | 站内消息 | **`ON DELETE CASCADE`**（外键兜底；应用层注销时已主动硬删） |
 | — | `email_verification_code` | 按 `email` 关联 | **非外键** —— 该表无 `user_id` 列 |
 

@@ -74,7 +74,7 @@ public interface AuthService {
      *   <li>user 行：name→'已注销用户'；avatar/email/openid→NULL（email 清空即
      *       认证态回落为游客态）；status→'deleted'；wxId 改写为 deleted_{id}
      *       （释放 wx_id 唯一键，保证同一微信可重新静默登录建新游客号）；</li>
-     *   <li>review / user_feedback：保留（内容价值 + 评分聚合不破坏），展示昵称经 join user
+     *   <li>review / feedback / report / correction：保留（内容价值 + 评分聚合不破坏），展示昵称经 join user
      *       自然变为「已注销用户」；</li>
      *   <li>notification：随注销物理删除（账号维度过程性数据，注销后无读取方，避免孤儿数据）；</li>
      *   <li>email_verification_code：删除该用户（email 匹配）的验证码记录。</li>

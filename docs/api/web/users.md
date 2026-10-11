@@ -52,7 +52,7 @@
 |---|---|---|---|---|
 | `status` | string | **是** | `@NotBlank`「状态不能为空」 | **仅允许** `active`（启用）/ `disabled`（禁用）；传 `deleted` 或其它值 → `400`「非法的状态：xxx」 |
 
-> **请求体只含 `status` 一个字段**（`{ "status": "disabled" }`）：启停类端点**全站统一用 `status` 字符串枚举**，不采用 `{ "disabled": true }` 之类布尔形态（同 [web/report-reasons.md](./report-reasons.md#put-adminreport-reasonsidstatus) 的 `ReportReasonStatusReq`）。
+> **请求体只含 `status` 一个字段**（`{ "status": "disabled" }`）：启停类端点**全站统一用 `status` 字符串枚举**，不采用 `{ "disabled": true }` 之类布尔形态（同 [web/report-options.md](./report-options.md#put-adminreport-optionsidstatus) 的 `OptionStatusReq`）。
 
 ### 响应 `data`
 `null`。

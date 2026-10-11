@@ -13,9 +13,9 @@
 |---|---|---|
 | [client/dishes.md](./client/dishes.md) | `/dishes*`（8 个） | 首页 · 搜索 · 详情 · 浏览计数 · 菜品问题反馈 · 评价 |
 | [client/auth.md](./client/auth.md) | `/auth/*`（6 个） | 静默登录 · 邮箱认证 · 个人资料 · 注销 |
-| [client/reviews.md](./client/reviews.md) | `/reviews/*` · `/report-reasons` | 删除本人评价 · 举报评价 |
+| [client/reviews.md](./client/reviews.md) | `/reviews/*` · `/report-options` | 删除本人评价 · 举报评价 · 举报原因字典 |
 | [client/my.md](./client/my.md) | `/my/*`（5 个） | 我的评价 · 系统通知 |
-| [client/feedback.md](./client/feedback.md) | `/feedback` | 意见反馈 |
+| [client/feedback.md](./client/feedback.md) | `/feedback` · `/feedback-options` | 意见反馈 · 反馈类型字典 |
 | [client/banner.md](./client/banner.md) | `/banners` | 首页轮播 |
 | [client/upload.md](./client/upload.md) | `/upload/*` | 评价 / 反馈 / 菜品问题反馈 / 头像 的配图上传 |
 
@@ -30,9 +30,11 @@
 | [web/views.md](./web/views.md) | `/admin/dish-views*` |
 | [web/categories.md](./web/categories.md) | `/admin/dish-categories*` |
 | [web/banners.md](./web/banners.md) | `/admin/banners*` |
-| [web/report-reasons.md](./web/report-reasons.md) | `/admin/report-reasons*` |
+| [web/feedback-options.md](./web/feedback-options.md) | `/admin/feedback-options*` |
+| [web/report-options.md](./web/report-options.md) | `/admin/report-options*` |
 | [web/reviews.md](./web/reviews.md) | `/admin/reviews*` |
-| [web/feedback.md](./web/feedback.md) | `/admin/feedbacks*`（意见反馈 + 举报） |
+| [web/feedback.md](./web/feedback.md) | `/admin/feedbacks*` |
+| [web/reports.md](./web/reports.md) | `/admin/reports*` |
 | [web/corrections.md](./web/corrections.md) | `/admin/corrections*` |
 | [web/users.md](./web/users.md) | `/admin/users*` |
 | [web/dashboard.md](./web/dashboard.md) | `/admin/dashboard` |
@@ -103,7 +105,7 @@
 
 全站唯一带排序位的资源是 **Banner**（[web/banners.md](./web/banners.md)），其 `PUT /admin/banners/sort` 口径为：`items` 是该列表的**全量行**（缺行 ⇒ 顺序不完整 → `400`），服务端**整体替换** `order`；`items` 为空 / 含未知 `id` / 含重复 `id` / 同一 `order` 重复 → 一律 `400`「排序提交非法」。
 
-> 其余字典类资源（种类 / 维度 / 取值 / 举报原因 / 筛选视图）**不设排序位**，列表与端上下发顺序一律按 `id` 升序（见 [schema/README](../schema/README.md)）。
+> 其余字典类资源（种类 / 维度 / 取值 / 反馈类型 / 举报原因 / 筛选视图）**不设排序位**，列表与端上下发顺序一律按 `id` 升序（见 [schema/README](../schema/README.md)）。
 
 ### 金额
 

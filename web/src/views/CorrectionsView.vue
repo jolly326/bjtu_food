@@ -89,8 +89,9 @@ const detailLoading = ref(false)
 const detailError = ref<string | null>(null)
 const outcome = ref<'adopted' | 'rejected'>('adopted')
 const accepted = ref<Record<string, boolean>>({})
-const reply = ref('')
-const rejectReason = ref('')
+/** 回执短标题（可选 ≤40 字）与处置文案（≤600 字；不采纳 / 驳回时必填） */
+const replyTitle = ref('')
+const replyContent = ref('')
 const submitting = ref(false)
 
 /* 档口两段式确认 */
@@ -104,19 +105,28 @@ const isGone = computed(() => detail.value?.type === 'gone')
 /** 待处理 → 处置表单；已处理 → 只读详情 */
 const isPending = computed(() => row.value?.status === 'pending')
 
-/** 结论文案（`status` + `rejectReason` 派生） */
+/** 结论文案（`status` + `outcome` 派生：`handled` 的两种结论由 `outcome` 区分） */
 const outcomeLabel = computed(() => {
   const r = row.value
   if (!r || r.status === 'pending') return '待处理'
-  if (r.status === 'rejected') return r.type === 'gone' ? '已驳回（仍在售）' : '已拒绝'
+  if (r.outcome === 'rejected') return r.type === 'gone' ? '已驳回（仍在售）' : '已拒绝'
   return r.type === 'gone' ? '已下架' : '已采纳'
 })
+
+/**
+ * 状态列取值（`StatusTag kind="correction"`：待处理 / 已采纳 / 已拒绝）。
+ * 契约 `status` 仅 `pending` / `handled`，已处置的两种结论由 `outcome` 区分。
+ */
+function statusTag(item: CorrectionAdminVO): string {
+  if (item.status === 'pending') return 'pending'
+  return item.outcome === 'rejected' ? 'rejected' : 'adopted'
+}
 
 /**
  * 提交按钮可用性。
  * - `gone` 型：下架**无需勾选任何项**（无可对照差异）⇒ 采纳侧恒可提交；
  * - `field` 型：至少勾选一项（空数组服务端 `400`），且档口确认段须选定归属；
- * - 驳回：原因必填。
+ * - 驳回：处置文案必填（纯空白校验，服务端对空白同样返回 400）。
  */
 const canSubmit = computed(() => {
   if (outcome.value === 'adopted') {
@@ -124,7 +134,7 @@ const canSubmit = computed(() => {
     if (needStallConfirm.value && !createIfMissing.value && !chosenStallId.value) return false
     return Object.values(accepted.value).some(Boolean)
   }
-  return rejectReason.value.trim().length > 0
+  return replyContent.value.trim().length > 0
 })
 
 /** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
@@ -138,8 +148,8 @@ async function openDetail(target: CorrectionAdminVO): Promise<void> {
   detailError.value = null
   detailLoading.value = true
   outcome.value = 'adopted'
-  reply.value = ''
-  rejectReason.value = ''
+  replyTitle.value = ''
+  replyContent.value = ''
   accepted.value = {}
   candidates.value = []
   chosenStallId.value = 0
@@ -162,16 +172,13 @@ async function openDetail(target: CorrectionAdminVO): Promise<void> {
 async function submit(): Promise<void> {
   const d = detail.value
   if (!d) return
-  if (reply.value.length > 600) {
-    ElMessage.warning('回复不能超过 600 字')
-    return
-  }
   submitting.value = true
   try {
     if (outcome.value === 'adopted') {
-      // `gone` 型：请求体只带可选附注，服务端忽略其余字段并直接下架菜品（可逆）
+      const note = replyContent.value.trim()
+      // `gone` 型：请求体只带可选附注，服务端忽略差异项并直接下架菜品（可逆）
       const res = isGone.value
-        ? await adoptCorrection(d.id, reply.value.trim() ? { reply: reply.value.trim() } : {})
+        ? await adoptCorrection(d.id, note ? { replyContent: note } : {})
         : await adoptCorrection(d.id, {
             acceptedFields: Object.entries(accepted.value)
               .filter(([, v]) => v)
@@ -181,6 +188,7 @@ async function submit(): Promise<void> {
                 ? { createIfMissing: true }
                 : { stallId: chosenStallId.value }
               : {}),
+            ...(note ? { replyContent: note } : {}),
           })
       if (res != null) {
         // 档口未匹配：进入第二段确认
@@ -192,8 +200,9 @@ async function submit(): Promise<void> {
       ElMessage.success(isGone.value ? '已下架' : '已采纳')
     } else {
       await rejectCorrection(d.id, {
-        reply: reply.value.trim(),
-        rejectReason: rejectReason.value.trim(),
+        replyTitle: replyTitle.value.trim() || undefined,
+        replyContent: replyContent.value.trim(),
+        outcome: 'rejected',
       })
       ElMessage.success(isGone.value ? '已驳回' : '已拒绝')
     }
@@ -243,8 +252,7 @@ const activeFilters = computed(() => {
     out.push({
       key: 'status',
       label: '状态',
-      value:
-        fStatus.value === 'pending' ? '待处理' : fStatus.value === 'adopted' ? '已采纳' : '已拒绝',
+      value: fStatus.value === 'pending' ? '待处理' : '已处理',
     })
   if (fDishId.value.trim()) out.push({ key: 'dish', label: '菜品 ID', value: fDishId.value.trim() })
   return out
@@ -293,8 +301,7 @@ onMounted(() => reloadFirstPage())
       <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
         <option value="">全部状态</option>
         <option value="pending">待处理</option>
-        <option value="adopted">已采纳</option>
-        <option value="rejected">已拒绝</option>
+        <option value="handled">已处理</option>
       </select>
       <input
         class="form-input"
@@ -335,7 +342,7 @@ onMounted(() => reloadFirstPage())
             <td>{{ item.dishName ?? '菜品已删除' }}</td>
             <!-- 提交恒带登录态 ⇒ 提交人昵称恒可读到（联表带出） -->
             <td>{{ item.userName }}</td>
-            <td><StatusTag :status="item.status" kind="correction" /></td>
+            <td><StatusTag :status="statusTag(item)" kind="correction" /></td>
             <td class="muted">{{ formatDateTime(item.createdAt) }}</td>
             <td class="actions">
               <button
@@ -460,11 +467,12 @@ onMounted(() => reloadFirstPage())
                 <span class="muted"> #{{ detail.userId }}</span>
               </span>
             </div>
-            <DetailMetaRow k="处理回复" span>{{ detail.reply || '—' }}</DetailMetaRow>
-            <div v-if="detail.rejectReason" class="meta-row meta-row--span">
-              <span class="meta-key">不采纳原因</span>
-              <span class="meta-val">{{ detail.rejectReason }}</span>
+            <div v-if="detail.replyTitle" class="meta-row meta-row--span">
+              <span class="meta-key">回执标题</span>
+              <span class="meta-val">{{ detail.replyTitle }}</span>
             </div>
+            <DetailMetaRow k="处理回复" span>{{ detail.replyContent || '—' }}</DetailMetaRow>
+            <DetailMetaRow k="处置人">{{ detail.handledByName || '—' }}</DetailMetaRow>
           </div>
         </div>
 
@@ -530,29 +538,35 @@ onMounted(() => reloadFirstPage())
             </label>
           </div>
 
-          <div v-if="outcome === 'rejected'" class="field">
-            <label for="corr-reject-reason">{{
-              isGone ? '仍在售的原因（必填，≤200 字）' : '不采纳原因（必填，≤200 字）'
-            }}</label>
+          <!-- 回执短标题：两分支共用，可选（留空按类型 + 结论用服务端缺省文案） -->
+          <div class="field">
+            <label for="corr-reply-title">回执标题（可选，≤40 字）</label>
             <input
-              id="corr-reject-reason"
+              id="corr-reply-title"
               class="form-input"
-              v-model="rejectReason"
-              maxlength="200"
+              v-model="replyTitle"
+              maxlength="40"
             />
           </div>
 
+          <!-- 处置文案：不采纳 / 驳回 = 必填（即不采纳原因）；采纳 / 下架 = 可选附注 -->
           <div class="field">
-            <label for="corr-reply">处理回复（可选，≤600 字）</label>
+            <label for="corr-reply-content">{{
+              outcome === 'rejected'
+                ? isGone
+                  ? '仍在售的原因（必填，≤600 字）'
+                  : '处置文案（必填，≤600 字）'
+                : '处理附注（可选，≤600 字）'
+            }}</label>
             <textarea
-              id="corr-reply"
+              id="corr-reply-content"
               class="form-textarea"
-              v-model="reply"
+              v-model="replyContent"
               rows="3"
               maxlength="600"
               placeholder="随站内回执下发给提交人；留空则用固定文案"
             />
-            <div class="hint">{{ reply.length }} / 600</div>
+            <div class="hint">{{ replyContent.length }} / 600</div>
           </div>
         </template>
       </template>

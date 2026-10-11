@@ -96,7 +96,7 @@ public class AccountCloser {
         //   将撞唯一键导致「微信登录创建账号失败」；deleted_{id} 不含任何个人信息且唯一。
         // · openid → NULL：解绑微信身份，允许同一微信重新建号。
         // · email → NULL：释放 email 唯一键占用（NULL 不参与唯一索引），认证态随之回落游客态。
-        // · name → '已注销用户'：review/user_feedback 保留且展示昵称经 join user 取本字段，
+        // · name → '已注销用户'：review / feedback / report / correction 保留且展示昵称经 join user 取本字段，
         //   历史内容自然匿名化，评分聚合不破坏。
         // · status → 'deleted'：与 wechatLogin 的登录拦截、RequireVerifiedAspect 的
         //   UGC 写拦截形成持久化兜底（黑名单重启清空后仍有效）。
@@ -114,7 +114,7 @@ public class AccountCloser {
         deleteVerifyCodesByEmail(user.getEmail());
 
         // 系统通知：账号维度的过程性数据，注销后账号不可再进入、无任何读取方，
-        // 保留即孤儿数据只增不减，故随注销物理删除（与 review / user_feedback「内容价值」保留口径区分）。
+        // 保留即孤儿数据只增不减，故随注销物理删除（与 review / 三类用户提交的「内容价值」保留口径区分）。
         // P0-1：发布账号注销事件，由 notify 域监听器硬删该用户全部站内消息
         // （同步监听 → 仍在本事务内执行，失败整体回滚）。
         eventPublisher.publishEvent(new UserAccountClosedEvent(userId));

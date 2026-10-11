@@ -1,8 +1,8 @@
 /**
  * useFeedback —— 意见反馈页（pages/feedback/index.vue）编排逻辑
  *
- * 面向小程序本身的通用反馈：类型 3 选 1（Bug / 建议 / 其他）+ 描述（≤600 字、占位随类型选择）
- * + 截图（选填，≤`UGC_IMAGE_MAX` 张）+ 本地草稿；提交 `POST /feedback`。
+ * 面向小程序本身的通用反馈：类型单选（选项 = `GET /feedback-options` 字典下发，端上零硬编码）
+ * + 描述（≤600 字）+ 截图（选填，≤`UGC_IMAGE_MAX` 张）+ 本地草稿；提交 `POST /feedback`（optionId 上送）。
  * 菜品资料有误 / 已经下架走独立页面 `pages/correction/`（菜品问题反馈），本页只有一套字段、无表单形态切换。
  *
  * ⚠️ 全部逻辑在函数体内执行：由页面在 <script setup> 中同步调用，使 onLoad/onUnload/watch
@@ -10,8 +10,7 @@
  */
 import { ref, reactive, computed, watch } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
-import { createFeedback } from '@/api/feedback'
-import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
+import { createFeedback, listFeedbackOptions, type FeedbackOption } from '@/api/feedback'
 import { backToHome } from '@/utils/back'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
@@ -20,12 +19,15 @@ import { submitUgcImages, type UgcImageItem } from '@/components/ugcImage'
 /** 描述字数上限（用户口径 600 字；服务端上限 1000，端上更严） */
 export const CONTENT_MAX = 600
 
+/** 描述框占位（通用引导；类型文案由字典下发、不再按类型切换占位） */
+export const CONTENT_PLACEHOLDER = '请具体描述你遇到的问题或建议'
+
 /**
- * `IssueForm` 的表单模型（`update:model` 载荷形状；`type` 空串 = 未选）。
+ * `IssueForm` 的表单模型（`update:model` 载荷形状；`optionId` = 0 表示未选）。
  */
 export interface FeedbackFormModel {
-  /** 反馈类型（`''` = 未选；选中值 = FeedbackType，与后端写入值域同源） */
-  type: FeedbackType | ''
+  /** 反馈类型（字典 `GET /feedback-options` 下发项的 id；`0` = 未选） */
+  optionId: number
   /** 具体描述（必填，≤600 字） */
   content: string
   /** 截图（选填，≤3 张；选图只落本地 → 提交时才上云 + 逐张机审转 COS） */
@@ -35,7 +37,7 @@ export interface FeedbackFormModel {
 export function useFeedback() {
   // ---- ① 表单字段（全页唯一一套） ----
   const form = reactive<FeedbackFormModel>({
-    type: '',
+    optionId: 0,
     content: '',
     images: [],
   })
@@ -47,14 +49,45 @@ export function useFeedback() {
     Object.assign(form, next)
   }
 
-  /** 描述框占位：随选中类型切换；未选类型给通用引导（不得出现空占位） */
-  const typePlaceholder = computed(() => {
-    const t = FEEDBACK_TYPES.find((x) => x.value === form.type)
-    return t?.placeholder ?? '先选择反馈类型，再描述你的问题'
-  })
+  // ---- ①a 反馈类型字典（进页实时拉取；失败可点击重试，同举报弹层一族做法） ----
+  const options = ref<FeedbackOption[]>([])
+  const optionsLoading = ref(false)
+  const optionsFailed = ref(false)
 
-  function onPickType(value: FeedbackType) {
-    form.type = value
+  /** 草稿携带的类型 ID：待字典就绪且命中启用项后再回填（避免把停用项带给提交） */
+  let draftOptionId = 0
+
+  async function loadOptions() {
+    if (optionsLoading.value) return
+    optionsLoading.value = true
+    optionsFailed.value = false
+    try {
+      const rows = await listFeedbackOptions()
+      options.value = rows
+      if (!rows.length) {
+        // 字典为空（服务端无启用项）＝无法选择，回落未选
+        optionsFailed.value = true
+        form.optionId = 0
+        return
+      }
+      // 已选类型不在字典（被停用 / 字典已调整）⇒ 回落未选，避免把停用项带给提交
+      if (form.optionId && !rows.some((o) => o.id === form.optionId)) form.optionId = 0
+      // 草稿类型就绪后回填（仅命中启用项；消费一次，重试不重复套用）
+      if (!form.optionId && draftOptionId && rows.some((o) => o.id === draftOptionId)) {
+        form.optionId = draftOptionId
+        draftOptionId = 0
+      }
+    } catch {
+      options.value = []
+      optionsFailed.value = true
+      form.optionId = 0
+    } finally {
+      optionsLoading.value = false
+    }
+  }
+
+  function onPickType(optionId: number) {
+    form.optionId = optionId
   }
 
   // ---- ② 本地草稿（只存「类型 + 描述」；图片是 COS 地址、重进可能失效，故不缓存） ----
@@ -62,9 +95,9 @@ export function useFeedback() {
 
   function loadDraft() {
     try {
-      const raw = uni.getStorageSync(DRAFT_KEY) as { type?: FeedbackType; content?: string } | ''
+      const raw = uni.getStorageSync(DRAFT_KEY) as { optionId?: number; content?: string } | ''
       if (raw && typeof raw === 'object') {
-        form.type = raw.type ?? ''
+        draftOptionId = typeof raw.optionId === 'number' ? raw.optionId : 0
         form.content = typeof raw.content === 'string' ? raw.content : ''
       }
     } catch {
@@ -74,7 +107,7 @@ export function useFeedback() {
 
   function saveDraft() {
     try {
-      uni.setStorageSync(DRAFT_KEY, { type: form.type, content: form.content })
+      uni.setStorageSync(DRAFT_KEY, { optionId: form.optionId, content: form.content })
     } catch {
       /* 写入异常：静默 */
     }
@@ -88,19 +121,19 @@ export function useFeedback() {
     }
   }
 
-  watch(() => [form.type, form.content], saveDraft)
+  watch(() => [form.optionId, form.content], saveDraft)
 
   // ---- ③ 提交门禁（canSubmit 置灰；置灰点击由外层热区兜底 toast） ----
   // 限频退避：后端 POST /feedback 为 2 次/分钟、10 次/小时，
   // 弱网下手滑连点会持续撞限频、把封锁越拖越长 → 被限频后倒计时禁用并展示剩余秒数。
   const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } = useRateLimitCooldown()
 
-  const canSubmit = computed(() => !!form.type && !!form.content.trim() && !cooling())
+  const canSubmit = computed(() => !!form.optionId && !!form.content.trim() && !cooling())
 
   const gateHint = computed(() => {
     // 退避优先：让用户知道「要等」，而不是看到笼统的「先选类型 / 再写两句」
     if (cooling()) return `提交太频繁，${cooldownSeconds.value} 秒后再试`
-    if (!form.type) return '先选一个反馈类型'
+    if (!form.optionId) return '先选一个反馈类型'
     if (!form.content.trim()) return '再写两句，描述一下问题'
     return ''
   })
@@ -132,7 +165,7 @@ export function useFeedback() {
 
   // ---- ⑤ 提交（防重复；成功 Toast「已提交，感谢反馈」+ 2 秒自动返回） ----
   function resetForm() {
-    form.type = ''
+    form.optionId = 0
     form.content = ''
     form.images = []
   }
@@ -142,7 +175,7 @@ export function useFeedback() {
     if (submitting.value || cooling()) return
 
     const errs: Record<string, string> = {}
-    if (!form.type) errs['form.type'] = '先选一个反馈类型'
+    if (!form.optionId) errs['form.optionId'] = '先选一个反馈类型'
     if (!form.content.trim()) errs['form.content'] = '再写两句，描述一下问题'
 
     if (Object.keys(errs).length) {
@@ -161,7 +194,7 @@ export function useFeedback() {
       // 提交链路：先把已选截图逐张「上云存储 → 送机审转 COS」（失败文案带「第 N 张图片」），再随表单上送正式 URL
       const images = await submitUgcImages(form.images)
       await createFeedback({
-        type: form.type as FeedbackType,
+        optionId: form.optionId,
         content,
         images: images.length ? images : undefined,
       })
@@ -200,9 +233,10 @@ export function useFeedback() {
     }
   }
 
-  // ---- ⑦ 落点参数：本页只有一种形态，进页恢复本地草稿即可 ----
+  // ---- ⑦ 落点参数：本页只有一种形态，进页恢复本地草稿并拉取类型字典 ----
   onLoad(() => {
     loadDraft()
+    loadOptions()
   })
 
   /** 供页面模板/模板回调使用的全部编排绑定 */
@@ -212,7 +246,15 @@ export function useFeedback() {
     form,
     /** `IssueForm` 的 `update:model` 落点（子件整值替换 → 浅合并回真源） */
     updateForm,
-    typePlaceholder,
+    /** 反馈类型字典（`GET /feedback-options`，进页实时拉取） */
+    options,
+    /** 字典在途（类型区展示「加载中…」） */
+    optionsLoading,
+    /** 字典失败 / 空（类型区展示失败行，点击重试） */
+    optionsFailed,
+    /** 字典失败重试（与首屏同一条拉取路径） */
+    retryOptions: loadOptions,
+    contentPlaceholder: CONTENT_PLACEHOLDER,
     onPickType,
     fieldErrors,
     scrollIntoView,

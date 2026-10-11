@@ -1,42 +1,47 @@
 <template>
   <!-- 意见反馈 · 表单字段区（极简无卡片：三个区块各自一块 `.module-wrap`，区块间只靠页面留白分组）：
-       ① 反馈类型（必填，竖排单选，选中项左侧橙色勾）
-       ② 具体描述（必填，≤600 字、字数常显标题行右上角，占位文案随类型切换）
+       ① 反馈类型（必填，竖排单选，选项 = 字典 `GET /feedback-options` 下发、只显示名称，选中项左侧橙色勾）
+       ② 具体描述（必填，≤600 字、字数常显标题行右上角）
        ③ 上传截图（选填，≤3 张，与 `UGC_IMAGE_MAX` 同源） -->
   <view class="fb-form">
     <!-- ① 反馈类型：竖排单选。整行可点，命中区 ≥88rpx -->
     <view class="module-wrap">
       <view class="field">
         <text class="field-label">反馈类型<text class="req">*</text></text>
-        <view class="type-list" role="radiogroup" aria-label="反馈类型">
+        <view v-if="options.length" class="type-list" role="radiogroup" aria-label="反馈类型">
           <view
-            v-for="t in FEEDBACK_TYPES"
-            :key="t.value"
+            v-for="t in options"
+            :key="t.id"
             class="type-row"
-            :class="{ 'type-row--on': model.type === t.value }"
+            :class="{ 'type-row--on': model.optionId === t.id }"
             role="radio"
-            :aria-checked="model.type === t.value ? 'true' : 'false'"
-            :aria-label="t.label"
+            :aria-checked="model.optionId === t.id ? 'true' : 'false'"
+            :aria-label="t.name"
             hover-class="type-row-pressed"
             hover-stay-time="80"
-            @tap="onPick(t.value)"
+            @tap="onPick(t.id)"
           >
             <!-- 选中标记：左侧橙色勾（纯图形；选中语义由 .type-row--on 与 aria-checked 表达） -->
-            <view class="type-check" :class="{ on: model.type === t.value }" aria-hidden="true">
+            <view class="type-check" :class="{ on: model.optionId === t.id }" aria-hidden="true">
               <AppIcon
-                v-if="model.type === t.value"
+                v-if="model.optionId === t.id"
                 name="check"
                 :size="24"
                 :color="COLOR_MAP['text-white']"
               />
             </view>
-            <view class="type-text">
-              <text class="type-label">{{ t.label }}</text>
-              <text v-if="t.hint" class="type-hint">{{ t.hint }}</text>
-            </view>
+            <text class="type-label">{{ t.name }}</text>
           </view>
         </view>
-        <text v-if="errors['form.type']" class="field-error" role="alert">{{ errors['form.type'] }}</text>
+        <!-- 字典加载中 / 失败：次级提示行（失败可点击重试，与首屏同一条拉取路径） -->
+        <text
+          v-else
+          class="type-state"
+          role="alert"
+          aria-live="polite"
+          @tap="emit('retry-options')"
+        >{{ optionsFailed ? '反馈类型加载失败，点击重试' : '加载中…' }}</text>
+        <text v-if="errors['form.optionId']" class="field-error" role="alert">{{ errors['form.optionId'] }}</text>
       </view>
     </view>
 
@@ -65,7 +70,6 @@
           @blur="focused = false"
         />
         <text v-if="errors['form.content']" class="field-error" role="alert">{{ errors['form.content'] }}</text>
-        <text v-if="model.type === 'other'" class="field-help">若发现菜品资料有误，请前往对应菜品详情页提交纠错</text>
       </view>
     </view>
 
@@ -93,7 +97,7 @@ import ImagePicker from '@/components/ImagePicker.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { ref } from 'vue'
 import { COLOR_MAP } from '@/theme/tokens'
-import { FEEDBACK_TYPES, type FeedbackType } from '@/types/feedback'
+import type { FeedbackOption } from '@/api/feedback'
 import type { PickSource } from '@/components/imagePickSource'
 import { UGC_IMAGE_MAX as IMAGE_MAX } from '@/constants/ugc'
 import { CONTENT_MAX, type FeedbackFormModel } from './useFeedback'
@@ -103,8 +107,14 @@ defineProps<{
   errors: Record<string, string>
   /** 提交中：禁选截图（与写评价抽屉同口径） */
   submitting?: boolean
-  /** 描述框占位（随选中类型切换，由编排层按 FEEDBACK_TYPES 派生；未选类型时给通用文案） */
+  /** 描述框占位（通用引导文案，由编排层下发） */
   placeholder: string
+  /** 反馈类型字典（`GET /feedback-options` 下发，只显示名称，顺序 = 数组顺序） */
+  options: FeedbackOption[]
+  /** 字典在途（类型区展示「加载中…」） */
+  optionsLoading?: boolean
+  /** 字典失败 / 空（类型区展示失败行，点击回抛 retry-options） */
+  optionsFailed?: boolean
 }>()
 
 /**
@@ -116,7 +126,9 @@ const model = defineModel<FeedbackFormModel>('model', { required: true })
 
 const emit = defineEmits<{
   (e: 'clear', key: string): void
-  (e: 'pick', value: FeedbackType): void
+  (e: 'pick', optionId: number): void
+  /** 字典失败行点击：请求编排层重拉 `GET /feedback-options` */
+  (e: 'retry-options'): void
   /**
    * 请求选择**配图来源**（拍照 / 相册）。
    * <p>命名带 `-image` 后缀是必须的：本组件已有 `pick` 事件承载「选反馈类型」，
@@ -139,9 +151,9 @@ defineExpose({ startPick })
 /** 描述框聚焦态（iOS 焦点反馈：底线高亮主色） */
 const focused = ref(false)
 
-function onPick(value: FeedbackType) {
-  emit('pick', value)
-  emit('clear', 'form.type')
+function onPick(optionId: number) {
+  emit('pick', optionId)
+  emit('clear', 'form.optionId')
 }
 
 /**
@@ -181,10 +193,19 @@ function onImagesChange(items: UgcImageItem[]) {
   /* 选项之间用上下内边距分组，替代模块内分割线 */
   gap: var(--spacing-md);
 }
+/* 字典加载中 / 失败提示行：次级浅灰小字；失败行可点击重试，触达兜到全站基线 */
+.type-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-target-size);
+  font-size: var(--font-small);
+  color: var(--text-tertiary);
+}
 .type-row {
   /* 命中区：整行可点（min-height ≥88rpx 命中下限）；不套独立灰色背景块 */
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--spacing-sm);
   min-height: var(--tap-target-size);
   padding: 0;
@@ -203,7 +224,6 @@ function onImagesChange(items: UgcImageItem[]) {
   flex: none;
   width: 40rpx;
   height: 40rpx;
-  margin-top: 2rpx;
   border-radius: var(--radius-circle);
   border: 1rpx solid var(--border-color);
   box-sizing: border-box;
@@ -216,25 +236,15 @@ function onImagesChange(items: UgcImageItem[]) {
   border-color: var(--color-primary);
   background: var(--color-primary);
 }
-.type-text {
+.type-label {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3xs);
-}
-.type-label {
   font-size: var(--font-body);
   font-weight: var(--weight-regular);
   color: var(--text-body);
   line-height: 1.3;
 }
 /* 选中态仅靠左侧 .type-check.on 区分；label 始终常规字重、不加粗（杜绝权重跳动） */
-.type-hint {
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  line-height: 1.4;
-}
 
 /* ===== ② 描述：标题行（左标题 + 右计数） ===== */
 .field-head {
@@ -249,14 +259,6 @@ function onImagesChange(items: UgcImageItem[]) {
   font-size: var(--font-aux);
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
-}
-/* 描述框辅助说明：仅 other 类型展示的菜品问题反馈引导 */
-.field-help {
-  display: block;
-  margin-top: var(--spacing-xs);
-  font-size: var(--font-aux);
-  color: var(--text-tertiary);
-  line-height: 1.4;
 }
 /* 描述框聚焦态：底线切换为品牌主色高亮（新增 iOS 焦点反馈） */
 .content-input.focused {

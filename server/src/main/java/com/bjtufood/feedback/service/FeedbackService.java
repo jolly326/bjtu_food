@@ -2,25 +2,24 @@ package com.bjtufood.feedback.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
-import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
-import com.bjtufood.feedback.dto.ReportReq;
-import com.bjtufood.feedback.dto.ReportReasonVO;
-
-import java.util.List;
+import com.bjtufood.moderation.dto.ModerationHandleReq;
 
 /**
- * 用户反馈服务接口
- * 职责：submit / listForAdmin / handle（不含「我的反馈列表」——反馈中心不在产品范围内）。
+ * 意见反馈服务接口。
+ * <p>
+ * 职责：提交 / 管理端列表 / 处置归档（处置状态机在 {@code ModerationTaskService}）/
+ * 账号归属迁移。举报与字典各有自己的服务（{@link ReportService} / {@link ReportOptionService}）。
  */
 public interface FeedbackService {
 
     /**
-     * 提交意见反馈（🔑 需登录），status=pending。
+     * 提交意见反馈（🔑 需登录）。
      * <p>
-     * 写入类型值域 = {@code FeedbackConst.WRITABLE_TYPES}（{@code bug} / {@code suggestion} / {@code other}）；
-     * {@code content} 必填（≤1000 字）+ {@code images}（≤3 张）。
-     * 文本过微信内容安全检测（msgSecCheck v2，scene=2）：risky 直接拒绝（400），pass/review 一律放行。
+     * 写入 `feedback` + 在**同一事务**内预建处置任务行（`status=pending`）。
+     * 校验：{@code optionId} 必填且命中 `feedback_option` 启用项；{@code content} 非空（≤1000 字）；
+     * 文本过本地词库 + 微信内容安全检测（msgSecCheck v2，scene=2）：risky 直接拒绝（400），
+     * pass / review 一律放行；{@code images} ≤3 张且逐项 COS 白名单校验。
      *
      * @param userId 当前用户ID（须为真实登录用户；无登录态即 401）
      * @param req    反馈内容
@@ -28,78 +27,45 @@ public interface FeedbackService {
     void submit(Long userId, FeedbackReq req);
 
     /**
-     * 提交评价举报（{@code POST /reviews/{id}/report}，🔑 需登录、免邮箱认证），status=pending。
+     * 管理端反馈列表（`GET /admin/feedbacks`）。
      * <p>
-     * 结论以结构化原因为准（{@code reasonId} 必选，值域 = {@code report_reason} 表的启用项）；
-     * 文本 {@code content} 可空（填写则过内容安检）；同一用户对同一评价重复举报 → 400。
-     * 落库为 {@code user_feedback} 的 {@code type='report'} 记录
-     * （{@code sub_reason_id=reasonId}、{@code related_type=review}、{@code related_id=reviewId}）。
+     * 筛选按「处置任务状态」（`moderation_task.status`，提交时预建 ⇒ 恒有行），
+     * 排序固定 `feedback.created_at DESC`；关键词匹配反馈正文**或**处置文案。
+     * 出参补齐提交人昵称、类型中文名（含停用项）与处置结果（含处理人登录名）。
      *
-     * @param userId   当前用户ID（须为真实登录用户，去重按该维度）
-     * @param reviewId 被举报的评价ID（路径参数）
-     * @param req      举报内容
-     * @throws com.bjtufood.common.exception.BusinessException 原因缺失/非法、评价不存在（4001）、重复举报（400）
+     * @param status   处置状态：pending/handled（可空 = 全部；非法值 400）
+     * @param optionId 按反馈类型筛选（可空；从字典视角看反馈）
+     * @param userId   按提交人筛选（可空）
+     * @param keyword  关键词（可空；匹配反馈正文或处置文案）
      */
-    void report(Long userId, Long reviewId, ReportReq req);
+    IPage<FeedbackAdminVO> listForAdmin(String status, Long optionId, Long userId, String keyword,
+                                        int page, int pageSize);
 
     /**
-     * 举报原因字典（公开只读，`GET /report-reasons`）。
+     * 处置反馈（`PUT /admin/feedbacks/{id}`）：更新处置任务行 + 投递站内回执（同一事务）。
      * <p>
-     * **真源 = `report_reason` 表**，由 {@code ReportReasonService#listEnabled()} 供给 —— 字典可维护、免发版、免客户端改动。
-     * <p>
-     * 出参结构：恰 {@code id} + {@code name}、无分页；**只下发启用项**，
-     * 顺序为视图 {@code id} 升序。
+     * 处置文案 / 结论的校验与缺省兜底、已处置再处置 → 400、任务行缺失 → 4001 均在
+     * {@code ModerationTaskService#handle} 内统一强制。
      *
-     * @return 举报原因字典项（id 原因 ID + name 中文名，按 `id` 升序，仅启用项）
+     * @param id      反馈ID
+     * @param req     处置请求（{@code replyTitle} / {@code replyContent} / {@code outcome}）
+     * @param adminId 处置人账号ID（SecurityUtil 取，不信任请求体）
+     * @throws com.bjtufood.common.exception.BusinessException code=4001 反馈不存在
      */
-    List<ReportReasonVO> reportReasons();
+    void handle(Long id, ModerationHandleReq req, Long adminId);
 
     /**
-     * 反馈列表（管理端，按状态/类型/用户过滤）
-     * <p>
-     * 筛选不含内容安全态（审核结果恰「放行 / 拒绝」二态，无待复核态，故无此筛选入参）。
-     *
-     * @param keyword 关键词（可选，对反馈内容 content 或管理员回复 reply 模糊匹配）
-     */
-    IPage<FeedbackAdminVO> listForAdmin(String category, String status, String type, Long userId, String keyword, int page, int pageSize);
-
-    /**
-     * 待办计数（运营看板）：按板块统计 status=pending 的总数。
-     * <p>
-     * 等价于 {@code listForAdmin(category, "pending", null, null, null, 1, 1).getTotal()}，
-     * 但免去一次 LIMIT 1 列表查询（与 countWithoutDish / countHealth 口径一致）。
-     *
-     * @param category 板块（feedback / report）
-     * @return 待处理条数
-     */
-    long countPending(String category);
-
-    /**
-     * 处理反馈：标记 handled + 写 reply/处理结论/handled_at
-     * <p>
-     * 决议：管理端「操作人身份」降级——单口令即单人，不追究身份，
-     * 故不取当前管理员 ID 写 handler_id（列保留在库中，登记为 retired）。
-     * <p>
-     * {@code reply} <b>可选</b>（≤600 字；{@code handled} 时缺省回执用固定文案）——
-     * 留空/纯空白归一为 null 落库；长度上限见 {@code FeedbackConst.REPLY_MAX_LENGTH}。
-     * <p>
-     * 支持处理结论——{@code outcome=handled}（通过/已处理，缺省）或
-     * {@code outcome=rejected}（不采纳/退回）；结论为不采纳/退回时 {@code rejectReason} 必填
-     * （1~200 字，纯空白视为未填写 → 400「请填写不采纳原因」），随回执一并向提交人展示。
-     */
-    void handle(Long id, FeedbackHandleReq req);
-
-    /**
-     * 账号归属迁移：把 fromUserId 的反馈改挂到 toUserId（仅改 {@code user_feedback.user_id}）。
+     * 账号归属迁移：把 fromUserId 的**本域用户提交**改挂到 toUserId
+     * （`feedback.user_id` 与 `report.user_id`，同一事务）。
      * <p>
      * 调用方 = {@code feedback.event.FeedbackOwnershipListener}（订阅 auth 域发布的
      * {@code UserOwnershipMigratedEvent}）—— auth 域**不直接改写**本域表。
      * <p>
-     * 账号注销不迁移：注销只软删 user 行，反馈行与 user_id 保持不动，昵称由 join user 实时取。
+     * 账号注销不迁移：注销只软删 user 行，提交行与 user_id 保持不动，昵称由 join user 实时取。
      *
      * @param fromUserId 迁出账号ID
      * @param toUserId   迁入账号ID
-     * @return 改挂条数（供日志）
+     * @return 改挂条数（供日志；两张表合计）
      */
     int migrateOwnership(Long fromUserId, Long toUserId);
 }

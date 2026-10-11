@@ -1,17 +1,17 @@
 ﻿/**
- * 反馈 / 举报写入口（三链路各自独立）：
- * - 意见反馈 `POST /feedback`（纯反馈三类型 bug/suggestion/other）
- * - 评价举报 `POST /reviews/{id}/report`（RESTful 子资源）
- * - 举报原因字典 `GET /report-reasons`（PUB）
+ * 反馈 / 举报写入口与选项字典（三条互不耦合的链路）：
+ * - 意见反馈 `POST /feedback`（类型 = 字典项 `optionId`）
+ * - 评价举报 `POST /reviews/{id}/report`（RESTful 子资源，原因 = 字典项 `optionId`）
+ * - 选项字典（PUB，结构同族）：反馈类型 `GET /feedback-options` · 举报原因 `GET /report-options`
  * - 菜品问题反馈 `POST /dishes/{id}/correction`（信息有误 / 已经下架）
  */
 import { get, post } from './http'
-import type { ReportReasonVO as SharedReportReasonVO } from './shared'
+import type { OptionVO as SharedOptionVO } from './shared'
 import type { FeedbackSubmit, ReportPayload, DishCorrectionPayload } from '@/types/feedback'
 
 /**
  * 提交意见反馈：payload 整体透传（不逐字段映射）。
- * 仅纯反馈三类型，`content` 必填 + `images`（≤3 张）。
+ * `optionId` 必填且须命中 `GET /feedback-options` 启用项 + `content` 必填 + `images`（≤3 张）。
  */
 export async function createFeedback(payload: FeedbackSubmit): Promise<void> {
   await post('/feedback', payload)
@@ -19,8 +19,8 @@ export async function createFeedback(payload: FeedbackSubmit): Promise<void> {
 
 /**
  * 提交评价举报（举报对象在路径中）。
- * **需登录**（静默登录后恒有登录态，免邮箱认证）；`reasonId` 必选（字典 `GET /report-reasons` 下发项的 `id`）；
- * 补充文本可空（填写则过安检）；被举报评价不存在 / 不可见 → 4001。
+ * **需登录**（静默登录后恒有登录态，免邮箱认证）；`optionId` 必选（字典 `GET /report-options` 下发项的 `id`）；
+ * 被举报评价不存在 / 不可见 → 4001。
  */
 export async function reportReview(reviewId: number, payload: ReportPayload): Promise<void> {
   await post(`/reviews/${reviewId}/report`, payload)
@@ -43,26 +43,36 @@ export async function createDishCorrection(
   await post(`/dishes/${dishId}/correction`, payload)
 }
 
-/** 举报原因字典项：真源 = 后端 `FeedbackConst.ReportReason`，端上直接复用生成契约，不再手写第二份副本 */
-type ReportReasonVO = SharedReportReasonVO
+/** 选项字典项：真源 = 生成契约 `OptionVO`（反馈类型与举报原因两个字典同构），端上不再手写第二份副本 */
+type OptionVO = SharedOptionVO
 
-/**
- * 端上展示模型：**必填**（契约字段可空，在此一次性兜底，避免 UI 模板处处判空）。
- * 字典项必带 id/name，契约的 `?` 只是 OpenAPI 对 record 分量的保守表达。
- */
-export interface ReportReason {
+/** 字典项端上展示模型：**必填**（契约字段可空，在此一次性兜底，避免 UI 模板处处判空） */
+export interface FeedbackOption {
   id: number
   name: string
 }
 
+/** 举报原因字典项：与反馈类型字典同构，别名承载举报语义 */
+export type ReportOption = FeedbackOption
+
 /**
- * 举报原因字典（PUB）：举报弹层单选项，打开时实时拉取。
- * 展示顺序 = **后端下发顺序**（端上不排序）；整体透传后端数组，不做逐字段映射。
+ * 拉取选项字典（PUB，两个字典端点同构共用一条取数路径）：
+ * 逐项做 number/string 兜底收敛，非法项剔除；整体透传后端数组（端上不排序）。
  */
-export async function listReportReasons(): Promise<ReportReason[]> {
-  const rows = await get<ReportReasonVO[]>('/report-reasons')
+async function listOptions(path: string): Promise<FeedbackOption[]> {
+  const rows = await get<OptionVO[]>(path)
   if (!Array.isArray(rows)) return []
   return rows
     .map((r) => ({ id: Number(r.id ?? 0), name: String(r.name ?? '') }))
     .filter((r) => r.id && r.name)
+}
+
+/** 反馈类型字典：意见反馈页类型单选项，打开页面时实时拉取 */
+export async function listFeedbackOptions(): Promise<FeedbackOption[]> {
+  return listOptions('/feedback-options')
+}
+
+/** 举报原因字典：举报弹层单选项，打开弹层时实时拉取 */
+export async function listReportOptions(): Promise<ReportOption[]> {
+  return listOptions('/report-options')
 }

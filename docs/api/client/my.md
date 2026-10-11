@@ -69,13 +69,13 @@
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 通知 ID |
-| `title` | string | 否 | 通知标题 |
-| `content` | string | 否 | 正文（处理回执内容） |
+| `replyTitle` | string | 否 | 回执标题（处置时快照） |
+| `replyContent` | string | 否 | 回执正文（处置文案 / 不采纳原因，处置时快照） |
 | `isRead` | boolean | 否 | `true` 已读 / `false` 未读 |
 | `createdAt` | string | 否 | 生成时间 |
 
 > **排序 = 时间倒序**。
-> **出参字段**：`id` / `title` / `content` / `isRead` / `createdAt`；通知卡不按类型分支、不做类型相关跳转。
+> **出参字段**：`id` / `replyTitle` / `replyContent` / `isRead` / `createdAt`；通知卡不按类型分支、不做类型相关跳转。
 > **登录级能力**：游客与已认证用户同权可用；游客提交的反馈 / 举报 / 菜品问题反馈同样收到回执。
 
 ---

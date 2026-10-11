@@ -1,20 +1,23 @@
 package com.bjtufood.correction.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.bjtufood.correction.dto.CorrectionAdminVO;
+import com.bjtufood.correction.dto.CorrectionDetailVO;
 import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
-import com.bjtufood.correction.dto.DishCorrectionAdminVO;
-import com.bjtufood.correction.dto.DishCorrectionDetailVO;
-import com.bjtufood.correction.dto.DishCorrectionHandleReq;
 import com.bjtufood.correction.dto.DishCorrectionReq;
 import com.bjtufood.correction.dto.StallConfirmVO;
+import com.bjtufood.moderation.dto.ModerationHandleReq;
 
 /**
- * 菜品信息纠错服务接口（独立资源，端点：POST /dishes/{id}/correction + /admin/corrections）。
+ * 菜品问题反馈服务接口（独立资源，端点：POST /dishes/{id}/correction + /admin/corrections）。
+ * <p>
+ * 提交信息落在 `correction`（append-only）；处置状态与处置文案外置在 `moderation_task`
+ * —— 采纳 / 驳回均经 {@code ModerationTaskService#handle} 归档并投递站内回执。
  */
 public interface CorrectionService {
 
     /**
-     * 提交菜品信息纠错（<b>需登录</b>：写请求必须绑定账号），status=pending。
+     * 提交菜品问题反馈（<b>需登录</b>：写请求必须绑定账号），并在**同一事务**内预建处置任务行。
      * <p>
      * **局部提交（patch）**：只落库用户改动的字段（name / price / canteenName / stallName /
      * floor / attributes / images），未改动列留 NULL（采纳时不覆盖既有值）；**空请求体 → 400「未提交任何改动」**
@@ -31,36 +34,15 @@ public interface CorrectionService {
     void submit(Long userId, Long dishId, DishCorrectionReq req);
 
     /**
-     * 纠错列表（管理端，ADM）：分页，status 筛选（pending/adopted/rejected，不传 = 全部）。
-     * VO 补齐 dishName（实时回查 dish，含已下架/已删除兜底）与提交人昵称。
-     */
-    /**
-     * 管理端纠错列表（分页；按 `createdAt DESC`）。
-     *
-     * @param status 处理状态（`pending`/`adopted`/`rejected`；可空 = 全部；非法值 `400`）
-     * @param dishId 按目标菜品筛选（可空；从菜品视角看纠错）
-     */
-    IPage<DishCorrectionAdminVO> listForAdmin(String status, Long dishId, int page, int pageSize);
-
-    /**
-     * 管理端问题反馈列表（分页；按 `createdAt DESC`）——<b>支持按 {@code type} 筛选</b>。
+     * 管理端问题反馈列表（分页；按 `createdAt DESC`）——<b>支持按处置状态与 {@code type} 筛选</b>。
      * <p>
-     * 管理端按类型分 Tab 展示（信息有误 / 已经下架）；{@code type} 不传 = 全部（含存量 field 记录）。
+     * 管理端按类型分 Tab 展示（信息有误 / 已经下架）；{@code type} 不传 = 全部。
      *
-     * @param status 处理状态（`pending`/`adopted`/`rejected`；可空 = 全部；非法值 `400`）
+     * @param status 处置状态（`pending`/`handled`；可空 = 全部；非法值 `400`）
      * @param type   问题类型（`field`/`gone`；可空 = 全部；非法值 `400`）
      * @param dishId 按目标菜品筛选（可空；从菜品视角看反馈）
      */
-    IPage<DishCorrectionAdminVO> listForAdmin(String status, String type, Long dishId, int page, int pageSize);
-
-    /**
-     * 待办计数（运营看板）：status=pending 的总数。
-     * <p>
-     * 等价于 {@code listForAdmin("pending", null, 1, 1).getTotal()}，但免去一次 LIMIT 1 列表查询。
-     *
-     * @return 待处理条数
-     */
-    long countPending();
+    IPage<CorrectionAdminVO> listForAdmin(String status, String type, Long dishId, int page, int pageSize);
 
     /**
      * 管理端纠错**详情**（含 `differences[]` 差异对照，供「逐项勾选采纳」）。
@@ -72,7 +54,7 @@ public interface CorrectionService {
      * @return 详情 VO
      * @throws com.bjtufood.common.exception.BusinessException code=4001 纠错不存在
      */
-    DishCorrectionDetailVO getDetail(Long id);
+    CorrectionDetailVO getDetail(Long id);
 
     /**
      * 采纳纠错（管理端，ADM，两段式档口确认）。
@@ -81,25 +63,32 @@ public interface CorrectionService {
      * &gt; createIfMissing=true 按名 upsert 新建；均未命中则<b>不执行采纳</b>，
      * 返回 {@link StallConfirmVO}（needStallConfirm=true + 候选档口列表，HTTP 200）供管理端二次选择。
      * <p>
-     * 采纳动作：七字段写回 dish（name/price/档口挂靠/flavorTags/ingredients/images；
-     * 可空快照字段不覆盖既有值，保护「菜品首图必填」不变量）→ status=adopted、
-     * reply=「已采纳，菜品信息已更新」、handled_at=now → 向可归属提交人投递站内回执。
+     * 采纳动作：选中项写回 dish（name/price/档口挂靠/attributes/images；可空快照字段不覆盖既有值，
+     * 保护「菜品首图必填」不变量）→ 经 {@code ModerationTaskService#handle} 归档处置结果
+     * （`outcome=handled`）+ 投递站内回执。{@code type=gone} 的采纳动作恒为「下架该菜品」（可逆）。
      * <p>
      * <b>楼层纠错</b>：{@code floor} 不写回 dish（菜品无楼层字段）——本次纠错携带楼层时，
      * 写回上面已解析出的<b>目标档口</b> {@code stall.floor}，同档口下其他菜品一并生效。
-     * 档口解析沿用同一优先级（显式 stallId &gt; 提交档口名命中 &gt; createIfMissing 新建）；
-     * {@code stallName} 未改动（快照为 null）时目标档口即「该菜当前所属档口」，由管理端在
-     * 两段式确认里选定既有档口后落定（既有行为不变）。
      *
+     * @param id      纠错 ID
+     * @param req     采纳请求（逐项清单 + 两段式档口确认参数 + 可选采纳附注）
+     * @param adminId 处置人账号ID（写处置任务行的 `handled_by`）
      * @return null = 已执行采纳（Controller 返回 Result<Void>）；
      *         非 null = 需要档口确认（未执行任何写操作），Controller 原样下发
      */
-    StallConfirmVO adopt(Long id, DishCorrectionAdoptReq req);
+    StallConfirmVO adopt(Long id, DishCorrectionAdoptReq req, Long adminId);
 
     /**
-     * 拒绝纠错（管理端，ADM，形态对齐 feedback handle）：status=rejected + reply/rejectReason/handled_at
-     * + 站内回执。reply 必填（1~1000 字）；outcome 固定 rejected（其他值 400）；
-     * rejectReason 必填（1~200 字，纯空白 → 400「请填写不采纳原因」）。
+     * 驳回纠错（管理端，ADM，形态对齐反馈处置）：经 {@code ModerationTaskService#handle}
+     * 归档 `outcome=rejected` + 投递站内回执。
+     * <p>
+     * {@code outcome} 固定 {@code rejected}（本端点即驳回动作；传其他值 400）；
+     * {@code replyContent} **必填**（即为不采纳原因，纯空白 → 400「请填写不采纳原因」）；
+     * {@code replyTitle} 可选（缺省按类型给「菜品信息未采纳」/「菜品仍在售」）。
+     *
+     * @param id      纠错 ID
+     * @param req     处置请求（{@code replyTitle} / {@code replyContent} / {@code outcome}）
+     * @param adminId 处置人账号ID
      */
-    void reject(Long id, DishCorrectionHandleReq req);
+    void reject(Long id, ModerationHandleReq req, Long adminId);
 }

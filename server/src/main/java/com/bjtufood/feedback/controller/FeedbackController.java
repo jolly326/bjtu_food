@@ -1,32 +1,26 @@
 package com.bjtufood.feedback.controller;
 
+import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.common.utils.ClientIpUtil;
-import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.feedback.dto.FeedbackReq;
-import com.bjtufood.feedback.dto.ReportReasonVO;
 import com.bjtufood.feedback.service.FeedbackService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 /**
- * 用户反馈接口。
+ * 意见反馈提交端点（学生端）。
  * <p>
- * 学生端两个端点：提交反馈 {@code POST /feedback} 与举报原因字典 {@code GET /report-reasons}；
- * 管理端 {@code /admin/feedbacks} 由 {@code feedback.controller.admin.FeedbackAdminController} 承载。
- * <p>
- * 举报原因字典独立于 {@code /feedback}：字典是「举报原因」的枚举，<b>不是</b>「反馈提交」的子资源，
- * 其唯一消费者是同仓小程序。
+ * 分类字典（反馈类型 / 举报原因）走独立的公开只读端点，见
+ * {@link OptionDictionaryController}；管理端处置见
+ * {@code feedback.controller.admin.FeedbackAdminController}。
  */
 @Tag(name = "用户反馈", description = "用户通过联系开发者页面提交反馈")
 @RestController
@@ -45,7 +39,8 @@ public class FeedbackController {
      * 提交反馈（🔑 需登录）：写请求绑定账号 —— 可归因、可按账号维度限频。
      */
     @Operation(summary = "提交反馈",
-            description = "🔑 需登录。写入 user_feedback（type=suggestion，status=pending）。"
+            description = "🔑 需登录。写入 feedback（optionId=反馈类型字典项；处置状态与处置文案由管理端外置）。"
+                    + "optionId 必填且须命中 GET /feedback-options 的启用项；content 必填（≤1000 字）。"
                     + "同 IP 每分钟 ≤2 条、每小时 ≤10 条。")
     @PostMapping("/feedback")
     public Result<Void> submitFeedback(@Valid @RequestBody FeedbackReq req) {
@@ -53,21 +48,6 @@ public class FeedbackController {
         checkRateLimit(userId);
         feedbackService.submit(userId, req);
         return Result.success();
-    }
-
-    /**
-     * 举报原因字典（PUB：公开只读，弹层打开时端上实时拉取）——{@code GET /report-reasons}。
-     * 值域与文案唯一真源 = `report_reason` 表（管理端 A7 维护），本端点只下发**启用项**，
-     * 端上与管理端零硬编码（PR-12）。
-     * <p>
-     * <b>公开只读，两端共用</b>（非敏感枚举无需为管理端复制出口）。管理端写操作走
-     * {@code /admin/report-reasons}（管理端 JWT 保护）。
-     * 构造逻辑共用 {@code FeedbackService#reportReasons()}。
-     */
-    @Operation(summary = "举报原因字典", description = "PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons")
-    @GetMapping("/report-reasons")
-    public Result<List<ReportReasonVO>> reportReasons() {
-        return Result.success(feedbackService.reportReasons());
     }
 
     /**

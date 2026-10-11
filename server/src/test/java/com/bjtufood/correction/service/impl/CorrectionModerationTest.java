@@ -7,8 +7,9 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonMapUtil;
 import com.bjtufood.correction.dto.DishCorrectionReq;
-import com.bjtufood.correction.entity.DishCorrection;
-import com.bjtufood.correction.mapper.DishCorrectionMapper;
+import com.bjtufood.correction.entity.Correction;
+import com.bjtufood.correction.mapper.CorrectionMapper;
+import com.bjtufood.moderation.service.ModerationTaskService;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.moderation.service.ContentSecurityService;
@@ -52,7 +53,7 @@ import static org.mockito.Mockito.when;
  */
 class CorrectionModerationTest {
 
-    private DishCorrectionMapper correctionMapper;
+    private CorrectionMapper correctionMapper;
     private DishService dishService;
     private StallService stallService;
     private UserService userService;
@@ -64,7 +65,7 @@ class CorrectionModerationTest {
 
     @BeforeEach
     void setUp() {
-        correctionMapper = mock(DishCorrectionMapper.class);
+        correctionMapper = mock(CorrectionMapper.class);
         dishService = mock(DishService.class);
         stallService = mock(StallService.class);
         userService = mock(UserService.class);
@@ -73,9 +74,10 @@ class CorrectionModerationTest {
         notificationService = mock(NotificationService.class);
         imageUrlUtil = mock(ImageUrlUtil.class);
 
-        svc = new CorrectionServiceImpl(correctionMapper, new CorrectionPersister(correctionMapper), dishService,
+        svc = new CorrectionServiceImpl(correctionMapper,
+                new CorrectionPersister(correctionMapper, mock(ModerationTaskService.class)), dishService,
                 mock(DishAttributeAdminService.class), stallService, userService, localSensitiveFilter,
-                contentSecurityService, notificationService, imageUrlUtil);
+                contentSecurityService, imageUrlUtil, mock(ModerationTaskService.class));
 
         when(dishService.existsOnSale(1L)).thenReturn(true);
         when(localSensitiveFilter.containsSensitive(anyString())).thenReturn(false);
@@ -98,7 +100,7 @@ class CorrectionModerationTest {
         // times(1) 锁定「合并为单次调用」：msgSecCheck 按调用计费，
         // 若后人改成逐字段送检，times(1) 立即失败（这正是本用例要防的回归）。
         verify(contentSecurityService, times(1)).checkText(eq("oX-openid"), anyString(), eq(2));
-        verify(correctionMapper).insert(any(DishCorrection.class));
+        verify(correctionMapper).insert(any(Correction.class));
     }
 
     @Test
@@ -136,7 +138,7 @@ class CorrectionModerationTest {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(contentSecurityService, times(1)).checkText(eq("oX-openid"), captor.capture(), eq(2));
         assertThat(captor.getValue()).isEqualTo("二层");
-        verify(correctionMapper).insert(any(DishCorrection.class));
+        verify(correctionMapper).insert(any(Correction.class));
     }
 
     @Test
@@ -149,7 +151,7 @@ class CorrectionModerationTest {
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
 
-        verify(correctionMapper, never()).insert(any(DishCorrection.class));
+        verify(correctionMapper, never()).insert(any(Correction.class));
     }
 
     @Test
@@ -161,7 +163,7 @@ class CorrectionModerationTest {
         assertThatCode(() -> svc.submit(7L, 1L, r)).doesNotThrowAnyException();
 
         verify(contentSecurityService, never()).checkText(any(), anyString(), anyInt());
-        verify(correctionMapper).insert(any(DishCorrection.class));
+        verify(correctionMapper).insert(any(Correction.class));
     }
 
     @Test
@@ -172,7 +174,7 @@ class CorrectionModerationTest {
         assertThatCode(() -> svc.submit(7L, 1L, req("宫保鸡丁"))).doesNotThrowAnyException();
 
         verify(contentSecurityService).checkText(eq(null), anyString(), eq(2));
-        verify(correctionMapper).insert(any(DishCorrection.class));
+        verify(correctionMapper).insert(any(Correction.class));
     }
 
     @Test
@@ -184,7 +186,7 @@ class CorrectionModerationTest {
 
         verify(userService, never()).getAuthContext(any());
         verify(contentSecurityService, never()).checkText(any(), anyString(), anyInt());
-        verify(correctionMapper, never()).insert(any(DishCorrection.class));
+        verify(correctionMapper, never()).insert(any(Correction.class));
     }
 
     @Test
@@ -196,7 +198,7 @@ class CorrectionModerationTest {
                 .isInstanceOf(BusinessException.class);
 
         verify(contentSecurityService, never()).checkText(any(), anyString(), anyInt());
-        verify(correctionMapper, never()).insert(any(DishCorrection.class));
+        verify(correctionMapper, never()).insert(any(Correction.class));
     }
 
     @Test
@@ -206,7 +208,7 @@ class CorrectionModerationTest {
                 .isInstanceOf(BusinessException.class);
 
         verify(contentSecurityService, never()).checkText(any(), anyString(), anyInt());
-        verify(correctionMapper, never()).insert(any(DishCorrection.class));
+        verify(correctionMapper, never()).insert(any(Correction.class));
     }
 
     @Test
@@ -219,7 +221,7 @@ class CorrectionModerationTest {
         assertThatCode(() -> svc.submit(7L, 1L, r)).doesNotThrowAnyException();
 
         verify(contentSecurityService, never()).checkText(any(), anyString(), anyInt());
-        verify(correctionMapper).insert(any(DishCorrection.class));
+        verify(correctionMapper).insert(any(Correction.class));
     }
 
     @Test

@@ -9,8 +9,8 @@
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 通知 ID |
 | `user_id` | BIGINT | NO | 0 | KEY, FK→user | 接收人 |
-| `title` | VARCHAR(128) | NO | `''` | | 通知标题（如「反馈已处理」「菜品信息更新」） |
-| `content` | VARCHAR(1024) | NO | `''` | | 通知正文 = **固定前缀（≤40 字）+ `reply` / `rejectReason` 全文**（`reply ≤600` ⇒ 构造后必 ≤ 1024）——**恒非空**（空回执用固定文案，出参不做 null 兜底）；**SHALL NOT 截断** |
+| `reply_title` | VARCHAR(128) | NO | — | | 回执标题（处置时**快照**：来自 [`moderation_task.reply_title`](./moderation_task.md)，≤40 字，留空由缺省文案兜底） |
+| `reply_content` | VARCHAR(1024) | NO | — | | 回执正文（处置时**快照**：来自 [`moderation_task.reply_content`](./moderation_task.md)，≤600 字；**不采纳原因与处置说明同列**）——**恒非空**（空回执用缺省文案，出参不做 null 兜底）；**SHALL NOT 截断** |
 | `is_read` | TINYINT | NO | 0 | | `0` 未读 / `1` 已读 |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | 生成时间（列表按此倒序） |
 
@@ -28,7 +28,7 @@
 ## 关键设计
 
 ### 出参 5 个字段（含 `id`）
-出参 = `id` / `title` / `content` / `isRead` / `createdAt`（共 5 个）；端上从不读取类型，通知卡只渲染「标题 + 正文 + 时间 + 未读态」，**不按类型分支、不做类型相关跳转**。
+出参 = `id` / `replyTitle` / `replyContent` / `isRead` / `createdAt`（共 5 个）；端上从不读取类型，通知卡只渲染「标题 + 正文 + 时间 + 未读态」，**不按类型分支、不做类型相关跳转**。
 
 将来若要做「按类型点击跳转」，须先由 UI 文档定义交互，再新增 `type` + `related_id` 列（命名以本文件为准）。
 
@@ -40,12 +40,16 @@
 ### 账号注销时硬删
 通知是**账号维度的过程性数据**：注销后账号不可再进入、无任何读取方，保留即孤儿数据。
 
-因此 `UserAccountClosedEvent` → `NotificationAccountCleanListener` 在注销事务内**物理删除**该用户全部通知。这与 `review` / `user_feedback` 的「保留并匿名化」口径**刻意不同**。
+因此 `UserAccountClosedEvent` → `NotificationAccountCleanListener` 在注销事务内**物理删除**该用户全部通知。这与 `review` / `feedback` / `report` / `correction` 的「保留并匿名化」口径**刻意不同**。
 
-### 异步投递，不阻塞主流程
-`NotificationServiceImpl#notify` 标 `@Async`：通知写入失败**不影响**业务处理结果（反馈已被处理、菜品问题反馈已被采纳）。
+### 投递事务语义按来源分档（两种形态）
 
-⚠️ 因此投递失败**只能通过日志发现**，调用方无法感知。
+| 形态 | 来源 | 语义 |
+|---|---|---|
+| **同步、并入写动作事务**（`notifyNow`） | 三类工单的**处置回执** | 回执正文是处置文案的**快照**，与 [`moderation_task`](./moderation_task.md) 行**同生共死** —— 「任务已归档、用户收不到回执」即状态分叉，故不允许 |
+| **异步**（`notify`，`@Async` 新事务） | **评价处置回执**（隐藏 / 删除某人的评价） | 通知是处置的**副产物**：写入失败**不影响**业务处理结果 |
+
+⚠️ 异步形态的投递失败**只能通过日志发现**，调用方无法感知。
 
 ## 关联与级联
 

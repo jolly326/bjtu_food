@@ -7,7 +7,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 反馈管理端视图对象
+ * 意见反馈管理端视图对象（{@code GET /admin/feedbacks}）。
+ * <p>
+ * 「处置状态 + 处置文案」全部来自处置任务表（{@code moderation_task}，按 {@code type_id} 批量回填）——
+ * 反馈表本身只提供提交事实（提交人 / 类型 / 正文 / 配图 / 提交时间）。
  */
 @Data
 @Schema(description = "反馈管理端展示信息")
@@ -16,84 +19,42 @@ public class FeedbackAdminVO {
     @Schema(description = "反馈ID")
     private Long id;
 
-    @Schema(description = "用户ID")
+    @Schema(description = "提交人用户ID（恒为真实用户 ID —— 列带外键 fk_feedback_user → user(id)）")
     private Long userId;
 
-    @Schema(description = "用户昵称")
+    @Schema(description = "提交人昵称（账号已查无时为「已注销用户」以外的空值由前端兜底）")
     private String userName;
 
-    @Schema(description = "反馈类型：bug/suggestion/other/report（历史存量行另含 issue/add/error）")
-    private String type;
+    @Schema(description = "反馈类型ID（feedback_option 字典项 ID）")
+    private Long optionId;
 
-    @Schema(description = "二级分类（仅历史 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null")
-    private String sub;
+    @Schema(description = "反馈类型中文名（由 feedback_option 字典实时翻译，停用项仍可译出）")
+    private String optionName;
 
-    @Schema(description = "反馈内容")
+    @Schema(description = "反馈正文（空串兜底）")
     private String content;
 
-    @Schema(description = "反馈配图 URL 列表（COS 绝对地址，≤3 张）")
+    @Schema(description = "反馈配图 URL 列表（COS 绝对地址，≤3 张；恒为数组）")
     private List<String> images;
 
-    // 联系方式已不在表中；
-    // web 管理端展示列由前端任务同步删除。
-
-    @Schema(description = "关联类型：举报为 review；信息纠错为 dish；其他为 null")
-    private String relatedType;
-
-    @Schema(description = "关联对象ID（举报：评价ID）；其他为 null")
-    private Long relatedId;
-
-    @Schema(description = "处理状态：pending/handled")
+    @Schema(description = "处置状态：pending / handled")
     private String status;
 
-    /**
-     * 处理结论：{@code handled}=通过/已处理（缺省）；{@code rejected}=不采纳/退回。
-     * <p>
-     * 派生口径（user_feedback 表无 outcome 物理列，落库语义由 handle() 保证一致：
-     * rejected 结论时 reject_reason 必填非空，handled 结论时 reject_reason 恒为 NULL）：
-     * <ul>
-     *   <li>status=handled 且 rejectReason 非空 → {@code rejected}；</li>
-     *   <li>status=handled 且 rejectReason 为空 → {@code handled}（含历史存量：reject_reason 列后补，
-     *       老的处理记录该列为 NULL，派生即「已处理」，与缺省语义一致）；</li>
-     *   <li>status=pending（未处理）→ {@code null}，前端按缺省「已处理」以外的未处理态展示。</li>
-     * </ul>
-     */
-    @Schema(description = "处理结论：handled=通过/已处理（缺省）；rejected=不采纳/退回；pending 未处理为 null")
+    @Schema(description = "处置结论：handled=通过 / rejected=不采纳；未处置为 null")
     private String outcome;
 
-    @Schema(description = "管理员回复")
-    private String reply;
+    @Schema(description = "处置回执短标题（未处置为 null）")
+    private String replyTitle;
 
-    @Schema(description = "不采纳原因（处理结论为不采纳/退回时非空，1~200 字）")
-    private String rejectReason;
+    @Schema(description = "处置文案 / 不采纳原因（未处置为 null）")
+    private String replyContent;
 
-    @Schema(description = "创建时间")
+    @Schema(description = "处置人登录名（未处置 / 账号已删除为 null）")
+    private String handledByName;
+
+    @Schema(description = "提交时间")
     private LocalDateTime createdAt;
 
-    @Schema(description = "处理时间")
-    /** 处理时间（未处理为 null） */
+    @Schema(description = "处置时间（未处置为 null）")
     private LocalDateTime handledAt;
-
-    /** 最近更新时间（B2 补：管理端列表统一带它；表已有 `updated_at`，无需 DDL） */
-    private LocalDateTime updatedAt;
-
-    // ===== B3 举报私有字段（type=report 时填充；反馈行为 null） =====
-
-    /** 举报原因 ID（= `user_feedback.sub_reason_id` = `report_reason.id`；反馈行为 null） */
-    private Long subReasonId;
-
-    /** 举报原因中文名（由 `report_reason` 字典翻译；停用原因仍可译出，端上零硬编码） */
-    private String reasonName;
-
-    /** 被举报评价 ID（= `relatedId`；反馈行为 null） */
-    private Long reviewId;
-
-    /** 被举报评价正文（内嵌摘要：管理员不跳页即可看到被举报了什么；评价已删除为 null） */
-    private String reviewContent;
-
-    /** 被举报评价所属菜品名（联表带出；评价已删除时为 null） */
-    private String reviewDishName;
-
-    /** 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰） */
-    private Boolean reviewHidden;
 }

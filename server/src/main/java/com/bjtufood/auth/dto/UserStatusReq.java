@@ -7,7 +7,7 @@ import lombok.Data;
 /**
  * C2 用户启用 / 禁用请求（**只改 `status`**）。
  *
- * <p>启停类端点全站统一用 <b>字符串枚举</b>形态（同 {@code ReportReasonStatusReq} 的 on/off），
+ * <p>启停类端点全站统一用 <b>字符串枚举</b>形态（同 {@code OptionStatusReq} 的 on/off），
  * 不采用 {@code {"disabled": true}} 之类布尔形态。
  *
  * <p>取值域由服务端强制（{@code UserServiceImpl#updateStatus}）：**仅** {@code active} / {@code disabled}；

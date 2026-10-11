@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 菜品问题反馈接口（用户端，学生端写入口；<b>需登录</b>——写请求必须绑定账号，
- * 提交记录经 {@code dish_correction.user_id} 外键指向真实用户）。
+ * 提交记录经 {@code correction.user_id} 外键指向真实用户）。
  * <p>
  * 请求体以 {@code type} 判别两类反馈（字段 / 图片），两类走完全不同的表单与校验
  * （见 {@code CorrectionServiceImpl#submit}）。
@@ -53,7 +53,7 @@ public class CorrectionController {
             + "｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；"
             + "传差异项字段 → 400；同用户对同一菜品只计一次）。"
             + "floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。"
-            + "菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。"
+            + "菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。"
             + "同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。")
     @PostMapping("/dishes/{id}/correction")
     public Result<Void> submitCorrection(

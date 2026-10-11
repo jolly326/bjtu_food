@@ -57,7 +57,14 @@ export interface paths {
      */
     put: operations["setHidden"];
   };
-  "/admin/report-reasons/{id}": {
+  "/admin/reports/{id}": {
+    /**
+     * 处置举报
+     * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome, hideReview}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（受理，缺省）或 rejected（不予处理），非法值 400；hideReview **仅受理时消费**：true 联动隐藏被举报评价（幂等：评价已隐藏 / 已删除时静默成功）。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
+     */
+    put: operations["handle"];
+  };
+  "/admin/report-options/{id}": {
     /**
      * 举报原因改名
      * @description 用途：**只改 name**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
@@ -69,7 +76,7 @@ export interface paths {
      */
     delete: operations["delete"];
   };
-  "/admin/report-reasons/{id}/status": {
+  "/admin/report-options/{id}/status": {
     /**
      * 举报原因启停
      * @description 用途：只改 status。**停用最后一条启用 → 400**（举报入口不能配空）；启用数超 8 → 400；不存在 → 4001。
@@ -78,10 +85,29 @@ export interface paths {
   };
   "/admin/feedbacks/{id}": {
     /**
-     * 处理反馈
-     * @description ADM。标记 handled + 写 reply/处理结论/handled_at。仅接受 JSON body（{reply, outcome, rejectReason}）：reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400；outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400；outcome=rejected 时 rejectReason 必填（1~200 字，纯空白 → 400「请填写不采纳原因」）。已认证提交人将收到携带处理结论（及不采纳原因）的站内回执。
+     * 处置反馈
+     * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
      */
-    put: operations["handle"];
+    put: operations["handle_1"];
+  };
+  "/admin/feedback-options/{id}": {
+    /**
+     * 反馈类型改名
+     * @description 用途：**只改 name**（改名免费，历史反馈的中文翻译实时生效）；不存在 → 4001。
+     */
+    put: operations["rename_1"];
+    /**
+     * 删除反馈类型
+     * @description 用途：删除。**被反馈记录引用 → 400**（下线一律用停用，避免历史反馈翻不出中文）；不存在 → 4001。
+     */
+    delete: operations["delete_1"];
+  };
+  "/admin/feedback-options/{id}/status": {
+    /**
+     * 反馈类型启停
+     * @description 用途：只改 status。**停用最后一条启用 → 400**（反馈入口不能配空）；启用数超 8 → 400；不存在 → 4001。
+     */
+    put: operations["updateStatus_2"];
   };
   "/admin/dishes/{id}": {
     /**
@@ -105,7 +131,7 @@ export interface paths {
      * 上下架
      * @description 用途：只改 status（on 上架 / off 下架）。非法值 400，菜品不存在 4001。
      */
-    put: operations["updateStatus_2"];
+    put: operations["updateStatus_3"];
   };
   "/admin/dish-views/{id}": {
     /**
@@ -117,7 +143,7 @@ export interface paths {
      * 删除视图
      * @description 用途：删除 tab（从下发集合移除）。删除「最后一个启用的视图」→ 400；不存在 → 4001。
      */
-    delete: operations["delete_1"];
+    delete: operations["delete_2"];
   };
   "/admin/dish-dimensions/{dimensionId}": {
     /**
@@ -148,7 +174,7 @@ export interface paths {
      * 重命名分类
      * @description 用途：**只改 name**（改名免费，零菜品迁移）；重名 400；不存在 4001。
      */
-    put: operations["rename_1"];
+    put: operations["rename_2"];
   };
   "/admin/corrections/{id}": {
     /**
@@ -157,8 +183,8 @@ export interface paths {
      */
     get: operations["detail"];
     /**
-     * 拒绝反馈
-     * @description ADM。仅 status=pending 可处理（否则 400「该反馈已处理」）。仅接受 JSON body（{reply?, outcome:'rejected', rejectReason}）：**reply 可选**（≤600 字；留空时回执以不采纳原因为正文），outcome 固定 rejected（其他值 400）；rejectReason **必填**（1~200 字，纯空白 → 400「请填写不采纳原因」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：status=rejected + reply/reject_reason/handled_at 落库，并投递站内回执（含不采纳原因）。
+     * 驳回反馈
+     * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该纠错已处理」）。仅接受 JSON body（{replyTitle?, replyContent, outcome:'rejected'}）：outcome 固定 rejected（其他值 400）；replyContent **必填**（即为不采纳原因，1~600 字，纯空白 → 400「请填写不采纳原因」）；replyTitle 可选（缺省按类型给「菜品信息未采纳」/「菜品仍在售」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：处置任务归档 rejected + 处置文案，并投递站内回执（含不采纳原因）。
      */
     put: operations["reject"];
   };
@@ -184,14 +210,14 @@ export interface paths {
      * 删除 Banner
      * @description 用途：删除轮播图；不存在 → 4001。
      */
-    delete: operations["delete_2"];
+    delete: operations["delete_3"];
   };
   "/admin/banners/{id}/status": {
     /**
      * 启停 Banner
      * @description 用途：只改 status（on 启用 / off 停用）；非法值 400，不存在 4001。
      */
-    put: operations["updateStatus_3"];
+    put: operations["updateStatus_4"];
   };
   "/admin/banners/sort": {
     /**
@@ -214,14 +240,14 @@ export interface paths {
   "/reviews/{id}/report": {
     /**
      * 举报评价
-     * @description 🔑 需登录。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
+     * @description 🔑 需登录。对指定评价提交举报（结论以结构化原因单选为准）。写入 report（option_id=举报原因、review_id=路径 id），并在同一事务内预建处置任务行。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"optionId":1}
      */
     post: operations["report"];
   };
   "/feedback": {
     /**
      * 提交反馈
-     * @description 🔑 需登录。写入 user_feedback（type=suggestion，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+     * @description 🔑 需登录。写入 feedback（optionId=反馈类型字典项；处置状态与处置文案由管理端外置）。optionId 必填且须命中 GET /feedback-options 的启用项；content 必填（≤1000 字）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
      */
     post: operations["submitFeedback"];
   };
@@ -245,7 +271,7 @@ export interface paths {
   "/dishes/{id}/correction": {
     /**
      * 提交菜品问题反馈
-     * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+     * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
      */
     post: operations["submitCorrection"];
   };
@@ -312,17 +338,29 @@ export interface paths {
      */
     post: operations["createStall"];
   };
-  "/admin/report-reasons": {
+  "/admin/report-options": {
     /**
      * 举报原因列表
-     * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
+     * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
      */
-    get: operations["list_1"];
+    get: operations["list_2"];
     /**
      * 新增举报原因
      * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
      */
     post: operations["create"];
+  };
+  "/admin/feedback-options": {
+    /**
+     * 反馈类型列表
+     * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
+     */
+    get: operations["list_4"];
+    /**
+     * 新增反馈类型
+     * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；类型 ID 由后端生成；启用数上限 8。
+     */
+    post: operations["create_1"];
   };
   "/admin/dishes": {
     /**
@@ -348,12 +386,12 @@ export interface paths {
      * 视图列表
      * @description 用途：视图管理页（按 id 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
      */
-    get: operations["list_3"];
+    get: operations["list_5"];
     /**
      * 新建视图
      * @description 用途：新建 tab（默认启用）。categoryId 缺省 = 不按种类过滤；种类不存在 → 400。
      */
-    post: operations["create_1"];
+    post: operations["create_2"];
   };
   "/admin/dish-dimensions": {
     /**
@@ -384,17 +422,17 @@ export interface paths {
      * 分类列表
      * @description 用途：分类（种类）维护入口（按 id 升序，不分页）；带 dishCount（引用该种类的菜品数）。
      */
-    get: operations["list_4"];
+    get: operations["list_6"];
     /**
      * 登记分类
      * @description 用途：登记新种类。种类的 ID 由后端生成；名 1~32 字、全表唯一。
      */
-    post: operations["create_2"];
+    post: operations["create_3"];
   };
   "/admin/corrections/{id}/adopt": {
     /**
      * 采纳反馈（按 type 分派）
-     * @description ADM。仅 status=pending 可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ status=adopted、reply=「已下架，感谢反馈」、handled_at=now，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ status=adopted、reply=附注（缺省「已采纳，菜品信息已更新」）、handled_at=now，并投递站内回执。采纳已执行时返回 data=null（code=200）。
+     * @description ADM。仅待处置（moderation_task.status=pending）可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体的差异项，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ 处置任务归档 handled/replyContent 缺省「已下架，感谢反馈」、标题「菜品已下架」，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ 处置任务归档 handled（附注缺省「已采纳，菜品信息已更新」；部分采纳时逐项告知已采纳/未采纳），并投递站内回执。采纳已执行时返回 data=null（code=200）。
      */
     post: operations["adopt"];
   };
@@ -415,12 +453,12 @@ export interface paths {
      * Banner 列表
      * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）。
      */
-    get: operations["list_6"];
+    get: operations["list_8"];
     /**
      * 新增 Banner
      * @description 用途：新增轮播图（默认**启用**、排最后）。
      */
-    post: operations["create_3"];
+    post: operations["create_4"];
   };
   "/admin/auth/password": {
     /**
@@ -436,12 +474,12 @@ export interface paths {
      */
     post: operations["login"];
   };
-  "/report-reasons": {
+  "/report-options": {
     /**
      * 举报原因字典
-     * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
+     * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/report-options
      */
-    get: operations["reportReasons"];
+    get: operations["reportOptions"];
   };
   "/my/reviews": {
     /**
@@ -463,6 +501,13 @@ export interface paths {
      * @description STU（需登录；游客态亦可）。驱动宫格红点。
      */
     get: operations["unreadCount"];
+  };
+  "/feedback-options": {
+    /**
+     * 反馈类型字典
+     * @description PUB。意见反馈页的「反馈类型」单选项（id 选项 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交反馈时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/feedback-options
+     */
+    get: operations["feedbackOptions"];
   };
   "/dishes": {
     /**
@@ -540,12 +585,19 @@ export interface paths {
      */
     get: operations["listAll"];
   };
+  "/admin/reports": {
+    /**
+     * 举报列表
+     * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按举报人筛选；排序固定 `createdAt DESC`。出参补齐举报人昵称、举报原因中文名（含已停用）、被举报评价摘要与当前隐藏态（决定「同时隐藏」复选是否置灰）。**被举报评价已删除时下发 reviewDeleted=true**（摘要与可见性置空，举报行本身保留）。测试示例：/admin/reports?page=1&pageSize=20&status=pending
+     */
+    get: operations["list_1"];
+  };
   "/admin/feedbacks": {
     /**
      * 反馈列表
-     * @description ADM。B2 意见反馈与 B3 举报管理**共用本端点**，用 category 分流（feedback = 排除 report；report = 仅 report；不传 = 全部）；再按 status/type/userId/keyword 过滤。
+     * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）、按反馈类型（optionId）/提交人筛选，关键词匹配反馈正文**或**处置文案；排序固定 `createdAt DESC`。出参补齐提交人昵称、类型中文名（含已停用）与处置结果（含处理人）。测试示例：/admin/feedbacks?page=1&pageSize=20&status=pending
      */
-    get: operations["list_2"];
+    get: operations["list_3"];
   };
   "/admin/dashboard": {
     /**
@@ -557,9 +609,9 @@ export interface paths {
   "/admin/corrections": {
     /**
      * 问题反馈列表
-     * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
+     * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称，并按处置任务表回填状态 / 结论 / 处置文案 / 处置人。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
      */
-    get: operations["list_5"];
+    get: operations["list_7"];
   };
   "/admin/auth/me": {
     /**
@@ -722,44 +774,44 @@ export interface components {
       /** @description 档口图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
       images?: string[];
     };
-    /** @description 举报原因改名请求 */
-    ReportReasonRenameReq: {
+    /** @description 处置请求体 {replyTitle, replyContent, outcome:'rejected'}；校验失败返回 400 */
+    ModerationHandleReq: {
+      /**
+       * @description 回执短标题（可选，≤40 字；留空用缺省文案）
+       * @example 反馈已处理
+       */
+      replyTitle?: string;
+      /**
+       * @description 处置文案（可选，≤600 字；outcome=rejected 时必填，即为不采纳原因）
+       * @example 该问题已在近期版本修复
+       */
+      replyContent?: string;
+      /**
+       * @description 处置结论：handled=通过/已处理（缺省）；rejected=不采纳/退回
+       * @example handled
+       */
+      outcome?: string;
+      /**
+       * @description 仅举报处置消费：通过时是否联动隐藏被举报评价（缺省 false）
+       * @example true
+       */
+      hideReview?: boolean;
+    };
+    /** @description 分类字典改名请求 */
+    OptionRenameReq: {
       /**
        * @description 中文名（1~32 字）
-       * @example 垃圾广告 / 营销刷屏
+       * @example 程序功能Bug
        */
       name: string;
     };
-    /** @description 举报原因启停请求 */
-    ReportReasonStatusReq: {
+    /** @description 分类字典启停请求 */
+    OptionStatusReq: {
       /**
        * @description 状态：on=启用 / off=停用
        * @example off
        */
       status: string;
-    };
-    /** @description 处理请求体 {reply, outcome, rejectReason}；校验失败返回 400 */
-    FeedbackHandleReq: {
-      /**
-       * @description 管理员回复内容（可选，≤1000 字）
-       * @example 已收到，我们会在下个版本优化
-       */
-      reply?: string;
-      /**
-       * @description 处理结论：handled=通过/已处理（缺省）；rejected=不采纳/退回
-       * @example handled
-       */
-      outcome?: string;
-      /**
-       * @description 不采纳原因（outcome=rejected 时必填，1~200 字）
-       * @example 该问题已在近期版本修复
-       */
-      rejectReason?: string;
-      /**
-       * @description B3 专用：是否同时隐藏被举报评价（默认勾选；评价已隐藏时置灰）
-       * @example true
-       */
-      hideReview?: boolean;
     };
     /** @description 后台菜品新增/编辑请求参数 */
     DishAdminReq: {
@@ -890,24 +942,6 @@ export interface components {
        */
       name: string;
     };
-    /** @description 拒绝请求体 {reply, outcome:'rejected', rejectReason}；校验失败返回 400 */
-    DishCorrectionHandleReq: {
-      /**
-       * @description 管理员回复内容（可选，≤600 字）
-       * @example 经核实价格无误
-       */
-      reply?: string;
-      /**
-       * @description 处理结论：固定 rejected
-       * @example rejected
-       */
-      outcome?: string;
-      /**
-       * @description 不采纳原因（必填，1~200 字）
-       * @example 该价格与档口今日公示一致
-       */
-      rejectReason: string;
-    };
     /** @description 食堂新增 / 编辑请求 */
     CanteenSaveReq: {
       /**
@@ -995,30 +1029,24 @@ export interface components {
     ReportReq: {
       /**
        * Format: int64
-       * @description 举报原因 ID（必选，值域 = GET /report-reasons 下发项的 id）
+       * @description 举报原因ID（必选，值域 = GET /report-options 下发项的 id）
        * @example 1
        */
-      reasonId: number;
-      /**
-       * @description 补充说明（可空，≤1000 字）
-       * @example 疑似广告刷屏
-       */
-      content?: string;
-      /** @description 佐证配图 URL 列表（经 POST /upload/cloud-image 转存，≤3 张） */
-      images?: string[];
+      optionId: number;
     };
     /** @description 提交意见反馈请求 */
     FeedbackReq: {
       /**
-       * @description 反馈类型：bug=程序功能Bug / suggestion=产品功能建议 / other=其他相关问题
-       * @example bug
+       * Format: int64
+       * @description 反馈类型ID（值域 = GET /feedback-options 下发项的 id）
+       * @example 1
        */
-      type: string;
+      optionId: number;
       /**
        * @description 反馈内容（必填，≤1000 字）
        * @example 希望增加更多素食档口
        */
-      content?: string;
+      content: string;
       /** @description 反馈配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张） */
       images?: string[];
     };
@@ -1234,33 +1262,33 @@ export interface components {
        */
       updatedAt?: string;
     };
-    /** @description 举报原因新增请求 */
-    ReportReasonSaveReq: {
+    /** @description 新增分类字典项请求 */
+    OptionSaveReq: {
       /**
        * @description 中文名（1~32 字）
-       * @example 垃圾广告 / 营销刷屏
+       * @example 程序功能Bug
        */
       name: string;
     };
-    /** @description 管理端举报原因出参 */
-    ReportReasonAdminVO: {
+    /** @description 管理端分类字典出参 */
+    OptionAdminVO: {
       /**
        * Format: int64
-       * @description 原因ID（落库列 = user_feedback.sub_reason_id）
+       * @description 选项ID（落库引用列 = 工单表的 option_id）
        */
       id?: number;
       /**
        * @description 中文名
-       * @example 垃圾广告 / 营销刷屏
+       * @example 程序功能Bug
        */
       name?: string;
       /** @description 状态：on=启用 / off=停用 */
       status?: string;
       /**
        * Format: int64
-       * @description 被举报记录引用次数（type='report' 且 sub_reason_id=id）—— 删除前判断
+       * @description 被工单引用次数（本字典的消费表按 option_id 统计）—— 删除前判断
        */
-      feedbackCount?: number;
+      usageCount?: number;
       /**
        * Format: date-time
        * @description 更新时间
@@ -1268,7 +1296,7 @@ export interface components {
       updatedAt?: string;
     };
     /** @description 统一响应结果 */
-    ResultReportReasonAdminVO: {
+    ResultOptionAdminVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -1280,7 +1308,7 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["ReportReasonAdminVO"];
+      data?: components["schemas"]["OptionAdminVO"];
     };
     /** @description 后台菜品列表展示信息 */
     DishAdminVO: {
@@ -1596,7 +1624,7 @@ export interface components {
       message?: string;
       data?: components["schemas"]["DishCategoryAdminVO"];
     };
-    /** @description **field 型**采纳请求体 {acceptedFields[], stallId?, createIfMissing?}；**gone 型**忽略本请求体（下架无需参数） */
+    /** @description **field 型**采纳请求体 {acceptedFields[], stallId?, createIfMissing?, replyContent?}；**gone 型**忽略差异项参数（下架无需勾选） */
     DishCorrectionAdoptReq: {
       /**
        * @description 采纳哪些差异项（取值 = GET /admin/corrections/{id} 的 differences[].field）；**必填且非空**
@@ -1618,7 +1646,7 @@ export interface components {
        */
       createIfMissing?: boolean;
       /** @description 采纳附注（可选，≤600 字；缺省用固定文案「已采纳，菜品信息已更新」随回执下发） */
-      reply?: string;
+      replyContent?: string;
     };
     /** @description 统一响应结果 */
     ResultObject: {
@@ -1753,22 +1781,22 @@ export interface components {
       username: string;
       password: string;
     };
-    /** @description 举报原因字典项 */
-    ReportReasonVO: {
+    /** @description 分类字典项 */
+    OptionVO: {
       /**
        * Format: int64
-       * @description 原因 ID（提交举报时作为 reasonId 上送）
+       * @description 选项 ID（提交时作为 optionId 上送）
        * @example 1
        */
       id?: number;
       /**
        * @description 中文名（端上直接渲染）
-       * @example 垃圾广告 / 营销刷屏
+       * @example 程序功能Bug
        */
       name?: string;
     };
     /** @description 统一响应结果 */
-    ResultListReportReasonVO: {
+    ResultListOptionVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -1781,7 +1809,7 @@ export interface components {
        */
       message?: string;
       /** @description 数据 */
-      data?: components["schemas"]["ReportReasonVO"][];
+      data?: components["schemas"]["OptionVO"][];
     };
     /** @description 我的评价展示信息（本人视角，7 字段） */
     MyReviewVO: {
@@ -1840,9 +1868,9 @@ export interface components {
        */
       id?: number;
       /** @description 通知标题 */
-      title?: string;
+      replyTitle?: string;
       /** @description 通知正文 */
-      content?: string;
+      replyContent?: string;
       /** @description 是否已读：true=已读 / false=未读 */
       isRead?: boolean;
       /**
@@ -2393,8 +2421,88 @@ export interface components {
       /** @description 是否被隐藏（管理端用） */
       hidden?: boolean;
     };
+    /** @description 管理端分页响应结果（含总数） */
+    AdminPageResultReportAdminVO: {
+      /** @description 当前页数据列表 */
+      records?: components["schemas"]["ReportAdminVO"][];
+      /**
+       * Format: int64
+       * @description 总条数
+       */
+      total?: number;
+    };
+    /** @description 举报管理端展示信息 */
+    ReportAdminVO: {
+      /**
+       * Format: int64
+       * @description 举报ID
+       */
+      id?: number;
+      /**
+       * Format: int64
+       * @description 举报人用户ID（恒为真实用户 ID —— 列带外键 fk_report_user → user(id)）
+       */
+      userId?: number;
+      /** @description 举报人昵称 */
+      userName?: string;
+      /**
+       * Format: int64
+       * @description 举报原因ID（report_option 字典项 ID）
+       */
+      optionId?: number;
+      /** @description 举报原因中文名（由 report_option 字典实时翻译，停用项仍可译出） */
+      optionName?: string;
+      /**
+       * Format: int64
+       * @description 被举报评价ID（被举报评价已删除为 null）
+       */
+      reviewId?: number;
+      /** @description 被举报评价是否已删除（reviewId 为 null 即 true；此时摘要与可见性均为 null） */
+      reviewDeleted?: boolean;
+      /** @description 被举报评价正文摘要（评价已删除为 null；完整内容去评价管理看） */
+      reviewContent?: string;
+      /** @description 被举报评价所属菜品名（评价已删除为 null） */
+      reviewDishName?: string;
+      /** @description 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰；评价已删除为 null） */
+      reviewHidden?: boolean;
+      /** @description 处置状态：pending / handled */
+      status?: string;
+      /** @description 处置结论：handled=通过 / rejected=不采纳；未处置为 null */
+      outcome?: string;
+      /** @description 处置回执短标题（未处置为 null） */
+      replyTitle?: string;
+      /** @description 处置文案 / 不采纳原因（未处置为 null） */
+      replyContent?: string;
+      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
+      handledByName?: string;
+      /**
+       * Format: date-time
+       * @description 提交时间
+       */
+      createdAt?: string;
+      /**
+       * Format: date-time
+       * @description 处置时间（未处置为 null）
+       */
+      handledAt?: string;
+    };
     /** @description 统一响应结果 */
-    ResultListReportReasonAdminVO: {
+    ResultAdminPageResultReportAdminVO: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResultReportAdminVO"];
+    };
+    /** @description 统一响应结果 */
+    ResultListOptionAdminVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -2407,7 +2515,7 @@ export interface components {
        */
       message?: string;
       /** @description 数据 */
-      data?: components["schemas"]["ReportReasonAdminVO"][];
+      data?: components["schemas"]["OptionAdminVO"][];
     };
     /** @description 管理端分页响应结果（含总数） */
     AdminPageResultFeedbackAdminVO: {
@@ -2428,54 +2536,42 @@ export interface components {
       id?: number;
       /**
        * Format: int64
-       * @description 用户ID
+       * @description 提交人用户ID（恒为真实用户 ID —— 列带外键 fk_feedback_user → user(id)）
        */
       userId?: number;
-      /** @description 用户昵称 */
+      /** @description 提交人昵称（账号已查无时为「已注销用户」以外的空值由前端兜底） */
       userName?: string;
-      /** @description 反馈类型：bug/suggestion/other/report（历史存量行另含 issue/add/error） */
-      type?: string;
-      /** @description 二级分类（仅历史 suggestion 有效）：idea=想法/problem=问题；其他类型与历史存量为 null */
-      sub?: string;
-      /** @description 反馈内容 */
-      content?: string;
-      /** @description 反馈配图 URL 列表（COS 绝对地址，≤3 张） */
-      images?: string[];
-      /** @description 关联类型：举报为 review；信息纠错为 dish；其他为 null */
-      relatedType?: string;
       /**
        * Format: int64
-       * @description 关联对象ID（举报：评价ID）；其他为 null
+       * @description 反馈类型ID（feedback_option 字典项 ID）
        */
-      relatedId?: number;
-      /** @description 处理状态：pending/handled */
+      optionId?: number;
+      /** @description 反馈类型中文名（由 feedback_option 字典实时翻译，停用项仍可译出） */
+      optionName?: string;
+      /** @description 反馈正文（空串兜底） */
+      content?: string;
+      /** @description 反馈配图 URL 列表（COS 绝对地址，≤3 张；恒为数组） */
+      images?: string[];
+      /** @description 处置状态：pending / handled */
       status?: string;
-      /** @description 处理结论：handled=通过/已处理（缺省）；rejected=不采纳/退回；pending 未处理为 null */
+      /** @description 处置结论：handled=通过 / rejected=不采纳；未处置为 null */
       outcome?: string;
-      /** @description 管理员回复 */
-      reply?: string;
-      /** @description 不采纳原因（处理结论为不采纳/退回时非空，1~200 字） */
-      rejectReason?: string;
+      /** @description 处置回执短标题（未处置为 null） */
+      replyTitle?: string;
+      /** @description 处置文案 / 不采纳原因（未处置为 null） */
+      replyContent?: string;
+      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
+      handledByName?: string;
       /**
        * Format: date-time
-       * @description 创建时间
+       * @description 提交时间
        */
       createdAt?: string;
       /**
        * Format: date-time
-       * @description 处理时间
+       * @description 处置时间（未处置为 null）
        */
       handledAt?: string;
-      /** Format: date-time */
-      updatedAt?: string;
-      /** Format: int64 */
-      subReasonId?: number;
-      reasonName?: string;
-      /** Format: int64 */
-      reviewId?: number;
-      reviewContent?: string;
-      reviewDishName?: string;
-      reviewHidden?: boolean;
     };
     /** @description 统一响应结果 */
     ResultAdminPageResultFeedbackAdminVO: {
@@ -2721,7 +2817,7 @@ export interface components {
        * @example 12
        */
       id?: number;
-      /** @description 摘要：反馈=正文摘要；举报=被举报评价摘要；纠错=菜品名 */
+      /** @description 摘要：反馈=正文摘要；举报=被举报评价摘要（已删除时给固定文案）；纠错=菜品名 */
       title?: string;
       /** @description 提交时间（yyyy-MM-dd HH:mm:ss） */
       submittedAt?: string;
@@ -2745,26 +2841,26 @@ export interface components {
     Todo: {
       /**
        * Format: int64
-       * @description 待处理意见反馈数（非举报且 status='pending'）
+       * @description 待处置意见反馈数（moderation_task：type='feedback' 且 status='pending'）
        */
       pendingFeedbackCount?: number;
       /**
        * Format: int64
-       * @description 待处理举报数（type='report' 且 status='pending'）
+       * @description 待处置举报数（moderation_task：type='report' 且 status='pending'）
        */
       pendingReportCount?: number;
       /**
        * Format: int64
-       * @description 待处理纠错数（dish_correction：status='pending'）
+       * @description 待处置纠错数（moderation_task：type='correction' 且 status='pending'）
        */
       pendingCorrectionCount?: number;
       /** @description 最近 5 条待办（跨三类合并，按提交时间倒序） */
       recent?: components["schemas"]["RecentTodo"][];
     };
     /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultDishCorrectionAdminVO: {
+    AdminPageResultCorrectionAdminVO: {
       /** @description 当前页数据列表 */
-      records?: components["schemas"]["DishCorrectionAdminVO"][];
+      records?: components["schemas"]["CorrectionAdminVO"][];
       /**
        * Format: int64
        * @description 总条数
@@ -2772,7 +2868,7 @@ export interface components {
       total?: number;
     };
     /** @description 菜品问题反馈管理端展示信息 */
-    DishCorrectionAdminVO: {
+    CorrectionAdminVO: {
       /**
        * Format: int64
        * @description 反馈ID
@@ -2827,19 +2923,23 @@ export interface components {
       attributes?: {
         [key: string]: Record<string, never>;
       };
-      /** @description 提交的菜品图片 URL 列表（field=改动后的完整数组≤5张 / gone=选填补充≤3张） */
+      /** @description 提交的菜品图片 URL 列表（field=改动后的完整数组≤3张 / gone=选填补充≤3张） */
       images?: string[];
       /**
        * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
        * @example 这个窗口现在换成麻辣香锅了
        */
       note?: string;
-      /** @description 处理状态：pending/adopted/rejected */
+      /** @description 处置状态：pending / handled */
       status?: string;
-      /** @description 处理回复（采纳时固定「已采纳，菜品信息已更新」） */
-      reply?: string;
-      /** @description 不采纳原因（status=rejected 时非空） */
-      rejectReason?: string;
+      /** @description 处置结论：handled=采纳/已下架 / rejected=不采纳；未处置为 null */
+      outcome?: string;
+      /** @description 处置回执短标题（未处置为 null） */
+      replyTitle?: string;
+      /** @description 处置文案 / 不采纳原因（未处置为 null） */
+      replyContent?: string;
+      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
+      handledByName?: string;
       /**
        * Format: int32
        * @description 差异项数量（一眼看出「改了几项」；列表不必展开全部内容）
@@ -2849,17 +2949,17 @@ export interface components {
       floorImpact?: string;
       /**
        * Format: date-time
-       * @description 处理时间
-       */
-      handledAt?: string;
-      /**
-       * Format: date-time
-       * @description 创建时间
+       * @description 提交时间
        */
       createdAt?: string;
+      /**
+       * Format: date-time
+       * @description 处置时间（未处置为 null）
+       */
+      handledAt?: string;
     };
     /** @description 统一响应结果 */
-    ResultAdminPageResultDishCorrectionAdminVO: {
+    ResultAdminPageResultCorrectionAdminVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -2871,10 +2971,10 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["AdminPageResultDishCorrectionAdminVO"];
+      data?: components["schemas"]["AdminPageResultCorrectionAdminVO"];
     };
     /** @description 菜品问题反馈详情（含差异对照） */
-    DishCorrectionDetailVO: {
+    CorrectionDetailVO: {
       /**
        * Format: int64
        * @description 反馈ID
@@ -2904,8 +3004,10 @@ export interface components {
       userId?: number;
       /** @description 提交人昵称（账号已查无时为 null） */
       userName?: string;
-      /** @description 处理状态：pending/adopted/rejected */
+      /** @description 处置状态：pending / handled */
       status?: string;
+      /** @description 处置结论：handled=采纳/已下架 / rejected=不采纳；未处置为 null */
+      outcome?: string;
       /**
        * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
        * @example 这个窗口现在换成麻辣香锅了
@@ -2913,7 +3015,7 @@ export interface components {
       note?: string;
       /**
        * Format: int64
-       * @description 同菜品待处理的 gone 反馈数（已按用户去重；**仅参考，非下架阈值**）
+       * @description 同菜品待处置的 gone 反馈数（已按用户去重；**仅参考，非下架阈值**）
        * @example 3
        */
       goneUserCount?: number;
@@ -2921,20 +3023,22 @@ export interface components {
       differences?: components["schemas"]["DishCorrectionDifferenceVO"][];
       /** @description 提交的菜品图片 URL 列表（COS 绝对地址） */
       images?: string[];
-      /** @description 处理回复 */
-      reply?: string;
-      /** @description 不采纳原因（status=rejected 时非空） */
-      rejectReason?: string;
-      /**
-       * Format: date-time
-       * @description 处理时间
-       */
-      handledAt?: string;
+      /** @description 处置回执短标题（未处置为 null） */
+      replyTitle?: string;
+      /** @description 处置文案 / 不采纳原因（未处置为 null） */
+      replyContent?: string;
+      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
+      handledByName?: string;
       /**
        * Format: date-time
        * @description 提交时间
        */
       createdAt?: string;
+      /**
+       * Format: date-time
+       * @description 处置时间（未处置为 null）
+       */
+      handledAt?: string;
     };
     /** @description 纠错差异对照项 */
     DishCorrectionDifferenceVO: {
@@ -2956,7 +3060,7 @@ export interface components {
       affectsOthers?: boolean;
     };
     /** @description 统一响应结果 */
-    ResultDishCorrectionDetailVO: {
+    ResultCorrectionDetailVO: {
       /**
        * Format: int32
        * @description 状态码
@@ -2968,7 +3072,7 @@ export interface components {
        * @example 操作成功
        */
       message?: string;
-      data?: components["schemas"]["DishCorrectionDetailVO"];
+      data?: components["schemas"]["CorrectionDetailVO"];
     };
     /** @description 统一响应结果 */
     ResultListBannerAdminVO: {
@@ -3399,6 +3503,58 @@ export interface operations {
     };
   };
   /**
+   * 处置举报
+   * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome, hideReview}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（受理，缺省）或 rejected（不予处理），非法值 400；hideReview **仅受理时消费**：true 联动隐藏被举报评价（幂等：评价已隐藏 / 已删除时静默成功）。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
+   */
+  handle: {
+    parameters: {
+      path: {
+        /**
+         * @description 举报ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ModerationHandleReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
    * 举报原因改名
    * @description 用途：**只改 name**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
    */
@@ -3414,7 +3570,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ReportReasonRenameReq"];
+        "application/json": components["schemas"]["OptionRenameReq"];
       };
     };
     responses: {
@@ -3513,7 +3669,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ReportReasonStatusReq"];
+        "application/json": components["schemas"]["OptionStatusReq"];
       };
     };
     responses: {
@@ -3550,10 +3706,10 @@ export interface operations {
     };
   };
   /**
-   * 处理反馈
-   * @description ADM。标记 handled + 写 reply/处理结论/handled_at。仅接受 JSON body（{reply, outcome, rejectReason}）：reply 必填（1~1000 字，纯空白视为未填写），缺失/空白返回 400；outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400；outcome=rejected 时 rejectReason 必填（1~200 字，纯空白 → 400「请填写不采纳原因」）。已认证提交人将收到携带处理结论（及不采纳原因）的站内回执。
+   * 处置反馈
+   * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
    */
-  handle: {
+  handle_1: {
     parameters: {
       path: {
         /**
@@ -3565,7 +3721,158 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["FeedbackHandleReq"];
+        "application/json": components["schemas"]["ModerationHandleReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 反馈类型改名
+   * @description 用途：**只改 name**（改名免费，历史反馈的中文翻译实时生效）；不存在 → 4001。
+   */
+  rename_1: {
+    parameters: {
+      path: {
+        /**
+         * @description 类型ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OptionRenameReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 删除反馈类型
+   * @description 用途：删除。**被反馈记录引用 → 400**（下线一律用停用，避免历史反馈翻不出中文）；不存在 → 4001。
+   */
+  delete_1: {
+    parameters: {
+      path: {
+        /**
+         * @description 类型ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 反馈类型启停
+   * @description 用途：只改 status。**停用最后一条启用 → 400**（反馈入口不能配空）；启用数超 8 → 400；不存在 → 4001。
+   */
+  updateStatus_2: {
+    parameters: {
+      path: {
+        /**
+         * @description 类型ID
+         * @example 1
+         */
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OptionStatusReq"];
       };
     };
     responses: {
@@ -3751,7 +4058,7 @@ export interface operations {
    * 上下架
    * @description 用途：只改 status（on 上架 / off 下架）。非法值 400，菜品不存在 4001。
    */
-  updateStatus_2: {
+  updateStatus_3: {
     parameters: {
       path: {
         /**
@@ -3855,7 +4162,7 @@ export interface operations {
    * 删除视图
    * @description 用途：删除 tab（从下发集合移除）。删除「最后一个启用的视图」→ 400；不存在 → 4001。
    */
-  delete_1: {
+  delete_2: {
     parameters: {
       path: {
         /**
@@ -4110,7 +4417,7 @@ export interface operations {
    * 重命名分类
    * @description 用途：**只改 name**（改名免费，零菜品迁移）；重名 400；不存在 4001。
    */
-  rename_1: {
+  rename_2: {
     parameters: {
       path: {
         /**
@@ -4176,7 +4483,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultDishCorrectionDetailVO"];
+          "*/*": components["schemas"]["ResultCorrectionDetailVO"];
         };
       };
       /** @description Bad Request */
@@ -4206,8 +4513,8 @@ export interface operations {
     };
   };
   /**
-   * 拒绝反馈
-   * @description ADM。仅 status=pending 可处理（否则 400「该反馈已处理」）。仅接受 JSON body（{reply?, outcome:'rejected', rejectReason}）：**reply 可选**（≤600 字；留空时回执以不采纳原因为正文），outcome 固定 rejected（其他值 400）；rejectReason **必填**（1~200 字，纯空白 → 400「请填写不采纳原因」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：status=rejected + reply/reject_reason/handled_at 落库，并投递站内回执（含不采纳原因）。
+   * 驳回反馈
+   * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该纠错已处理」）。仅接受 JSON body（{replyTitle?, replyContent, outcome:'rejected'}）：outcome 固定 rejected（其他值 400）；replyContent **必填**（即为不采纳原因，1~600 字，纯空白 → 400「请填写不采纳原因」）；replyTitle 可选（缺省按类型给「菜品信息未采纳」/「菜品仍在售」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：处置任务归档 rejected + 处置文案，并投递站内回执（含不采纳原因）。
    */
   reject: {
     parameters: {
@@ -4221,7 +4528,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["DishCorrectionHandleReq"];
+        "application/json": components["schemas"]["ModerationHandleReq"];
       };
     };
     responses: {
@@ -4412,7 +4719,7 @@ export interface operations {
    * 删除 Banner
    * @description 用途：删除轮播图；不存在 → 4001。
    */
-  delete_2: {
+  delete_3: {
     parameters: {
       path: {
         /**
@@ -4459,7 +4766,7 @@ export interface operations {
    * 启停 Banner
    * @description 用途：只改 status（on 启用 / off 停用）；非法值 400，不存在 4001。
    */
-  updateStatus_3: {
+  updateStatus_4: {
     parameters: {
       path: {
         /**
@@ -4604,7 +4911,7 @@ export interface operations {
   };
   /**
    * 举报评价
-   * @description 🔑 需登录。对指定评价提交举报（结构化原因单选为准，文本可空）。写入 user_feedback（type=report，sub_reason_id=reasonId，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"reasonId":1}
+   * @description 🔑 需登录。对指定评价提交举报（结论以结构化原因单选为准）。写入 report（option_id=举报原因、review_id=路径 id），并在同一事务内预建处置任务行。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"optionId":1}
    */
   report: {
     parameters: {
@@ -4656,7 +4963,7 @@ export interface operations {
   };
   /**
    * 提交反馈
-   * @description 🔑 需登录。写入 user_feedback（type=suggestion，status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
+   * @description 🔑 需登录。写入 feedback（optionId=反馈类型字典项；处置状态与处置文案由管理端外置）。optionId 必填且须命中 GET /feedback-options 的启用项；content 必填（≤1000 字）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
    */
   submitFeedback: {
     requestBody: {
@@ -4818,7 +5125,7 @@ export interface operations {
   };
   /**
    * 提交菜品问题反馈
-   * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 dish_correction（type + status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+   * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
    */
   submitCorrection: {
     parameters: {
@@ -5222,14 +5529,14 @@ export interface operations {
   };
   /**
    * 举报原因列表
-   * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 feedbackCount 供删除前判断。
+   * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
    */
-  list_1: {
+  list_2: {
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultListReportReasonAdminVO"];
+          "*/*": components["schemas"]["ResultListOptionAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -5265,14 +5572,95 @@ export interface operations {
   create: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["ReportReasonSaveReq"];
+        "application/json": components["schemas"]["OptionSaveReq"];
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultReportReasonAdminVO"];
+          "*/*": components["schemas"]["ResultOptionAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 反馈类型列表
+   * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
+   */
+  list_4: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListOptionAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 新增反馈类型
+   * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；类型 ID 由后端生成；启用数上限 8。
+   */
+  create_1: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OptionSaveReq"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultOptionAdminVO"];
         };
       };
       /** @description Bad Request */
@@ -5479,7 +5867,7 @@ export interface operations {
    * 视图列表
    * @description 用途：视图管理页（按 id 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
    */
-  list_3: {
+  list_5: {
     responses: {
       /** @description OK */
       200: {
@@ -5517,7 +5905,7 @@ export interface operations {
    * 新建视图
    * @description 用途：新建 tab（默认启用）。categoryId 缺省 = 不按种类过滤；种类不存在 → 400。
    */
-  create_1: {
+  create_2: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["DishViewCreateReq"];
@@ -5740,7 +6128,7 @@ export interface operations {
    * 分类列表
    * @description 用途：分类（种类）维护入口（按 id 升序，不分页）；带 dishCount（引用该种类的菜品数）。
    */
-  list_4: {
+  list_6: {
     responses: {
       /** @description OK */
       200: {
@@ -5778,7 +6166,7 @@ export interface operations {
    * 登记分类
    * @description 用途：登记新种类。种类的 ID 由后端生成；名 1~32 字、全表唯一。
    */
-  create_2: {
+  create_3: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["DishCategorySaveReq"];
@@ -5819,7 +6207,7 @@ export interface operations {
   };
   /**
    * 采纳反馈（按 type 分派）
-   * @description ADM。仅 status=pending 可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ status=adopted、reply=「已下架，感谢反馈」、handled_at=now，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ status=adopted、reply=附注（缺省「已采纳，菜品信息已更新」）、handled_at=now，并投递站内回执。采纳已执行时返回 data=null（code=200）。
+   * @description ADM。仅待处置（moderation_task.status=pending）可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体的差异项，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ 处置任务归档 handled/replyContent 缺省「已下架，感谢反馈」、标题「菜品已下架」，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ 处置任务归档 handled（附注缺省「已采纳，菜品信息已更新」；部分采纳时逐项告知已采纳/未采纳），并投递站内回执。采纳已执行时返回 data=null（code=200）。
    */
   adopt: {
     parameters: {
@@ -5954,7 +6342,7 @@ export interface operations {
    * Banner 列表
    * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）。
    */
-  list_6: {
+  list_8: {
     responses: {
       /** @description OK */
       200: {
@@ -5992,7 +6380,7 @@ export interface operations {
    * 新增 Banner
    * @description 用途：新增轮播图（默认**启用**、排最后）。
    */
-  create_3: {
+  create_4: {
     requestBody: {
       content: {
         "application/json": components["schemas"]["BannerSaveReq"];
@@ -6119,14 +6507,14 @@ export interface operations {
   };
   /**
    * 举报原因字典
-   * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 reasonId 上送。端上零硬编码。测试示例：/report-reasons
+   * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/report-options
    */
-  reportReasons: {
+  reportOptions: {
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultListReportReasonVO"];
+          "*/*": components["schemas"]["ResultListOptionVO"];
         };
       };
       /** @description Bad Request */
@@ -6260,6 +6648,44 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ResultUnreadCountVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 反馈类型字典
+   * @description PUB。意见反馈页的「反馈类型」单选项（id 选项 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交反馈时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/feedback-options
+   */
+  feedbackOptions: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultListOptionVO"];
         };
       };
       /** @description Bad Request */
@@ -6669,21 +7095,67 @@ export interface operations {
     };
   };
   /**
-   * 反馈列表
-   * @description ADM。B2 意见反馈与 B3 举报管理**共用本端点**，用 category 分流（feedback = 排除 report；report = 仅 report；不传 = 全部）；再按 status/type/userId/keyword 过滤。
+   * 举报列表
+   * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按举报人筛选；排序固定 `createdAt DESC`。出参补齐举报人昵称、举报原因中文名（含已停用）、被举报评价摘要与当前隐藏态（决定「同时隐藏」复选是否置灰）。**被举报评价已删除时下发 reviewDeleted=true**（摘要与可见性置空，举报行本身保留）。测试示例：/admin/reports?page=1&pageSize=20&status=pending
    */
-  list_2: {
+  list_1: {
     parameters: {
       query?: {
-        /** @description 板块：feedback=意见反馈（B2）/ report=举报（B3）；不传=全部；非法值 400 */
-        category?: string;
-        /** @description 处理状态：pending/handled */
+        /** @description 处置状态：pending=待处置 / handled=已处置；不传 = 全部；非法值 400 */
         status?: string;
-        /** @description 反馈类型：suggestion/add/error/report（历史类型 bug/other 亦可筛选存量数据）；非法值 400 */
-        type?: string;
+        /** @description 举报人用户ID（可选） */
+        userId?: number;
+        page?: number;
+        pageSize?: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ResultAdminPageResultReportAdminVO"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        content: {
+          "*/*": components["schemas"]["ResultVoid"];
+        };
+      };
+    };
+  };
+  /**
+   * 反馈列表
+   * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）、按反馈类型（optionId）/提交人筛选，关键词匹配反馈正文**或**处置文案；排序固定 `createdAt DESC`。出参补齐提交人昵称、类型中文名（含已停用）与处置结果（含处理人）。测试示例：/admin/feedbacks?page=1&pageSize=20&status=pending
+   */
+  list_3: {
+    parameters: {
+      query?: {
+        /** @description 处置状态：pending=待处置 / handled=已处置；不传 = 全部；非法值 400 */
+        status?: string;
+        /** @description 反馈类型ID（feedback_option 字典项；不传 = 全部） */
+        optionId?: number;
         /** @description 提交用户ID（可选，用户行为聚合用） */
         userId?: number;
-        /** @description 关键词（可选，对反馈内容 / 管理员回复模糊匹配） */
+        /** @description 关键词（可选，匹配反馈正文或处置文案） */
         keyword?: string;
         page?: number;
         pageSize?: number;
@@ -6762,12 +7234,12 @@ export interface operations {
   };
   /**
    * 问题反馈列表
-   * @description ADM。分页，按 status 筛选（pending/adopted/rejected；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
+   * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称，并按处置任务表回填状态 / 结论 / 处置文案 / 处置人。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
    */
-  list_5: {
+  list_7: {
     parameters: {
       query?: {
-        /** @description 处理状态：pending/adopted/rejected；不传 = 全部 */
+        /** @description 处置状态：pending/handled；不传 = 全部 */
         status?: string;
         /** @description 问题类型：field=信息有误 / gone=已经下架；不传 = 全部 */
         type?: string;
@@ -6784,7 +7256,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultAdminPageResultDishCorrectionAdminVO"];
+          "*/*": components["schemas"]["ResultAdminPageResultCorrectionAdminVO"];
         };
       };
       /** @description Bad Request */

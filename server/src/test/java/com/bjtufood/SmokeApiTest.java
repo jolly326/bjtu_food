@@ -39,14 +39,26 @@ import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.controller.FeedbackController;
+import com.bjtufood.feedback.controller.OptionDictionaryController;
 import com.bjtufood.feedback.controller.ReportController;
 import com.bjtufood.feedback.controller.admin.FeedbackAdminController;
+import com.bjtufood.feedback.controller.admin.ReportAdminController;
 import com.bjtufood.feedback.entity.Feedback;
+import com.bjtufood.feedback.entity.FeedbackOption;
+import com.bjtufood.feedback.entity.Report;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
-import com.bjtufood.feedback.mapper.ReportReasonMapper;
+import com.bjtufood.feedback.mapper.FeedbackOptionMapper;
+import com.bjtufood.feedback.mapper.ReportMapper;
+import com.bjtufood.feedback.mapper.ReportOptionMapper;
+import com.bjtufood.feedback.service.impl.FeedbackOptionServiceImpl;
 import com.bjtufood.feedback.service.impl.FeedbackPersister;
 import com.bjtufood.feedback.service.impl.FeedbackServiceImpl;
-import com.bjtufood.feedback.service.impl.ReportReasonServiceImpl;
+import com.bjtufood.feedback.service.impl.ReportOptionServiceImpl;
+import com.bjtufood.feedback.service.impl.ReportServiceImpl;
+import com.bjtufood.moderation.constant.ModerationConst;
+import com.bjtufood.moderation.entity.ModerationTask;
+import com.bjtufood.moderation.mapper.ModerationTaskMapper;
+import com.bjtufood.moderation.service.impl.ModerationTaskServiceImpl;
 import com.bjtufood.notification.service.NotificationService;
 import com.bjtufood.review.controller.ReviewController;
 import com.bjtufood.review.controller.admin.ReviewAdminController;
@@ -81,11 +93,11 @@ import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -96,38 +108,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 六链路接口层冒烟测试（MockMvc 切片 + @MockBean 打桩 Service/Mapper，<b>不连数据库、不连外网</b>）。
+ * 接口层冒烟测试（MockMvc 切片 + {@code @MockBean} 打桩 Mapper，<b>不连数据库、不连外网</b>）。
  * <p>
- * 目的：为接口层留下最小必要的契约兜底，覆盖六条关键链路的「HTTP 状态码 + 统一响应 code」契约：
+ * 目的：为接口层留下最小必要的契约兜底，覆盖关键链路的「HTTP 状态码 + 统一响应 code」契约：
  * <ol>
  *   <li>登录：{@code POST /auth/wechat-login}（200/code=200 + token/userInfo，缺 code → 400）；</li>
- *   <li>菜品详情：{@code GET /dishes/{id}}（200 + 关键字段；不存在 → body code=400 口径）；</li>
+ *   <li>菜品详情：{@code GET /dishes/{id}}（200 + 关键字段；不存在 → body code=4001）；</li>
  *   <li>评价：{@code POST /dishes/{id}/reviews}（匿名 401 / 已登录未认证 4031 / 已认证 200）
  *       与路径防回归（旧 {@code /reviews} 不再注册）；</li>
- *   <li>反馈：{@code POST /feedback}（类型白名单 400、other 正常落库 200）、
- *       举报：{@code POST /reviews/{id}/report}（原因缺失/非法 400、评价不存在 4001）；</li>
+ *   <li>三类用户提交：意见反馈 {@code POST /feedback}、举报 {@code POST /reviews/{id}/report}
+ *       （原因缺失 400 / 原因非法 400 / 评价不存在 4001）；</li>
+ *   <li>分类字典：{@code GET /feedback-options} 与 {@code GET /report-options}（PUB，免登录 200）；</li>
+ *   <li>管理端：{@code GET /admin/feedbacks}、{@code GET /admin/reports}（无凭证 401，带 token 200 + 分页契约）、
+ *       {@code PUT /admin/feedbacks/{id}}（处置：不采纳未填文案 → 400；正常处置 → 200）；</li>
  *   <li>上传：{@code POST /admin/upload}（无/错 Bearer token → 401，正确 token 200）；</li>
- *   <li>管理端：{@code GET /admin/feedbacks}（无凭证 401，带 token 200 + 分页契约）；</li>
  *   <li>防回归：{@code GET /admin/categories}（品类整链退役，带正确口令亦无处理器）、
- *       {@code PUT /admin/reviews/{id}/sec-state}（sec_state 全链退役，映射表中不得再注册该端点，
- *       保留的 {@code /admin/reviews/{id}/hidden} 仍在册作阳性对照）；</li>
- *   <li>内容安全检测口径：反馈内容安全检测 risky → 400「内容包含违规信息，请修改后重试」且不落库
- *       。</li>
+ *       {@code PUT /admin/reviews/{id}/sec-state}（sec_state 全链退役，映射表中不得再注册）。</li>
  * </ol>
  * 实现要点：
  * <ul>
  *   <li>主类 {@code BjtuFoodApplication} 上的 {@code @MapperScan} 会在切片内注册 MapperFactoryBean
  *       （需要 SqlSessionFactory → 需连库），故本测试用内嵌空配置 {@link SliceContext} 取代主配置，
- *       并<b>显式 @Import</b> 被测 Bean（控制器 / 统一异常处理 / 真实安全链路），使切片零数据库依赖；
- *       同理不启用组件扫描，避免无关 Bean 拉起数据源相关配置。</li>
+ *       并<b>显式 @Import</b> 被测 Bean（控制器 / 统一异常处理 / 真实安全链路），使切片零数据库依赖；</li>
  *   <li>鉴权走<b>真实</b> {@link SecurityConfig} + {@link JwtAuthFilter} + {@link AdminAuthFilter}；
  *       token 由真实 {@link JwtUtil} 以测试密钥签发，故 401/403/4031 均为真实分流结果；</li>
- *   <li>{@code 4031}（未完成学号邮箱认证）由真实 {@link RequireVerifiedAspect} 触发，
- *       判定经真实 {@link com.bjtufood.auth.service.UserService#requireUgcAuthorized(Long)}
- *       （判据 user.email = 认证态唯一真源，P0-1/P0-2 起收敛在 auth 域），
- *       UserMapper 打桩注入，不查库；</li>
- *   <li>反馈入参校验（type 白名单 / sub 严格模式）在 Service 层，故导入真实 {@link FeedbackServiceImpl}，
- *       仅打桩其依赖的 Mapper / 工具类；</li>
+ *   <li><b>提交 / 处置链路的校验口径在 Service 层</b>（字典白名单、内容安检、处置结论与文案校验），
+ *       故导入真实 {@code FeedbackServiceImpl} / {@code ReportServiceImpl} / {@code ModerationTaskServiceImpl}
+ *       与两个字典实现，仅打桩其依赖的 Mapper；</li>
  *   <li>所有桩数据在各用例内建立，避免 Mockito 严格模式判定为多余桩。</li>
  * </ul>
  */
@@ -142,9 +149,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ReviewController.class,
         FeedbackController.class,
         ReportController.class,
+        OptionDictionaryController.class,
         UploadController.class,
         AdminUploadController.class,
         FeedbackAdminController.class,
+        ReportAdminController.class,
+        // 分类字典管理端（反馈类型 / 举报原因）：端点是否在册的防回归断言要扫到它们
+        com.bjtufood.feedback.controller.admin.FeedbackOptionAdminController.class,
+        com.bjtufood.feedback.controller.admin.ReportOptionAdminController.class,
         // 后台评价管理（用于 sec-state 端点退役的映射表回归断言）
         ReviewAdminController.class,
         // 统一异常处理（HTTP 状态码 + body.code 口径的唯一真源）
@@ -166,18 +178,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // @RequireVerified → 4031 未认证分流
         RequireVerifiedAspect.class,
         // auth 域真实实现：切面经 UserService.requireUgcAuthorized 判定准入（判据与错误码收敛在 auth），
-        // 同时供 FeedbackServiceImpl（昵称投影 / 回执认证判据）消费；其 UserMapper 仍打桩，故不查库
+        // 同时供 FeedbackServiceImpl（昵称投影）消费；其 UserMapper 仍打桩，故不查库
         UserServiceImpl.class,
         // UserServiceImpl 的「DB status 写 + 黑名单写」临界区组件（无外部依赖，切片内用真实实例即可）
         UserStateWriteLock.class,
         // UserServiceImpl 的解绑邮箱 / 删除账号路径依赖：验证码清理 Mapper 打桩（见下方 @MockBean）、
         // 注销执行器用真实实例（事件发布器 / TokenBlacklist 由切片提供）
         AccountCloser.class,
-        // 反馈 / 举报入参校验（type 白名单）的真实实现
+        // 提交链路真实实现：入参白名单（反馈类型字典 / 举报原因字典）与内容安检在 Service 层
         FeedbackServiceImpl.class,
-        // 举报原因字典（A7 表驱动）：FeedbackServiceImpl 依赖其 isSubmittable 做提交白名单
-        ReportReasonServiceImpl.class,
-        // 反馈落库事务 Bean
+        ReportServiceImpl.class,
+        FeedbackOptionServiceImpl.class,
+        ReportOptionServiceImpl.class,
+        // 处置状态机真实实现：处置结论 / 文案校验（rejected 必填）在此强制
+        ModerationTaskServiceImpl.class,
+        // 反馈落库事务 Bean（反馈行 + 处置任务行同一事务）
         FeedbackPersister.class,
         // 切片内显式开启 AOP，保证上述切面在 MockMvc 下生效
         SmokeApiTest.AopTestConfig.class
@@ -276,9 +291,17 @@ class SmokeApiTest {
     private EmailVerificationCodeMapper emailVerificationCodeMapper;
     @MockBean
     private FeedbackMapper feedbackMapper;
-    /** 举报原因字典表（A7）：打桩避免查库 */
     @MockBean
-    private ReportReasonMapper reportReasonMapper;
+    private ReportMapper reportMapper;
+    /** 反馈类型字典表：打桩避免查库（提交白名单 / 公开下发 / 管理端翻译都经它） */
+    @MockBean
+    private FeedbackOptionMapper feedbackOptionMapper;
+    /** 举报原因字典表：打桩避免查库 */
+    @MockBean
+    private ReportOptionMapper reportOptionMapper;
+    /** 处置任务表：打桩避免查库（提交预建 / 处置归档都在此） */
+    @MockBean
+    private ModerationTaskMapper moderationTaskMapper;
     @MockBean
     private LocalSensitiveFilter localSensitiveFilter;
     @MockBean
@@ -360,34 +383,19 @@ class SmokeApiTest {
 
     @Test
     void dishDetail_notFoundAndOffShelf_returnsCode4001() throws Exception {
-        // 契约：资源不存在用**专属业务码 4001**。
-        // 统一响应由 HTTP 200 承载 body.code。
+        // 契约：资源不存在用**专属业务码 4001**。统一响应由 HTTP 200 承载 body.code。
         when(dishService.getDishDetail(eq(999L))).thenThrow(new BusinessException(4001, "菜品不存在"));
 
         mockMvc.perform(get("/dishes/999"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(4001))
                 .andExpect(jsonPath("$.message").value("菜品不存在"));
-
-        // 已下架（status='off'）在 Service 层因 SQL `AND d.status = 'on'` 过滤而同样查不到 →
-        // **与「不存在」同款 4001**（契约面最小：下架对外等价于不存在，不设专用字段 / 专用码）。
-        // 注：本切片打桩 Service，故两种场景在 Controller 层表现为同一异常；此处锁住「同一码值」。
-        when(dishService.getDishDetail(eq(2L))).thenThrow(new BusinessException(4001, "菜品不存在"));
-
-        mockMvc.perform(get("/dishes/2"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(4001))
-                .andExpect(jsonPath("$.message").value("菜品不存在"));
     }
+
     // ==================== 链路 2b：猜你喜欢（会话级 seed） ====================
 
     /**
-     * 「刷新边界 = 重进小程序」：{@code GET /dishes/for-you} 新增**可选** {@code seed}，
-     * 端上传会话级种子 ⇒ 服务端按 {@code CRC32(seed:ID)} 稳定伪随机序取数（会话内同一批词条）。
-     * <p>
-     * <b>判据是桩的参数匹配本身</b>：桩只对精确值 {@code "session-abc"} 生效——若控制器参数名写错、
-     * 或把它吞掉传了 {@code null}，桩不匹配 ⇒ 出参为 null ⇒ 用例变红。故不再叠加 verify 计数断言
-     * （避免与「桩调用是否计入 verify」的实现细节纠缠）。
+     * {@code seed} 是**可选**参数：控制器须原样透传给 Service（参数名写错即桩不匹配 ⇒ data 为 null）。
      */
     @Test
     void guessLike_seedPassedThroughToService() throws Exception {
@@ -399,11 +407,6 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data[0].name").value("牛肉拉面"));
     }
 
-    /**
-     * {@code seed} 是**可选**参数（向后兼容：旧端 / 第三方 / Swagger 直连不传 seed 时，
-     * 服务端退回 {@code ORDER BY RAND()} 真随机）。若有人把它改成 {@code required}，
-     * 本用例会以 400 变红——这正是「本次改动不是破坏性变更」的护栏。
-     */
     @Test
     void guessLike_seedOmitted_isNotRequired() throws Exception {
         when(dishService.guessLike(isNull())).thenReturn(List.of(new GuessLikeVO("蛋炒饭")));
@@ -413,8 +416,6 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data[0].name").value("蛋炒饭"));
     }
-
-
 
     // ==================== 链路 3：评价 ====================
 
@@ -458,30 +459,68 @@ class SmokeApiTest {
         verify(reviewService).submitReview(eq(USER_ID), eq(1L), any());
     }
 
-    // ==================== 链路 4：反馈 ====================
+    // ==================== 链路 4a：意见反馈 ====================
 
     @Test
-    void submitFeedback_historicalType_returns400() throws Exception {
-        // 方案 B后 /feedback 仅接受纯反馈三类（bug/suggestion/other）；
-        // 历史遗留类型 issue（及 report/error/add）均不在写白名单 → 400
+    void submitFeedback_legalOption_returns200AndPersists() throws Exception {
+        when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        // 类型字典命中启用项（字典规则由 FeedbackOptionServiceImplTest 覆盖）
+        when(feedbackOptionMapper.selectCount(any())).thenReturn(1L);
+        when(feedbackMapper.insert(any())).thenAnswer(invocation -> {
+            ((Feedback) invocation.getArgument(0)).setId(11L);
+            return 1;
+        });
+
         mockMvc.perform(post("/feedback")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"issue\",\"content\":\"历史类型禁新增\"}"))
+                        .content("{\"optionId\":2,\"content\":\"希望增加素食档口\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(400));
+                .andExpect(jsonPath("$.code").value(200));
+
+        ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
+        verify(feedbackMapper).insert(captor.capture());
+        Feedback saved = captor.getValue();
+        Assertions.assertEquals(2L, saved.getOptionId());
+        // 归属只认 JWT：写请求一律绑定当前登录用户，不信任请求体
+        Assertions.assertEquals(USER_ID, saved.getUserId());
+
+        // 「未处置」是显式行：反馈行与处置任务行同一落库事务
+        ArgumentCaptor<ModerationTask> task = ArgumentCaptor.forClass(ModerationTask.class);
+        verify(moderationTaskMapper).insert(task.capture());
+        Assertions.assertEquals(ModerationConst.TYPE_FEEDBACK, task.getValue().getType());
+        Assertions.assertEquals(11L, task.getValue().getTypeId());
+        Assertions.assertEquals(ModerationConst.STATUS_PENDING, task.getValue().getStatus());
+    }
+
+    /**
+     * 类型未命中启用字典（不存在 / 已停用）→ 400：字典是类型值域的唯一真源，
+     * 收紧写入口后不得再出现「任意字符串原样落库」。
+     */
+    @Test
+    void submitFeedback_illegalOption_returns400() throws Exception {
+        when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        // 不加字典桩 ⇒ selectCount 返回 0 ⇒ 未命中启用项
+
+        mockMvc.perform(post("/feedback")
+                        .header("Authorization", studentToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"optionId\":999,\"content\":\"类型不存在\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("反馈类型非法"));
+
+        verify(feedbackMapper, never()).insert(any());
     }
 
     @Test
-    void submitFeedback_invalidType_returns400() throws Exception {
-        // 「新增菜品」(add) 是历史遗留类型、仍禁新增（不在 WRITABLE_TYPES）→ 400。
-        // 注：bug/suggestion/error/other 已随「意见反馈页改单表单 + 4 类型」放开为可写，
-        // 原用例以 bug 断言 400 的写法已随规格变更失效，改用仍禁新增的 add，保住「白名单外必须 400」的防回归意图。
+    void submitFeedback_missingOption_returns400() throws Exception {
+        // optionId **必选**：DTO @NotNull 在进入 Controller 方法体前拦截 → HTTP 400 + body code=400
         mockMvc.perform(post("/feedback")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"add\",\"content\":\"历史类型禁新增\"}"))
-                .andExpect(status().isOk())
+                        .content("{\"content\":\"未选类型\"}"))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
     }
 
@@ -494,13 +533,14 @@ class SmokeApiTest {
     @Test
     void submitFeedback_riskyContent_returns400AndNotPersisted() throws Exception {
         when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(feedbackOptionMapper.selectCount(any())).thenReturn(1L);
         when(contentSecurityService.checkText(any(), anyString(), eq(2)))
                 .thenThrow(new BusinessException(400, "内容包含违规信息，请修改后重试"));
 
         mockMvc.perform(post("/feedback")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"other\",\"content\":\"违规内容\"}"))
+                        .content("{\"optionId\":1,\"content\":\"违规内容\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("内容包含违规信息，请修改后重试"));
@@ -510,38 +550,31 @@ class SmokeApiTest {
     }
 
     @Test
-    void submitFeedback_loggedIn_persistsWithCurrentUser() throws Exception {
+    void submitFeedback_blankContent_returns400() throws Exception {
         when(localSensitiveFilter.filter(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
 
         mockMvc.perform(post("/feedback")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"other\",\"content\":\"希望增加素食档口\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
-
-        ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
-        verify(feedbackMapper).insert(captor.capture());
-        Feedback saved = captor.getValue();
-        Assertions.assertEquals("other", saved.getType());
-        // 归属只认 JWT：写请求一律绑定当前登录用户，不信任请求体
-        Assertions.assertEquals(USER_ID, saved.getUserId());
+                        .content("{\"optionId\":1,\"content\":\"   \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     /**
-     * 未携带凭证 ⇒ 401：反馈 / 举报 / 菜品问题反馈一律需登录，
+     * 未携带凭证 ⇒ 401：三类用户提交一律需登录，
      * 匿名请求不再可写（否则脚本可无 token 灌库且无法归因、无法按账号限频）。
      */
     @Test
     void submitFeedback_withoutToken_returns401() throws Exception {
         mockMvc.perform(post("/feedback")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"other\",\"content\":\"匿名灌库尝试\"}"))
+                        .content("{\"optionId\":1,\"content\":\"匿名灌库尝试\"}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value(401));
     }
 
-    /** 菜品问题反馈同口径：无登录态 ⇒ 401（记录恒绑定真实用户，`dish_correction.user_id` 必填 + 外键）。 */
+    /** 菜品问题反馈同口径：无登录态 ⇒ 401（记录恒绑定真实用户，`correction.user_id` 必填 + 外键）。 */
     @Test
     void submitCorrection_withoutToken_returns401() throws Exception {
         mockMvc.perform(post("/dishes/1/correction")
@@ -557,42 +590,79 @@ class SmokeApiTest {
         mockMvc.perform(post("/feedback")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"other\",\"content\":\"字段注入试探\",\"userId\":999}"))
+                        .content("{\"optionId\":1,\"content\":\"字段注入试探\",\"userId\":999}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
     }
 
-    /**
-     * 举报（report）走**结构化原因单选**：`sub` = 举报原因机器值（必选，字典
-     * `GET /report-reasons` 下发项）、`content` **可空**（不再强制文本描述）。
-     * 断言：合法原因正常落库，`sub` 精确落列、`content` 归一为空串。
-     */
+    // ==================== 链路 4b：分类字典（PUB） ====================
+
     @Test
-    void reportReview_withReason_persistsSubAndEmptyContent() throws Exception {
-        // 举报为独立子资源端点（方案 B）：POST /reviews/{id}/report，reasonId = 结构化原因 ID
+    void feedbackOptions_publicEndpoint_returnsEnabledItems() throws Exception {
+        FeedbackOption option = new FeedbackOption();
+        option.setId(1L);
+        option.setName("程序功能Bug");
+        option.setStatus("on");
+        when(feedbackOptionMapper.selectList(any())).thenReturn(List.of(option));
+
+        mockMvc.perform(get("/feedback-options"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].name").value("程序功能Bug"));
+    }
+
+    @Test
+    void reportOptions_publicEndpoint_returnsEnabledItems() throws Exception {
+        var option = new com.bjtufood.feedback.entity.ReportOption();
+        option.setId(3L);
+        option.setName("垃圾广告 / 营销刷屏");
+        option.setStatus("on");
+        when(reportOptionMapper.selectList(any())).thenReturn(List.of(option));
+
+        mockMvc.perform(get("/report-options"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].id").value(3));
+    }
+
+    // ==================== 链路 4c：评价举报 ====================
+
+    @Test
+    void reportReview_withReason_persistsReportAndTask() throws Exception {
         when(reviewService.existsVisibleById(3L)).thenReturn(true);
-        // 举报原因白名单查表（A7）：原因 ID 1 存在且启用 ⇒ selectCount > 0
-        when(reportReasonMapper.selectCount(any())).thenReturn(1L);
+        // 举报原因白名单查表：原因 ID 1 存在且启用 ⇒ selectCount > 0
+        when(reportOptionMapper.selectCount(any())).thenReturn(1L);
+        // 去重：同一用户对该评价未举报过
+        when(reportMapper.selectCount(any())).thenReturn(0L);
+        when(reportMapper.insert(any())).thenAnswer(invocation -> {
+            ((Report) invocation.getArgument(0)).setId(4L);
+            return 1;
+        });
         mockMvc.perform(post("/reviews/3/report")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reasonId\":1}"))
+                        .content("{\"optionId\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
-        ArgumentCaptor<Feedback> captor = ArgumentCaptor.forClass(Feedback.class);
-        verify(feedbackMapper).insert(captor.capture());
-        Feedback saved = captor.getValue();
-        Assertions.assertEquals("report", saved.getType());
-        Assertions.assertEquals(1L, saved.getSubReasonId());
-        Assertions.assertEquals("", saved.getContent());
-        Assertions.assertEquals("review", saved.getRelatedType());
-        Assertions.assertEquals(3L, saved.getRelatedId());
+        ArgumentCaptor<Report> captor = ArgumentCaptor.forClass(Report.class);
+        verify(reportMapper).insert(captor.capture());
+        Report saved = captor.getValue();
+        Assertions.assertEquals(USER_ID, saved.getUserId());
+        Assertions.assertEquals(1L, saved.getOptionId());
+        // 被举报对象由路径表达（不在请求体里）
+        Assertions.assertEquals(3L, saved.getReviewId());
+
+        ArgumentCaptor<ModerationTask> task = ArgumentCaptor.forClass(ModerationTask.class);
+        verify(moderationTaskMapper).insert(task.capture());
+        Assertions.assertEquals(ModerationConst.TYPE_REPORT, task.getValue().getType());
+        Assertions.assertEquals(4L, task.getValue().getTypeId());
     }
 
     @Test
     void reportReview_missingReason_returns400() throws Exception {
-        // 举报原因**必选**：DTO @NotBlank 在进入 Controller 方法体前拦截 → HTTP 400 + body code=400
+        // 举报原因**必选**：DTO @NotNull 在进入 Controller 方法体前拦截 → HTTP 400 + body code=400
         mockMvc.perform(post("/reviews/3/report")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -603,12 +673,12 @@ class SmokeApiTest {
 
     @Test
     void reportReview_illegalReason_returns400() throws Exception {
-        // 原因 ID 不在字典白名单 → 400（PR-06：非法入参必须报错，杜绝脏值入库）
+        // 原因 ID 不在字典白名单 → 400（非法入参必须报错，杜绝脏值入库）
         when(reviewService.existsVisibleById(3L)).thenReturn(true);
         mockMvc.perform(post("/reviews/3/report")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reasonId\":999}"))
+                        .content("{\"optionId\":999}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message", containsString("举报原因")));
@@ -621,21 +691,13 @@ class SmokeApiTest {
         mockMvc.perform(post("/reviews/3/report")
                         .header("Authorization", studentToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reasonId\":1}"))
+                        .content("{\"optionId\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(4001));
     }
 
     // ==================== 防回归：评价端点 RESTful 化 + 浏览计数内聚详情 ====================
 
-    /**
-     * 防回归：评价端点为 RESTful 子资源路径后，
-     * 新路径（{@code /dishes/{id}/reviews}、{@code /my/reviews}）应在册，
-     * 旧路径 {@code /reviews}（查询参数表达归属）与**独立浏览上报端点**
-     * {@code /dishes/{id}/views}（计数已内聚于 {@code GET /dishes/{id}} 成功路径）不得再注册。
-     * <p>
-     * 断言手法：直接查切片内 {@link RequestMappingHandlerMapping} 的注册映射（不经请求）。
-     */
     @Test
     void reviewEndpoints_restfulPathsRegistered_legacyPathRemoved() {
         Set<String> patterns = handlerMapping.getHandlerMethods().keySet().stream()
@@ -726,7 +788,7 @@ class SmokeApiTest {
                 "旧管理端路径 /upload/image 应删除；实际映射：" + patterns);
     }
 
-    // ==================== 链路 6：管理端 ====================
+    // ==================== 链路 6：管理端（反馈 / 举报 / 处置） ====================
 
     @Test
     void adminFeedbackList_withoutToken_returns401() throws Exception {
@@ -757,6 +819,117 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.pageSize").doesNotExist());
     }
 
+    @Test
+    void adminReportList_withToken_returnsPageContract() throws Exception {
+        IPage<Report> emptyPage = new Page<>(1, 10);
+        when(reportMapper.selectPage(any(), any())).thenReturn(emptyPage);
+
+        mockMvc.perform(get("/admin/reports").header(ADMIN_AUTH_HEADER, adminBearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.records").isArray())
+                .andExpect(jsonPath("$.data.total").isNumber());
+    }
+
+    /** 处置：结论 rejected 但未填处置文案 → 400（不采纳必须写清原因，校验在处置任务服务内） */
+    @Test
+    void adminFeedbackHandle_rejectedWithoutContent_returns400() throws Exception {
+        Feedback feedback = new Feedback();
+        feedback.setId(5L);
+        feedback.setUserId(9L);
+        when(feedbackMapper.selectById(5L)).thenReturn(feedback);
+
+        mockMvc.perform(put("/admin/feedbacks/5")
+                        .header(ADMIN_AUTH_HEADER, adminBearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"outcome\":\"rejected\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("请填写不采纳原因"));
+
+        verify(moderationTaskMapper, never()).updateById(any());
+    }
+
+    /** 处置：正常受理 → 任务行归档 handled + 站内回执（同一事务的快照两列同名） */
+    @Test
+    void adminFeedbackHandle_handled_archivesAndNotifies() throws Exception {
+        Feedback feedback = new Feedback();
+        feedback.setId(5L);
+        feedback.setUserId(9L);
+        when(feedbackMapper.selectById(5L)).thenReturn(feedback);
+        ModerationTask task = new ModerationTask();
+        task.setId(7L);
+        task.setType(ModerationConst.TYPE_FEEDBACK);
+        task.setTypeId(5L);
+        task.setStatus(ModerationConst.STATUS_PENDING);
+        when(moderationTaskMapper.selectOne(any())).thenReturn(task);
+
+        mockMvc.perform(put("/admin/feedbacks/5")
+                        .header(ADMIN_AUTH_HEADER, adminBearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"replyContent\":\"已收到，下个版本优化\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        ArgumentCaptor<ModerationTask> saved = ArgumentCaptor.forClass(ModerationTask.class);
+        verify(moderationTaskMapper).updateById(saved.capture());
+        Assertions.assertEquals(ModerationConst.STATUS_HANDLED, saved.getValue().getStatus());
+        Assertions.assertEquals("反馈已处理", saved.getValue().getReplyTitle());
+        Assertions.assertEquals("已收到，下个版本优化", saved.getValue().getReplyContent());
+        // 处置人 = 管理端 JWT 内账号 ID（不信任请求体）
+        Assertions.assertEquals(1L, saved.getValue().getHandledBy());
+
+        // 站内回执：与任务行同一份文案快照
+        ArgumentCaptor<com.bjtufood.notification.dto.NotificationCmd> cmd =
+                ArgumentCaptor.forClass(com.bjtufood.notification.dto.NotificationCmd.class);
+        verify(notificationService).notifyNow(cmd.capture());
+        Assertions.assertEquals(9L, cmd.getValue().getUserId());
+        Assertions.assertEquals("反馈已处理", cmd.getValue().getReplyTitle());
+    }
+
+    /** 处置：记录不存在 → 4001 */
+    @Test
+    void adminFeedbackHandle_missing_returns4001() throws Exception {
+        when(feedbackMapper.selectById(anyLong())).thenReturn(null);
+
+        mockMvc.perform(put("/admin/feedbacks/404")
+                        .header(ADMIN_AUTH_HEADER, adminBearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"replyContent\":\"已处理\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(4001));
+    }
+
+    /** 处置：举报受理 + 联动隐藏 → 回执写明「已隐藏该评价」 */
+    @Test
+    void adminReportHandle_handledWithHide_notifiesWithExplanation() throws Exception {
+        Report report = new Report();
+        report.setId(4L);
+        report.setUserId(9L);
+        report.setReviewId(30L);
+        when(reportMapper.selectById(4L)).thenReturn(report);
+        ModerationTask task = new ModerationTask();
+        task.setId(7L);
+        task.setType(ModerationConst.TYPE_REPORT);
+        task.setTypeId(4L);
+        task.setStatus(ModerationConst.STATUS_PENDING);
+        when(moderationTaskMapper.selectOne(any())).thenReturn(task);
+        when(reviewService.hideIfVisible(30L)).thenReturn(true);
+
+        mockMvc.perform(put("/admin/reports/4")
+                        .header(ADMIN_AUTH_HEADER, adminBearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"outcome\":\"handled\",\"hideReview\":true,\"replyContent\":\"举报属实\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(reviewService).hideIfVisible(30L);
+        ArgumentCaptor<ModerationTask> saved = ArgumentCaptor.forClass(ModerationTask.class);
+        verify(moderationTaskMapper).updateById(saved.capture());
+        Assertions.assertEquals("举报已受理", saved.getValue().getReplyTitle());
+        Assertions.assertEquals("举报属实（已隐藏该评价）", saved.getValue().getReplyContent());
+    }
+
     /**
      * 防回归：{@code GET /admin/categories} 无任何处理器 —— 品类全链
      * （Controller / Service / Mapper / Entity + dish.categoryId + category 表）整体退役后，该路径必须失效。
@@ -764,8 +937,7 @@ class SmokeApiTest {
      * <b>状态码口径（实测校准，非 404）</b>：Spring 6.1 起未匹配到任何 {@code @RequestMapping}
      * 的路径（含 /admin/categories）会落到静态资源处理器并抛 {@code NoResourceFoundException}，
      * 由 {@link GlobalExceptionHandler#handleNoResourceFoundException} 统一转为
-     * <b>HTTP 400 + body.code=400</b>（message「资源不存在」，见 GlobalExceptionHandler 既有 BE-110 口径，
-     * 有意不采用 404）。故本用例断言「400 + code=400 + 资源不存在」，
+     * <b>HTTP 400 + body.code=400</b>（message「资源不存在」）。故本用例断言「400 + code=400 + 资源不存在」，
      * 且非 401「管理端登录已失效」—— 正好证明请求已通过 AdminAuthFilter token 校验、
      * 失败原因是「路径无处理器」（端点确已删除），回归时会直接失败。
      */
@@ -783,8 +955,7 @@ class SmokeApiTest {
      * <p>
      * 断言手法：直接查切片内 {@link RequestMappingHandlerMapping} 的注册映射（不经请求，
      * 规避「PUT 打到 /** 静态资源处理器」的状态码不确定性）。并以保留的
-     * {@code PUT /admin/reviews/{id}/hidden}（举报→下架的事后处置通道）作<b>阳性对照</b>：
-     * 证明 {@link ReviewAdminController} 确实已注册在本切片，故「无 sec-state 映射」不是空洞断言。
+     * {@code PUT /admin/reviews/{id}/hidden}（举报→下架的事后处置通道）作<b>阳性对照</b>。
      */
     @Test
     void adminReviewSecState_removedEndpointGone() {
@@ -798,14 +969,34 @@ class SmokeApiTest {
                 "sec-state 端点应已随列退役删除；实际映射：" + patterns);
     }
 
+    /**
+     * 防回归：举报管理端端点与字典端点必须真实在册（web 侧照契约调用，路径改动即 404）。
+     * <p>确定性断言在映射表上做：处置端点方法必须为 PUT（只比路径会让 405 漏网）。
+     */
+    @Test
+    void adminReportAndDictionaryEndpoints_registered() {
+        Set<String> patterns = handlerMapping.getHandlerMethods().keySet().stream()
+                .flatMap(info -> info.getPatternValues().stream())
+                .collect(Collectors.toSet());
+
+        Assertions.assertTrue(patterns.contains("/admin/reports"),
+                "举报列表 /admin/reports 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/admin/reports/{id}"),
+                "举报处置 /admin/reports/{id} 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/feedback-options"),
+                "反馈类型字典 /feedback-options 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/report-options"),
+                "举报原因字典 /report-options 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/admin/feedback-options"),
+                "反馈类型管理 /admin/feedback-options 应在册；实际映射：" + patterns);
+        Assertions.assertTrue(patterns.contains("/admin/report-options"),
+                "举报原因管理 /admin/report-options 应在册；实际映射：" + patterns);
+    }
+
     // ==================== 管理端鉴权（TD-19 / TD-23 · P0-4）====================
 
     /**
      * 🔴 <b>登录端点白名单回归</b>：`POST /admin/auth/login` 必须能穿过 `AdminAuthFilter`。
-     *
-     * <p><b>存在理由</b>：该端点自身尚未持有 token，若过滤器照常校验则必 401 ⇒ 表现为
-     * 「登录永远失败」，整个管理端不可用。`SecurityConfig` 里的 `permitAll` 属于 Spring Security
-     * 授权层，<b>管不到</b>在它之前执行的 `AdminAuthFilter` —— 两处白名单缺一不可。
      *
      * <p>断言手法：比对响应 `message`。若被过滤器拦下，文案是「管理端登录已失效，请重新登录」；
      * 只有真正走到 Controller，才会是登录失败的统一文案「账号或密码错误」。
@@ -844,7 +1035,6 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.data.password").doesNotExist());
     }
 
-
     /** 改密后旧 token 立即失效（凭证版本比对），既有 401 处置不变 */
     @Test
     void adminTokenWithStaleCredentialVersion_isUnauthorized() throws Exception {
@@ -864,9 +1054,6 @@ class SmokeApiTest {
 
     /**
      * `GET /admin/auth/me` 契约：只回 `username` + `lastLoginAt`，**不回 token / expiresIn**。
-     *
-     * <p>与登录用的 `AdminLoginVO`（多一个 `expiresIn`、少 `lastLoginAt`）刻意区分，
-     * 口径以契约真源 `docs/api/web/auth.md` 为准，本用例锁死。
      */
     @Test
     void adminMe_returnsUsernameAndLastLoginAtPerContract() throws Exception {
@@ -890,7 +1077,7 @@ class SmokeApiTest {
 
     // ==================== 辅助方法 ====================
 
-    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/wxId，认证态不入 token；role claim 已退役） */
+    /** 用真实 JwtUtil 签发学生态 token（JWT 仅含 userId/wxId，认证态不入 token） */
     private String studentToken() {
         return "Bearer " + jwtUtil.createToken(USER_ID, "smoke");
     }

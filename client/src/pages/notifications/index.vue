@@ -44,10 +44,10 @@
             <view class="msg-dot" :class="{ read: n.isRead }" aria-hidden="true" />
             <view class="msg-body">
               <view class="msg-title-row">
-                <text class="msg-title">{{ n.title }}</text>
+                <text class="msg-title">{{ n.replyTitle }}</text>
                 <text class="msg-time">{{ formatDateTime(n.createdAt) }}</text>
               </view>
-              <text class="msg-content">{{ n.content }}</text>
+              <text class="msg-content">{{ n.replyContent }}</text>
             </view>
           </view>
           <view :style="{ height: bottomPad + 'px' }" />
@@ -169,7 +169,7 @@ async function onReadAll() {
  * 行本身可点（跳详情），故标签需同时说明「未读」与「可点」。
  */
 function msgAriaLabel(n: Notification): string {
-  return `${n.isRead ? '' : '未读，'}${n.title}，${formatDateTime(n.createdAt)}`
+  return `${n.isRead ? '' : '未读，'}${n.replyTitle}，${formatDateTime(n.createdAt)}`
 }
 
 /**

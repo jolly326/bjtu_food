@@ -173,7 +173,7 @@
 | `email_verification_code` | 按目标邮箱 `email` 与用户 `user.email`（认证绑定邮箱）两批 DELETE |
 | `notification` | 按 `user_id` 全删（账号维度过程性数据） |
 | Token 黑名单 | 拉黑当前 token + 该 userId（其余设备历史 token 一并失效） |
-| `review` / `user_feedback` | **保留** —— 评价与反馈匿名化展示，评分聚合不破坏 |
+| `review` / `feedback` / `report` / `correction` | **保留** —— 内容匿名化展示，评分聚合不破坏 |
 
 ### ⚠️ 端上必须跳过 401 静默重登
 

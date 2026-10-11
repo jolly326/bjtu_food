@@ -847,7 +847,7 @@ public class DishServiceImpl implements DishService {
      * 保护「菜品首图必填」等既有不变量；images 的 JSON 序列化形态属 dish 落库口径，故收在本域。
      * <p>
      * <b>属性必须「按维度合并」</b>（口径见 docs/func/web/B-UGC治理/B4-菜品问题反馈管理.md 与
-     * docs/schema/dish_correction.md）：纠错快照只含<b>改动维度</b>，整体覆盖会静默抹掉其余维度；
+     * docs/schema/correction.md）：纠错快照只含<b>改动维度</b>，整体覆盖会静默抹掉其余维度；
      * 用户提交空数组表示「清空该维度」⇒ 删除该键，不落空数组。
      * <p>
      * <b>images 入库前还原为相对路径</b>：快照存的是绝对地址，而 dish.images 是相对路径列。

@@ -5,7 +5,7 @@ import type {
   CorrectionDetailVO,
   CorrectionListParams,
   CorrectionAdoptReq,
-  CorrectionRejectReq,
+  ModerationHandleReq,
   StallConfirmVO,
 } from '@/types/common'
 
@@ -33,7 +33,8 @@ export function getCorrection(id: number): Promise<CorrectionDetailVO> {
  * B4 采纳 —— **按 `type` 分派**：
  * - `field`：**逐项**采纳 + 两段式档口确认（`acceptedFields` / `stallId` / `createIfMissing`）；
  *   响应二义性：`data = null` 采纳完成；`data = StallConfirmVO`（`needStallConfirm`）需先确认档口再调用。
- * - `gone`：**忽略请求体**，服务端直接下架菜品（`status=off`，可逆、评价完整保留）。
+ * - `gone`：**忽略差异项**，请求体只带可选附注 `replyContent`，服务端直接下架菜品
+ *   （`status=off`，可逆、评价完整保留）。
  *   🔴 本流程**绝不删除**（删除仅在「菜品管理」中由管理员主动执行）。
  */
 export function adoptCorrection(
@@ -43,7 +44,11 @@ export function adoptCorrection(
   return post<StallConfirmVO | null>(`/admin/corrections/${id}/adopt`, req ?? {})
 }
 
-/** B4 拒绝（不采纳 / 驳回下架反馈）；`rejectReason` 必填（gone 型建议写明「经核实仍在售」的原因） */
-export function rejectCorrection(id: number, req: CorrectionRejectReq): Promise<null> {
+/**
+ * B4 驳回（不采纳 / 驳回下架反馈）：`ModerationHandleReq` 且 `outcome` 固定 `rejected`；
+ * `replyContent` 必填（≤600 字，纯空白 → 400「请填写不采纳原因」）；`replyTitle` 可选（≤40 字）。
+ * `gone` 型驳回语义为「经核实仍在售」，原因须写明。
+ */
+export function rejectCorrection(id: number, req: ModerationHandleReq): Promise<null> {
   return put<null>(`/admin/corrections/${id}`, req)
 }

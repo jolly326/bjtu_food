@@ -8,15 +8,15 @@
 > **变更流程**：先改对应表文档 → 再在数据库执行 `ALTER` / `CREATE` → 两者必须一致。
 
 > **设计注记 / 已知事项**：
-> - **管理端统一带 `updated_at`**：凡管理端出参 `updatedAt` 的表（`canteen` / `stall` / `dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `dish_filter_view` / `report_reason`；`admin` 经 `GET /admin/auth/me` 出参 `updatedAt`）均有 `updated_at` 列（`DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`）。`created_at` 只在确有「创建时间」语义的表保留：`dish` / `banner` / `user` / `review` / `user_feedback` / `dish_correction` / `notification` / `email_verification_code`。
-> - **`dish_correction.user_id` 恒为真实用户**：列为 `BIGINT NOT NULL` + 外键 `fk_correction_user → user(id)`（**无级联**）—— 菜品问题反馈的提交入口一律要求登录态。
-> - **`user_feedback.user_id` 恒为真实用户**：列为 `BIGINT NOT NULL` + 外键 `fk_feedback_user → user(id)`（**无级联**）—— 意见反馈与举报的提交入口一律要求登录态。
+> - **管理端统一带 `updated_at`**：凡管理端出参 `updatedAt` 的表（`canteen` / `stall` / `dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `dish_filter_view` / `feedback_option` / `report_option`；`admin` 经 `GET /admin/auth/me` 出参 `updatedAt`）均有 `updated_at` 列（`DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`）。`created_at` 只在确有「创建时间」语义的表保留：`dish` / `banner` / `user` / `review` / `feedback` / `report` / `correction` / `moderation_task` / `notification` / `email_verification_code`。
+> - **三张用户提交表只存提交事实**：`feedback` / `report` / `correction` 均**无状态列、无 `updated_at`**，「是否已处置 + 结论 + 处置文案 + 处置人 + 处置时间」外置在 [moderation_task](./moderation_task.md)（多态键 `(type, type_id)`，1:1 挂靠）。
+> - **`feedback.user_id` / `report.user_id` / `correction.user_id` 恒为真实用户**：三列均为 `BIGINT NOT NULL`，各带外键（`fk_feedback_user` / `fk_report_user` / `fk_correction_user` → `user(id)`，**均无级联**）—— 三张工单的提交入口一律要求登录态。
 > - **告警不落库**：安全告警经 webhook 推送（`ALERT_WEBHOOK_URL` / `ALERT_WEBHOOK_SECRET`），拦截行为（登录失败锁定 / ID 枚举拦截）保留；库内**无告警表**。
-> - **管理端不留操作日志**：`/admin/**` 的写操作不留库内审计记录（库内**无审计表**）。
-> - **字典表无排序列**：`dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `report_reason` / `dish_filter_view` 一律按 `id` 升序（唯一保留排序位的是 `banner.sort_order`）。
+> - **管理端不留操作日志**：`/admin/**` 的写操作不留库内审计记录（库内**无审计表**）；处置留痕落在 [moderation_task](./moderation_task.md) 的 `handled_by` / `handled_at`。
+> - **字典表无排序列**：`dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `feedback_option` / `report_option` / `dish_filter_view` 一律按 `id` 升序（唯一保留排序位的是 `banner.sort_order`）。
 > - **`dish_filter_view` 由 `category_id` 驱动**：`NULL` = 「为你推荐」（不按种类筛），非 NULL ⇒ 后端按该种类筛菜品；视图不持有筛选条件语言与排序口径。
-> - **DDL 注释口径**：`user_feedback.sub_reason_id`（仅 `type='report'` 有效：举报原因 ID）、`user_feedback.reject_reason`（`status='handled'` 且结论不采纳时必填）、`stall.floor`（受控字典，值即汉字）。
-> - **库表实况**：`dish.category_id` 与索引 `idx_dish_category`、`dish_category`（6 条种子）、`dish_filter_view`（**7 行** = 1 推荐 + 6 种类，与 `dish_category` 种子一一对应）均与本文档列定义一致；`canteen` / `stall` 两表的实际列与其列定义一致（只含 `updated_at`，不含 `created_at`）；`user` **25 行**。
+> - **DDL 注释口径**：`moderation_task.reply_content`（处置文案与不采纳原因**同列**）、`stall.floor`（受控字典，值即汉字）。
+> - **库表实况**：`dish.category_id` 与索引 `idx_dish_category`、`dish_category`（6 条种子）、`dish_filter_view`（**7 行** = 1 推荐 + 6 种类，与 `dish_category` 种子一一对应）均与本文档列定义一致；`canteen` / `stall` 两表的实际列与其列定义一致（只含 `updated_at`，不含 `created_at`）；`user` **25 行**；`feedback` **0 行** / `report` **1 行**（`review_id` 为 `NULL`）/ `correction` **1 行**；`moderation_task` **2 行**（`report/7`、`correction/2`，均 `pending`）；`notification` **0 行**。
 > - ⚠️ **MySQL 版本**：生产为 MySQL 5.7（TDSQL-C）；变更脚本须用 5.7 可执行语法（避免 `JSON_TABLE` 等 8.0 特性）。
 > - **`dish.images VARCHAR(1024)` 超长**：管理端 ≤5 张为硬校验；序列化后长度 > 1024 → `400`，禁止静默截断。
 > - **名称唯一性并发口径**：`canteen.name` / `stall.name` 仅靠应用层查重，并发建档可写入重名 → 查重与写入须在同一事务；如需强约束可加唯一索引（先核查存量数据）。
@@ -33,41 +33,52 @@
 | `dish_attribute_dimension` | 描述属性维度定义（表驱动） | [dish_attribute_dimension.md](./dish_attribute_dimension.md) |
 | `dish_attribute_value` | 描述属性取值字典（维度下的可选值） | [dish_attribute_value.md](./dish_attribute_value.md) |
 | `dish_filter_view` | 首页筛选视图（文案 / 显隐 + **筛选种类** `category_id`） | [dish_filter_view.md](./dish_filter_view.md) |
-| `report_reason` | 举报原因字典（`GET /report-reasons` 的数据源） | [report_reason.md](./report_reason.md) |
 | `banner` | 首页轮播运营位 | [banner.md](./banner.md) |
 | `user` | 用户账号（学生） | [user.md](./user.md) |
 | `admin` | 管理端账号（与学生 `user` 身份体系**完全隔离**） | [admin.md](./admin.md) |
 | `email_verification_code` | 邮箱验证码 | [email_verification_code.md](./email_verification_code.md) |
 | `review` | 评价 | [review.md](./review.md) |
-| `user_feedback` | 用户反馈与举报 | [user_feedback.md](./user_feedback.md) |
-| `dish_correction` | 菜品问题反馈（`type`=field 信息有误 / gone 已经下架） | [dish_correction.md](./dish_correction.md) |
+| `feedback` | 意见反馈（用户提交事实） | [feedback.md](./feedback.md) |
+| `report` | 评价举报（用户提交事实） | [report.md](./report.md) |
+| `correction` | 菜品问题反馈（`type`=field 信息有误 / gone 已经下架） | [correction.md](./correction.md) |
+| `moderation_task` | 管理端处置任务（三类工单的处置状态机与处置文案真源） | [moderation_task.md](./moderation_task.md) |
+| `feedback_option` | 反馈类型字典（`GET /feedback-options` 的数据源） | [feedback_option.md](./feedback_option.md) |
+| `report_option` | 举报原因字典（`GET /report-options` 的数据源） | [report_option.md](./report_option.md) |
 | `notification` | 站内通知 | [notification.md](./notification.md) |
 
-**表清单以本目录为准（当前 **17 张**）** —— 新增表时同步补一份 `schema/<表名>.md` 并登记于此。
+**表清单以本目录为准（当前 **20 张**）** —— 新增表时同步补一份 `schema/<表名>.md` 并登记于此。
 
 ## 实体关系
 
 ```
 canteen 1 ── n stall 1 ── n dish ── n review
-                                    │     │
-                                    │     └── n dish_correction
-                                    └──── n user_feedback (related_type='review')
+                                    │        │
+                                    │        └── 1:1 report   (review_id，**外键 `fk_report_review`**，ON DELETE SET NULL)
+                                    └── n correction          (dish_id，非外键)
 
 user 1 ── n review            (user_id，无外键)
-user 1 ── n user_feedback     (user_id，**外键 `fk_feedback_user`**，无级联)
-user 1 ── n dish_correction   (user_id，**外键 `fk_correction_user`**，无级联)
+user 1 ── n feedback          (user_id，**外键 `fk_feedback_user`**，无级联)
+user 1 ── n report            (user_id，**外键 `fk_report_user`**，无级联)
+user 1 ── n correction        (user_id，**外键 `fk_correction_user`**，无级联)
 user 1 ── n notification      (user_id，**外键 `fk_notification_user`**，`ON DELETE CASCADE`)
 user 1 ─── email_verification_code (按 email 关联，非 user_id)
 
-admin （独立账号体系，与 user 无关系、无外键）
+admin 1 ── n moderation_task  (handled_by，**外键 `fk_task_handled_by`**，无级联)
+admin （独立账号体系，与 user 无关系）
 
+feedback 1 ── 1 moderation_task (type='feedback'，多态键 `(type, type_id)`，非外键)
+report   1 ── 1 moderation_task (type='report'，同上)
+correction 1 ── 1 moderation_task (type='correction'，同上)
+
+feedback.option_id ── feedback_option   反馈类型经类型 ID 引用（**外键 `fk_feedback_option`**，无级联）
+report.option_id ── report_option       举报原因经原因 ID 引用（**外键 `fk_report_option`**，无级联）
+notification 与 moderation_task 无结构关联（触发源多域，文案各自快照）
 
 dish ── dish_category   经 dish.category_id 引用种类 ID（N→1 单值，非外键）
 dish ── dish_attribute_dimension   经 attributes JSON 的键（= 描述维度 ID）关联（非外键）
 dish_attribute_dimension 1 ── n dish_attribute_value   维度下的取值字典
 dish.attributes ── dish_attribute_value   经 JSON 内的取值 ID 引用（描述维度取值，非外键）
 dish_filter_view.category_id ── dish_category   视图筛选的种类经种类 ID 引用（**外键 `fk_filter_view_category`**，无级联）
-user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非外键）
 ```
 
 ## 库设计约定
@@ -85,12 +96,17 @@ user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非�
 | `dish_attribute_dimension` | 维度名 / 取值类型（A4 详情抽屉内可编辑）；取值数、关联菜品数、时间为只读 | — |
 | `dish_attribute_value` | 取值名（A4「管理取值」抽屉内可编辑）；引用菜品数、时间为只读 | `dimension_id` 由**所在维度**决定（改归属 = 换维度，非本行字段） |
 | `dish_filter_view` | tab 文案 / **筛选种类**（`categoryId`，`null` = 为你推荐）/ 启停（全部可改） | — |
-| `report_reason` | 中文名 / 启停 | — |
+| `feedback_option` | 类型中文名 / 启停；引用次数（删除前判断）、更新时间为只读 | —（**无排序位**） |
+| `report_option` | 原因中文名 / 启停；引用次数（删除前判断）、更新时间为只读 | —（**无排序位**） |
 | `banner` | Banner 图 / 启停 / 顺序位；创建与更新时间为只读 | — |
 | `user` | 账号（`wx_id`）/ 昵称（`name`）/ 头像 / 状态 / 认证邮箱（`email`）/ 时间（C2 详情抽屉内只读 + 启停 / 解绑 / 注销） | `openid` —— **身份凭据**，仅以布尔 `wechatBound` 出参；口令类列本表不存在（管理端口令在 `admin`） |
 | `review` | 作者 / 菜品 / 评分 / 正文 / 配图 / 隐藏态 / 隐藏附注 / 时间（B1 详情抽屉 + 隐藏处置） | — |
-| `user_feedback` | 类型 / 正文 / 配图 / 状态 / 回复 / 不采纳原因 / 举报原因 / 关联对象 / 处理与提交时间 | `sub` —— 仅历史 `suggestion` 存量的二级分类，**无现行写入点** |
-| `dish_correction` | 类型 / 目标菜品 / 提交人 / **改动项快照**（经 `differences` 逐项对照）/ 补充说明 / 配图 / 状态 / 回复 / 不采纳原因 / 时间 | 快照列（`name` / `price` / `canteen_name` / `stall_name` / `floor` / `attributes` / `images`）以**差异对照**形态呈现，不单独作为可编辑字段（它们表达的是「用户提交了什么」而不是「菜品当前值」） |
+| `feedback` | 提交人 / 类型（`optionId` + 字典中文名）/ 正文 / 配图 / 提交时间 + 处置结果（B2 反馈列表与处置抽屉） | —（全部列为提交事实或处置结果，均为只读呈现） |
+| `report` | 举报人 / 举报原因（字典中文名）/ 被举报评价摘要与当前隐藏态 / 「被举报评价已删除」标记 / 提交时间 + 处置结果 + 是否联动隐藏（B3 举报列表与处置抽屉） | — |
+| `correction` | 类型 / 目标菜品 / 提交人 / **改动项快照**（经 `differences` 逐项对照）/ 补充说明 / 配图 / 提交时间 + 处置结果（B4 列表、详情与处置抽屉） | 快照列（`name` / `price` / `canteen_name` / `stall_name` / `floor` / `attributes` / `images`）以**差异对照**形态呈现，不单独作为可编辑字段（它们表达的是「用户提交了什么」而不是「菜品当前值」） |
+| `moderation_task` | 处置状态 / 结论 / 处置文案 / 处置人（`handledByName`）/ 处置时间 —— **经三类工单的列表与处置抽屉呈现**，不单独成页 | `type` / `type_id` —— **多态挂靠键**（工单行由它定位，属内部标识；因此 `reply_title` / `reply_content` / `handled_by` / `handled_at` **只在处置时写入，不提供编辑入口**：结论一经归档不可改写） |
+
+> **唯一放宽：UGC 提交事实与已归档结论一律「只读呈现」** —— `feedback` / `report` / `correction` 的列是「用户提交了什么」，`moderation_task` 的 `reply_*` / `handled_*` 是「管理员当时怎么处置的」，业务上**不允许改写**（否则历史不可追溯）。口径要求的「可编辑」指的是「不允许访达不到」，而这三类列在列表与抽屉内**全部可见**。
 
 **系统维护列**（无人工编辑入口，不属「管理端可达」口径）：
 
@@ -103,7 +119,7 @@ user_feedback.sub_reason_id ── report_reason   举报原因 ID 引用（非�
 ### 命名
 | 对象 | 规则 | 例 |
 |---|---|---|
-| 表名 | 小写下划线，**单数** | `review`（非 `reviews`）、`user_feedback` |
+| 表名 | 小写下划线，**单数** | `review`（非 `reviews`）、`feedback`（非 `feedbacks`） |
 | 列名 | 小写下划线 | `avg_rating`、`created_at` |
 | 索引 | `idx_<表>_<用途>` / `uk_<表>_<列>` | `idx_dish_status`、`uk_user_openid` |
 | 枚举列 | 存**可读字符串**而非 TINYINT | `status='on'`（非 `status=1`） |
@@ -172,7 +188,7 @@ private LocalDateTime updatedAt;
 | 类型 | 用于 |
 |---|---|
 | 复合索引 | 覆盖「过滤列 + 排序列」，如 `idx_review_dish_visible(dish_id, is_hidden, created_at)` |
-| 唯一索引 | 业务唯一性：`uk_user_openid` / `uk_user_wx_id`（`user`）、`uk_review_user_dish`（`review`）、`uk_admin_username`（`admin`）。⚠️ 字典类的「同表 / 同维度下 `name` 唯一」由**应用层**保证（**不建唯一索引**，见 [dish_attribute_value.md](./dish_attribute_value.md)）；`dish_filter_view` **无唯一约束**（视图由 ID 标识，文案可重复） |
+| 唯一索引 | 业务唯一性：`uk_user_openid` / `uk_user_wx_id`（`user`）、`uk_review_user_dish`（`review`）、`uk_admin_username`（`admin`）、`uk_task_type_target`（`moderation_task`：多态挂靠键 → 工单 1:1）。⚠️ 字典类的「同表 / 同维度下 `name` 唯一」由**应用层**保证（**不建唯一索引**，见 [dish_attribute_value.md](./dish_attribute_value.md)）；`dish_filter_view` **无唯一约束**（视图由 ID 标识，文案可重复）；举报去重（同一用户对同一评价）亦由**应用层**保证（`review_id` 可空，唯一索引不约束 `NULL` 行） |
 
 > ⚠️ **计算表达式的 `ORDER BY` 无法用索引** —— 复合索引只能减少参与排序的行数，不能消除排序（必然 filesort）。
 > 首页主列表 / 猜你喜欢的 `ORDER BY CRC32(CONCAT(seed,'-',id)), d.id` 即此类：现状为**已核实的已知取舍**，触发条件见 [README「已知取舍」](../README.md)。
@@ -187,29 +203,37 @@ private LocalDateTime updatedAt;
 | `dish.status` | `on` / `off` | 在售 / 已下架 |
 | `user.status` | `active` / `disabled` / `deleted` | 正常 / 禁用 / 已注销 |
 | `banner.status` | `on` / `off` | 启用 / 停用 |
-| `report_reason.status` | `on` / `off` | 启用 / 停用 |
-| `user_feedback.status` | `pending` / `handled` | 待处理 / 已处理（**「不采纳」不是状态**：由 `status='handled'` + `reject_reason` 非空派生） |
-| `dish_correction.status` | `pending` / `adopted` / `rejected` | 待处理 / 已采纳 / 已拒绝 |
+| `feedback_option.status` | `on` / `off` | 启用 / 停用 |
+| `report_option.status` | `on` / `off` | 启用 / 停用 |
+| `correction.type` | `field` / `gone` | 信息有误 / 已经下架（**端上行为分支**：决定换哪套表单与哪条处置路径） |
+| `moderation_task.status` | `pending` / `handled` | 待处置 / 已处置 |
+| `moderation_task.outcome` | `handled` / `rejected` | 通过 / 不采纳（`status='handled'` 时必填，`pending` 恒 NULL；**「不采纳」是结论而非状态**） |
 
 > `dish.status = 'off'`（下架）对公开接口**等价于不存在**（返回 `4001`）。
 
 ### 外键与级联
 
-**全库五条外键**，其余关系由应用层维护：
+**全库十条外键**，其余关系由应用层维护：
 
 | 关系（外键名） | 级联方式 | 维护方 |
 |---|---|---|
 | `review.dish_id` → `dish.id`（`fk_review_dish`） | `ON DELETE CASCADE` | 应用层 `ReviewDishCascadeListener` 先删（同步事务内），外键兜底 |
 | `notification.user_id` → `user.id`（`fk_notification_user`） | `ON DELETE CASCADE` | 应用层 `NotificationAccountCleanListener` 硬删，外键兜底 |
-| `user_feedback.user_id` → `user.id`（`fk_feedback_user`） | **无级联** | 纯引用完整性兜底：提交入口恒带登录态，`user_id` 必指向真实用户；`user` 行永不物理删除 ⇒ 无级联需求 |
-| `dish_correction.user_id` → `user.id`（`fk_correction_user`） | **无级联** | 纯引用完整性兜底：提交入口一律需登录态，`user_id` 恒指向真实用户；`user` 行永不物理删除 ⇒ 无级联需求 |
+| `feedback.user_id` → `user.id`（`fk_feedback_user`） | **无级联** | 纯引用完整性兜底：提交入口恒带登录态，`user_id` 必指向真实用户；`user` 行永不物理删除 ⇒ 无级联需求 |
+| `report.user_id` → `user.id`（`fk_report_user`） | **无级联** | 同 `feedback.user_id` |
+| `correction.user_id` → `user.id`（`fk_correction_user`） | **无级联** | 同 `feedback.user_id` |
+| `feedback.option_id` → `feedback_option.id`（`fk_feedback_option`） | **无级联** | 纯引用完整性兜底：字典项有独立生命周期，**被引用项禁止删除**（应用层计数拦截）⇒ 无级联需求 |
+| `report.option_id` → `report_option.id`（`fk_report_option`） | **无级联** | 同 `feedback.option_id` |
+| `report.review_id` → `review.id`（`fk_report_review`） | **`ON DELETE SET NULL`** | 评价被物理删除时**置 NULL**（举报行保留，显式表达「被举报评价已删除」）—— **刻意不级联**：举报是可追溯的诉求留痕，不随被举报内容消失 |
+| `moderation_task.handled_by` → `admin.id`（`fk_task_handled_by`） | **无级联** | 纯引用完整性兜底：`admin` 行不做物理删除（账号行由库与自助端点维护）⇒ 无级联需求 |
 | `dish_filter_view.category_id` → `dish_category.id`（`fk_filter_view_category`） | **无级联** | 纯引用完整性兜底：`category_id` 可空（`NULL` = 为你推荐），非 NULL 必须是既有种类；种类无删除入口 ⇒ 无级联需求 |
 
-**刻意不设外键的三处**：
+**刻意不设外键的四处**：
 
 | 关系 | 原因 |
 |---|---|
-| `dish_correction.dish_id` | 菜品删除后反馈记录**有意保留**（历史痕迹，非附属数据）。CASCADE 会删掉它们；RESTRICT 会让菜品删不掉 |
+| `correction.dish_id` | 菜品删除后反馈记录**有意保留**（历史痕迹，非附属数据）。CASCADE 会删掉它们；RESTRICT 会让菜品删不掉 |
+| `moderation_task.type_id` | **多态键**：目标列随 `type` 在 `feedback` / `report` / `correction` 三表间变化，单列无法指向多个父表 ⇒ 引用完整性由**提交事务**保证（工单行与任务行同时写入） |
 | `review.user_id` 指向 `user` | `user` 行**永不物理删除**（注销为匿名化），加约束无实际收益 |
 | `dish.stall_id` | `stall` 是**管理端维护的实体**，有独立的合并 / 清理语义，约束化会干扰管理操作 |
 

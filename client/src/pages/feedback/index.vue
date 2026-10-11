@@ -8,7 +8,7 @@
 
     <!-- 页面无页签：两种形态由**进入方式**决定，页面上不暴露切换入口 -->
     <scroll-view class="scroll-wrap" scroll-y :scroll-into-view="scrollIntoView" :scroll-with-animation="true">
-      <!-- 单表单（「我的」页宫格进入）：反馈类型 3 选 1 + 具体描述 + 截图（≤3 张）+ 本地草稿；
+      <!-- 单表单（「我的」页宫格进入）：反馈类型（字典单选）+ 具体描述 + 截图（≤3 张）+ 本地草稿；
            submitting 下传：表单内 ImagePicker 提交中禁选。
            极简无卡片：**不设外层大白卡**，三个区块各自一块 `.module-wrap`，提交按钮独立在模块之外。 -->
       <IssueForm
@@ -17,9 +17,13 @@
         @update:model="updateForm"
         :errors="fieldErrors"
         :submitting="submitting"
-        :placeholder="typePlaceholder"
+        :placeholder="contentPlaceholder"
+        :options="options"
+        :options-loading="optionsLoading"
+        :options-failed="optionsFailed"
         @clear="clearError"
         @pick="onPickType"
+        @retry-options="retryOptions"
         @pick-image="pickSheetOpen = true"
       />
 
@@ -52,9 +56,9 @@
 <script setup lang="ts">
 /**
  * feedback —— 意见反馈页（**面向小程序本身的通用反馈**）
- * - 反馈类型 3 选 1（程序功能Bug / 产品功能建议 / 其他相关问题），竖排单选、选中项左侧橙色勾；
- * - 固定一套字段：具体描述（≤600 字、占位随类型选择、字数常显右上角）+ 截图（选填 ≤3 张）；
- * - 提交 `POST /feedback`（type ∈ bug / suggestion / other）；
+ * - 反馈类型单选（选项 = 字典 `GET /feedback-options` 实时下发、只显示名称），竖排、选中项左侧橙色勾；
+ * - 固定一套字段：具体描述（≤600 字、字数常显右上角）+ 截图（选填 ≤3 张）；
+ * - 提交 `POST /feedback`（optionId = 选中字典项 id）；
  * - 入口：「我的」页宫格（搜索页「没搜到 → 推荐这道菜」同页复用）；
  * - 菜品资料有误 / 已经下架走**独立页面** `pages/correction/`（菜品问题反馈，入口「菜品有问题?」）；
  * - 编排逻辑抽包内私有 `useFeedback.ts`；包内子件仅 `IssueForm`。
@@ -72,7 +76,11 @@ const {
   goBack,
   form,
   updateForm,
-  typePlaceholder,
+  options,
+  optionsLoading,
+  optionsFailed,
+  retryOptions,
+  contentPlaceholder,
   onPickType,
   fieldErrors,
   scrollIntoView,

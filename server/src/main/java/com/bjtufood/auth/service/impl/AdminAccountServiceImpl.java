@@ -8,6 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -36,5 +39,19 @@ public class AdminAccountServiceImpl implements AdminAccountService {
     @Override
     public void updatePassword(Long accountId, String passwordHash) {
         adminAccountMapper.updatePassword(accountId, passwordHash, LocalDateTime.now());
+    }
+
+    @Override
+    public Map<Long, String> mapUsernameByIds(Collection<Long> accountIds) {
+        if (accountIds == null || accountIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<Long, String> map = new HashMap<>();
+        // 只取 id + username 两列：处置人展示位只需要登录名（不取口令哈希等敏感列）
+        adminAccountMapper.selectList(Wrappers.<AdminAccount>lambdaQuery()
+                        .select(AdminAccount::getId, AdminAccount::getUsername)
+                        .in(AdminAccount::getId, accountIds))
+                .forEach(a -> map.put(a.getId(), a.getUsername()));
+        return map;
     }
 }

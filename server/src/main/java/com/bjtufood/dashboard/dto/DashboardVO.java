@@ -32,13 +32,13 @@ public class DashboardVO {
     @Schema(description = "待办区")
     public static class Todo {
 
-        @Schema(description = "待处理意见反馈数（非举报且 status='pending'）")
+        @Schema(description = "待处置意见反馈数（moderation_task：type='feedback' 且 status='pending'）")
         private Long pendingFeedbackCount;
 
-        @Schema(description = "待处理举报数（type='report' 且 status='pending'）")
+        @Schema(description = "待处置举报数（moderation_task：type='report' 且 status='pending'）")
         private Long pendingReportCount;
 
-        @Schema(description = "待处理纠错数（dish_correction：status='pending'）")
+        @Schema(description = "待处置纠错数（moderation_task：type='correction' 且 status='pending'）")
         private Long pendingCorrectionCount;
 
         @Schema(description = "最近 5 条待办（跨三类合并，按提交时间倒序）")
@@ -56,7 +56,7 @@ public class DashboardVO {
         @Schema(description = "对应记录 ID（跳转定位）", example = "12")
         private Long id;
 
-        @Schema(description = "摘要：反馈=正文摘要；举报=被举报评价摘要；纠错=菜品名")
+        @Schema(description = "摘要：反馈=正文摘要；举报=被举报评价摘要（已删除时给固定文案）；纠错=菜品名")
         private String title;
 
         @Schema(description = "提交时间（yyyy-MM-dd HH:mm:ss）")

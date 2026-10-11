@@ -7,40 +7,42 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.utils.DuplicateGuard;
-import com.bjtufood.feedback.constant.FeedbackConst;
-import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonListUtil;
-import com.bjtufood.moderation.service.LocalSensitiveFilter;
+import com.bjtufood.common.utils.PageUtil;
+import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.UgcImageValidator;
-import com.bjtufood.moderation.service.ContentSecurityService;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
-import com.bjtufood.feedback.dto.FeedbackHandleReq;
 import com.bjtufood.feedback.dto.FeedbackReq;
-import com.bjtufood.feedback.dto.ReportReasonVO;
-import com.bjtufood.feedback.dto.ReportReq;
-import com.bjtufood.review.dto.ReviewRelatedBriefVO;
-import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.feedback.entity.Feedback;
+import com.bjtufood.feedback.entity.Report;
 import com.bjtufood.feedback.mapper.FeedbackMapper;
+import com.bjtufood.feedback.mapper.ReportMapper;
+import com.bjtufood.feedback.service.FeedbackOptionService;
 import com.bjtufood.feedback.service.FeedbackService;
-import com.bjtufood.feedback.service.ReportReasonService;
-import com.bjtufood.notification.dto.NotificationCmd;
-import com.bjtufood.notification.service.NotificationService;
-import com.bjtufood.notification.util.NotificationUtil;
+import com.bjtufood.moderation.constant.ModerationConst;
+import com.bjtufood.moderation.dto.ModerationHandleReq;
+import com.bjtufood.moderation.dto.ModerationTaskVO;
+import com.bjtufood.moderation.service.ModerationTaskService;
+import com.bjtufood.moderation.support.ModerationTaskFilters;
+import com.bjtufood.moderation.service.ContentSecurityService;
+import com.bjtufood.moderation.service.LocalSensitiveFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * 用户反馈服务实现
+ * 意见反馈服务实现。
+ * <p>
+ * 提交链路「先机审（无事务）→ 再落库（开事务）」：事务只包住落库一步，
+ * 且<b>反馈行与处置任务行在同一事务</b>（见 {@link FeedbackPersister#insert}）。
  */
 @Slf4j
 @Service
@@ -59,110 +61,157 @@ public class FeedbackServiceImpl implements FeedbackService {
     /** 跨域只读契约：管理端「提交人」昵称投影 + 内容安检取 openid（P0-1，替代 UserMapper 直连） */
     private final UserService userService;
     private final LocalSensitiveFilter localSensitiveFilter;
-    private final NotificationService notificationService;
-    /** 举报原因字典真源（report_reason 表，A7 落地后替代原常量） */
-    private final ReportReasonService reportReasonService;
+    /** 微信内容安全检测 */
     private final ContentSecurityService contentSecurityService;
     private final ImageUrlUtil imageUrlUtil;
-    /** 跨域只读契约：举报目标（评价）存在性与可见性校验（方案 B 举报子资源） */
-    private final ReviewService reviewService;
+    /** 反馈类型字典真源（`feedback_option` 表）：提交白名单 + 管理端中文名翻译 */
+    private final FeedbackOptionService feedbackOptionService;
+    /** 处置状态机（`moderation_task`）：提交预建、处置归档、列表批量回填 */
+    private final ModerationTaskService moderationTaskService;
+    private final ReportMapper reportMapper;
 
     /**
-     * 提交反馈。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
+     * 提交意见反馈。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
      * （{@link FeedbackPersister#insert}），使微信机审的外呼期间不占用数据库连接。
      */
     @Override
     public void submit(Long userId, FeedbackReq req) {
-        // user_feedback.user_id 必填真实登录用户：无登录态即 401（不落 0/匿名占位）
+        // feedback.user_id 必填真实登录用户（外键 fk_feedback_user → user(id)）：无登录态即 401
         requireLogin(userId);
-        // 类型写入白名单（方案 B ）：仅纯反馈三类可写（bug / suggestion / other），
-        // 其余类型（issue / add / error / report）→ 400，不落库；
-        // 举报走 POST /reviews/{id}/report，纠错走 POST /dishes/{id}/correction，均不在本端点内。
-        String type = ParamValidator.requiredInWhitelist(req.getType(), FeedbackConst.WRITABLE_TYPES, "反馈类型");
         if (!StringUtils.hasText(req.getContent())) {
             throw new BusinessException(400, "反馈内容不能为空");
         }
-        String content = localSensitiveFilter.filter(req.getContent());
+        // 类型值域 = feedback_option 表的**启用项**（字典可维护、免发版）：非法 / 已停用 → 400
+        if (!feedbackOptionService.isSubmittable(req.getOptionId())) {
+            throw new BusinessException(400, "反馈类型非法");
+        }
+        // 配图先校验（≤3 张 + COS 白名单）：避免为一个必然失败的请求白付一次微信机审额度
+        String images = UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil);
 
         Feedback feedback = new Feedback();
         feedback.setUserId(userId);
-        feedback.setType(type);
-        // 纯反馈无二级分类 / 无关联对象（历史列保持 NULL）
-        feedback.setSub(null);
-        feedback.setContent(content);
-        feedback.setRelatedType(null);
-        feedback.setRelatedId(null);
-        feedback.setStatus(FeedbackConst.STATUS_PENDING);
+        feedback.setOptionId(req.getOptionId());
+        feedback.setContent(localSensitiveFilter.filter(req.getContent()));
+        feedback.setImages(images);
 
         // ---- 内容安全检测（全部 UGC 过微信内容安全检测）----
         // 文本 msgSecCheck v2（scene=2）；risky 由 checkText 统一拦截（400）；
         // 边界：无 openid 账号跳过机审放行（本地词库兜底）。
         checkUgcText(userId, feedback.getContent());
-        feedback.setImages(UgcImageValidator.encode(req.getImages(), "反馈", imageUrlUtil));
         feedbackPersister.insert(feedback);
     }
 
-    /** 登录前置：user_feedback 的提交人恒为真实登录用户（user_id 必填）。 */
+    /** 登录前置：feedback 的提交人恒为真实登录用户（user_id 必填 + 外键）。 */
     private void requireLogin(Long userId) {
         if (userId == null) {
             throw new BusinessException(401, "请先登录");
         }
     }
 
-    /**
-     * 举报评价。<b>本方法刻意不加 {@code @Transactional}</b>：与 {@link #submit} 同理，
-     * 存在性/去重/机审均在无事务状态下完成，仅落库一步开事务。
-     */
     @Override
-    public List<ReportReasonVO> reportReasons() {
-        // 字典真源 = report_reason 表（A7）；出参结构不变（恰 id + name、仅启用项、按 id 升序）
-        return reportReasonService.listEnabled();
+    public IPage<FeedbackAdminVO> listForAdmin(String status, Long optionId, Long userId, String keyword,
+                                               int page, int pageSize) {
+        int[] norm = PageUtil.normalize(page, pageSize);
+        page = norm[0];
+        pageSize = norm[1];
+
+        IPage<Feedback> p = feedbackMapper.selectPage(new Page<>(page, pageSize),
+                buildAdminQuery(status, optionId, userId, keyword));
+
+        List<Long> userIds = p.getRecords().stream()
+                .map(Feedback::getUserId)
+                .filter(id -> id != null)
+                .distinct()
+                .toList();
+        // 昵称投影经 auth 域只读契约下发（P0-1：本域不注入 UserMapper；空集合返回空 Map，不发起查询）
+        Map<Long, String> userMap = userService.mapNameByIds(userIds);
+        // 类型中文名（字典**全量含停用项**：历史反馈仍要能翻译出中文；逐页取一次）
+        Map<Long, String> optionNames = feedbackOptionService.nameByIdAll();
+        // 处置结果（处置文案真源在任务表）：按本页 ID 集合批量回填，一次 IN 查询
+        Set<Long> ids = new HashSet<>();
+        p.getRecords().forEach(f -> ids.add(f.getId()));
+        Map<Long, ModerationTaskVO> tasks =
+                moderationTaskService.mapByTypeAndIds(ModerationConst.TYPE_FEEDBACK, ids);
+
+        return PageUtil.toVoPage(p,
+                recs -> recs.stream().map(f -> toAdminVO(f, userMap, optionNames, tasks)).toList());
     }
 
-    @Override
-    public void report(Long userId, Long reviewId, ReportReq req) {
-        // user_feedback.user_id 必填真实登录用户：无登录态即 401（不落 0/匿名占位）
-        requireLogin(userId);
-        // 举报目标必须存在且公开可见（已隐藏 / 已删除对外等价于不存在 → 4001）
-        if (!reviewService.existsVisibleById(reviewId)) {
-            throw new BusinessException(4001, "评价不存在");
+    /**
+     * 管理端列表查询构造：板块已取消（举报独立成表 / 独立端点），
+     * 只剩「处置状态 + 类型 + 提交人 + 关键词」四个筛选，排序固定 `created_at DESC`。
+     */
+    private LambdaQueryWrapper<Feedback> buildAdminQuery(String status, Long optionId, Long userId, String keyword) {
+        String normalizedStatus = ParamValidator.optionalInWhitelist(status, ModerationConst.STATUSES, "处理状态");
+        LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
+                .eq(optionId != null, Feedback::getOptionId, optionId)
+                .eq(userId != null, Feedback::getUserId, userId);
+        // 「是否已处置」是**处置任务表**的状态：条件片段由 moderation 域下发（该域持有该表的 SQL 知识）
+        if (StringUtils.hasText(normalizedStatus)) {
+            ModerationTaskFilters.byStatus(wrapper, ModerationConst.TYPE_FEEDBACK, "feedback.id", normalizedStatus);
         }
-        // 举报原因必选，值域 = **report_reason 表**（存在且启用；停用的原因不能再被提交，
-        // 但历史记录仍能翻译出中文 —— 见 docs/func/web/A-主数据维护/A7-举报原因管理.md）
-        Long reasonId = req.getReasonId();
-        if (!reportReasonService.isSubmittable(reasonId)) {
-            throw new BusinessException("举报原因非法");
+        if (StringUtils.hasText(keyword)) {
+            String kw = keyword.trim();
+            // 关键词口径：反馈正文 **或** 处置文案（处置文案在任务表，条件片段由 moderation 域下发）
+            wrapper.and(w -> w.like(Feedback::getContent, kw)
+                    .or()
+                    .apply(ModerationTaskFilters.replyKeywordCondition("feedback.id"),
+                            ModerationConst.TYPE_FEEDBACK, ModerationTaskFilters.likePattern(kw)));
         }
-        // 去重：同一登录用户对同一评价的重复举报不新增
-        DuplicateGuard.assertUnique(feedbackMapper, new LambdaQueryWrapper<Feedback>()
-                .eq(Feedback::getUserId, userId)
-                .eq(Feedback::getType, FeedbackConst.TYPE_REPORT)
-                .eq(Feedback::getRelatedType, FeedbackConst.RELATED_REVIEW)
-                .eq(Feedback::getRelatedId, reviewId), 400, "你已举报过该内容，我们会尽快处理，请勿重复提交");
-        // 补充文本可空；填写则过本地词库 + 微信机审（空文本跳过送检省额度）
-        String content = StringUtils.hasText(req.getContent()) ? localSensitiveFilter.filter(req.getContent()) : "";
-        if (StringUtils.hasText(content)) {
-            checkUgcText(userId, content);
-        }
+        wrapper.orderByDesc(Feedback::getCreatedAt);
+        return wrapper;
+    }
 
-        Feedback feedback = new Feedback();
-        feedback.setUserId(userId);
-        feedback.setType(FeedbackConst.TYPE_REPORT);
-        feedback.setSubReasonId(reasonId);
-        feedback.setSub(null);
-        feedback.setContent(content);
-        feedback.setRelatedType(FeedbackConst.RELATED_REVIEW);
-        feedback.setRelatedId(reviewId);
-        feedback.setStatus(FeedbackConst.STATUS_PENDING);
-        feedback.setImages(UgcImageValidator.encode(req.getImages(), "举报", imageUrlUtil));
-        feedbackPersister.insert(feedback);
+    /** 管理端 VO 转换：补齐昵称、类型中文名、配图（JSON→绝对 URL 数组）与处置结果 */
+    private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap,
+                                      Map<Long, String> optionNames,
+                                      Map<Long, ModerationTaskVO> tasks) {
+        FeedbackAdminVO vo = new FeedbackAdminVO();
+        vo.setId(f.getId());
+        vo.setUserId(f.getUserId());
+        vo.setUserName(userMap.get(f.getUserId()));
+        vo.setOptionId(f.getOptionId());
+        // 字典缺失（选项已被物理删除的极端情况）时回退 null：由前端按「—」呈现
+        vo.setOptionName(f.getOptionId() == null ? null : optionNames.get(f.getOptionId()));
+        vo.setContent(f.getContent() == null ? "" : f.getContent());
+        List<String> images = JsonListUtil.parseStringList(f.getImages());
+        vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
+        vo.setCreatedAt(f.getCreatedAt());
+        applyTask(vo, tasks.get(f.getId()));
+        return vo;
+    }
+
+    /** 处置结果回填（任务行缺失时保持 null，不伪造成「未处置」） */
+    private static void applyTask(FeedbackAdminVO vo, ModerationTaskVO task) {
+        if (task == null) {
+            return;
+        }
+        vo.setStatus(task.getStatus());
+        vo.setOutcome(task.getOutcome());
+        vo.setReplyTitle(task.getReplyTitle());
+        vo.setReplyContent(task.getReplyContent());
+        vo.setHandledByName(task.getHandledByName());
+        vo.setHandledAt(task.getHandledAt());
+    }
+
+    /**
+     * 处置反馈。<b>本方法不加 {@code @Transactional}</b>：唯一的写动作（任务行归档 + 回执投递）
+     * 已由 {@code ModerationTaskService#handle} 收敛在同一事务内，此处再包一层只会多一层空壳边界。
+     */
+    @Override
+    public void handle(Long id, ModerationHandleReq req, Long adminId) {
+        Feedback feedback = feedbackMapper.selectById(id);
+        if (feedback == null) {
+            throw new BusinessException(4001, "反馈不存在");
+        }
+        moderationTaskService.handle(ModerationConst.TYPE_FEEDBACK, id,
+                req.getOutcome(), req.getReplyTitle(), req.getReplyContent(), adminId, feedback.getUserId());
     }
 
     /**
      * 文本内容安全检测：登录用户取 openid 调 msgSecCheck v2（仅拦截，不落库安全态）。
      * <p>
-     * 结果语义：risky 由 {@code checkText} 抛 400 拦截；
-     * pass 与内容安全检测 review 均视为放行（无待复核落库值）。
+     * 结果语义：risky 由 {@code checkText} 抛 400 拦截；pass 与 review（疑似）均视为放行。
      * 边界：取不到 openid 的账号（含用户不存在）无 openid 可用，内容安全检测内部按既有口径跳过放行。
      */
     private void checkUgcText(Long userId, String content) {
@@ -176,225 +225,13 @@ public class FeedbackServiceImpl implements FeedbackService {
         contentSecurityService.checkText(openid, content, 2);
     }
 
-    @Override
-    public IPage<FeedbackAdminVO> listForAdmin(String category, String status, String type, Long userId, String keyword, int page, int pageSize) {
-        int[] norm = com.bjtufood.common.utils.PageUtil.normalize(page, pageSize);
-        page = norm[0]; pageSize = norm[1];
-
-        LambdaQueryWrapper<Feedback> wrapper = buildAdminQuery(category, status, type, userId, keyword);
-
-        IPage<Feedback> p = feedbackMapper.selectPage(new Page<>(page, pageSize), wrapper);
-
-        List<Long> userIds = p.getRecords().stream()
-                .map(Feedback::getUserId)
-                .filter(id -> id != null)
-                .distinct()
-                .toList();
-        // 昵称投影经 auth 域只读契约下发（P0-1：本域不注入 UserMapper；空集合返回空 Map，不发起查询）
-        Map<Long, String> userMap = userService.mapNameByIds(userIds);
-
-        // B3：举报原因中文名（`report_reason` 字典全量，含停用项 —— 历史举报仍要能翻译出中文；逐页取一次）
-        Map<Long, String> reasonNameMap = reportReasonService.nameByIdAll();
-        // B3：被举报评价摘要 —— **只收集 report 行的 relatedId 后批量取**（反馈行不参与，避免白取）
-        java.util.Set<Long> reportReviewIds = new java.util.HashSet<>();
-        for (Feedback f : p.getRecords()) {
-            if (FeedbackConst.TYPE_REPORT.equals(f.getType()) && f.getRelatedId() != null) {
-                reportReviewIds.add(f.getRelatedId());
-            }
-        }
-        java.util.Map<Long, ReviewRelatedBriefVO> reviewBriefs =
-                reviewService.mapRelatedBriefByIds(reportReviewIds);
-
-        return com.bjtufood.common.utils.PageUtil.toVoPage(p,
-                recs -> recs.stream()
-                        .map(f -> toAdminVO(f, userMap, reasonNameMap, reviewBriefs))
-                        .toList());
-    }
-
-    /** 抽取管理端列表 / 计数的公共查询构造（含入参白名单校验与板块分流），供 listForAdmin 与 countPending 复用。 */
-    private LambdaQueryWrapper<Feedback> buildAdminQuery(String category, String status, String type, Long userId, String keyword) {
-        status = ParamValidator.optionalInWhitelist(status, FeedbackConst.QUERY_STATUSES, "处理状态");
-        type = ParamValidator.optionalInWhitelist(type, FeedbackConst.QUERY_TYPES, "反馈类型");
-        category = ParamValidator.optionalInWhitelist(category, FeedbackConst.QUERY_CATEGORIES, "板块");
-        boolean reportOnly = "report".equals(category);
-        boolean feedbackOnly = "feedback".equals(category);
-        LambdaQueryWrapper<Feedback> wrapper = new LambdaQueryWrapper<Feedback>()
-                .eq(StringUtils.hasText(status), Feedback::getStatus, status)
-                .eq(StringUtils.hasText(type), Feedback::getType, type)
-                .eq(reportOnly, Feedback::getType, FeedbackConst.TYPE_REPORT)
-                .ne(feedbackOnly, Feedback::getType, FeedbackConst.TYPE_REPORT)
-                .eq(userId != null, Feedback::getUserId, userId);
-        if (StringUtils.hasText(keyword)) {
-            String kw = keyword.trim();
-            wrapper.and(w -> w.like(Feedback::getContent, kw).or().like(Feedback::getReply, kw));
-        }
-        wrapper.orderByDesc(Feedback::getCreatedAt);
-        return wrapper;
-    }
-
-    @Override
-    public long countPending(String category) {
-        return feedbackMapper.selectCount(buildAdminQuery(category, "pending", null, null, null));
-    }
-
-    /**
-     * 管理端 VO 转换：补齐昵称、配图（JSON→数组）；
-     * **举报行**另补原因中文名与被举报评价 ID（B3）；内容安全态已取消人工复核。
-     */
-    private FeedbackAdminVO toAdminVO(Feedback f, Map<Long, String> userMap,
-                                      Map<Long, String> reasonNameMap,
-                                      java.util.Map<Long, ReviewRelatedBriefVO> reviewBriefs) {
-        FeedbackAdminVO vo = new FeedbackAdminVO();
-        vo.setId(f.getId());
-        vo.setUserId(f.getUserId());
-        vo.setUserName(userMap.get(f.getUserId()));
-        vo.setType(f.getType());
-        // 二级分类：仅 suggestion 有效（老数据/其他类型该列为 NULL，前端按「未分类」展示）
-        vo.setSub(f.getSub());
-        vo.setContent(f.getContent());
-        List<String> images = JsonListUtil.parseStringList(f.getImages());
-        vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
-        // user_feedback 无联系方式列，管理端 VO 不返回该字段
-        vo.setRelatedType(f.getRelatedType());
-        vo.setRelatedId(f.getRelatedId());
-        vo.setStatus(f.getStatus());
-        // 处理结论回显：表无 outcome 物理列，按 status + reject_reason 派生——
-        // handle() 落库保证「rejected ⇒ reject_reason 非空、handled ⇒ reject_reason 为 NULL」，
-        // 故 handled 且 rejectReason 非空即 rejected，否则 handled（历史存量 reject_reason=NULL → handled，
-        // 与缺省「已处理」一致）；pending（未处理）保持 null。
-        vo.setOutcome(FeedbackConst.STATUS_HANDLED.equals(f.getStatus())
-                ? (StringUtils.hasText(f.getRejectReason())
-                        ? FeedbackConst.OUTCOME_REJECTED
-                        : FeedbackConst.OUTCOME_HANDLED)
-                : null);
-        vo.setReply(f.getReply());
-        vo.setRejectReason(f.getRejectReason());
-        vo.setCreatedAt(f.getCreatedAt());
-        vo.setHandledAt(f.getHandledAt());
-        // B2：列表统一带 updatedAt（表已有列，无需 DDL）
-        vo.setUpdatedAt(f.getUpdatedAt());
-        // B3 举报私有字段：仅 type=report 填充（反馈行保持 null，避免端上误读成「有举报原因」）
-        if (FeedbackConst.TYPE_REPORT.equals(f.getType())) {
-            vo.setSubReasonId(f.getSubReasonId());
-            // 字典缺失（原因已被物理删除的极端情况）时回退 null：由前端按「—」呈现
-            vo.setReasonName(f.getSubReasonId() == null ? null : reasonNameMap.get(f.getSubReasonId()));
-            vo.setReviewId(f.getRelatedId());
-            // 内嵌「被举报内容」摘要：管理员不跳页即可看到被举报了什么，并据 hidden 决定
-            // 「同时隐藏」复选是否置灰（评价已隐藏时置灰，避免重复处置）
-            ReviewRelatedBriefVO brief = reviewBriefs.get(f.getRelatedId());
-            if (brief != null) {
-                vo.setReviewContent(brief.getContent());
-                vo.setReviewDishName(brief.getDishName());
-                vo.setReviewHidden(brief.isHidden());
-            }
-        }
-        return vo;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void handle(Long id, FeedbackHandleReq req) {
-        Feedback feedback = feedbackMapper.selectById(id);
-        if (feedback == null) {
-            throw new BusinessException(4001, "反馈不存在");
-        }
-        // 已处理（status != 'pending'）再处理 → 400：防处理结论被静默改写 + 回执重复投递（口径见 B2/B3 错误码）
-        if (!FeedbackConst.STATUS_PENDING.equals(feedback.getStatus())) {
-            throw new BusinessException("该记录已处理");
-        }
-        // B2（2026-10-03）：回复**可选** —— 仅 rejected 结论要求 rejectReason；handled 允许无回复
-        // （回执退化为固定文案）。此处只卡长度，不拦必填；空值一律归一为 null 落库。
-        String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
-        if (trimmedReply != null && trimmedReply.isEmpty()) {
-            trimmedReply = null;
-        }
-        // 上限 600 字（回执正文 = 前缀 + 回复全文，须 ≤ notification.content 的 1024 列宽）
-        if (trimmedReply != null && trimmedReply.length() > FeedbackConst.REPLY_MAX_LENGTH) {
-            throw new BusinessException("处理回复不能超过" + FeedbackConst.REPLY_MAX_LENGTH + "字");
-        }
-        // 处理结论——handled=通过/已处理（缺省）；rejected=不采纳/退回。
-        // 白名单外一律 400（PR-06），不静默降级；rejectReason 仅在 rejected 结论下消费与落库。
-        String outcome = req.getOutcome() == null || req.getOutcome().isBlank()
-                ? FeedbackConst.OUTCOME_HANDLED
-                : req.getOutcome().trim();
-        if (!FeedbackConst.OUTCOMES.contains(outcome)) {
-            throw new BusinessException("处理结论非法（仅允许 handled=通过/已处理、rejected=不采纳/退回）");
-        }
-        boolean rejected = FeedbackConst.OUTCOME_REJECTED.equals(outcome);
-        String rejectReason = null;
-        if (rejected) {
-            // 不采纳/退回 → reject_reason 必填：1~200 字，纯空白视为未填写 → 400
-            rejectReason = req.getRejectReason() == null ? null : req.getRejectReason().trim();
-            if (!StringUtils.hasText(rejectReason)) {
-                throw new BusinessException("请填写不采纳原因");
-            }
-            if (rejectReason.length() > FeedbackConst.REJECT_REASON_MAX_LENGTH) {
-                throw new BusinessException("不采纳原因不能超过" + FeedbackConst.REJECT_REASON_MAX_LENGTH + "字");
-            }
-        }
-        // B3：处置举报时可**联动隐藏被举报评价**（与管理端「隐藏评价」同一动作，避免漏处置）。
-        // 仅在「是举报 + 有被举报评价 + 该评价当前未隐藏」时执行；隐藏本身会向作者投递回执（B1 口径）。
-        boolean hiddenThisTime = false;
-        if (Boolean.TRUE.equals(req.getHideReview()) && !rejected
-                && FeedbackConst.TYPE_REPORT.equals(feedback.getType())
-                && feedback.getRelatedId() != null) {
-            hiddenThisTime = reviewService.hideIfVisible(feedback.getRelatedId());
-        }
-        feedback.setStatus(FeedbackConst.STATUS_HANDLED);
-        feedback.setReply(trimmedReply);
-        feedback.setRejectReason(rejectReason);
-        feedback.setHandledAt(LocalDateTime.now());
-        feedbackMapper.updateById(feedback);
-        // 处理结果回执（携带处理结论与不采纳原因）：向提交人（提交恒带登录态，user_id 必填）投递
-        sendFeedbackReceipt(feedback, rejected, trimmedReply, rejectReason, hiddenThisTime);
-    }
-
-    /**
-     * 反馈处理结果回执（回执携带处理结论；不采纳/退回时一并展示不采纳原因）。
-     * <p>
-     * 归属判据：提交恒带 userId（登录态）即投递 —— **不按邮箱认证过滤**（消息中心为登录级能力，
-     * 静默登录的账号同样收到处理结果）；userId 为空不投递（防御性兜底，见方法体）。
-     * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
-     *
-     * @param rejected      true=处理结论为不采纳/退回（此时 rejectReason 非空，handle 已校验）
-     * @param reply         处理回复（**可为 null**；为空时回执正文退化为固定结论文案）
-     * @param rejectReason  不采纳原因（rejected=true 时非空；否则为 null，不参与文案）
-     * @param hiddenThisTime 本次处置**顺带隐藏**了被举报评价（B3）—— 回执据此处置说明"已隐藏该评价"
-     */
-    private void sendFeedbackReceipt(Feedback feedback, boolean rejected, String reply, String rejectReason,
-                                     boolean hiddenThisTime) {
-        Long userId = feedback.getUserId();
-        // 防御性兜底：提交入口一律要求登录态，记录恒有 userId
-        if (userId == null) {
-            return;
-        }
-        // 投递口径：**登录级** —— 不按邮箱认证过滤，有 userId 即投递（静默登录的账号同样收到回执）。
-        // is_read 由 notify 实现侧统一置 0（P0-1：本域不 import / 构造 notify 实体）
-        // B3：**回执文案按 type 分流** —— 举报（type=report）与反馈是两件事，
-        // 一律写「反馈已处理 / 反馈未采纳」会让举报人读成语义错位。
-        boolean isReport = FeedbackConst.TYPE_REPORT.equals(feedback.getType());
-        String title = isReport ? (rejected ? "举报未采纳" : "举报已受理")
-                : (rejected ? "反馈未采纳" : "反馈已处理");
-        // 受理时若顺带隐藏了被举报评价，必须说明（用户看不到评价了，不说明即为"凭空消失"）
-        String hiddenSuffix = hiddenThisTime ? "，已隐藏该评价" : "";
-        String body;
-        if (rejected) {
-            body = (isReport ? "你提交的举报未采纳：" : "你提交的反馈未采纳：") + rejectReason
-                    + (reply == null ? "" : "。处理说明：" + reply);
-        } else {
-            body = (isReport ? "你提交的举报已受理" : "你提交的反馈已处理") + hiddenSuffix
-                    + (reply == null ? "。" : "：" + reply);
-        }
-        // reply 必填时通知不存在「无回复」分支；B2 起 reply 可选 ⇒
-        // 交由上面的 body 组装保证**始终有可读正文**，不产生空通知。
-        NotificationUtil.notifySafe(notificationService, new NotificationCmd(userId, title, body));
-    }
-
     // ==================== 跨域写契约实现（P0-1：由本域 event 监听器调用） ====================
 
     /**
      * 账号归属迁移：跨域写侧解耦——跨域归属迁移由 auth 域发 {@code UserOwnershipMigratedEvent}，
-     * 各域自行改本域表（auth 不直接改他域数据）；本域只改 {@code user_feedback.user_id}。
+     * 各域自行改本域表（auth 不直接改他域数据）。
+     * <p>
+     * 本域有**两张**用户提交表（`feedback` 与 `report`），故一次迁移内两张表一起改（同一事务）。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -402,8 +239,12 @@ public class FeedbackServiceImpl implements FeedbackService {
         if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
             return 0;
         }
-        return feedbackMapper.update(null, new LambdaUpdateWrapper<Feedback>()
+        int feedbackAffected = feedbackMapper.update(null, new LambdaUpdateWrapper<Feedback>()
                 .eq(Feedback::getUserId, fromUserId)
                 .set(Feedback::getUserId, toUserId));
+        int reportAffected = reportMapper.update(null, new LambdaUpdateWrapper<Report>()
+                .eq(Report::getUserId, fromUserId)
+                .set(Report::getUserId, toUserId));
+        return feedbackAffected + reportAffected;
     }
 }

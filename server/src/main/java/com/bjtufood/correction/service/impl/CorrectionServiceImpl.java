@@ -8,22 +8,19 @@ import com.bjtufood.auth.service.UserService;
 import com.bjtufood.canteen.constant.FloorDict;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
-import com.bjtufood.common.utils.PageUtil;
-import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.common.utils.JsonMapUtil;
-import com.bjtufood.moderation.service.LocalSensitiveFilter;
-import com.bjtufood.moderation.service.ContentSecurityService;
+import com.bjtufood.common.utils.PageUtil;
+import com.bjtufood.common.utils.ParamValidator;
 import com.bjtufood.correction.constant.CorrectionConst;
+import com.bjtufood.correction.dto.CorrectionAdminVO;
+import com.bjtufood.correction.dto.CorrectionDetailVO;
 import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
-import com.bjtufood.correction.dto.DishCorrectionAdminVO;
-import com.bjtufood.correction.dto.DishCorrectionDetailVO;
 import com.bjtufood.correction.dto.DishCorrectionDifferenceVO;
-import com.bjtufood.correction.dto.DishCorrectionHandleReq;
 import com.bjtufood.correction.dto.DishCorrectionReq;
 import com.bjtufood.correction.dto.StallConfirmVO;
-import com.bjtufood.correction.entity.DishCorrection;
-import com.bjtufood.correction.mapper.DishCorrectionMapper;
+import com.bjtufood.correction.entity.Correction;
+import com.bjtufood.correction.mapper.CorrectionMapper;
 import com.bjtufood.correction.service.CorrectionService;
 import com.bjtufood.dish.constant.DishConst;
 import com.bjtufood.dish.dto.DishAdminVO;
@@ -31,18 +28,22 @@ import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.DishDimensionAdminVO;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
-import com.bjtufood.notification.dto.NotificationCmd;
-import com.bjtufood.notification.service.NotificationService;
-import com.bjtufood.notification.util.NotificationUtil;
+import com.bjtufood.moderation.constant.ModerationConst;
+import com.bjtufood.moderation.dto.ModerationHandleReq;
+import com.bjtufood.moderation.dto.ModerationTaskVO;
+import com.bjtufood.moderation.service.ContentSecurityService;
+import com.bjtufood.moderation.service.LocalSensitiveFilter;
+import com.bjtufood.moderation.service.ModerationTaskService;
+import com.bjtufood.moderation.support.ModerationTaskFilters;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -55,23 +56,25 @@ import java.util.stream.Collectors;
  * 菜品问题反馈服务实现（独立资源：POST /dishes/{id}/correction + /admin/corrections）。
  * <p>
  * **提交按 {@code type} 分派**：`field`（信息有误）走局部提交（patch）——只落库改动项
- * （食堂名 / 档口名为自由文本；楼层为受控字典值，值即汉字），status=pending；`gone`（已经下架）走一键提交。
+ * （食堂名 / 档口名为自由文本；楼层为受控字典值，值即汉字）；`gone`（已经下架）走一键提交。
+ * 提交行与处置任务行在**同一事务**内落库（见 {@link CorrectionPersister#insert}）。
+ * <p>
  * **管理端处置同样按 `type` 分派**：
  * <ul>
  *   <li>`field`：两段式档口确认后按选中差异项写回 dish（{@code floor} 例外，写回<b>目标档口</b>
  *       {@code stall.floor}）；</li>
  *   <li>`gone`：<b>仅下架</b>（{@code dish.status=off}，可逆、评价保留，绝不物理删除）；</li>
- *   <li>驳回：`reply` + `rejectReason` 留痕。</li>
+ *   <li>驳回：处置文案即不采纳原因（缺省标题按类型给「菜品信息未采纳」/「菜品仍在售」）。</li>
  * </ul>
- * 两种处理结论均向可归属提交人投递站内回执，**文案按 `type` 与「是否部分采纳」分派**
- * （归属判据 / 投递口径同 feedback handle）。
+ * 两种处置结论均经 {@code ModerationTaskService#handle} 归档并投递站内回执
+ * （**唯一文案列** {@code reply_content}，缺省文案由本域按业务措辞下发）。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CorrectionServiceImpl implements CorrectionService {
 
-    private final DishCorrectionMapper correctionMapper;
+    private final CorrectionMapper correctionMapper;
     /**
      * 落库事务边界：{@code submit} **只让落库一步进事务**（「先机审（无事务）→ 再落库（开事务）」）——
      * 若事务从方法入口开始，会横跨微信机审的 HTTP 外呼（超时 5s），期间持续占用数据库连接；
@@ -91,8 +94,9 @@ public class CorrectionServiceImpl implements CorrectionService {
     private final LocalSensitiveFilter localSensitiveFilter;
     /** 微信内容安全检测 */
     private final ContentSecurityService contentSecurityService;
-    private final NotificationService notificationService;
     private final ImageUrlUtil imageUrlUtil;
+    /** 处置状态机（`moderation_task`）：提交预建、处置归档 + 回执投递、列表批量回填 */
+    private final ModerationTaskService moderationTaskService;
 
     // ==================== 提交（POST /dishes/{id}/correction） ====================
 
@@ -100,11 +104,11 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 提交纠错。<b>本方法刻意不加 {@code @Transactional}</b>：事务边界收窄到落库一步
      * （{@link CorrectionPersister#insert}），使微信机审的外呼期间不占用数据库连接。
      * <p>
-     * 注：{@code adopt} / {@code reject} 不含外部 HTTP 调用，事务边界保持原样。
+     * 注：{@code adopt} / {@code reject} / {@code listForAdmin} 不含外部 HTTP 调用，事务边界不受此约束。
      */
     @Override
     public void submit(Long userId, Long dishId, DishCorrectionReq req) {
-        // dish_correction.user_id 必填真实登录用户（外键 fk_correction_user → user(id)）：无登录态即 401
+        // correction.user_id 必填真实登录用户（外键 fk_correction_user → user(id)）：无登录态即 401
         requireLogin(userId);
         // 菜品不存在与已下架同款处理（对公开接口而言「下架」等价于「不存在」，与 DishServiceImpl 详情口径一致）；
         // 存在性 + 在售态口径由 dish 域唯一持有（P0-1：本域不 import Dish 实体/DishConst/DishMapper）
@@ -120,7 +124,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         submitField(userId, dishId, req);
     }
 
-    /** 登录前置：dish_correction 的提交人恒为真实登录用户（user_id 必填 + 外键）。 */
+    /** 登录前置：correction 的提交人恒为真实登录用户（user_id 必填 + 外键）。 */
     private void requireLogin(Long userId) {
         if (userId == null) {
             throw new BusinessException(401, "请先登录");
@@ -134,7 +138,7 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 这一产品定位的落地边界；一旦要求必填，用户成本从「点一下」回升到「填表」，提交量将大幅下降。
      * <p>
      * 同时<b>拒绝任何差异项字段</b>：那些字段表达的是「这道菜存在，只是信息写错了」，
-     * 与「这道菜消失了」语义冲突；用户想补录信息应改选 {@code field} 型（或由管理员在 A3 直接编辑）。
+     * 与「这道菜消失了」语义冲突；用户想补录信息应改选 {@code field} 型（或由管理员在菜品管理直接编辑）。
      * <p>
      * <b>去重</b>：同一用户对同一菜品的 gone 型只计一次（重复提交返回成功但不重复计数）——
      * 这是<b>防单人刷队列</b>，<b>不是决策门槛</b>（≥1 条即进待办，是否下架由管理员人工决定）。
@@ -166,14 +170,13 @@ public class CorrectionServiceImpl implements CorrectionService {
             return;
         }
 
-        DishCorrection correction = new DishCorrection();
+        Correction correction = new Correction();
         correction.setType(CorrectionConst.TYPE_GONE);
         correction.setDishId(dishId);
         correction.setUserId(userId);
         // gone 行各差异项列恒 NULL —— 语义是「无可对照的原值」，不是「未改动」
         correction.setNote(note);
         correction.setImages(images);
-        correction.setStatus(CorrectionConst.STATUS_PENDING);
         correctionPersister.insert(correction);
     }
 
@@ -182,7 +185,7 @@ public class CorrectionServiceImpl implements CorrectionService {
      * <p>
      * 去重键即 {@code user_id}：提交入口已要求登录态，同一登录用户对同一菜品恒只计一次。
      * <p>
-     * 不限定 {@code status}：某条已拒绝 / 已采纳后，再次提交也<b>不新增行</b>。去重是<b>防单人刷队列</b>，
+     * 不限定处置状态：某条已采纳 / 已驳回后，再次提交也<b>不新增行</b>。去重是<b>防单人刷队列</b>，
      * 不是决策门槛（≥1 条即进待办，是否下架由管理员人工决定）。
      *
      * @param userId 提交人用户ID（登录态，非空）
@@ -190,10 +193,10 @@ public class CorrectionServiceImpl implements CorrectionService {
      * @return true = 已有记录，本次不重复落库
      */
     private boolean existsGoneByUser(Long userId, Long dishId) {
-        LambdaQueryWrapper<DishCorrection> wrapper = new LambdaQueryWrapper<DishCorrection>()
-                .eq(DishCorrection::getType, CorrectionConst.TYPE_GONE)
-                .eq(DishCorrection::getDishId, dishId)
-                .eq(DishCorrection::getUserId, userId);
+        LambdaQueryWrapper<Correction> wrapper = new LambdaQueryWrapper<Correction>()
+                .eq(Correction::getType, CorrectionConst.TYPE_GONE)
+                .eq(Correction::getDishId, dishId)
+                .eq(Correction::getUserId, userId);
         return correctionMapper.exists(wrapper);
     }
 
@@ -285,7 +288,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         // 分字段多次送检会成倍放大微信调用额度，故拼接后一次提交。
         checkUgcText(userId, mergeModerationText(name, canteenName, stallName, floor, attributes));
 
-        DishCorrection correction = new DishCorrection();
+        Correction correction = new Correction();
         correction.setType(CorrectionConst.TYPE_FIELD);
         correction.setDishId(dishId);
         correction.setUserId(userId);
@@ -296,7 +299,6 @@ public class CorrectionServiceImpl implements CorrectionService {
         correction.setFloor(floor);
         correction.setAttributes(JsonMapUtil.toJson(attributes));
         correction.setImages(images);
-        correction.setStatus(CorrectionConst.STATUS_PENDING);
         correctionPersister.insert(correction);
     }
 
@@ -399,24 +401,19 @@ public class CorrectionServiceImpl implements CorrectionService {
     // ==================== 管理端列表（GET /admin/corrections） ====================
 
     @Override
-    public IPage<DishCorrectionAdminVO> listForAdmin(String status, Long dishId, int page, int pageSize) {
-        return listForAdmin(status, null, dishId, page, pageSize);
-    }
-
-    @Override
-    public IPage<DishCorrectionAdminVO> listForAdmin(String status, String type, Long dishId,
-                                                       int page, int pageSize) {
+    public IPage<CorrectionAdminVO> listForAdmin(String status, String type, Long dishId,
+                                                 int page, int pageSize) {
         int[] norm = PageUtil.normalize(page, pageSize);
         page = norm[0];
         pageSize = norm[1];
 
-        LambdaQueryWrapper<DishCorrection> wrapper = buildAdminQuery(status, type, dishId);
-        IPage<DishCorrection> p = correctionMapper.selectPage(new Page<>(page, pageSize), wrapper);
+        LambdaQueryWrapper<Correction> wrapper = buildAdminQuery(status, type, dishId);
+        IPage<Correction> p = correctionMapper.selectPage(new Page<>(page, pageSize), wrapper);
 
         // 批量补齐提交人昵称（一次 IN 查询，消除 N+1）——
         // 经 auth 域只读契约下发（P0-1：本域不注入 UserMapper）
         List<Long> userIds = p.getRecords().stream()
-                .map(DishCorrection::getUserId)
+                .map(Correction::getUserId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -430,7 +427,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         // 一页最多 20 行 ⇒ 查询数为「1 次 + 去重档口数」，不随行数线性增长。
         List<Long> floorDishIds = p.getRecords().stream()
                 .filter(c -> StringUtils.hasText(c.getFloor()))
-                .map(DishCorrection::getDishId)
+                .map(Correction::getDishId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -440,34 +437,37 @@ public class CorrectionServiceImpl implements CorrectionService {
             dishCountByStall.put(stallId, dishService.countByStallId(stallId));
         }
 
+        // 处置结果（处置状态 / 结论 / 处置文案 / 处置人）：按本页 ID 集合批量回填
+        Set<Long> ids = new HashSet<>();
+        p.getRecords().forEach(c -> ids.add(c.getId()));
+        Map<Long, ModerationTaskVO> tasks =
+                moderationTaskService.mapByTypeAndIds(ModerationConst.TYPE_CORRECTION, ids);
+
         return PageUtil.toVoPage(p,
                 recs -> recs.stream()
-                        .map(c -> toAdminVO(c, userMap, dishNameMap, stallByDish, dishCountByStall))
+                        .map(c -> toAdminVO(c, userMap, dishNameMap, stallByDish, dishCountByStall, tasks))
                         .toList());
     }
 
-    private LambdaQueryWrapper<DishCorrection> buildAdminQuery(String status, String type, Long dishId) {
-        status = ParamValidator.optionalInWhitelist(status, CorrectionConst.QUERY_STATUSES, "处理状态");
-        type = ParamValidator.optionalInWhitelist(type, CorrectionConst.QUERY_TYPES, "问题类型");
-        return new LambdaQueryWrapper<DishCorrection>()
-                .eq(StringUtils.hasText(status), DishCorrection::getStatus, status)
-                // type 筛选：管理端按「信息有误 / 已经下架」分Tab；不传 = 全部
-                .eq(StringUtils.hasText(type), DishCorrection::getType, type)
-                .eq(dishId != null, DishCorrection::getDishId, dishId)
-                .orderByDesc(DishCorrection::getCreatedAt);
-    }
-
-    @Override
-    public long countPending() {
-        return correctionMapper.selectCount(buildAdminQuery("pending", null, null));
+    private LambdaQueryWrapper<Correction> buildAdminQuery(String status, String type, Long dishId) {
+        String normalizedStatus = ParamValidator.optionalInWhitelist(status, ModerationConst.STATUSES, "处置状态");
+        String normalizedType = ParamValidator.optionalInWhitelist(type, CorrectionConst.QUERY_TYPES, "问题类型");
+        LambdaQueryWrapper<Correction> wrapper = new LambdaQueryWrapper<Correction>()
+                .eq(StringUtils.hasText(normalizedType), Correction::getType, normalizedType)
+                .eq(dishId != null, Correction::getDishId, dishId);
+        // 「是否已处置」是**处置任务表**的状态：条件片段由 moderation 域下发（该域持有该表的 SQL 知识）
+        if (StringUtils.hasText(normalizedStatus)) {
+            ModerationTaskFilters.byStatus(wrapper, ModerationConst.TYPE_CORRECTION, "correction.id", normalizedStatus);
+        }
+        return wrapper.orderByDesc(Correction::getCreatedAt);
     }
 
     /**
      * 批量查询本页纠错目标菜品名：dishId 去重后一次 IN 查询，空集合返回空 Map（不发起查询）
      */
-    private Map<Long, String> batchDishNames(List<DishCorrection> records) {
+    private Map<Long, String> batchDishNames(List<Correction> records) {
         List<Long> dishIds = records.stream()
-                .map(DishCorrection::getDishId)
+                .map(Correction::getDishId)
                 .filter(id -> id != null)
                 .distinct()
                 .toList();
@@ -478,10 +478,11 @@ public class CorrectionServiceImpl implements CorrectionService {
         return dishService.mapNameByIds(dishIds);
     }
 
-    /** 管理端 VO 转换：补齐菜品名、提交人昵称、配图（相对路径 → 绝对 URL） */
-    private DishCorrectionAdminVO toAdminVO(DishCorrection c, Map<Long, String> userMap, Map<Long, String> dishNameMap,
-                                            Map<Long, Long> stallByDish, Map<Long, Long> dishCountByStall) {
-        DishCorrectionAdminVO vo = new DishCorrectionAdminVO();
+    /** 管理端 VO 转换：补齐菜品名、提交人昵称、配图（相对路径 → 绝对 URL）与处置结果 */
+    private CorrectionAdminVO toAdminVO(Correction c, Map<Long, String> userMap, Map<Long, String> dishNameMap,
+                                        Map<Long, Long> stallByDish, Map<Long, Long> dishCountByStall,
+                                        Map<Long, ModerationTaskVO> tasks) {
+        CorrectionAdminVO vo = new CorrectionAdminVO();
         vo.setId(c.getId());
         vo.setType(c.getType());
         vo.setDishId(c.getDishId());
@@ -499,23 +500,33 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setImages(images.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(images));
         // gone 型的选填补充（管理端处置时必须展示）
         vo.setNote(c.getNote());
-        vo.setStatus(c.getStatus());
-        vo.setReply(c.getReply());
-        vo.setRejectReason(c.getRejectReason());
-        // B4 列表：给「改了几项」（不展开内容 —— 展开是详情的事）+ 是否涉及楼层
+        // 列表：给「改了几项」（不展开内容 —— 展开是详情的事）+ 是否涉及楼层
         vo.setChangeCount(changeCountOf(c));
         if (StringUtils.hasText(c.getFloor())) {
             Long stallId = stallByDish.get(c.getDishId());
             long affected = stallId == null ? 0L : dishCountByStall.getOrDefault(stallId, 0L);
             vo.setFloorImpact("将同步修改该档口下 " + affected + " 个菜品");
         }
-        vo.setHandledAt(c.getHandledAt());
         vo.setCreatedAt(c.getCreatedAt());
+        applyTask(vo, tasks.get(c.getId()));
         return vo;
     }
 
+    /** 处置结果回填（任务行缺失时保持 null，不伪造成「未处置」） */
+    private static void applyTask(CorrectionAdminVO vo, ModerationTaskVO task) {
+        if (task == null) {
+            return;
+        }
+        vo.setStatus(task.getStatus());
+        vo.setOutcome(task.getOutcome());
+        vo.setReplyTitle(task.getReplyTitle());
+        vo.setReplyContent(task.getReplyContent());
+        vo.setHandledByName(task.getHandledByName());
+        vo.setHandledAt(task.getHandledAt());
+    }
+
     /** 差异项数量：逐「改动项」计（属性按**维度**拆，与 {@link #buildDifferences} 的粒度一致） */
-    private static int changeCountOf(DishCorrection c) {
+    private static int changeCountOf(Correction c) {
         int count = 0;
         if (StringUtils.hasText(c.getName())) {
             count++;
@@ -539,7 +550,7 @@ public class CorrectionServiceImpl implements CorrectionService {
         return count;
     }
 
-    // ==================== 管理端详情（GET /admin/corrections/{id}，B4 差异对照） ====================
+    // ==================== 管理端详情（GET /admin/corrections/{id}，差异对照） ====================
 
     /** 差异项键（= 采纳请求 `acceptedFields` 的取值） */
     private static final String FIELD_NAME = "name";
@@ -552,12 +563,12 @@ public class CorrectionServiceImpl implements CorrectionService {
     private static final String FIELD_ATTR_PREFIX = "attributes.";
 
     @Override
-    public DishCorrectionDetailVO getDetail(Long id) {
-        DishCorrection c = correctionMapper.selectById(id);
+    public CorrectionDetailVO getDetail(Long id) {
+        Correction c = correctionMapper.selectById(id);
         if (c == null) {
             throw new BusinessException(4001, "反馈不存在");
         }
-        DishCorrectionDetailVO vo = new DishCorrectionDetailVO();
+        CorrectionDetailVO vo = new CorrectionDetailVO();
         vo.setId(c.getId());
         vo.setType(c.getType());
         vo.setDishId(c.getDishId());
@@ -575,7 +586,6 @@ public class CorrectionServiceImpl implements CorrectionService {
         vo.setUserId(c.getUserId());
         vo.setUserName(c.getUserId() == null ? null
                 : userService.mapNameByIds(List.of(c.getUserId())).get(c.getUserId()));
-        vo.setStatus(c.getStatus());
         vo.setNote(c.getNote());
         List<String> rawImages = c.getImages() == null ? List.of() : c.getImages();
         vo.setImages(rawImages.isEmpty() ? List.of() : imageUrlUtil.toAbsoluteUrls(rawImages));
@@ -586,27 +596,36 @@ public class CorrectionServiceImpl implements CorrectionService {
         if (gone) {
             vo.setGoneUserCount(countPendingGoneByDish(c.getDishId()));
         }
-        vo.setReply(c.getReply());
-        vo.setRejectReason(c.getRejectReason());
-        vo.setHandledAt(c.getHandledAt());
         vo.setCreatedAt(c.getCreatedAt());
+        // 处置结果来自处置任务表（超管处置后同一个抽屉只读态直接回显）
+        ModerationTaskVO task = moderationTaskService.findByTypeAndId(ModerationConst.TYPE_CORRECTION, id);
+        if (task != null) {
+            vo.setStatus(task.getStatus());
+            vo.setOutcome(task.getOutcome());
+            vo.setReplyTitle(task.getReplyTitle());
+            vo.setReplyContent(task.getReplyContent());
+            vo.setHandledByName(task.getHandledByName());
+            vo.setHandledAt(task.getHandledAt());
+        }
         return vo;
     }
 
     /**
-     * 同菜品待处理的 gone 反馈数（<b>参考值，非下架阈值</b>）。
+     * 同菜品**待处置**的 gone 反馈数（<b>参考值，非下架阈值</b>）。
      * <p>
      * 用于管理端展示「有 N 人反馈已下架」；同 {@code user_id} 对同一菜品在提交时已去重，
-     * 故此处即独立 {@code user_id} 数。
+     * 故此处即独立 {@code user_id} 数。「待处置」判据 = 处置任务行仍为 {@code pending}。
      */
     private Long countPendingGoneByDish(Long dishId) {
         if (dishId == null) {
             return 0L;
         }
-        return correctionMapper.selectCount(new LambdaQueryWrapper<DishCorrection>()
-                .eq(DishCorrection::getType, CorrectionConst.TYPE_GONE)
-                .eq(DishCorrection::getDishId, dishId)
-                .eq(DishCorrection::getStatus, CorrectionConst.STATUS_PENDING));
+        LambdaQueryWrapper<Correction> wrapper = new LambdaQueryWrapper<Correction>()
+                .eq(Correction::getType, CorrectionConst.TYPE_GONE)
+                .eq(Correction::getDishId, dishId);
+        ModerationTaskFilters.byStatus(wrapper, ModerationConst.TYPE_CORRECTION, "correction.id",
+                ModerationConst.STATUS_PENDING);
+        return correctionMapper.selectCount(wrapper);
     }
 
     /**
@@ -615,7 +634,7 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 快照只存「提交的新值」，原值必须回查 `dish` / `stall`（经 dish / canteen 域 Service 契约）。
      * 菜品已被物理删除 → 无从对照，返回空列表（采纳本身也会 4001）。
      */
-    private List<DishCorrectionDifferenceVO> buildDifferences(DishCorrection c) {
+    private List<DishCorrectionDifferenceVO> buildDifferences(Correction c) {
         if (c.getDishId() == null || !dishService.existsById(c.getDishId())) {
             return List.of();
         }
@@ -687,7 +706,7 @@ public class CorrectionServiceImpl implements CorrectionService {
     }
 
     /** 逐项采纳：把 `acceptedFields` 里的属性维度项取出（只带选中维度，dish 域按维度合并） */
-    private static Map<String, Object> acceptedAttributes(DishCorrection correction, Set<String> accepted) {
+    private static Map<String, Object> acceptedAttributes(Correction correction, Set<String> accepted) {
         Map<String, Object> picked = new LinkedHashMap<>();
         JsonMapUtil.parseObject(correction.getAttributes()).forEach((dimensionKey, value) -> {
             if (accepted.contains(FIELD_ATTR_PREFIX + dimensionKey)) {
@@ -701,7 +720,7 @@ public class CorrectionServiceImpl implements CorrectionService {
      * 采纳清单校验：**必填非空**（空数组 → 400：什么都不采纳不是采纳，是拒绝），
      * 且每一项都必须是**此刻仍有差异**的项（否则会出现「采纳一个已同步的值」）。
      */
-    private Set<String> resolveAcceptedFields(DishCorrection correction, DishCorrectionAdoptReq req) {
+    private Set<String> resolveAcceptedFields(Correction correction, DishCorrectionAdoptReq req) {
         List<String> raw = req == null ? null : req.getAcceptedFields();
         if (raw == null || raw.isEmpty()) {
             throw new BusinessException("请选择要采纳的差异项（要拒绝请走拒绝接口）");
@@ -719,53 +738,17 @@ public class CorrectionServiceImpl implements CorrectionService {
 
     // ==================== 管理端采纳（POST /admin/corrections/{id}/adopt，两段式档口确认） ====================
 
-    /**
-     * <b>gone 型采纳 = 仅「下架」该菜品</b>（{@code dish.status='off'}）。
-     * <p>
-     * 🔴 <b>红线：本方法绝不删除菜品。</b>
-     * <ul>
-     *   <li>只调 {@link DishService#updateStatus}（上下架，<b>可逆</b>），评价<b>完整保留</b>；</li>
-     *   <li>误下架时管理员可在 A3 重新上架（已有能力），<b>无需重建菜品</b>；</li>
-     *   <li>物理删除（{@code DELETE /admin/dishes/{id}}）会触发 {@code review.dish_id} 的
-     *       {@code ON DELETE CASCADE}，该菜全部历史评价不可再生 ⇒ <b>绝不在本流程暴露</b>。</li>
-     * </ul>
-     * <p>
-     * 菜品已下架时（可能已被管理员先行处理）：<b>幂等视为已完成</b>，仍归档本反馈为 adopted，
-     * 不报错 —— 避免管理员「看到已下架却无法归档反馈」的困惑。
-     *
-     * @param reqReply 采纳附注（可选；留空用 {@link CorrectionConst#GONE_ADOPT_REPLY} 固定文案随回执下发）
-     * @return 恒为 {@code null}（gone 型无档口确认环节）
-     */
-    private StallConfirmVO adoptGone(DishCorrection correction, String reqReply) {
-        // 已下架 ⇒ 无需重复写；仍走归档（status/reply/handledAt）+ 回执
-        if (dishService.existsOnSale(correction.getDishId())) {
-            dishService.updateStatus(correction.getDishId(), DishConst.STATUS_OFF);
-            log.info("[菜品问题反馈] gone 型采纳→下架：dishId={}, correctionId={}",
-                    correction.getDishId(), correction.getId());
-        }
-        String reply = StringUtils.hasText(reqReply) ? reqReply : CorrectionConst.GONE_ADOPT_REPLY;
-        // 归档（与 field 型 adopt 同一套字段写法，不另立口径）
-        correction.setStatus(CorrectionConst.STATUS_ADOPTED);
-        correction.setReply(reply);
-        correction.setRejectReason(null);
-        correction.setHandledAt(LocalDateTime.now());
-        correctionMapper.updateById(correction);
-        // 回执走 gone 专用文案（「已下架，感谢反馈」），附注非空时追加
-        sendCorrectionReceipt(correction, CorrectionConst.STATUS_ADOPTED, true, reply, null, null, null);
-        return null;
-    }
-
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public StallConfirmVO adopt(Long id, DishCorrectionAdoptReq req) {
-        DishCorrection correction = correctionMapper.selectById(id);
+    public StallConfirmVO adopt(Long id, DishCorrectionAdoptReq req, Long adminId) {
+        Correction correction = correctionMapper.selectById(id);
         if (correction == null) {
             throw new BusinessException(4001, "反馈不存在");
         }
-        // 前置：status=pending，否则 400（幂等：重复调用 = 已处理 →「该反馈已处理」）
-        if (!CorrectionConst.STATUS_PENDING.equals(correction.getStatus())) {
-            throw new BusinessException(400, "该反馈已处理");
-        }
+        // 前置：处置任务仍待处置，否则 400（幂等：重复调用 = 已处置 →「该反馈已处理」）。
+        // 先在只读判据上短路，避免「已处置后再点一次」把写回动作（不可逆副作用）先执行掉；
+        // 真正的防重复结论仍由处置任务服务在事务内强制。
+        requirePending(id, "该反馈已处理");
         // 目标菜品物理删除 → 4001（采纳无从写回）；存在性口径由 dish 域下发（P0-1）
         if (!dishService.existsById(correction.getDishId())) {
             throw new BusinessException(4001, "菜品不存在，无法采纳");
@@ -773,13 +756,13 @@ public class CorrectionServiceImpl implements CorrectionService {
 
         // ---- gone（已经下架）分派：采纳动作 = **仅下架** ----
         // 🔴 红线：此处**只调 updateStatus(off)**，绝不触碰任何物理删除路径。
-        //理由：gone 反馈天然含误报（看错窗口 / 临时售罄），若允许删除则「一次误报 + 一次点错」
+        // 理由：gone 反馈天然含误报（看错窗口 / 临时售罄），若允许删除则「一次误报 + 一次点错」
         //      = 该菜全部历史评价永久消失（review.dish_id ON DELETE CASCADE，不可再生）。
         if (CorrectionConst.TYPE_GONE.equals(correction.getType())) {
-            return adoptGone(correction, req == null ? null : req.getReply());
+            return adoptGone(correction, req == null ? null : req.getReplyContent(), adminId);
         }
 
-        // ---- 逐项采纳清单（B4）：必填非空，且每项必须是「此刻仍有差异」的项 ----
+        // ---- 逐项采纳清单：必填非空，且每项必须是「此刻仍有差异」的项 ----
         Set<String> accepted = resolveAcceptedFields(correction, req);
         // 只有采纳了**档口 / 食堂项**才需要两段式档口确认（楼层与档口挂靠是两件独立的事）
         boolean acceptedStall = accepted.contains(FIELD_CANTEEN_NAME) || accepted.contains(FIELD_STALL_NAME);
@@ -820,19 +803,61 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .toList();
         boolean partial = adoptedLabels.size() < allDiffs.size();
 
-        // 返回值恒为 null（无档口确认环节），故只取副作用、不接返回值
-        applyAdoption(correction, resolvedStallId, accepted, req);
-        // 站内回执（提交人非空时投递，失败不阻塞采纳）
-        // 落库 `reply` 缺省用固定文案；回执正文只在**管理员确实填了附注**时追加，避免复述固定文案
-        String adminReply = req == null ? null : req.getReply();
-        sendCorrectionReceipt(correction, CorrectionConst.STATUS_ADOPTED, false,
-                adminReply == null ? null : adminReply.trim(),
-                partial ? adoptedLabels : null, partial ? rejectedLabels : null, null);
+        applyAdoption(correction, resolvedStallId, accepted);
+        // 处置归档 + 站内回执（缺省文案：部分采纳逐项告知，全部采纳用固定文案）
+        String adminNote = req == null ? null : req.getReplyContent();
+        String content = StringUtils.hasText(adminNote)
+                ? adminNote.trim()
+                : (partial ? partialNotice(adoptedLabels, rejectedLabels) : null);
+        moderationTaskService.handle(ModerationConst.TYPE_CORRECTION, id, ModerationConst.OUTCOME_HANDLED,
+                null, content, adminId, correction.getUserId());
         // 采纳已执行：无档口确认环节，返回值恒为 null
         return null;
     }
 
-    /** 采纳清单 → 字段中文名（供部分采纳回执逐项告知；顺序与差异清单一致） */
+    /** 处置任务前置判据：任务行缺失 → 4001；已处置 → 指定文案的 400 */
+    private void requirePending(Long id, String handledMessage) {
+        ModerationTaskVO task = moderationTaskService.findByTypeAndId(ModerationConst.TYPE_CORRECTION, id);
+        if (task == null) {
+            throw new BusinessException(4001, "处置任务不存在");
+        }
+        if (!ModerationConst.STATUS_PENDING.equals(task.getStatus())) {
+            throw new BusinessException(400, handledMessage);
+        }
+    }
+
+    /**
+     * <b>gone 型采纳 = 仅「下架」该菜品</b>（{@code dish.status='off'}）。
+     * <p>
+     * 🔴 <b>红线：本方法绝不删除菜品。</b>
+     * <ul>
+     *   <li>只调 {@link DishService#updateStatus}（上下架，<b>可逆</b>），评价<b>完整保留</b>；</li>
+     *   <li>误下架时管理员可在菜品管理里重新上架（已有能力），<b>无需重建菜品</b>；</li>
+     *   <li>物理删除（{@code DELETE /admin/dishes/{id}}）会触发 {@code review.dish_id} 的
+     *       {@code ON DELETE CASCADE}，该菜全部历史评价不可再生 ⇒ <b>绝不在本流程暴露</b>。</li>
+     * </ul>
+     * <p>
+     * 菜品已下架时（可能已被管理员先行处理）：<b>幂等视为已完成</b>，仍归档本反馈为已处置，
+     * 不报错 —— 避免管理员「看到已下架却无法归档反馈」的困惑。
+     *
+     * @param adminReply 采纳附注（可选；留空用 {@link CorrectionConst#GONE_ADOPT_REPLY} 固定文案）
+     * @return 恒为 {@code null}（gone 型无档口确认环节）
+     */
+    private StallConfirmVO adoptGone(Correction correction, String adminReply, Long adminId) {
+        // 已下架 ⇒ 无需重复写；仍走归档 + 回执
+        if (dishService.existsOnSale(correction.getDishId())) {
+            dishService.updateStatus(correction.getDishId(), DishConst.STATUS_OFF);
+            log.info("[菜品问题反馈] gone 型采纳→下架：dishId={}, correctionId={}",
+                    correction.getDishId(), correction.getId());
+        }
+        String content = StringUtils.hasText(adminReply) ? adminReply.trim() : CorrectionConst.GONE_ADOPT_REPLY;
+        moderationTaskService.handle(ModerationConst.TYPE_CORRECTION, correction.getId(),
+                ModerationConst.OUTCOME_HANDLED, CorrectionConst.GONE_ADOPT_TITLE, content,
+                adminId, correction.getUserId());
+        return null;
+    }
+
+    /** 采纳清单 → 字段中文名（供部分采纳缺省文案逐项告知；顺序与差异清单一致） */
     private static List<String> labelsOf(List<DishCorrectionDifferenceVO> diffs, Set<String> accepted) {
         return diffs.stream()
                 .filter(d -> accepted.contains(d.getField()))
@@ -840,21 +865,12 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .toList();
     }
 
-    /**
-     * 采纳写回：七字段写回 dish（name/price/档口挂靠/flavorTags/ingredients/images）——
-     * 可空快照字段（flavorTags/ingredients/images）不覆盖既有值（MyBatis-Plus NOT_NULL 策略跳过 null），
-     * 保护「菜品首图必填」等既有不变量；随后纠错记录归档（status/reply/handled_at，
-     * stall_name 以实际挂靠档口名落库，管理端指定档口可能不同于提交名）。
-     * <p>
-     * P0-1：写回动作经 {@link DishService#applyCorrection(DishCorrectionCmd)} 下发——本域
-     * 不构造 {@code Dish} 实体、不注入 DishMapper，images 的 JSON 序列化与 null 跳过策略
-     * 属 dish 域落库形态，归 dish 实现。
-     * <p>
-     * <b>楼层纠错</b>：{@code floor} <b>不写回 dish</b>——楼层归属<b>档口</b>
-     * （{@code stall.floor}），菜品无楼层字段。故本次纠错携带楼层时，写入上面已解析出的
-     * <b>目标档口</b>（{@code resolvedStallId}），同档口下全部菜品的详情楼层一并生效；
-     * 写动作经 {@code StallService#updateFloor} 跨域写契约下发（同 P0-1 收口口径）。
-     */
+    /** 部分采纳缺省回执文案：逐项告知已采纳与未采纳项，避免用户重复提交同一项 */
+    private static String partialNotice(List<String> adoptedLabels, List<String> rejectedLabels) {
+        String adopted = "已采纳：" + String.join("、", adoptedLabels);
+        return rejectedLabels.isEmpty() ? adopted : adopted + "；未采纳：" + String.join("、", rejectedLabels);
+    }
+
     /**
      * 单条：目标菜品**当前**所属档口（只采纳 floor 时的楼层落点）。
      * 单条路径不存在 N+1，故直接取菜品全字段（列表路径才走 {@code mapStallIdByIds} 批量投影）。
@@ -867,8 +883,24 @@ public class CorrectionServiceImpl implements CorrectionService {
         return live == null ? null : live.getStallId();
     }
 
-    private String applyAdoption(DishCorrection correction, Long resolvedStallId, Set<String> accepted,
-                                 DishCorrectionAdoptReq req) {
+    /**
+     * 采纳写回：选中项写回 dish（name/price/档口挂靠/attributes/images）——
+     * 可空快照字段（attributes/images）不覆盖既有值（MyBatis-Plus NOT_NULL 策略跳过 null），
+     * 保护「菜品首图必填」等既有不变量。
+     * <p>
+     * P0-1：写回动作经 {@link DishService#applyCorrection(DishCorrectionCmd)} 下发——本域
+     * 不构造 {@code Dish} 实体、不注入 DishMapper，images 的 JSON 序列化与 null 跳过策略
+     * 属 dish 域落库形态，归 dish 实现。
+     * <p>
+     * <b>楼层纠错</b>：{@code floor} <b>不写回 dish</b>——楼层归属<b>档口</b>
+     * （{@code stall.floor}），菜品无楼层字段。故本次纠错携带楼层时，写入上面已解析出的
+     * <b>目标档口</b>（{@code resolvedStallId}），同档口下全部菜品的详情楼层一并生效；
+     * 写动作经 {@code StallService#updateFloor} 跨域写契约下发（同 P0-1 收口口径）。
+     * <p>
+     * <b>提交行不被改写</b>：`correction` 是 append-only 的提交事实，
+     * 「管理员采纳了什么」由处置任务行的处置文案承载，故本方法只写 dish / stall。
+     */
+    private void applyAdoption(Correction correction, Long resolvedStallId, Set<String> accepted) {
         // 楼层改动项：**采纳项含 floor** 才写回（归属档口 stall.floor，同档口其他菜品一并生效）。
         // 目标档口 = 本次解析结果；未采纳档口项时 = 该菜**当前**所属档口（楼层与档口挂靠独立）。
         if (accepted.contains(FIELD_FLOOR) && StringUtils.hasText(correction.getFloor())) {
@@ -877,8 +909,6 @@ public class CorrectionServiceImpl implements CorrectionService {
                 stallService.updateFloor(targetStallId, correction.getFloor());
             }
         }
-        // 实际挂靠档口名（管理端指定档口可能不同于提交名；未采纳档口项时为 null，不归档改名）
-        String resolvedStallName = resolvedStallId == null ? null : stallService.getNameById(resolvedStallId);
         // 逐项写回：只带**选中项**，未选中项一律 null（dish 域 NOT_NULL 策略跳过 ⇒ 不覆盖既有值）
         String name = accepted.contains(FIELD_NAME) ? correction.getName() : null;
         Integer price = accepted.contains(FIELD_PRICE) ? correction.getPrice() : null;
@@ -889,22 +919,6 @@ public class CorrectionServiceImpl implements CorrectionService {
             // 并发删除兜底（采纳前置已查到菜品）
             throw new BusinessException(4001, "菜品不存在，无法采纳");
         }
-
-        // 采纳回复：附注优先（≤600 已在 DTO 校验），缺省固定文案
-        String reply = req != null && StringUtils.hasText(req.getReply())
-                ? req.getReply().trim() : CorrectionConst.ADOPT_REPLY;
-        correction.setStatus(CorrectionConst.STATUS_ADOPTED);
-        correction.setReply(reply);
-        correction.setRejectReason(null);
-        correction.setHandledAt(LocalDateTime.now());
-        // 归档实际挂靠档口名（**null-safe**）：局部提交下 stallName 快照可为 null（用户未改动档口名，
-        // 仅改楼层时亦恒为 null）⇒ 判空后再比较。
-        // 语义：resolvedStallName 非空且与快照不同（快照为 null 亦属「不同」）时，以实际挂靠档口名归档。
-        if (resolvedStallName != null && !resolvedStallName.equals(correction.getStallName())) {
-            correction.setStallName(resolvedStallName);
-        }
-        correctionMapper.updateById(correction);
-        return reply;
     }
 
     /**
@@ -919,117 +933,30 @@ public class CorrectionServiceImpl implements CorrectionService {
                 .toList();
     }
 
-    // ==================== 管理端拒绝（PUT /admin/corrections/{id}） ====================
+    // ==================== 管理端驳回（PUT /admin/corrections/{id}） ====================
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void reject(Long id, DishCorrectionHandleReq req) {
-        DishCorrection correction = correctionMapper.selectById(id);
+    public void reject(Long id, ModerationHandleReq req, Long adminId) {
+        Correction correction = correctionMapper.selectById(id);
         if (correction == null) {
             throw new BusinessException(4001, "纠错不存在");
         }
-        // 前置：status=pending，否则 400（幂等：重复调用 = 已处理 →「该纠错已处理」）
-        if (!CorrectionConst.STATUS_PENDING.equals(correction.getStatus())) {
-            throw new BusinessException(400, "该纠错已处理");
-        }
-        // 处理结论：本端点即拒绝动作，outcome 固定 rejected（形态对齐 feedback handle，非法值 400）
-        String outcome = req.getOutcome() == null || req.getOutcome().isBlank()
-                ? CorrectionConst.OUTCOME_REJECTED
-                : req.getOutcome().trim();
-        if (!CorrectionConst.OUTCOME_REJECTED.equals(outcome)) {
+        // 前置：仍待处置，否则 400（幂等：重复调用 = 已处置 →「该纠错已处理」）
+        requirePending(id, "该纠错已处理");
+        // 处理结论：本端点即驳回动作，outcome 固定 rejected（形态对齐反馈处置，非法值 400）
+        String outcome = !StringUtils.hasText(req.getOutcome())
+                ? ModerationConst.OUTCOME_REJECTED
+                : ParamValidator.requiredInWhitelist(req.getOutcome(), ModerationConst.OUTCOMES, "处理结论");
+        if (!ModerationConst.OUTCOME_REJECTED.equals(outcome)) {
             throw new BusinessException(400, "处理结论非法（本端点仅支持 rejected=不采纳/退回）");
         }
-        // reply **可选**（B4，2026-10-03）：DTO 仅卡长度，Service 不拦必填；
-        // 留空时回执正文退化为「不采纳原因」（必填项），保证提交人始终收到可读内容。
-        String trimmedReply = req.getReply() == null ? null : req.getReply().trim();
-        // 上限 600 字（回执正文 = 前缀 + 回复全文，须 ≤ notification.content 的 1024 列宽）
-        if (trimmedReply != null && trimmedReply.length() > CorrectionConst.REPLY_MAX_LENGTH) {
-            throw new BusinessException(400, "处理回复不能超过" + CorrectionConst.REPLY_MAX_LENGTH + "字");
-        }
-        // 不采纳原因必填（与反馈处理同源口径）：1~200 字，纯空白视为未填写 → 400
-        String rejectReason = req.getRejectReason() == null ? null : req.getRejectReason().trim();
-        if (!StringUtils.hasText(rejectReason)) {
-            throw new BusinessException(400, "请填写不采纳原因");
-        }
-        if (rejectReason.length() > CorrectionConst.REJECT_REASON_MAX_LENGTH) {
-            throw new BusinessException(400, "不采纳原因不能超过" + CorrectionConst.REJECT_REASON_MAX_LENGTH + "字");
-        }
-
-        correction.setStatus(CorrectionConst.STATUS_REJECTED);
-        correction.setReply(trimmedReply);
-        correction.setRejectReason(rejectReason);
-        correction.setHandledAt(LocalDateTime.now());
-        correctionMapper.updateById(correction);
-        // 站内回执（携带不采纳原因与处理说明；gone 型走「经核实，该菜品仍在售」文案）
+        // 处置文案 = 不采纳原因（**必填**，由处置任务服务统一校验；留空 → 400「请填写不采纳原因」）。
+        // 标题缺省按类型分派：gone 型语义为「经核实仍在售」。
         boolean gone = CorrectionConst.TYPE_GONE.equals(correction.getType());
-        sendCorrectionReceipt(correction, CorrectionConst.STATUS_REJECTED, gone,
-                trimmedReply, null, null, rejectReason);
-    }
-
-    // ==================== 站内回执 ====================
-
-    /**
-     * 纠错处理回执（采纳 / 下架 / 驳回统一入口，参考 feedback handle 通知实现）。
-     * <p>
-     * 归属判据：提交人即登录用户（{@code user_id} 必填）—— **不按邮箱认证过滤**（消息中心为登录级能力，
-     * 未认证的登录用户同样收到自己反馈的处理结果）。
-     * 投递失败不影响处理结果（独立 try 分支，异常不外抛到主流程）。
-     * <p>
-     * **标题与正文按结论分派**（文案口径见 B4 功能文档「回执文案」）：
-     * <ul>
-     *   <li>`field` 采纳（全部项）→「菜品信息已更新」；</li>
-     *   <li>`field` 采纳（部分项）→ 同标题，正文**逐项列出已采纳 / 未采纳字段中文名**
-     *       （用户提交 3 项只采纳 2 项时必须知道哪一项没被采纳，否则会重复提交）；</li>
-     *   <li>`field` 驳回 →「菜品信息未采纳」；</li>
-     *   <li>`gone` 下架 →「菜品已下架」；`gone` 驳回 →「菜品仍在售」。</li>
-     * </ul>
-     *
-     * @param outcome 处理结论：`adopted`（采纳 / 下架）或 `rejected`（驳回）
-     * @param gone    本条反馈是否 {@code type=gone}（决定文案分派）
-     * @param reply   处理说明（缺省文案已在各调用点定好；`null` 表示不追加）
-     * @param adoptedLabels 已采纳字段中文名（`field` 型部分采纳时非空）
-     * @param rejectedLabels 未采纳字段中文名（`field` 型部分采纳时非空）
-     * @param rejectReason 不采纳原因（`outcome=rejected` 时非空）
-     */
-    private void sendCorrectionReceipt(DishCorrection correction, String outcome, boolean gone,
-                                       String reply, List<String> adoptedLabels,
-                                       List<String> rejectedLabels, String rejectReason) {
-        Long userId = correction.getUserId();
-        if (userId == null) {
-            // 兜底：提交入口已要求登录态（user_id 必填 + 外键），无归属记录不存在可投递身份
-            return;
-        }
-        String body = receiptBody(outcome, gone, reply, adoptedLabels, rejectedLabels, rejectReason);
-        NotificationUtil.notifySafe(notificationService, new NotificationCmd(userId, receiptTitle(outcome, gone), body));
-    }
-
-    /** 回执标题（按结论 + `type` 分派；口径见 B4 功能文档「回执文案」） */
-    private static String receiptTitle(String outcome, boolean gone) {
-        if (gone) {
-            return CorrectionConst.OUTCOME_REJECTED.equals(outcome) ? "菜品仍在售" : "菜品已下架";
-        }
-        return CorrectionConst.OUTCOME_REJECTED.equals(outcome) ? "菜品信息未采纳" : "菜品信息已更新";
-    }
-
-    /** 回执正文（按结论 + `type` 分派；`reply` 非空时以「。处理说明：」追加） */
-    private static String receiptBody(String outcome, boolean gone, String reply,
-                                      List<String> adoptedLabels, List<String> rejectedLabels,
-                                      String rejectReason) {
-        String main;
-        if (CorrectionConst.OUTCOME_REJECTED.equals(outcome)) {
-            main = gone
-                    ? CorrectionConst.GONE_REJECT_REPLY + "：" + rejectReason
-                    : "你提交的菜品信息未采纳：" + rejectReason;
-        } else if (gone) {
-            main = CorrectionConst.GONE_ADOPT_REPLY;
-        } else if (adoptedLabels != null && !adoptedLabels.isEmpty()) {
-            // 部分采纳：逐项告知（采纳了哪些、没采纳哪些），避免用户重复提交
-            main = "你提交的菜品信息纠错已采纳：" + String.join("、", adoptedLabels)
-                    + (rejectedLabels == null || rejectedLabels.isEmpty()
-                    ? "" : "；未采纳：" + String.join("、", rejectedLabels));
-        } else {
-            main = "你提交的菜品信息纠错已采纳，菜品信息已更新";
-        }
-        return StringUtils.hasText(reply) ? main + "。处理说明：" + reply : main;
+        String title = StringUtils.hasText(req.getReplyTitle())
+                ? req.getReplyTitle()
+                : (gone ? CorrectionConst.GONE_REJECT_TITLE : null);
+        moderationTaskService.handle(ModerationConst.TYPE_CORRECTION, id, ModerationConst.OUTCOME_REJECTED,
+                title, req.getReplyContent(), adminId, correction.getUserId());
     }
 }

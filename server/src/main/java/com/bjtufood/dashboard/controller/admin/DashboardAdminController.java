@@ -4,13 +4,17 @@ import com.bjtufood.auth.dto.UserOverviewVO;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.result.AdminPageResult;
 import com.bjtufood.common.result.Result;
-import com.bjtufood.correction.dto.DishCorrectionAdminVO;
+import com.bjtufood.correction.dto.CorrectionAdminVO;
 import com.bjtufood.correction.service.CorrectionService;
 import com.bjtufood.dashboard.dto.DashboardVO;
 import com.bjtufood.dish.dto.DishHealthVO;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.feedback.dto.FeedbackAdminVO;
+import com.bjtufood.feedback.dto.ReportAdminVO;
 import com.bjtufood.feedback.service.FeedbackService;
+import com.bjtufood.feedback.service.ReportService;
+import com.bjtufood.moderation.constant.ModerationConst;
+import com.bjtufood.moderation.service.ModerationTaskService;
 import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.canteen.service.StallService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,13 +31,16 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * D1 运营看板（管理端，**只读聚合**）。
+ * 运营看板（管理端，**只读聚合**）。
  *
  * <p>契约真源：docs/api/web/dashboard.md。定位：**打开后台即见的首屏** ——
  * 把「今天要处理什么」与「主数据有没有该修的」一屏看完、**点击直达**处置页。
  *
  * <p><b>为什么本控制器是唯一跨域处</b>：分层护栏放行 `*.controller` 跨域（controller = **编排层**，
  * 只经各域 Service 契约），业务层之间不出现反向依赖。故聚合逻辑落在本层，各域只提供自己的计数 / 列表。
+ *
+ * <p><b>待办计数口径</b>：三类待处置数一律取自处置任务表（`moderation_task`）**单表 COUNT**
+ * ——「是否待处置」是任务行的状态，三类工单共用同一判据，故不存在「列表页与看板口径不一致」的可能。
  *
  * <p><b>不缓存</b>（首屏要准，单管理员访问频率极低）、**不写任何表**、**不做时间序列**
  * （趋势图属「运营系统」范畴，当前单管理员轻运营不做）。
@@ -52,7 +59,9 @@ public class DashboardAdminController {
     private static final int ABBREV_MAX_LEN = 30;
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    private final ModerationTaskService moderationTaskService;
     private final FeedbackService feedbackService;
+    private final ReportService reportService;
     private final CorrectionService correctionService;
     private final DishService dishService;
     private final StallService stallService;
@@ -70,17 +79,16 @@ public class DashboardAdminController {
         return Result.success(vo);
     }
 
-    /** ① 待办：三类计数（复用各自列表端点的分页壳，口径与列表页**同一判据**）+ 最近 5 条 */
+    /** ① 待办：三类计数（处置任务表单表 COUNT）+ 最近 5 条（各域取本域待处置列表的首页） */
     private DashboardVO.Todo buildTodo() {
         DashboardVO.Todo todo = new DashboardVO.Todo();
-        todo.setPendingFeedbackCount(pendingFeedback());
-        todo.setPendingReportCount(pendingReport());
-        todo.setPendingCorrectionCount(pendingCorrection());
+        todo.setPendingFeedbackCount(moderationTaskService.countPending(ModerationConst.TYPE_FEEDBACK));
+        todo.setPendingReportCount(moderationTaskService.countPending(ModerationConst.TYPE_REPORT));
+        todo.setPendingCorrectionCount(moderationTaskService.countPending(ModerationConst.TYPE_CORRECTION));
 
         List<DashboardVO.RecentTodo> recent = new ArrayList<>();
-        // 反馈与举报共用同一列表端点（category 分流），两类的「待办」在 D1 是两行统计、一个合并列表
-        recent.addAll(feedbackRecent("feedback"));
-        recent.addAll(feedbackRecent("report"));
+        recent.addAll(feedbackRecent());
+        recent.addAll(reportRecent());
         recent.addAll(correctionRecent());
         recent.sort(Comparator.comparing(DashboardVO.RecentTodo::getSubmittedAt,
                 Comparator.nullsLast(Comparator.reverseOrder())));
@@ -88,48 +96,53 @@ public class DashboardAdminController {
         return todo;
     }
 
-    private long pendingFeedback() {
-        return feedbackService.countPending("feedback");
-    }
-
-    private long pendingReport() {
-        return feedbackService.countPending("report");
-    }
-
-    private long pendingCorrection() {
-        return correctionService.countPending();
-    }
-
-    /** 反馈 / 举报的最近待办（摘要取正文，超长截断 —— 看板只做「一眼看出是什么」。 */
-    private List<DashboardVO.RecentTodo> feedbackRecent(String category) {
-        AdminPageResult<FeedbackAdminVO> page =
-                AdminPageResult.of(feedbackService.listForAdmin(category, "pending", null, null, null, 1, RECENT_LIMIT));
+    /** 反馈 / 举报 / 纠错的最近待办（摘要取各自最能说明「是哪一条」的字段，超长截断） */
+    private List<DashboardVO.RecentTodo> feedbackRecent() {
+        AdminPageResult<FeedbackAdminVO> page = AdminPageResult.of(
+                feedbackService.listForAdmin(ModerationConst.STATUS_PENDING, null, null, null, 1, RECENT_LIMIT));
         List<DashboardVO.RecentTodo> items = new ArrayList<>(page.getRecords().size());
         for (FeedbackAdminVO row : page.getRecords()) {
-            DashboardVO.RecentTodo item = new DashboardVO.RecentTodo();
-            item.setKind(category);
-            item.setId(row.getId());
-            item.setTitle(abbreviate(row.getContent()));
-            item.setSubmittedAt(format(row.getCreatedAt()));
-            items.add(item);
+            items.add(recentTodo("feedback", row.getId(), abbreviate(row.getContent()), row.getCreatedAt()));
+        }
+        return items;
+    }
+
+    /**
+     * 举报的最近待办（摘要取被举报评价正文 —— 举报无正文，被举报了什么才是「是哪一条」的答案）。
+     * <p>被举报评价已删除（{@code reviewId} 为空）时给固定文案，避免看板出现空白行。
+     */
+    private List<DashboardVO.RecentTodo> reportRecent() {
+        AdminPageResult<ReportAdminVO> page = AdminPageResult.of(
+                reportService.listForAdmin(ModerationConst.STATUS_PENDING, null, 1, RECENT_LIMIT));
+        List<DashboardVO.RecentTodo> items = new ArrayList<>(page.getRecords().size());
+        for (ReportAdminVO row : page.getRecords()) {
+            String summary = Boolean.TRUE.equals(row.getReviewDeleted())
+                    ? "被举报评价已删除" : abbreviate(row.getReviewContent());
+            items.add(recentTodo("report", row.getId(), summary, row.getCreatedAt()));
         }
         return items;
     }
 
     /** 纠错的最近待办（摘要取「目标菜品名」——纠错的正文是结构化改动项，菜名最能说明是哪一条） */
     private List<DashboardVO.RecentTodo> correctionRecent() {
-        AdminPageResult<DishCorrectionAdminVO> page =
-                AdminPageResult.of(correctionService.listForAdmin("pending", null, 1, RECENT_LIMIT));
+        AdminPageResult<CorrectionAdminVO> page = AdminPageResult.of(
+                correctionService.listForAdmin(ModerationConst.STATUS_PENDING, null, null, 1, RECENT_LIMIT));
         List<DashboardVO.RecentTodo> items = new ArrayList<>(page.getRecords().size());
-        for (DishCorrectionAdminVO row : page.getRecords()) {
-            DashboardVO.RecentTodo item = new DashboardVO.RecentTodo();
-            item.setKind("correction");
-            item.setId(row.getId());
-            item.setTitle(row.getDishName() == null ? "菜品已删除" : row.getDishName());
-            item.setSubmittedAt(format(row.getCreatedAt()));
-            items.add(item);
+        for (CorrectionAdminVO row : page.getRecords()) {
+            String summary = row.getDishName() == null ? "菜品已删除" : row.getDishName();
+            items.add(recentTodo("correction", row.getId(), summary, row.getCreatedAt()));
         }
         return items;
+    }
+
+    private static DashboardVO.RecentTodo recentTodo(String kind, Long id, String title,
+                                                     java.time.LocalDateTime createdAt) {
+        DashboardVO.RecentTodo item = new DashboardVO.RecentTodo();
+        item.setKind(kind);
+        item.setId(id);
+        item.setTitle(title);
+        item.setSubmittedAt(format(createdAt));
+        return item;
     }
 
     /** ② 主数据健康度：四个「当场能修」的计数（不列允许为空的项，避免噪音让整区失去意义） */

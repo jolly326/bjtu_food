@@ -10,7 +10,7 @@ package com.bjtufood.auth.event;
  *   <li>{@code review.event.ReviewOwnershipListener} —— 先清理冲突行（to 已评价过的同菜品，
  *       保留 to 的记录、删 from 的），再改 {@code review.user_id}；唯一键
  *       {@code uk_review_user_dish} 决定了必须先清理后改写，该知识留在 review 域内</li>
- *   <li>{@code feedback.event.FeedbackOwnershipListener} —— 改 {@code user_feedback.user_id}</li>
+ *   <li>{@code feedback.event.FeedbackOwnershipListener} —— 改 {@code feedback.user_id} 与 {@code report.user_id}</li>
  *   <li>{@code notify.event.NotificationAccountCleanListener} —— 改 {@code notification.user_id}</li>
  * </ul>
  * 同步监听（无 {@code @TransactionalEventListener}）：与 {@code verifyEmail} 外层事务同进同退，
