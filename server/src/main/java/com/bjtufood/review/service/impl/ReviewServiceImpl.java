@@ -392,11 +392,11 @@ public class ReviewServiceImpl implements ReviewService {
      * <p>
      * 投递判据 = 作者 `userId` 有效：评价写入需邮箱认证（作者恒为真实登录用户），故回执恒可达，
      * 与 feedback / correction 同为「登录级」口径（不按邮箱认证过滤）。
-     * `userId` 为空或 ≤ 0 的分支为防御性兜底 —— 现行写入路径不可达，不得据此调整处置行为。
+     * 作者 userId 由登录态回填（NOT NULL + FK），恒非空。
      * 投递失败**不阻塞处置**（独立 try，异常不外抛主流程）。
      */
     private void sendReviewReceipt(Long userId, String title, String content) {
-        if (userId == null || userId <= 0) {
+        if (userId == null) {
             return;
         }
         NotificationUtil.notifySafe(notificationService, new NotificationCmd(userId, title, content));
