@@ -66,22 +66,7 @@ public interface ReviewService {
 
     // ==================== 需登录接口（学生） ====================
 
-    /**
-     * 提交评价
-     * <p>
-     * 处理流程：
-     * 1. 校验菜品是否存在且上架
-     * 2. 校验是否已评价过该菜（每人每菜只能评价一次）
-     * 3. 敏感词过滤（调用 LocalSensitiveFilter）
-     * 4. 保存评价到数据库
-     * 5. 发布 ReviewSubmittedEvent（触发评分重算）
-     *
-     * @param userId 当前用户ID
-     * @param dishId 被评价菜品ID（归属由端点路径锁定）
-     * @param req    评价内容
-     * @return 评价ID
-     * @throws com.bjtufood.common.exception.BusinessException 已评价/菜品不存在
-     */
+    /** 提交评价；登录态回填 userId，按唯一键覆盖同行（每人每菜一条），落库后发布事件触发评分重算。 */
     Long submitReview(Long userId, Long dishId, ReviewReq req);
 
     /**
