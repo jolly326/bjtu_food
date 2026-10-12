@@ -124,7 +124,8 @@ public class CanteenAdminController {
      * 用 review 域的档口均分回填后台列表（原地修改）。
      * <p>
      * BE-08：一次 IN 查询取回全部档口平均分，替代逐档口查询的 N+1。
-     * 无 approved 评价的档口不会出现在结果集中，保留 {@code StallServiceImpl} 已置的 0.00 兜底。
+     * 无可见评价的档口不会出现在结果集中，保留 {@code StallServiceImpl} 已置的 0.0 兜底。
+     * 精度与 {@code stall.avgRating} 出参口径一致：**固定 1 位小数**（同 {@code dish.avg_rating}）。
      * <p>
      * 由 {@code StallServiceImpl} 上移至此，以断开 {@code canteen -> review} 包级边。
      */
@@ -142,7 +143,7 @@ public class CanteenAdminController {
         for (StallAdminVO vo : stalls) {
             BigDecimal avg = byStallId.get(vo.getId());
             if (avg != null) {
-                vo.setAvgRating(avg.setScale(2, RoundingMode.HALF_UP));
+                vo.setAvgRating(avg.setScale(1, RoundingMode.HALF_UP));
             }
         }
     }

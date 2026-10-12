@@ -12,7 +12,7 @@
 > - **三张用户提交表只存提交事实**：`feedback` / `report` / `correction` 均**无状态列、无 `updated_at`**，「是否已处置 + 结论 + 处置文案 + 处置人 + 处置时间」外置在 [moderation_task](./moderation_task.md)（多态键 `(type, type_id)`，1:1 挂靠）。
 > - **`feedback.user_id` / `report.user_id` / `correction.user_id` 恒为真实用户**：三列均为 `BIGINT NOT NULL`，各带外键（`fk_feedback_user` / `fk_report_user` / `fk_correction_user` → `user(id)`，**均无级联**）—— 三张工单的提交入口一律要求登录态。
 > - **告警不落库**：安全告警经 webhook 推送（`ALERT_WEBHOOK_URL` / `ALERT_WEBHOOK_SECRET`），拦截行为（登录失败锁定 / ID 枚举拦截）保留；库内**无告警表**。
-> - **管理端不留操作日志**：`/admin/**` 的写操作不留库内审计记录（库内**无审计表**）；处置留痕落在 [moderation_task](./moderation_task.md) 的 `handled_by` / `handled_at`。
+> - **管理端不留操作日志**：`/admin/**` 的写操作不留库内审计记录（库内**无审计表**）；处置留痕落在 [moderation_task](./moderation_task.md) 的 `handled_by` / `handled_at` 与 [review](./review.md) 的 `moderated_by` / `moderated_at`。
 > - **字典表无排序列**：`dish_category` / `dish_attribute_dimension` / `dish_attribute_value` / `feedback_option` / `report_option` / `dish_filter_view` 一律按 `id` 升序（唯一保留排序位的是 `banner.sort_order`）。
 > - **`dish_filter_view` 由 `category_id` 驱动**：`NULL` = 「为你推荐」（不按种类筛），非 NULL ⇒ 后端按该种类筛菜品；视图不持有筛选条件语言与排序口径。
 > - **DDL 注释口径**：`moderation_task.reply_content`（处置文案与不采纳原因**同列**）、`stall.floor`（受控字典，值即汉字）。
@@ -64,6 +64,7 @@ user 1 ── n notification      (user_id，**外键 `fk_notification_user`**�
 user 1 ─── email_verification_code (按 email 关联，非 user_id)
 
 admin 1 ── n moderation_task  (handled_by，**外键 `fk_task_handled_by`**，无级联)
+admin 1 ── n review           (moderated_by，**外键 `fk_review_moderated_by`**，无级联)
 admin （独立账号体系，与 user 无关系）
 
 feedback 1 ── 1 moderation_task (type='feedback'，多态键 `(type, type_id)`，非外键)
@@ -91,7 +92,7 @@ dish_filter_view.category_id ── dish_category   视图筛选的种类经种�
 |---|---|---|
 | `canteen` | 名称 / 图片 / 地点 / 描述（A1 **详情抽屉**内可编辑）；档口数、更新时间为只读 | — |
 | `stall` | 所属食堂 / 名称 / 楼层 / 窗口号 / 图片 / 地点 / 描述（A2 详情抽屉内可编辑）；菜品数、均分、更新时间为只读 | — |
-| `dish` | 归属档口 / 名称 / 现价 / 原价 / 菜品种类 / 描述 / 图片 / 描述属性（A3 详情抽屉内可编辑）；评分数、浏览量为只读 | `view_count` —— **停写的只读历史列**（浏览量由 `dish_view_log` 的 30 天窗口承载），无消费方；`avg_rating` / `rating_count` —— **派生缓存列**，可编辑会与重算链路互相覆盖（见 [dish.md 派生与缓存列](./dish.md)） |
+| `dish` | 归属档口 / 名称 / 现价 / 原价 / 菜品种类 / 描述 / 图片 / 描述属性（A3 详情抽屉内可编辑）；评分数为只读 | `avg_rating` / `rating_count` —— **派生缓存列**，可编辑会与重算链路互相覆盖（见 [dish.md 派生与缓存列](./dish.md)） |
 | `dish_category` | 种类名（A3 分类抽屉内可编辑）；引用菜品数、时间为只读 | —（**无删除入口**：种类是 `dish.category_id` 的锚点，下线一律「改名 + 把菜品改到别的种类」，见 [dish_category.md](./dish_category.md)） |
 | `dish_attribute_dimension` | 维度名 / 取值类型（A4 详情抽屉内可编辑）；取值数、关联菜品数、时间为只读 | — |
 | `dish_attribute_value` | 取值名（A4「管理取值」抽屉内可编辑）；引用菜品数、时间为只读 | `dimension_id` 由**所在维度**决定（改归属 = 换维度，非本行字段） |
@@ -100,7 +101,7 @@ dish_filter_view.category_id ── dish_category   视图筛选的种类经种�
 | `report_option` | 原因中文名 / 启停；引用次数（删除前判断）、更新时间为只读 | —（**无排序位**） |
 | `banner` | Banner 图 / 启停 / 顺序位；创建与更新时间为只读 | — |
 | `user` | 账号（`wx_id`）/ 昵称（`name`）/ 头像 / 状态 / 认证邮箱（`email`）/ 时间（C2 详情抽屉内只读 + 启停 / 解绑 / 注销） | `openid` —— **身份凭据**，仅以布尔 `wechatBound` 出参；口令类列本表不存在（管理端口令在 `admin`） |
-| `review` | 作者 / 菜品 / 评分 / 正文 / 配图 / 隐藏态 / 隐藏附注 / 时间（B1 详情抽屉 + 隐藏处置） | — |
+| `review` | 作者 / 菜品 / 评分 / 正文 / 配图 / 隐藏态 / 隐藏附注 / **处置人与处置时间**（最近一次可见性处置，经 `moderatedByName` / `moderatedAt`）/ 时间（B1 详情抽屉 + 隐藏处置） | — |
 | `feedback` | 提交人 / 类型（`optionId` + 字典中文名）/ 正文 / 配图 / 提交时间 + 处置结果（B2 反馈列表与处置抽屉） | —（全部列为提交事实或处置结果，均为只读呈现） |
 | `report` | 举报人 / 举报原因（字典中文名）/ 被举报评价摘要与当前隐藏态 / 「被举报评价已删除」标记 / 提交时间 + 处置结果 + 是否联动隐藏（B3 举报列表与处置抽屉） | — |
 | `correction` | 类型 / 目标菜品 / 提交人 / **改动项快照**（经 `differences` 逐项对照）/ 补充说明 / 配图 / 提交时间 + 处置结果（B4 列表、详情与处置抽屉） | 快照列（`name` / `price` / `canteen_name` / `stall_name` / `floor` / `attributes` / `images`）以**差异对照**形态呈现，不单独作为可编辑字段（它们表达的是「用户提交了什么」而不是「菜品当前值」） |
@@ -128,7 +129,7 @@ dish_filter_view.category_id ── dish_category   视图筛选的种类经种�
 | 场景 | 约定 | 理由 |
 |---|---|---|
 | **金额** | `INT`，**单位「分」** | 避免浮点误差；12.00 元存 `1200` |
-| **评分** | `DECIMAL(3,2)` | 保留两位小数 |
+| **评分** | `DECIMAL(3,1)` | 保留一位小数（统一口径：均分列 / 聚合写入 / 两端展示） |
 | 计数 | `INT NOT NULL DEFAULT 0` | — |
 | 图片 / 数组 | `VARCHAR` 或 `JSON` 存序列化字符串 | 见下 |
 | 布尔 | `TINYINT` | 全库仅三处：`review.is_hidden`、`notification.is_read`、`dish_filter_view.enabled`；其余状态一律字符串枚举 |
@@ -184,11 +185,39 @@ private LocalDateTime updatedAt;
 
 **不符合而建表**的对照：`stall` / `canteen` 虽只被引用，但它们有独立的录入与维护语义，因此是独立表。
 
+### 派生数据与反范式清单
+
+> **判据**：本库以 **3NF 为基线**，下列各处是**登记在案的有意反范式**（1NF 多值列 / 派生缓存 / 同事实冗余）。每处必须写明**权威来源**与**对账手段**——「有冗余、无对账」不成立。
+
+| 载体 | 冗余 / 派生内容 | 权威来源 | 维护与对账 | 触发条件 / 风险 |
+|---|---|---|---|---|
+| `dish.avg_rating` / `rating_count` | 评价聚合值（物化缓存，均分 1 位小数） | [`review`](./review.md)（仅 `is_hidden = 0`） | 在线：`RatingUpdateListener`（提交 / 删除 / 隐藏后重算）；兜底：`DishRatingReconcileTask` **每日 04:10 全量重算**（幂等） | 🔴 **唯一兜底是对账任务**：迁移 / 直连库改评价**必须触发重算**，否则缓存停旧值且用户直接看到错误评分（无告警）。**一致性判据** = 缓存值 ≠ `ROUND(AVG(可见评价), 1)`（只读巡检 SQL）；**不得**用 `updated_at` 判断对账是否运行 —— `ON UPDATE` 只在值确实变化时刷新，对账跑过而值已正确时该行不变、`updated_at` 亦不刷新 |
+| `notification.reply_title` / `reply_content` | 处置文案快照 | [`moderation_task`](./moderation_task.md) 的 `reply_title` / `reply_content` | 处置**同一事务**内写入（同句快照） | **有意不要求与源同步**：管理端回显读任务表、用户读通知，两份各自独立可读 |
+| `correction` 的 `name` / `price` / `canteen_name` / `stall_name` / `floor` / `attributes` / `images` | 提交时刻的改动项快照 | 无（**历史事实**，不是当前值的派生） | 不重算、不回写 | 与 `dish` / `stall` 当前值**允许不同**（快照语义）；出参以「提交值 / 当前值 + 是否一致」并列呈现，不合并 |
+| `moderation_task.status` | 可由 `outcome` 派生（`outcome IS NULL` ⇔ `pending`） | `moderation_task.outcome`（结论真源） | 处置时同事务写入两列 | **为索引与筛选有意保留冗余**（`idx_task_status_created` 承载待处置计数与状态筛选）；两列由同一处置动作写入，不接受单独改一列 |
+| 7 处 JSON / 多值列（`dish.attributes`、`correction.attributes`、`dish` / `canteen` / `stall` / `review` / `feedback` / `correction.images`） | 一列承载多值（数组 / 键值对象） | —（**有意偏离 1NF**，取舍判据见 §JSON 列的取舍） | 只整体读写 | 不可按其内部元素建索引 / 加外键 / 做统计；若「按属性筛菜」等需求成立，改关联表（登记为演进预留） |
+
+> **范式定位（一句话）**：本库满足 **2NF**、基本满足 **3NF**，**未形式化达到 BCNF**（上表 `status` 与派生缓存处存在非平凡函数依赖、左部非超键）。判定合格与否的依据不是范式级别，而是**每处冗余是否都有权威来源与对账手段**——本表即该清单。
+
+### 库级约束的边界（由应用层承担的部分）
+
+> MySQL 5.7 对 `CHECK` 只解析、不生效（实测库内 CHECK 约束 **0 条**），且本库刻意少用外键与唯一索引，故下列约束**不在 DB 层**，一致性由应用层 + 变更纪律保证。**逐项清单化，避免「以为库会拦」。**
+
+| 边界 | 清单 | 为何不在 DB 层 |
+|---|---|---|
+| **无外键的引用关系** | `correction.dish_id` · `moderation_task.type_id`（多态） · `dish.stall_id` · `dish.category_id` · `dish_attribute_value.dimension_id` · `dish_view_log.dish_id` · `email_verification_code.email` · `notification` ↔ `moderation_task`（无关联） | 各自理由见对应表文档与本文件 §外键与级联；**后果：直连库 / 迁移脚本写入不受任何拦截** |
+| **由应用层保证的唯一性** | `canteen.name` · `stall.name`（同食堂） · `dish_category.name` · `dish_attribute_value.name`（同维度） · `feedback_option.name` · `report_option.name` · 举报去重 `(user_id, review_id)` · `dish_filter_view`（无唯一约束，含「为你推荐」位） | 见 §索引策略；**后果：并发写可造重复行**。`user.email` **不在本清单** —— 其唯一性已由 DB 唯一索引 `uk_user_email` 固化（[user.md](./user.md)） |
+| **数值列不用 `0` 作哨兵** | 可选关系用 `NULL`（`dish.stall_id`，`NULL` = 未归入档口）；必填关系 `NOT NULL` **且无默认值**（`stall.canteen_id` / `dish_attribute_value.dimension_id` / `review.dish_id` / `notification.user_id`） | `0` 不是任何父表的合法 `id`，用它占位会把「无归属」与「指向 0 号行」混为一谈，且让缺省写入静默通过；**后果：漏传必填关系列时由 `NOT NULL` 直接拒绝，而不是落成一行悬空引用** |
+| **枚举值域** | `status` / `type` / `outcome` 等全部字符串枚举（[§软状态](#软状态)清单） | 存可读字符串是既定口径；**后果：脏值只能靠应用层拦截** |
+| **受控字典不在库内** | `stall.floor`（值即汉字：`负一层`…`四层`） | 楼层是低频封闭枚举（[stall.md](./stall.md)）；**后果：新增 / 改名 / 删除需「先迁移数据、再改两端」** |
+
+> **一致性巡检口径**：上表前三类关系可由只读 SQL 巡检（悬空引用按 LEFT JOIN 计数、重复 `name` 按 GROUP BY 计数、枚举越界按 `NOT IN` 计数；「非空且重复的 `email`」已由唯一索引 `uk_user_email` 从根上排除）——**现状三项均为 0**，应作为定期核对项而非一次性结论。
+
 ### 索引策略
 | 类型 | 用于 |
 |---|---|
 | 复合索引 | 覆盖「过滤列 + 排序列」，如 `idx_review_dish_visible(dish_id, is_hidden, created_at)` |
-| 唯一索引 | 业务唯一性：`uk_user_openid` / `uk_user_wx_id`（`user`）、`uk_review_user_dish`（`review`）、`uk_admin_username`（`admin`）、`uk_task_type_target`（`moderation_task`：多态挂靠键 → 工单 1:1）。⚠️ 字典类的「同表 / 同维度下 `name` 唯一」由**应用层**保证（**不建唯一索引**，见 [dish_attribute_value.md](./dish_attribute_value.md)）；`dish_filter_view` **无唯一约束**（视图由 ID 标识，文案可重复）；举报去重（同一用户对同一评价）亦由**应用层**保证（`review_id` 可空，唯一索引不约束 `NULL` 行） |
+| 唯一索引 | 业务唯一性：`uk_user_openid` / `uk_user_wx_id` / `uk_user_email`（`user`）、`uk_review_user_dish`（`review`）、`uk_admin_username`（`admin`）、`uk_task_type_target`（`moderation_task`：多态挂靠键 → 工单 1:1）。⚠️ `uk_user_email` 建立在**可空列**上 —— MySQL 唯一索引不约束 `NULL` 行，故「未认证」不受约束（语义相容）；字典类的「同表 / 同维度下 `name` 唯一」由**应用层**保证（**不建唯一索引**，见 [dish_attribute_value.md](./dish_attribute_value.md)）；`dish_filter_view` **无唯一约束**（视图由 ID 标识，文案可重复）；举报去重（同一用户对同一评价）亦由**应用层**保证（`review_id` 可空，唯一索引不约束 `NULL` 行） |
 
 > ⚠️ **计算表达式的 `ORDER BY` 无法用索引** —— 复合索引只能减少参与排序的行数，不能消除排序（必然 filesort）。
 > 首页主列表 / 猜你喜欢的 `ORDER BY CRC32(CONCAT(seed,'-',id)), d.id` 即此类：现状为**已核实的已知取舍**，触发条件见 [README「已知取舍」](../README.md)。
@@ -213,7 +242,7 @@ private LocalDateTime updatedAt;
 
 ### 外键与级联
 
-**全库十一条外键**，其余关系由应用层维护：
+**全库十二条外键**，其余关系由应用层维护：
 
 | 关系（外键名） | 级联方式 | 维护方 |
 |---|---|---|
@@ -227,6 +256,7 @@ private LocalDateTime updatedAt;
 | `report.option_id` → `report_option.id`（`fk_report_option`） | **无级联** | 同 `feedback.option_id` |
 | `report.review_id` → `review.id`（`fk_report_review`） | **`ON DELETE SET NULL`** | 评价被物理删除时**置 NULL**（举报行保留，显式表达「被举报评价已删除」）—— **刻意不级联**：举报是可追溯的诉求留痕，不随被举报内容消失 |
 | `moderation_task.handled_by` → `admin.id`（`fk_task_handled_by`） | **无级联** | 纯引用完整性兜底：`admin` 行不做物理删除（账号行由库与自助端点维护）⇒ 无级联需求 |
+| `review.moderated_by` → `admin.id`（`fk_review_moderated_by`） | **无级联** | 同 `moderation_task.handled_by`：评价可见性处置的处置人（[review.md](./review.md)） |
 | `dish_filter_view.category_id` → `dish_category.id`（`fk_filter_view_category`） | **无级联** | 纯引用完整性兜底：`category_id` 可空（`NULL` = 为你推荐），非 NULL 必须是既有种类；种类无删除入口 ⇒ 无级联需求 |
 
 **刻意不设外键的三处**：
@@ -245,7 +275,8 @@ private LocalDateTime updatedAt;
 2. **再在数据库执行**对应 `ALTER` / `CREATE`（表结构变更须直连远程库执行，凭据取 `server/.env`）
 3. 两边必须一致；**发现不一致时以数据库实况为准并立即回写文档**
 4. 若涉及出参字段 → 同步 [api/](../api/) 并刷新 `client/openapi.json`
-5. **迁移前快照不长期保留**：变更前导出的 SQL 快照只作当次执行的临时兜底（落在构建产物目录内，随 `mvn clean` 清理），**不入库、不复制留档** —— 文档与数据库实况的一致性由本节 1–3 条保证，回归靠 git 历史
+5. **迁移前快照不长期保留**：变更前导出的 SQL 快照只作当次执行的临时兜底（落在产物目录内，随 `mvn clean` 清理），**不入库、不复制留档** —— 文档与数据库实况的一致性由本节 1–3 条保证，回归靠 git 历史
+6. 🔴 **改数据必须带派生列重算**：任何直连库的 `INSERT` / `UPDATE` / `DELETE` 若影响 `review`（评价增删、评分改写、隐藏态变化），**必须同时重算受影响菜品的 `dish.avg_rating` / `rating_count`** —— 在线重算只在应用写路径触发，直连库改数据绕过它；唯一兜底是每日对账，而**对账未生效时用户会直接看到错误评分且系统无告警**（权威口径见 §派生数据与反范式清单）
 
 > ⚠️ **禁止直连 `ALTER` 而不同步文档** —— 文档是唯一真源，否则新环境无法重建出相同结构。
 >

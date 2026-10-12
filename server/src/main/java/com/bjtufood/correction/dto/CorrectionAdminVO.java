@@ -23,7 +23,7 @@ public class CorrectionAdminVO {
     /**
      * 问题类型：{@code field}（信息有误）/ {@code gone}（已经下架）。
      * <p>
-     * 管理端据此<b>分 Tab 展示与分派处置</b>：field → 差异对照 + 逐项采纳；gone → <b>仅下架</b>（无删除）。
+     * 管理端据此<b>分 Tab 展示</b>（仅作筛选）；两类处置动作相同（标记已处理 / 驳回），均不改写菜品。
      */
     @Schema(description = "问题类型：field=信息有误 / gone=已经下架", example = "field")
     private String type;
@@ -57,8 +57,8 @@ public class CorrectionAdminVO {
     private String stallName;
 
     /**
-     * 提交的楼层（改动项快照，受控字典值·值即汉字；未改动为 null）。
-     * 管理端据此判断本次纠错是否含楼层改动——有值时采纳会写回<b>目标档口</b>的 {@code stall.floor}。
+     * 提交的楼层（受控字典值·值即汉字；未改动为 null）。
+     * 属**档口**属性：管理员阅读后如需改楼层，在 A2 档口管理手动修改（不自动写回）。
      */
     @Schema(description = "提交的楼层（受控字典值·值即汉字，归属档口 stall.floor；未改动为 null）", example = "二层")
     private String floor;
@@ -83,7 +83,7 @@ public class CorrectionAdminVO {
     @Schema(description = "处置状态：pending / handled")
     private String status;
 
-    @Schema(description = "处置结论：handled=采纳/已下架 / rejected=不采纳；未处置为 null")
+    @Schema(description = "处置结论：handled=已受理（管理员已手动处理）/ rejected=不采纳；未处置为 null")
     private String outcome;
 
     @Schema(description = "处置回执短标题（未处置为 null）")
@@ -94,12 +94,6 @@ public class CorrectionAdminVO {
 
     @Schema(description = "处置人登录名（未处置 / 账号已删除为 null）")
     private String handledByName;
-
-    @Schema(description = "差异项数量（一眼看出「改了几项」；列表不必展开全部内容）")
-    private Integer changeCount;
-
-    @Schema(description = "含 floor 改动时的连带影响提示（同档口菜品数）")
-    private String floorImpact;
 
     @Schema(description = "提交时间")
     private LocalDateTime createdAt;

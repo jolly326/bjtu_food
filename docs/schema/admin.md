@@ -44,7 +44,7 @@ token 内嵌签发时的版本快照，`AdminAuthFilter` **逐请求**与库中�
 
 ## 关联
 
-无外键；与 `user`（学生）**无任何关系**。
+本表**无出向外键**；被 [`moderation_task.handled_by`](./moderation_task.md)（`fk_task_handled_by`）与 [`review.moderated_by`](./review.md)（`fk_review_moderated_by`）以**无级联**外键引用 —— `admin` 行不做物理删除，两处均为纯引用完整性兜底。与 `user`（学生）**无任何关系**（两套身份体系完全隔离）。
 
 ## 注意事项
 

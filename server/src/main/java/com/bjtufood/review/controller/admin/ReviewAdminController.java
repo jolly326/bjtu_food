@@ -1,5 +1,6 @@
 package com.bjtufood.review.controller.admin;
 
+import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.common.result.AdminPageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.review.dto.ReviewAdminVO;
@@ -43,7 +44,8 @@ public class ReviewAdminController {
     // 不存在待复核队列，故无内容安全态处置端点。
 
     @Operation(summary = "设置评价隐藏/显示", description = "用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。"
-            + "隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。")
+            + "隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。"
+            + "两条路径都记录处置人（当前管理员）与处置时间，覆盖式只留最近一次。")
     @PutMapping("/{id}/hidden")
     public Result<Void> setHidden(
             @Parameter(description = "评价ID", example = "1")
@@ -55,7 +57,8 @@ public class ReviewAdminController {
         if (note != null && note.trim().length() > 200) {
             throw new com.bjtufood.common.exception.BusinessException("隐藏附注不能超过 200 字");
         }
-        reviewService.setHidden(id, hidden, note);
+        // 处置人取自管理端登录态（与 CorrectionAdminController 同口径），不由请求体传入
+        reviewService.setHidden(id, hidden, note, SecurityUtil.getCurrentAdminId());
         return Result.success();
     }
 

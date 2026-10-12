@@ -31,15 +31,18 @@ export type OnOffStatus = 'on' | 'off'
 export type UserStatus = 'active' | 'disabled' | 'deleted'
 /**
  * 菜品问题反馈处置状态（以处置任务表 `moderation_task` 为判据，不由工单表自身列表达）。
- * **已处置的两种结论由 `outcome` 区分**（采纳或已下架 / 不采纳）。
+ * **已处置的两种结论由 `outcome` 区分**（已受理 / 不采纳）。
  */
 export type CorrectionStatus = 'pending' | 'handled'
 
 /**
  * 菜品问题反馈类型（`dish_correction.type`）
  *
- * - `field`：**信息有误** —— 局部提交改动项，处置=差异对照 + 逐项采纳 / 拒绝
- * - `gone`：**已经下架** —— 一键提交即成立，处置=🔴 **仅「下架」**（绝不删除）
+ * - `field`：**信息有误** —— 局部提交改动项，详情给「当前值 / 提交值 + 是否一致」的只读对照
+ * - `gone`：**已经下架** —— 一键提交即成立，`differences` 恒空（读 `note` + `images` + `goneUserCount`）
+ *
+ * 两类**处置动作相同**（标记已处理 / 驳回），均只归档结论 + 投递回执、**不改写菜品**；
+ * 菜品资料修改与可逆下架由管理员在「菜品管理」手动执行。
  */
 export type CorrectionType = 'field' | 'gone'
 
@@ -121,7 +124,7 @@ export interface StallAdminVO {
   description: string
   /** 图片绝对 URL 数组（有序，首图作封面；无图 `[]`） */
   images: string[]
-  /** 平均评分（实时聚合，2 位小数；无评价按 0.00） */
+  /** 平均评分（实时聚合，**1 位小数**；无可见评价按 `0.0`，不为 `null`） */
   avgRating: number
   /** 其下菜品数（删除受阻判据） */
   dishCount: number
@@ -148,7 +151,13 @@ export type DishAttributes = Record<string, string | string[]>
 /** A3 菜品列表行（**瘦身**：不含 description / attributes / 全量 images；封面 = 首图派生值） */
 export interface DishAdminListItemVO {
   id: number
-  stallId: number
+  /**
+   * 所属档口 ID；**`null` = 未归入档口**。
+   *
+   * <p>管理端列表用 **LEFT JOIN** 取归属，故未归入档口的存量行**在 A3 可见**（配合 `withoutStall=true`
+   * 直接定位修复）；学生端路径仍是 INNER JOIN，这类菜品不出现（见 [docs/schema/dish.md](../../../docs/schema/dish.md)）。
+   */
+  stallId: number | null
   stallName: string
   canteenName: string
   name: string
@@ -165,10 +174,11 @@ export interface DishAdminListItemVO {
   /** 评价数（删除确认的影响面来源） */
   ratingCount: number
   /**
-   * 近 30 天浏览量（`dish_view_log` 滚动窗口统计）。
+   * 近 30 天浏览量（`dish_view_log` 明细的滚动窗口统计）。
    *
-   * 🔴 **不是**历史累计的 `dish.view_count`（该列已停写）：一个是 30 天窗口值（会随时间回落），
-   * 一个是单调累计值。运营用途 = 看出「哪道菜多人看但没评价」⇒ 判断是否引导其产出评价。
+   * 🔴 浏览量的**唯一载体**是 `dish_view_log`（一行 = 一次浏览），本值即它的 30 天窗口聚合
+   * ⇒ **会随时间回落**，不是单调累计值。运营用途 = 看出「哪道菜多人看但没评价」
+   * ⇒ 判断是否引导其产出评价。
    */
   recentViewCount?: number
   updatedAt: string
@@ -182,7 +192,13 @@ export interface DishAdminVO {
   description: string
   /** 图片地址（本地链路站内相对路径 / COS 链路绝对 URL；出参已由服务端转绝对） */
   images: string[]
-  stallId: number
+  /**
+   * 所属档口 ID；**`null` = 未归入档口**。
+   *
+   * <p>该形态只可能出现在**按 id 直查的单条详情**：列表走 `INNER JOIN stall / canteen`，
+   * 未归入档口的菜品不出现在任何列表中（[docs/schema/dish.md](../../../docs/schema/dish.md)）。
+   */
+  stallId: number | null
   stallName: string
   canteenName: string
   /** 菜品种类 ID（= `dish.category_id`，值域来自 A6 种类字典 `dish_category`） */
@@ -220,6 +236,13 @@ export interface DishListParams {
   /** 菜品种类筛选（值 = `dish_category.id`） */
   categoryId?: number
   status?: OnOffStatus | ''
+  /**
+   * 只看**未归入档口**（`stall_id` 为空）的菜品 —— 看板健康度项的定位入口。
+   *
+   * <p>与 `stallId` **互斥**（同时传服务端 `400`）：两者同时成立时结果恒空，
+   * 静默返回空集会被误读为「筛完就是没有」。
+   */
+  withoutStall?: boolean
 }
 
 // ===== A4 属性维度与取值 =====
@@ -451,9 +474,24 @@ export interface ReviewAdminVO {
   images: string[]
   /** 是否被隐藏（B1 口径：**boolean**，库列 `is_hidden` 仍是 0/1，服务端翻译） */
   hidden: boolean
-  /** 隐藏附注（≤200 字，随隐藏回执下发；未隐藏为 null） */
-  hiddenNote: string | null
+  /** 发表时间（`review` 无 `updated_at`：本列**仅表达首次发表时间**，覆盖提交不刷新） */
   createdAt: string
+  /**
+   * **最近一次可见性处置的处置人**（管理员登录名）；**未处置为 `null`**（抽屉显示 `—`）。
+   *
+   * <p>库列 `review.moderated_by` → `admin.id`；与 `hidden` 同生命周期、**覆盖式** ——
+   * 隐藏与恢复显示**都**刷新，只反映最近一次处置（无处置历史）；删除不留痕。
+   */
+  moderatedByName: string | null
+  /** **最近一次可见性处置的时间**（`yyyy-MM-dd HH:mm:ss`）；**未处置为 `null`** */
+  moderatedAt: string | null
+  /**
+   * **隐藏附注**（最近一次隐藏时填写，可选）；**恢复显示 / 从未隐藏为 `null`**。
+   *
+   * <p>库列 `review.hidden_note`；与 `moderatedByName` / `moderatedAt` 同生命周期、覆盖式 ——
+   * 供管理端复查「上一次为什么隐藏」。
+   */
+  hiddenNote: string | null
 }
 
 export interface ReviewListParams {
@@ -472,11 +510,10 @@ export interface ReviewHiddenReq {
   note?: string
 }
 
-
 // ===== B4 菜品问题反馈 =====
 export interface CorrectionAdminVO {
   id: number
-  /** 问题类型：field=信息有误 / gone=已经下架（管理端据此分 Tab 与分派处置） */
+  /** 问题类型：field=信息有误 / gone=已经下架（管理端据此分 Tab；两类处置动作相同） */
   type: CorrectionType
   dishId: number
   dishName: string | null
@@ -487,7 +524,7 @@ export interface CorrectionAdminVO {
   /** **仅 `type=gone`**：补充说明（≤200 字，处置时**必须展示**给管理员判读） */
   note: string | null
   status: CorrectionStatus
-  /** 处置结论：`handled` 采纳或已下架 / `rejected` 不采纳；未处置为 `null` */
+  /** 处置结论：`handled` 已受理（管理员已手动处理）/ `rejected` 不采纳；未处置为 `null` */
   outcome: ModerationOutcome | null
   /** 处置回执短标题（未处置为 `null`） */
   replyTitle: string | null
@@ -495,10 +532,6 @@ export interface CorrectionAdminVO {
   replyContent: string | null
   /** 处置人登录名（未处置 / 账号已删除为 `null`） */
   handledByName: string | null
-  /** 差异项数量（`field` 型「改了几项」；`gone` 型恒 0） */
-  changeCount: number
-  /** `field` 型含 `floor` 改动时的连带影响提示（同档口菜品数，文案由服务端下发）；否则为 null */
-  floorImpact: string | null
   createdAt: string
   handledAt: string | null
 }
@@ -507,17 +540,19 @@ export interface CorrectionAdminVO {
 export interface CorrectionDetailVO {
   id: number
   /**
-   * 问题类型：`field` → 展示 `differences` 逐项采纳；`gone` → `differences` 恒空，
-   * 处置动作**仅「下架」**（🔴 本流程不提供删除）。
+   * 问题类型：`field` → 展示 `differences` 只读对照；`gone` → `differences` 恒空，
+   * 只读 `note` + `images` + `goneUserCount`。两类处置动作相同（标记已处理 / 驳回）。
    */
   type: CorrectionType
   dishId: number
   dishName: string | null
+  /** 目标菜品**当前**上下架状态（实时回查；菜品已物理删除为 `null`） */
+  dishStatus: OnOffStatus | null
   /** 提交人 ID（提交恒带登录态 ⇒ **恒为真实用户 ID**） */
   userId: number
   /** 提交人昵称（联表带出，恒可读到；注销账号为「已注销用户」） */
   userName: string
-  /** `field` 型：仍有差异的项（逐项勾选采纳）；`gone` 型：恒空 */
+  /** `field` 型：**只列用户提交过的项**的只读对照；`gone` 型：恒空 */
   differences: CorrectionDifference[]
   /** `gone` 型：用户选填补充说明（≤200 字） */
   note: string | null
@@ -525,7 +560,7 @@ export interface CorrectionDetailVO {
   goneUserCount: number | null
   images: string[]
   status: CorrectionStatus
-  /** 处置结论：`handled` 采纳或已下架 / `rejected` 不采纳；未处置为 `null` */
+  /** 处置结论：`handled` 已受理（管理员已手动处理）/ `rejected` 不采纳；未处置为 `null` */
   outcome: ModerationOutcome | null
   /** 处置回执短标题（未处置为 `null`） */
   replyTitle: string | null
@@ -537,15 +572,18 @@ export interface CorrectionDetailVO {
   handledAt: string | null
 }
 
+/** 提交项对照项（`differences[]`）：**只列用户提交过的项**，`oldValue` 为实时回查的当前值 */
 export interface CorrectionDifference {
-  /** 改动字段：`name` / `price` / `canteenName` / `stallName` / `floor` / `attributes` / `images` */
+  /** 提交项键：`name` / `price` / `canteenName` / `stallName` / `floor` / `images` / `attributes.<维度ID>` */
   field: string
   /** 字段中文名（服务端下发，端上零硬编码） */
   label: string
+  /** 当前实时值（回查菜品 / 档口；菜品已物理删除为 `null`） */
   oldValue: string
+  /** 用户提交的值 */
   newValue: string
-  /** 楼层改动会连带同档口其它菜品（UI 需高亮提示） */
-  affectsOthers: boolean
+  /** 提交值是否与当前值一致（`true` = 已一致，端上据此标注「已一致 / 不一致」） */
+  same: boolean
 }
 
 export interface CorrectionListParams {
@@ -557,19 +595,15 @@ export interface CorrectionListParams {
   dishId?: number
 }
 
-/** 采纳请求：`field` 型带 `acceptedFields`；`gone` 型无差异项（只带可选附注） */
-export interface CorrectionAdoptReq {
-  /** 采纳哪些差异项（`field` 型**必填且非空**；取值 = `differences[].field`） */
-  acceptedFields?: string[]
-  stallId?: number
-  createIfMissing?: boolean
-  /** 采纳附注（可选，≤600 字；随回执下发，留空用服务端固定文案） */
+/**
+ * 标记已处理（接受反馈）请求：**只归档处置结论 + 回执，不改写菜品**；
+ * `replyTitle` / `replyContent` 均**可选**（留空由服务端按业务措辞下发缺省回执文案）。
+ */
+export interface DishCorrectionHandleReq {
+  /** 回执短标题（可选，≤40 字；缺省「已收到你的反馈」） */
+  replyTitle?: string
+  /** 处理附注（可选，≤600 字；缺省「感谢反馈，我们已核实处理」，随回执下发） */
   replyContent?: string
-}
-
-export interface StallConfirmVO {
-  needStallConfirm: true
-  candidates: { id: number; name: string }[]
 }
 
 // ===== C2 用户 =====

@@ -914,7 +914,7 @@ class SmokeApiTest {
         task.setTypeId(4L);
         task.setStatus(ModerationConst.STATUS_PENDING);
         when(moderationTaskMapper.selectOne(any())).thenReturn(task);
-        when(reviewService.hideIfVisible(30L)).thenReturn(true);
+        when(reviewService.hideIfVisible(30L, 1L)).thenReturn(true);
 
         mockMvc.perform(put("/admin/reports/4")
                         .header(ADMIN_AUTH_HEADER, adminBearer())
@@ -923,7 +923,8 @@ class SmokeApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
-        verify(reviewService).hideIfVisible(30L);
+        // 处置人取自管理端登录态（token 内 admin id = 1）—— 联动隐藏同样要留痕，不由请求体传入
+        verify(reviewService).hideIfVisible(30L, 1L);
         ArgumentCaptor<ModerationTask> saved = ArgumentCaptor.forClass(ModerationTask.class);
         verify(moderationTaskMapper).updateById(saved.capture());
         Assertions.assertEquals("举报已受理", saved.getValue().getReplyTitle());

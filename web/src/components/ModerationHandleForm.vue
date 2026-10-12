@@ -67,7 +67,12 @@ const outcomeLabelId = useId()
   <!-- 举报专用：联动隐藏是一次性动作而非状态，故只在受理分支出现 -->
   <div v-if="props.showHideReview && outcome === 'handled'" class="field">
     <label class="check-line">
-      <input type="checkbox" :checked="hideReview" :disabled="hideLocked" @change="hideReview = ($event.target as HTMLInputElement).checked" />
+      <input
+        type="checkbox"
+        :checked="hideReview"
+        :disabled="hideLocked"
+        @change="hideReview = ($event.target as HTMLInputElement).checked"
+      />
       <span>同时隐藏被举报评价{{ hideLocked ? '（该评价已隐藏）' : '（默认勾选）' }}</span>
     </label>
   </div>

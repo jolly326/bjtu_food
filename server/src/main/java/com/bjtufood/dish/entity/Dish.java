@@ -24,8 +24,8 @@ public class Dish {
     @Schema(description = "菜品ID")
     private Long id;
 
-    /** 所属档口ID */
-    @Schema(description = "所属档口ID")
+    /** 所属档口ID；{@code null} = 未归入档口（「无归属」的唯一表达，不用 {@code 0} 占位） */
+    @Schema(description = "所属档口ID（null = 未归入档口）")
     private Long stallId;
 
     /** 菜品名称 */
@@ -68,12 +68,14 @@ public class Dish {
     @Schema(description = "状态", example = "on")
     private String status;
 
-    /** 浏览量 */
-    @Schema(description = "浏览量")
-    private Integer viewCount;
-
-    /** 平均评分 */
-    @Schema(description = "平均评分", example = "4.5")
+    /**
+     * 平均评分（**缓存列**，1 位小数）。
+     * <p>
+     * 零评价为 {@code null}（区分「无评价」与「均分 0」）；公开出参已在 Service 层兜底为
+     * {@code 5.0}（仅出参层，不落库）。浏览量不在本实体上 —— 其唯一载体是
+     * {@code dish_view_log} 的 30 天滚动窗口（见 {@link DishViewLog}、docs/schema/dish.md）。
+     */
+    @Schema(description = "平均评分（1 位小数，零评价为 null）", example = "4.5")
     private BigDecimal avgRating;
 
     /** 评价数 */

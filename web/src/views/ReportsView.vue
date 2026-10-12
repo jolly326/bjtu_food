@@ -21,7 +21,12 @@ import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import { canWrite } from '@/utils/permissions'
 import { handleReport, listReports } from '@/api/reports'
-import type { ModerationOutcome, ModerationStatus, ReportAdminVO, ReportListParams } from '@/types/common'
+import type {
+  ModerationOutcome,
+  ModerationStatus,
+  ReportAdminVO,
+  ReportListParams,
+} from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
@@ -223,8 +228,8 @@ onMounted(() => reloadFirstPage())
       </table>
 
       <p class="foot-note">
-        「举报原因 / 被举报评价 / 举报人 / 状态」是快速查阅列；评价原文与处置入口都在行内
-        「处置 / 详情」内。
+        「举报原因 / 被举报评价 / 举报人 / 状态」是快速查阅列；评价原文与处置入口都在行内 「处置 /
+        详情」内。
       </p>
 
       <Pager

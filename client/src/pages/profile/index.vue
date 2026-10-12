@@ -62,6 +62,7 @@ import { useUserStore } from '@/stores/user'
 import { getThumbImageUrl } from '@/utils/image'
 import { toastError, toastInfo, toastSuccess } from '@/utils/error'
 import { uploadAvatarImage } from '@/api/upload'
+import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import { backToHome } from '@/utils/back'
 import Header from '@/components/AppHeader.vue'
 import PageWallpaper from '@/components/PageWallpaper.vue'
@@ -118,6 +119,11 @@ watch(
 
 /** 有改动才可保存（昵称与头像均与回填基线一致 ⇒ 主按钮禁用） */
 const dirty = computed(() => nickname.value.trim() !== initialNickname.value || avatar.value !== initialAvatar.value)
+
+// 限频退避（保存与头像上传共用一条退避）：本页两个写入口都有频控 ——
+// 保存（账号维度 5/分，昵称变更触发微信机审）与头像上传（IP × 账号 6/分）；
+// 命中后按钮进禁用档 + 底栏热区给倒计时提示，避免连点持续撞限频、把封锁越拖越长。
+const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } = useRateLimitCooldown()
 /** 头像上传中：禁用重复选择 + 头像半透明反馈 */
 const avatarUploading = ref(false)
 
@@ -142,6 +148,11 @@ onUnload(() => {
  */
 function changeAvatar() {
   if (avatarUploading.value) return
+  // 退避期不发请求：连点只会持续撞限频、把封锁越拖越长
+  if (cooling()) {
+    toastInfo(`上传太频繁，${cooldownSeconds.value} 秒后再试`)
+    return
+  }
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
@@ -155,6 +166,8 @@ function changeAvatar() {
         // MP-003：上传仅写本地态，落库需点「保存」，文案避免误导已保存
         toastInfo('上传成功，请点击保存')
       } catch (err) {
+        // 被限频：请求层已 toast「请 N 秒后再试」，此处只进退避，不重复提示
+        if (handleRateLimit(err)) return
         // 违规 / 超限等由后端 message 直透（如「图片包含违规内容，无法上传」）；保留原头像
         toastError(err, '上传失败')
       } finally {
@@ -165,6 +178,7 @@ function changeAvatar() {
 }
 
 async function save() {
+  if (saving.value || cooling()) return
   const name = nickname.value.trim()
   if (!name) {
     toastInfo('昵称不能为空')
@@ -173,18 +187,21 @@ async function save() {
   saving.value = true
   try {
     await userStore.updateProfile({ name, avatar: avatar.value })
+    clearCooldown()
     toastSuccess('已保存')
     if (navTimer) clearTimeout(navTimer)
     navTimer = setTimeout(backToHome, 400)
   } catch (e) {
+    // 被限频：请求层已 toast「请 N 秒后再试」，此处只进退避，不重复提示
+    if (handleRateLimit(e)) return
     // 后端业务 400 message 直透（如昵称违规「内容包含违规信息，请修改后重试」），网络失败回落固定文案
     toastError(e, '保存失败')
   } finally {
     saving.value = false
   }
 }
-/** 可保存 = 有改动且不在途（驱动底部操作栏内 `AppButton` 的禁用档） */
-const canSave = computed(() => dirty.value && !saving.value)
+/** 可保存 = 有改动、不在途且不在限频退避期（驱动底部操作栏内 `AppButton` 的禁用档） */
+const canSave = computed(() => dirty.value && !saving.value && !cooling())
 
 /** 底栏「保存」按下：`AppButton` 在禁用 / 在途时不 emit ⇒ 此处只处理可点路径 */
 function onSavePress() {
@@ -194,6 +211,11 @@ function onSavePress() {
 /** 底栏外层热区：承接「置灰态点击」的可见反馈（点击不静默失效；在途由按钮自身忽略点击） */
 function onSaveAreaTap() {
   if (saving.value) return
+  // 退避优先：让用户看到「要等多久」，而不是笼统的「没有可保存的改动」
+  if (cooling()) {
+    toastInfo(`保存太频繁，${cooldownSeconds.value} 秒后再试`)
+    return
+  }
   if (!dirty.value) toastInfo('没有可保存的改动')
 }
 </script>

@@ -91,7 +91,8 @@ public interface ReviewService {
      * @param dishId   按菜品筛选（可选；从菜品视角看评价）
      * @param userId   提交用户ID（可选）
      * @param keyword  评价正文关键词（可选，模糊匹配）
-     * @return 分页评价列表（排序 `createdAt DESC`）
+     * @return 分页评价列表（排序 `createdAt DESC`；出参含 `moderatedByName` / `moderatedAt` ——
+     *         最近一次可见性处置的处置人与时间，未处置均为 {@code null}）
      */
     IPage<ReviewAdminVO> listAllForAdmin(int page, int pageSize, Boolean hidden, Long dishId, Long userId,
                                          String keyword);
@@ -103,12 +104,16 @@ public interface ReviewService {
      * 有附注 ⇒ 正文「你的评价已被管理员隐藏。说明：&lt;note&gt;」；无附注 ⇒ 固定文案。
      * 投递判据 = 作者 `userId` 有效即投递（静默登录的账号同样收到，不按邮箱认证过滤）。
      * 已隐藏再隐藏视为幂等改附注。
+     * <p>
+     * <b>处置留痕</b>：一次 UPDATE 同批写 `is_hidden` / `hidden_note` / `moderated_by` /
+     * `moderated_at` —— **隐藏与恢复显示都写**，覆盖式只留**最近一次**（见 docs/schema/review.md）。
      *
-     * @param id     评价ID
-     * @param hidden true=隐藏 false=显示（恢复显示时清空附注）
-     * @param note   隐藏附注（可选，≤200 字；仅 hidden=true 时有意义）
+     * @param id      评价ID
+     * @param hidden  true=隐藏 false=显示（恢复显示时清空附注）
+     * @param note    隐藏附注（可选，≤200 字；仅 hidden=true 时有意义）
+     * @param adminId 当前管理员 ID（写 `moderated_by`；由 controller 从登录态取出后传入）
      */
-    void setHidden(Long id, boolean hidden, String note);
+    void setHidden(Long id, boolean hidden, String note, Long adminId);
 
     /**
      * 管理员删除评价
@@ -134,11 +139,15 @@ public interface ReviewService {
      * 与 {@link #setHidden} 的差别：本方法是**幂等且自解释**的 —— 评价不存在或**已被隐藏**时
      * 返回 {@code false}（不重复投递回执、不覆盖既有附注），只有「这次真的隐藏了」才返回
      * {@code true}，供调用方在处置回执里写明「已隐藏该评价」。
+     * <p>
+     * 隐藏成功时同批写处置人 / 处置时间（口径与 {@link #setHidden} 一致）—— 联动隐藏也是
+     * 一次「可见性处置」，处置人即当前处理举报的管理员。
      *
      * @param reviewId 被举报评价 ID
+     * @param adminId  当前管理员 ID（写 `moderated_by`；由调用方从登录态取出后传入）
      * @return 本次是否真的执行了隐藏
      */
-    boolean hideIfVisible(Long reviewId);
+    boolean hideIfVisible(Long reviewId, Long adminId);
 
     /**
      * 评价总数（D1 看板概况：**含已隐藏** —— 概况回答的是「平台规模」，不是「可见量」）。

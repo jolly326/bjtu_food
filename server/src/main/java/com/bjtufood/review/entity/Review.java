@@ -59,6 +59,27 @@ public class Review {
     private String hiddenNote;
 
     /**
+     * 最近一次可见性处置的**处置人**（`admin.id`；未处置为 NULL）。
+     * <p>
+     * 🔴 **覆盖式**：与 {@link #hiddenNote} 同生命周期 —— 隐藏与恢复显示两种处置都写，
+     * 每次整体覆盖，只反映**最近一次**处置（无处置历史）。删除是物理删行、不留痕。
+     */
+    @Schema(description = "最近一次可见性处置的处置人（admin.id；未处置为 null）")
+    private Long moderatedBy;
+
+    /**
+     * 最近一次可见性处置的**处置时间**（未处置为 NULL）。
+     * <p>
+     * 🔴 由处置 UPDATE 以 **DB 时钟 `NOW()`** 写入，**不用 `ON UPDATE` 也不能用
+     * `LocalDateTime.now()`**：用户重评覆盖本行时会误刷新该列，把「处置时刻」冲成「重评时刻」。
+     * <p>
+     * 本字段<b>刻意不带任何 `fill` 注解</b>（{@code EntityTimeFieldContractTest} 会拦下：
+     * 带 fill 的字段会被 MyBatis-Plus 无条件放进 UPDATE 的 SET 子句）。
+     */
+    @Schema(description = "最近一次可见性处置的时间（DB 时钟写入；未处置为 null）")
+    private LocalDateTime moderatedAt;
+
+    /**
      * 发表时间（**重复提交保留原值**，覆盖不刷新 ⇒ 评价位置固定）。
      * <p>
      * DB 时钟：仅 INSERT 由 `DEFAULT CURRENT_TIMESTAMP` 写入（应用层不写、不填充）；

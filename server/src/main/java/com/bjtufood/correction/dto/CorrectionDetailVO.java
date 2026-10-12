@@ -22,9 +22,9 @@ public class CorrectionDetailVO {
     /**
      * 问题类型：{@code field}（信息有误）/ {@code gone}（已经下架）。
      * <p>
-     * 管理端<b>据此分派处置</b>：field → 展示 {@code differences[]} 逐项采纳；gone → <b>不返回
-     * {@code differences}（恒空列表，无可对照差异项），只展示 {@code note} + {@code images}，
-     * 且处置动作<b>仅「下架」</b>（🔴 绝不提供「删除」）。
+     * 管理端<b>据此分派详情内容</b>：field → 展示 {@code differences[]} 提交项对照；gone →
+     * <b>不返回 {@code differences}（恒空列表，无可对照项）</b>，只展示 {@code note} + {@code images}
+     * （+ {@code goneUserCount}）。两类处置动作相同（标记已处理 / 驳回），<b>均不改写菜品</b>。
      */
     @Schema(description = "问题类型：field=信息有误 / gone=已经下架", example = "field")
     private String type;
@@ -52,7 +52,7 @@ public class CorrectionDetailVO {
     @Schema(description = "处置状态：pending / handled")
     private String status;
 
-    @Schema(description = "处置结论：handled=采纳/已下架 / rejected=不采纳；未处置为 null")
+    @Schema(description = "处置结论：handled=已受理（管理员已手动处理）/ rejected=不采纳；未处置为 null")
     private String outcome;
 
     /**
@@ -74,10 +74,10 @@ public class CorrectionDetailVO {
     private Long goneUserCount;
 
     /**
-     * **采纳清单**：仅「仍有差异」的项（见 {@link DishCorrectionDifferenceVO}）。
-     * 目标菜品已被物理删除时为空列表（无从对照；采纳本身也会 4001）。
+     * **提交项对照**：只列「用户提交过的项」（见 {@link DishCorrectionDifferenceVO}）。
+     * 目标菜品已被物理删除时 {@code oldValue} 为 {@code null}（无从对照）。
      */
-    @Schema(description = "差异对照清单（仅仍有差异的项）")
+    @Schema(description = "提交项对照清单（只列用户提交过的项）")
     private List<DishCorrectionDifferenceVO> differences;
 
     @Schema(description = "提交的菜品图片 URL 列表（COS 绝对地址）")

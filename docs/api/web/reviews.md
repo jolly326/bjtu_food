@@ -35,9 +35,13 @@
 | `content` | string | 评价正文（空串兜底） |
 | `images` | string[] | 配图**绝对 URL** 数组（≤3 张；恒为数组） |
 | `hidden` | boolean | **是否被隐藏**（库列 `is_hidden` TINYINT 由持久层映射为 boolean） |
+| `hiddenNote` | string \| null | **隐藏附注**（最近一次隐藏时管理员填写的可选说明，≤200 字）；**恢复显示 / 从未隐藏为 `null`** |
 | `createdAt` | string | 发表时间（`yyyy-MM-dd HH:mm:ss`；**重复提交保留原值**） |
+| `moderatedByName` | string \| null | **最近一次可见性处置的处置人**（管理员登录名）；**未处置为 `null`** |
+| `moderatedAt` | string \| null | **最近一次可见性处置的时间**（`yyyy-MM-dd HH:mm:ss`）；**未处置为 `null`** |
 
 > **不出 `updatedAt`** —— `review` 表没有 `updated_at` 列；`createdAt` **仅表达「首次发表时间」**（覆盖更新不刷新它 ⇒ 不承载「最后活动时间」语义，见 [schema/review.md](../../schema/review.md)）。
+> `moderatedByName` / `moderatedAt` **不是**「最后活动时间」：二者与库列 `hidden_note` **同生命周期、覆盖式**（见 [schema/review.md](../../schema/review.md)），只反映**最近一次**可见性处置（隐藏或恢复显示），并被下一次处置整体覆盖；**删除**评价不留痕（行已不存在）。
 
 ---
 
@@ -61,6 +65,7 @@
 
 > 端点用 `hidden`（**状态资源**）而非 `hide`（动词）：`hide` 与「可传 `hidden=false`」自相矛盾。
 > 隐藏向作者投递站内回执；附注有则随回执展示、无则用固定文案；投递失败**不阻塞**处置。
+> **写入处置人与处置时间**：`true` 与 `false` **两条路径都写** `moderated_by`（当前管理员）+ `moderated_at`（处置时刻），覆盖式只留**最近一次**；出参见 `moderatedByName` / `moderatedAt`。
 
 ---
 
@@ -92,4 +97,4 @@
 - **动作恰好三个**：隐藏 / 恢复显示 / 删除。**无内容安全态处置端点** —— 机审 `pass` / `review` 直接放行、`risky` 直接拒绝（不存在待复核队列）。
 - **回执口径**：隐藏 / 删除向作者投递登录级回执（作者 `userId` 由登录态回填，恒为真实用户，不按邮箱认证过滤）；投递失败不阻塞处置。
 - **「重新评价即恢复可见」保持现状**（覆盖提交时 `is_hidden` 重置为 0）：重新提交是全新内容、重新过机审。
-- **附注落库而非只发通知**：处置可追溯（隐藏附注写 `review.hidden_note`）。
+- **附注与处置留痕都落库**：处置可追溯（隐藏附注写 `review.hidden_note`；处置人与处置时间写 `review.moderated_by` / `review.moderated_at`，见 [schema/review.md](../../schema/review.md)）。

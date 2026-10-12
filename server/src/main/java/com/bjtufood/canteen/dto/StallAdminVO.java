@@ -43,7 +43,7 @@ public class StallAdminVO {
     @Schema(description = "档口展示图片列表")
     private List<String> images;
 
-    @Schema(description = "平均评分", example = "4.5")
+    @Schema(description = "平均评分（实时聚合，1 位小数；无可见评价为 0.0）", example = "4.5")
     private BigDecimal avgRating;
 
     @Schema(description = "更新时间")

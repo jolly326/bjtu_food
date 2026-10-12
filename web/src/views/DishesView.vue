@@ -74,19 +74,34 @@ const categories = ref<DishCategoryAdminVO[]>([])
 const valuesByDimensionId = ref<Record<string, DishValueAdminVO[]>>({})
 
 /* ==================== 列表 ==================== */
+/**
+ * 筛选条件。
+ *
+ * <p>三个 id 型筛选用 **`null` = 不筛选**（映射为不传该查询参数），**不用 `0`** ——
+ * `0` 不是任何食堂 / 档口 / 种类的合法 id，用它当「全部」会把「不筛选」与「筛一个不存在的 id」
+ * 混为一谈，也让「合法 id」与「占位值」共用同一取值域。
+ */
 const fKeyword = ref('')
-const fCanteenId = ref(0)
-const fStallId = ref(0)
-const fCategoryId = ref(0)
+const fCanteenId = ref<number | null>(null)
+const fStallId = ref<number | null>(null)
+const fCategoryId = ref<number | null>(null)
 const fStatus = ref<OnOffStatus | ''>('')
+/**
+ * 「只看未归入档口」——看板健康度项的定位入口。
+ *
+ * <p>与档口筛选**互斥**（服务端同样 400）：勾选即清空并在 UI 上禁用档口下拉，
+ * 让互斥在交互层就成立，而不是靠提交后被拒。
+ */
+const fWithoutStall = ref(false)
 
 function params(): DishListParams {
   return {
     keyword: fKeyword.value || undefined,
-    canteenId: fCanteenId.value || undefined,
-    stallId: fStallId.value || undefined,
-    categoryId: fCategoryId.value || undefined,
+    canteenId: fCanteenId.value ?? undefined,
+    stallId: fWithoutStall.value ? undefined : (fStallId.value ?? undefined),
+    categoryId: fCategoryId.value ?? undefined,
     status: fStatus.value || undefined,
+    withoutStall: fWithoutStall.value || undefined,
   }
 }
 
@@ -126,10 +141,15 @@ const saving = ref(false)
 
 const form = ref({
   name: '',
-  stallId: 0,
+  /**
+   * 所属档口。未选择 = `null`（**不是 `0`** —— `0` 不是任何档口的合法 id，
+   * 用 0 占位会让「未选择」与「选了个不存在的档口」混为一谈）；提交前由 `save()` 必填校验拦截。
+   */
+  stallId: null as number | null,
   priceYuan: '',
   originalPriceYuan: '',
-  categoryId: 0,
+  /** 未选择 = `null`（**不是 `0`** —— `0` 不是任何种类的合法 id）；由 `save()` 必填校验拦截 */
+  categoryId: null as number | null,
   description: '',
   /** 组件态 = `{ url }` 对象数组（ImageUpload 契约）；提交时映射回 `images: string[]` */
   images: [] as ImageItem[],
@@ -168,10 +188,12 @@ const attributeRows = computed<{ label: string; value: string }[]>(() => {
 function resetForm(): void {
   form.value = {
     name: '',
-    stallId: stalls.value[0]?.id ?? 0,
+    // 新建默认选中第一个档口；一个档口都没有时保持未选择（null），由 save() 报「请选择所属档口」
+    stallId: stalls.value[0]?.id ?? null,
     priceYuan: '',
     originalPriceYuan: '',
-    categoryId: categories.value[0]?.id ?? 0,
+    // 新建默认选中第一个分类；分类字典为空时保持未选择（null），由 save() 报「请选择菜品分类」
+    categoryId: categories.value[0]?.id ?? null,
     description: '',
     images: [],
   }
@@ -269,7 +291,8 @@ async function save(): Promise<void> {
     ElMessage.warning('请输入菜品名称')
     return
   }
-  if (!form.value.stallId) {
+  // 档口必填（契约 DishSaveReq.stallId 必传且须存在）；`null` = 未归入档口，不可提交
+  if (form.value.stallId == null) {
     ElMessage.warning('请选择所属档口')
     return
   }
@@ -277,7 +300,8 @@ async function save(): Promise<void> {
     ElMessage.warning('请至少上传一张封面图')
     return
   }
-  if (!form.value.categoryId) {
+  const categoryId = form.value.categoryId
+  if (categoryId == null) {
     ElMessage.warning('请选择菜品分类')
     return
   }
@@ -298,7 +322,7 @@ async function save(): Promise<void> {
     stallId: form.value.stallId,
     price,
     originalPrice,
-    categoryId: form.value.categoryId,
+    categoryId,
     description: form.value.description,
     // 提交映射：按数组顺序回 `images: string[]`（首图即封面，后端 / client 契约零变更）
     images: form.value.images.map((img) => img.url),
@@ -465,10 +489,11 @@ async function commitRenameCategory(row: DishCategoryAdminVO): Promise<void> {
 
 function reset(): void {
   fKeyword.value = ''
-  fCanteenId.value = 0
-  fStallId.value = 0
-  fCategoryId.value = 0
+  fCanteenId.value = null
+  fStallId.value = null
+  fCategoryId.value = null
   fStatus.value = ''
+  fWithoutStall.value = false
   reloadFirstPage()
 }
 
@@ -487,7 +512,9 @@ const activeFilters = computed(() => {
     out.push({ key: 'keyword', label: '菜品名', value: fKeyword.value.trim() })
   if (fCanteenId.value)
     out.push({ key: 'canteen', label: '食堂', value: canteenLabel(fCanteenId.value) })
-  if (fStallId.value) out.push({ key: 'stall', label: '档口', value: stallLabel(fStallId.value) })
+  // 与 params() 同口径：勾选「未归入档口」时档口条件不生效，故也不回显
+  if (!fWithoutStall.value && fStallId.value)
+    out.push({ key: 'stall', label: '档口', value: stallLabel(fStallId.value) })
   if (fCategoryId.value)
     out.push({ key: 'category', label: '分类', value: categoryText(fCategoryId.value) })
   if (fStatus.value)
@@ -496,16 +523,24 @@ const activeFilters = computed(() => {
       label: '状态',
       value: fStatus.value === 'on' ? '在售' : '已下架',
     })
+  if (fWithoutStall.value) out.push({ key: 'withoutStall', label: '归属', value: '未归入档口' })
   return out
 })
+
+/** 「只看未归入档口」勾选变化：与档口筛选互斥 —— 勾选即清空档口条件并重查 */
+function onWithoutStallChange(): void {
+  if (fWithoutStall.value) fStallId.value = null
+  reloadFirstPage()
+}
 
 /** 清除单个筛选条件并重查 */
 function clearFilter(key: string): void {
   if (key === 'keyword') fKeyword.value = ''
-  if (key === 'canteen') fCanteenId.value = 0
-  if (key === 'stall') fStallId.value = 0
-  if (key === 'category') fCategoryId.value = 0
+  if (key === 'canteen') fCanteenId.value = null
+  if (key === 'stall') fStallId.value = null
+  if (key === 'category') fCategoryId.value = null
   if (key === 'status') fStatus.value = ''
+  if (key === 'withoutStall') fWithoutStall.value = false
   reloadFirstPage()
 }
 
@@ -550,16 +585,26 @@ onMounted(async () => {
         @keyup.enter="reloadFirstPage"
       />
       <select class="form-input" v-model.number="fCanteenId" @change="reloadFirstPage">
-        <option :value="0">全部食堂</option>
+        <option :value="null">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
-      <select class="form-input" v-model.number="fStallId" @change="reloadFirstPage">
-        <option :value="0">全部档口</option>
+      <select
+        class="form-input"
+        v-model.number="fStallId"
+        :disabled="fWithoutStall"
+        @change="reloadFirstPage"
+      >
+        <option :value="null">全部档口</option>
         <option v-for="s in filteredStalls" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
+      <!-- 与档口筛选互斥（勾选即清空并禁用档口下拉）：看板「未归入档口」计数由此直达 -->
+      <label class="filter-check">
+        <input v-model="fWithoutStall" type="checkbox" @change="onWithoutStallChange" />
+        只看未归入档口
+      </label>
       <!-- A6 种类字典驱动的下拉：筛选值 = 种类 ID（`dish_category.id`） -->
       <select class="form-input" v-model.number="fCategoryId" @change="reloadFirstPage">
-        <option :value="0">全部分类</option>
+        <option :value="null">全部分类</option>
         <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
       <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
@@ -666,7 +711,8 @@ onMounted(async () => {
           <div class="detail-group-title">核心指标</div>
           <div class="detail-meta detail-meta--grid">
             <DetailMetaRow k="评分" emphasis>
-              {{ detail.avgRating ?? '—' }}
+              <!-- 均分恒 1 位小数（与后端 dish.avg_rating 精度同口径）；零评价为 null ⇒ — -->
+              {{ detail.avgRating == null ? '—' : Number(detail.avgRating).toFixed(1) }}
               <span class="muted">（{{ detail.ratingCount }} 条）</span>
             </DetailMetaRow>
             <DetailMetaRow k="原价" num>
@@ -691,8 +737,8 @@ onMounted(async () => {
             <div class="meta-row">
               <span class="meta-key">归属</span>
               <span class="meta-val">
-                {{ detail.canteenName }} / {{ detail.stallName
-                }}<span class="muted"> #{{ detail.stallId }}</span>
+                {{ detail.canteenName || '—' }} / {{ detail.stallName || '—'
+                }}<span class="muted"> #{{ detail.stallId ?? '—' }}</span>
               </span>
             </div>
           </div>
@@ -753,7 +799,8 @@ onMounted(async () => {
         <div class="field">
           <label for="dish-stall">所属档口</label>
           <select id="dish-stall" class="form-input" v-model.number="form.stallId">
-            <option :value="0" disabled>请选择</option>
+            <!-- 未选择 = null（与出参的「未归入档口」同义）；后端 DishSaveReq.stallId 必填 -->
+            <option :value="null" disabled>请选择</option>
             <option v-for="s in stalls" :key="s.id" :value="s.id">
               {{ s.canteenName }} · {{ s.name }}
             </option>
@@ -784,7 +831,8 @@ onMounted(async () => {
         <div class="field">
           <label for="dish-category">菜品分类</label>
           <select id="dish-category" class="form-input" v-model.number="form.categoryId">
-            <option :value="0" disabled>请选择分类</option>
+            <!-- 未选择 = null（与出参的「无分类」同义）；后端 DishSaveReq.categoryId 必填 -->
+            <option :value="null" disabled>请选择分类</option>
             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
           <div class="hint">
@@ -972,6 +1020,19 @@ onMounted(async () => {
 /* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
   width: 150px;
+}
+/* 「只看未归入档口」：与其它控件同行的勾选项（文案随正文默认档，命中区靠 label 撑开） */
+.filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.filter-check input[type='checkbox'] {
+  cursor: pointer;
 }
 .row2 {
   display: flex;

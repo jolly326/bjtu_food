@@ -43,7 +43,7 @@ public interface ReviewMapper extends BaseMapper<Review> {
     IPage<MyReviewVO> selectReviewPageByUserId(Page<?> page, @Param("userId") Long userId, @Param("dishId") Long dishId);
 
     /**
-     * 批量计算多个档口下所有菜品评价的平均分（星级 1-5）。
+     * 批量计算多个档口下所有菜品评价的平均分（星级 1-5，**1 位小数**）。
      * <p>
      * 用于消除逐档口 N+1 查询：一次查询返回 stall_id → avg(rating) 的映射。无评价的档口不会出现在结果中。
      *

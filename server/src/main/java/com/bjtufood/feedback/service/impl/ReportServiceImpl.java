@@ -189,7 +189,7 @@ public class ReportServiceImpl implements ReportService {
         boolean stillPending = current != null && ModerationConst.STATUS_PENDING.equals(current.getStatus());
         boolean hiddenThisTime = false;
         if (Boolean.TRUE.equals(req.getHideReview()) && !rejected && report.getReviewId() != null && stillPending) {
-            hiddenThisTime = reviewService.hideIfVisible(report.getReviewId());
+            hiddenThisTime = reviewService.hideIfVisible(report.getReviewId(), adminId);
         }
 
         moderationTaskService.handle(ModerationConst.TYPE_REPORT, id, outcome, req.getReplyTitle(),

@@ -76,7 +76,7 @@ public class DashboardVO {
         @Schema(description = "无图片的菜品数（client 卡片只能走占位图）")
         private Long dishesWithoutImage;
 
-        @Schema(description = "未归入档口的菜品数（stall_id = 0）")
+        @Schema(description = "未归入档口的菜品数（stall_id 为空）")
         private Long dishesWithoutStall;
 
         @Schema(description = "种类为空的菜品数（category_id 为空）")

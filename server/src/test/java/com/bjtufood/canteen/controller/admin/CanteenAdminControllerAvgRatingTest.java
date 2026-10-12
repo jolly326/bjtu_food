@@ -34,8 +34,8 @@ import static org.mockito.Mockito.when;
  * 的自有知识，由属性字典反向依赖评价域方向本就颠倒。现上移至
  * {@link CanteenAdminController#fillAvgRatings} 编排，controller 位于依赖图顶端，不产生新包级边。
  * <p>
- * 配套的架构护栏见 {@code ArchTests#canteen_mustNotDependOnReview}；
- * 本类锁定其<b>行为面</b>——出参口径（2 位小数、无评价按 0.00）、批量查询（不 N+1）、
+ * 配套的架构护栏见 {@code ArchTests#canteenBusinessLayers_mustNotDependOnReview}；
+ * 本类锁定其<b>行为面</b>——出参口径（**1 位小数**、无可见评价按 0.0）、批量查询（不 N+1）、
  * 以及 canteen 侧确实不再触发 review 查询。
  */
 class CanteenAdminControllerAvgRatingTest {
@@ -44,8 +44,8 @@ class CanteenAdminControllerAvgRatingTest {
         StallAdminVO v = new StallAdminVO();
         v.setId(id);
         v.setName("档口" + id);
-        // 复刻 StallServiceImpl.listAllForAdmin 的兜底：未回填前即为 0.00（非 null）
-        v.setAvgRating(new BigDecimal("0.00"));
+        // 复刻 StallServiceImpl.listAllForAdmin 的兜底：未回填前即为 0.0（非 null）
+        v.setAvgRating(new BigDecimal("0.0"));
         return v;
     }
 
@@ -69,26 +69,28 @@ class CanteenAdminControllerAvgRatingTest {
 
         new CanteenAdminController(mock(CanteenService.class), stallService, mock(DishService.class), reviewQuery).listStalls(null);
 
-        assertThat(stalls.get(0).getAvgRating()).isEqualByComparingTo("4.50");
-        assertThat(stalls.get(1).getAvgRating()).isEqualByComparingTo("0.00");  // 无评价
-        assertThat(stalls.get(2).getAvgRating()).isEqualByComparingTo("3.20");
+        assertThat(stalls.get(0).getAvgRating()).isEqualByComparingTo("4.5");
+        assertThat(stalls.get(1).getAvgRating()).isEqualByComparingTo("0.0");  // 无评价
+        assertThat(stalls.get(2).getAvgRating()).isEqualByComparingTo("3.2");
+        // 精度口径 = 1 位小数（与 dish.avg_rating 同源，端上直接展示不用再截断）
+        assertThat(stalls.get(0).getAvgRating().scale()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("无评价档口保持 0.00 兜底（不被置为 null，也不被其他档口的均分污染）")
+    @DisplayName("无可见评价档口保持 0.0 兜底（不被置为 null，也不被其他档口的均分污染）")
     void keepsZeroForStallsWithoutReviews() {
         StallService stallService = mock(StallService.class);
         ReviewQueryService reviewQuery = mock(ReviewQueryService.class);
         List<StallAdminVO> stalls = new ArrayList<>(List.of(vo(1L), vo(2L)));
-        stalls.get(0).setAvgRating(new BigDecimal("0.00"));
-        stalls.get(1).setAvgRating(new BigDecimal("0.00"));
+        stalls.get(0).setAvgRating(new BigDecimal("0.0"));
+        stalls.get(1).setAvgRating(new BigDecimal("0.0"));
         when(stallService.listAllForAdmin(any())).thenReturn(stalls);
         when(reviewQuery.findAvgRatingByStallIds(any())).thenReturn(List.of(rating(1L, "4.567")));
 
         new CanteenAdminController(mock(CanteenService.class), stallService, mock(DishService.class), reviewQuery).listStalls(null);
 
-        assertThat(stalls.get(0).getAvgRating()).isEqualByComparingTo("4.57");   // HALF_UP 到 2 位
-        assertThat(stalls.get(1).getAvgRating()).isEqualByComparingTo("0.00");   // 无评价 → 保留兜底
+        assertThat(stalls.get(0).getAvgRating()).isEqualByComparingTo("4.6");   // HALF_UP 到 1 位
+        assertThat(stalls.get(1).getAvgRating()).isEqualByComparingTo("0.0");   // 无评价 → 保留兜底
     }
 
     @Test

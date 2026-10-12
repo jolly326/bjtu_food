@@ -1,5 +1,10 @@
 import { getAdminPage, put } from './http'
-import type { AdminPage, ModerationHandleReq, ReportAdminVO, ReportListParams } from '@/types/common'
+import type {
+  AdminPage,
+  ModerationHandleReq,
+  ReportAdminVO,
+  ReportListParams,
+} from '@/types/common'
 
 /**
  * 举报管理（`/admin/reports`）。

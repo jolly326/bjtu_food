@@ -22,6 +22,8 @@ declare module 'vue' {
     ImagePreview: typeof import('./components/ImagePreview.vue')['default']
     ImageUpload: typeof import('./components/ImageUpload.vue')['default']
     ListState: typeof import('./components/ListState.vue')['default']
+    ModerationHandleForm: typeof import('./components/ModerationHandleForm.vue')['default']
+    OptionDictManager: typeof import('./components/OptionDictManager.vue')['default']
     Pager: typeof import('./components/Pager.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

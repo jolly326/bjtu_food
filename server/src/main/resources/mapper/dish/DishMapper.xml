@@ -16,8 +16,8 @@
     - update___：更新操作
 
     字段口径（2026-09-22 拍板：列表 / 详情出参拆分）：
-    - 列表查询仅选 DishListItemVO 8 字段所需列（listDishColumns），详情查询选 DishDetailVO 15 字段所需列（detailDishColumns）；
-    - 两者均不选 status/view_count/created_at/updated_at 等不出参列；
+    - 列表查询仅选 DishListItemVO 8 字段所需列（listDishColumns），详情查询选 DishDetailVO 11 字段所需列（detailDishColumns）；
+    - 两者均不选 status/created_at/updated_at 等不出参列；
     - 管理端查询（adminDishColumns）额外选 status/stall_id/timestamps（管理端维护用）；
     - 坐标兜底 COALESCE 由 canteen 坐标列提供（位置表达为 食堂 · 楼层 · 档口名）；
     - 无标签 / 辣度筛选条件（筛选维度仅剩 keyword 与视图分类）。
@@ -56,19 +56,29 @@
     如需稳定的翻页全序，随机序以 `d.id` 作决胜键。
     -->
 
-    <!-- 联表 FROM 基础片段（dish + stall + canteen） -->
+    <!-- 联表 FROM 基础片段（dish + stall + canteen）。
+         🔴 **INNER JOIN 是公开路径的可见性前提**：未归入档口（`stall_id` 为空）的菜品不会出现在
+        学生端列表 / 详情里（无位置可展示）。管理端要看并修复这些存量，走下面的 `adminDishFromJoin`。 -->
     <sql id="dishFromJoin">
         FROM dish d
                  JOIN stall s ON d.stall_id = s.id
                  JOIN canteen c ON s.canteen_id = c.id
     </sql>
 
+    <!-- 管理端列表的 FROM 片段：**LEFT JOIN** —— 未归入档口的菜品必须能在 A3 出现（否则「看板能看到计数、
+         列表却看不到行」，管理员无从定位修复）。公开路径仍用 INNER JOIN（见上）。 -->
+    <sql id="adminDishFromJoin">
+        FROM dish d
+                 LEFT JOIN stall s ON d.stall_id = s.id
+                 LEFT JOIN canteen c ON s.canteen_id = c.id
+    </sql>
+
     <!--
         列表查询列（DishListItemVO 8 字段所需列，2026-09-22 D 项拆分）：
         id/name/price/originalPrice/images(仅供 Service 解析首图 coverImage)/avgRating/stallName/canteenName。
         **列表不选**详情专属列（description/attributes/floor）；
-        两场景均不选 status/view_count/created_at/updated_at/stall_id/canteen_id/window_no/坐标（列收窄）。
-        WHERE/ORDER BY 中引用的 d.status/d.view_count 等为 FROM 子句列，无需出现在 SELECT 列表。
+        两场景均不选 status/created_at/updated_at/stall_id/canteen_id/window_no/坐标（列收窄）。
+        WHERE/ORDER BY 中引用的 d.status 等为 FROM 子句列，无需出现在 SELECT 列表。
     -->
     <sql id="listDishColumns">
         d.id,
@@ -206,6 +216,11 @@
             <if test="q.stallId != null">
                 AND d.stall_id = #{q.stallId}
             </if>
+            <!-- 未归入档口（看板健康度项的定位入口）：只看 stall_id 为空的存量行；
+                 与 q.stallId 互斥，互斥由 Service 层显式 400 拦截，不在此静默取其一 -->
+            <if test="q.withoutStall != null and q.withoutStall">
+                AND d.stall_id IS NULL
+            </if>
             <if test="q.canteenId != null">
                 AND s.canteen_id = #{q.canteenId}
             </if>
@@ -229,7 +244,7 @@
     <select id="selectAdminListPage" resultMap="dishAdminListItemMap">
         SELECT
         <include refid="adminDishListColumns"/>
-        <include refid="dishFromJoin"/>
+        <include refid="adminDishFromJoin"/>
         <include refid="adminDishWhere"/>
         ORDER BY d.updated_at DESC
     </select>

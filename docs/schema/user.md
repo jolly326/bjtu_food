@@ -13,7 +13,7 @@
 | `avatar` | VARCHAR(512) | YES | NULL | | 头像地址（站内相对路径，或经内容安检 + COS 转存的绝对地址）|
 | `status` | VARCHAR(32) | NO | `'active'` | | `active` 正常 / `disabled` 禁用 / `deleted` 已注销 |
 | `openid` | VARCHAR(64) | YES | NULL | **UNI** | 微信 openid；**登录取号依据**，注销后置 NULL 解绑 |
-| `email` | VARCHAR(128) | YES | NULL | | 已认证绑定的校园邮箱；**认证态的唯一判据**（非空即已认证）；**同一邮箱至多一行非空**由应用层保证（本列无唯一索引）|
+| `email` | VARCHAR(128) | YES | NULL | **UNI** | 已认证绑定的校园邮箱；**认证态的唯一判据**（非空即已认证）；**同一邮箱至多一行非空**由唯一索引 `uk_user_email` 固化 |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | |
 
@@ -24,6 +24,7 @@
 | `PRIMARY` | `id` | 主键 | |
 | `uk_user_wx_id` | `wx_id` | 唯一 | 账号标识唯一性 |
 | `uk_user_openid` | `openid` | 唯一 | 微信登录取号；**NULL 不参与唯一索引** |
+| `uk_user_email` | `email` | 唯一 | **同一邮箱至多一行非空**（认证态边界的库级固化）；**NULL 不参与唯一索引** ⇒ 未认证行不受约束 |
 
 ## 关键设计
 
@@ -62,5 +63,7 @@
 ## 注意事项
 
 - `openid` 唯一索引**允许 NULL**（MySQL 唯一索引不约束 NULL），这是匿名化后同一微信能重新建号的前提；`wx_id` 注销后写入 `deleted_{id}`（非 NULL），既不占用任何真实账号标识，也不让唯一键悬空。
+- **`email` 的「同一邮箱至多一行非空」由 DB 唯一索引 `uk_user_email` 固化** —— `email` 是认证态唯一判据，故该边界落在库级，由索引本身拦截冲突写入。唯一索引在 MySQL 下**允许多个 `NULL`** ⇒ 未认证行（`email IS NULL`）不受约束，与「未认证」语义相容。
+- **并发冲突的落点**：同一邮箱的并发认证由唯一索引拦截后者，应用层将其转既有 `400` 文案（「该邮箱已被其他账号占用」，见 [api/client/auth.md](../api/client/auth.md#post-authverify-email)），**不得**退化为未处理的 `500`。
 - 建号为**两步写入**（INSERT 占位 `name` → 拿到自增 id → UPDATE 回填正式 `name`），两步在**同一事务**内；回填前判等 `name` 是否仍为占位值，避免覆盖已有值。
 - **库表实况 25 行**（直连生产库核对）。

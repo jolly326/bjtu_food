@@ -116,7 +116,7 @@
 | `windowNo` | string | 窗口号（恒非空串，**无为空串**；client 不展示，仅管理侧参考） |
 | `description` | string | 档口描述（恒非空串） |
 | `images` | string[] | 档口展示图片绝对 URL 数组（有序，首图作封面；无图 `[]`） |
-| `avgRating` | number | **平均评分**（实时聚合，2 位小数；**无 approved 评价按 `0.00`，不为 `null`**） |
+| `avgRating` | number | **平均评分**（实时聚合，**1 位小数**；**无可见评价（`is_hidden = 0`）按 `0.0`，不为 `null`**） |
 | `dishCount` | number | **其下菜品数**（联表统计，供删除前判断） |
 | `updatedAt` | string | 更新时间（`yyyy-MM-dd HH:mm:ss`） |
 

@@ -46,7 +46,8 @@ const current = ref<StallAdminVO | null>(null)
 const saving = ref(false)
 
 const form = ref({
-  canteenId: 0,
+  /** 未选择 = `null`（**不是 `0`** —— `0` 不是任何食堂的合法 id）；由 `save()` 必填校验拦截 */
+  canteenId: null as number | null,
   name: '',
   floor: '',
   windowNo: '',
@@ -65,7 +66,8 @@ const dirty = computed(() => mode.value === 'edit' && JSON.stringify(form.value)
 
 function fillForm(row: StallAdminVO | null): void {
   form.value = {
-    canteenId: row?.canteenId ?? canteens.value[0]?.id ?? 0,
+    // 新建默认选中第一个食堂；食堂字典为空时保持未选择（null），由 save() 报「请选择所属食堂」
+    canteenId: row?.canteenId ?? canteens.value[0]?.id ?? null,
     name: row?.name ?? '',
     floor: row?.floor ?? '',
     windowNo: row?.windowNo ?? '',
@@ -106,7 +108,8 @@ function cancelEdit(): void {
 }
 
 async function save(): Promise<void> {
-  if (!form.value.canteenId) {
+  const canteenId = form.value.canteenId
+  if (canteenId == null) {
     ElMessage.warning('请选择所属食堂')
     return
   }
@@ -117,7 +120,7 @@ async function save(): Promise<void> {
   // 「楼层」未填 ⇒ 不下发该字段（契约：`floor` 空白串 → 400；缺省 = 保持原值 / 新建不设置）
   // 「窗口号」保留 `''` 语义（契约：PUT 传 `''` = 清空）
   const req: StallSaveReq = {
-    canteenId: form.value.canteenId,
+    canteenId,
     name: form.value.name.trim(),
     windowNo: form.value.windowNo,
     location: form.value.location,
@@ -195,8 +198,9 @@ function resetFilters(): void {
 /** 已生效筛选条件（供 `ActiveFilters` 回显；下拉存的是 id，回显映射为食堂名） */
 const activeFilters = computed(() => {
   const out: { key: string; label: string; value: string }[] = []
-  const id = filterCanteenId.value === '' ? 0 : Number(filterCanteenId.value)
-  if (id) {
+  // `''` = 不筛选（映射为不传该查询参数）；仅在有值时回显，不用 0 当「全部」的信号
+  const id = filterCanteenId.value === '' ? null : Number(filterCanteenId.value)
+  if (id != null) {
     out.push({
       key: 'canteen',
       label: '食堂',
@@ -352,7 +356,7 @@ onMounted(async () => {
           <div class="detail-meta detail-meta--grid">
             <DetailMetaRow k="菜品数" num emphasis>{{ current?.dishCount }}</DetailMetaRow>
             <DetailMetaRow k="平均评分" num emphasis>
-              {{ current?.avgRating?.toFixed(2) ?? '0.00' }}
+              {{ current?.avgRating?.toFixed(1) ?? '0.0' }}
             </DetailMetaRow>
           </div>
         </div>
@@ -372,7 +376,8 @@ onMounted(async () => {
         <div class="field">
           <label for="stall-canteen">所属食堂</label>
           <select id="stall-canteen" class="form-input" v-model.number="form.canteenId">
-            <option :value="0" disabled>请选择</option>
+            <!-- 未选择 = null（与出参的「必填归属」语义一致）；后端 StallSaveReq.canteenId 必填 -->
+            <option :value="null" disabled>请选择</option>
             <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </div>

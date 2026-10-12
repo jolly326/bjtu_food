@@ -28,7 +28,8 @@ public class DishAdminReq {
 
     /**
      * 食堂名称：仅当按 stallName 新建档口时消费——
-     * 有效名称按名 upsert 食堂并作为新档口的所属食堂；「其他」等空值/未传则新档口不挂食堂（canteen_id=0）。
+     * 有效名称按名 upsert 食堂并作为新档口的所属食堂（{@code stall.canteen_id} 为 NOT NULL 必填）；
+     * 「其他」等空值语义名称 / 未传则不满足必填 ⇒ 400「请选择所属食堂」，不建档。
      */
     @Schema(description = "食堂名称（仅当 stallName 触发新建档口时按名 upsert；「其他」等空值不建档）", example = "第一食堂")
     private String canteenName;

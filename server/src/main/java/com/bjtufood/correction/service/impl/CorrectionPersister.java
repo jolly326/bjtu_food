@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 不标注事务 —— 机审在事务外完成，落库才开事务。
  * <p>
  * 🔴 <b>事务内写两行</b>：纠错行 + 处置任务行（{@code status=pending}）。
- * 处置路径（{@code adopt} / {@code reject}）不含外部 HTTP 调用，也不写提交行（append-only），
+ * 处置路径（{@code handle} / {@code reject}）不含外部 HTTP 调用，也不写提交行（append-only），
  * 其事务边界由处置任务服务持有。
  * <p>
  * <b>为何必须是独立 Bean 而不是同类 private 方法</b>：Spring 声明式事务靠<b>代理</b>生效，

@@ -17,12 +17,15 @@ import java.util.List;
  * {@code images}、{@code stallName}、{@code canteenName}、{@code floor}、{@code avgRating}、{@code attributes}。
  * <p>
  * 以下字段已从公开响应删除且不得回流：{@code status}（公开接口恒只返回在售）、{@code createdAt}、
- * {@code canteenId}、{@code stallId}、{@code viewCount}、{@code promoPrice}、{@code tags}、
+ * {@code canteenId}、{@code stallId}、{@code promoPrice}、{@code tags}、
  * {@code spiceLevel}、{@code region}、{@code windowNo}、{@code updatedAt}、{@code latitude}、
  * {@code longitude}、{@code categoryId}（分类只参与筛选与管理端维护，不进公开出参）、
  * {@code ratingCount}（零消费）、{@code ratingDistribution}（零消费）、
  * {@code dietType} / {@code ingredients} / {@code flavorTags} / {@code serveTemp}
  * （四维已收敛为 {@code attributes} 动态属性）。
+ * <p>
+ * 浏览量同样不出现在公开出参：其**唯一载体**是 {@code dish_view_log} 的 30 天滚动窗口明细，
+ * 派生值 {@code recentViewCount} 只在管理端列表行下发（见 {@link DishAdminListItemVO}）。
  * <p>
  * 价格口径：{@code price} = 现价（唯一数据源）；{@code originalPrice} = 原价（可空）；
  * 「有折扣」判据为 {@code originalPrice} 有值且大于 {@code price}。

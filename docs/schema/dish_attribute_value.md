@@ -8,7 +8,7 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 取值 ID（**菜品 `attributes` 引用的就是它**） |
-| `dimension_id` | BIGINT | NO | 0 | KEY | 所属维度（`dish_attribute_dimension.id`） |
+| `dimension_id` | BIGINT | NO | 无 | KEY | 所属维度（`dish_attribute_dimension.id`）；**必填、无默认值**（不用 `0` 占位） |
 | `name` | VARCHAR(32) | NO | `''` | | 取值中文名（展示用；**可改，改名免费**） |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参 `updatedAt`） |
 

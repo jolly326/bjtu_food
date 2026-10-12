@@ -10,11 +10,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * <p>抽成 record 而不是继续加方法参数：筛选维度后续还会增长，签名会失控；
  * 且 Mapper 侧以 `@Param("q")` 引用，SQL 里读 `q.stallId` 与既有 {@code DishListQuery} 口径一致。
  *
- * @param stallId     按档口筛选（可空）
- * @param canteenId   按食堂筛选（**经档口间接**：`s.canteen_id`，可空）
- * @param categoryId  按种类筛选（可空；值域 = A6 种类字典 `dish_category` 的 `id`）
- * @param status      按上架状态筛选（`on` / `off`；不传 = 全部，**含已下架**）
- * @param keyword     关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径；可空）
+ * @param stallId      按档口筛选（可空）
+ * @param canteenId    按食堂筛选（**经档口间接**：`s.canteen_id`，可空）
+ * @param categoryId   按种类筛选（可空；值域 = A6 种类字典 `dish_category` 的 `id`）
+ * @param status       按上架状态筛选（`on` / `off`；不传 = 全部，**含已下架**）
+ * @param keyword      关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径；可空）
+ * @param withoutStall 只看**未归入档口**（`stall_id IS NULL`）的菜品 —— 供看板健康度项直接定位存量；
+ *                     **与 `stallId` 互斥**（同时传 → 400，显式拒绝而非静默取其一）
  */
 @Schema(description = "管理端菜品列表筛选条件")
 public record DishAdminListQuery(
@@ -22,5 +24,6 @@ public record DishAdminListQuery(
         Long canteenId,
         Long categoryId,
         String status,
-        String keyword) {
+        String keyword,
+        Boolean withoutStall) {
 }

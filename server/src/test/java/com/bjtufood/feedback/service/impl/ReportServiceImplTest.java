@@ -232,14 +232,15 @@ class ReportServiceImplTest {
     void handle_handledWithHide_hidesReviewAndExplains() {
         when(reportMapper.selectById(4L)).thenReturn(report(30L));
         when(moderationTaskService.findByTypeAndId(ModerationConst.TYPE_REPORT, 4L)).thenReturn(pendingTask());
-        when(reviewService.hideIfVisible(30L)).thenReturn(true);
+        when(reviewService.hideIfVisible(30L, 3L)).thenReturn(true);
         ModerationHandleReq req = new ModerationHandleReq();
         req.setHideReview(true);
         req.setReplyContent("举报属实");
 
         service().handle(4L, req, 3L);
 
-        verify(reviewService).hideIfVisible(30L);
+        // 处置人随隐藏一并落库：联动隐藏也是一次「可见性处置」，留痕的处置人必须是当前管理员
+        verify(reviewService).hideIfVisible(30L, 3L);
         verify(moderationTaskService).handle(ModerationConst.TYPE_REPORT, 4L, ModerationConst.OUTCOME_HANDLED,
                 null, "举报属实（已隐藏该评价）", 3L, 9L);
     }
@@ -254,7 +255,7 @@ class ReportServiceImplTest {
 
         service().handle(4L, req, 3L);
 
-        verify(reviewService, never()).hideIfVisible(any());
+        verify(reviewService, never()).hideIfVisible(any(), any());
         verify(moderationTaskService).handle(ModerationConst.TYPE_REPORT, 4L, ModerationConst.OUTCOME_HANDLED,
                 null, "举报属实", 3L, 9L);
     }
@@ -271,7 +272,7 @@ class ReportServiceImplTest {
 
         service().handle(4L, req, 3L);
 
-        verify(reviewService, never()).hideIfVisible(any());
+        verify(reviewService, never()).hideIfVisible(any(), any());
         verify(moderationTaskService).handle(ModerationConst.TYPE_REPORT, 4L, ModerationConst.OUTCOME_REJECTED,
                 null, "经核实不构成违规", 3L, 9L);
     }
@@ -288,7 +289,7 @@ class ReportServiceImplTest {
 
         service().handle(4L, req, 3L);
 
-        verify(reviewService, never()).hideIfVisible(any());
+        verify(reviewService, never()).hideIfVisible(any(), any());
         // 真正的防重复结论仍由处置任务服务在事务内强制
         verify(moderationTaskService).handle(eq(ModerationConst.TYPE_REPORT), eq(4L), any(), any(), any(), any(), any());
     }
@@ -303,6 +304,6 @@ class ReportServiceImplTest {
 
         service().handle(4L, req, 3L);
 
-        verify(reviewService, never()).hideIfVisible(any());
+        verify(reviewService, never()).hideIfVisible(any(), any());
     }
 }

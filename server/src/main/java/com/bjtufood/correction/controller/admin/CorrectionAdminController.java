@@ -5,8 +5,7 @@ import com.bjtufood.common.result.AdminPageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.correction.dto.CorrectionAdminVO;
 import com.bjtufood.correction.dto.CorrectionDetailVO;
-import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
-import com.bjtufood.correction.dto.StallConfirmVO;
+import com.bjtufood.correction.dto.DishCorrectionHandleReq;
 import com.bjtufood.correction.service.CorrectionService;
 import com.bjtufood.moderation.dto.ModerationHandleReq;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,12 +19,13 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 菜品问题反馈管理接口（Web 后台，ADM）。
  * <p>
- * <b>按 {@code type} 分派处置</b>：{@code field}（信息有误）走「差异对照 + 逐项采纳」；
- * {@code gone}（已经下架）<b>只能下架</b>（🔴 绝不提供删除 —— 删除会级联清掉该菜全部评价）。
+ * <b>管理端处置不改写菜品</b>：管理员「阅读」反馈后，统一两个处置动作 ——
+ * **标记已处理**（接受）与 **驳回**（拒绝），两者都只归档 {@code moderation_task}
+ * 并投递站内回执；菜品资料修改 / {@code gone} 可逆下架由管理员在菜品管理（web/dishes）手动执行。
  * <p>
- * 处置状态 / 结论 / 处置文案取自处置任务表（`moderation_task`），提交行本身不被改写。
+ * 提交行本身只存提交事实，不被处置改写。
  */
-@Tag(name = "后台菜品问题反馈处理", description = "管理员查看/采纳/驳回用户提交的菜品问题反馈（信息有误 / 已经下架）。需要管理员 token。")
+@Tag(name = "后台菜品问题反馈处理", description = "管理员查看/标记已处理/驳回用户提交的菜品问题反馈（信息有误 / 已经下架）。需要管理员 token。")
 @RestController
 @RequestMapping("/admin/corrections")
 @RequiredArgsConstructor
@@ -53,11 +53,10 @@ public class CorrectionAdminController {
                 AdminPageResult.of(correctionService.listForAdmin(status, type, dishId, page, pageSize)));
     }
 
-    @Operation(summary = "问题反馈详情", description = "ADM。按 type 分派返回："
-            + "**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**），供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。"
-            + "**type=gone** → **不返回差异对照**（differences 恒空），只返回 note + images + goneUserCount，"
-            + "处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。"
-            + "目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。")
+    @Operation(summary = "问题反馈详情", description = "ADM。返回提交项对照（只读）："
+            + "**type=field** → differences[]（**只列用户提交过的项**，oldValue 取当前菜品/档口**实时值**，same 标记是否一致），供管理员阅读判断；"
+            + "**type=gone** → differences 恒空，只返回 note + images + goneUserCount。"
+            + "菜品已物理删除时 oldValue 各项为 null（无从对照）；反馈不存在 → 4001。")
     @GetMapping("/{id}")
     public Result<CorrectionDetailVO> detail(
             @Parameter(description = "反馈ID", example = "1")
@@ -65,30 +64,19 @@ public class CorrectionAdminController {
         return Result.success(correctionService.getDetail(id));
     }
 
-    @Operation(summary = "采纳反馈（按 type 分派）", description = "ADM。仅待处置（moderation_task.status=pending）可采纳（否则 400「该反馈已处理」）；"
-            + "目标菜品已物理删除返回 4001。"
-            + "**type=gone（已经下架）**：**忽略请求体的差异项，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）"
-            + "→ 处置任务归档 handled/replyContent 缺省「已下架，感谢反馈」、标题「菜品已下架」，并投递站内回执。"
-            + "⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；"
-            + "误下架可在菜品管理中重新上架。"
-            + "**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），"
-            + "取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。"
-            + "两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）："
-            + "①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；"
-            + "未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；"
-            + "②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。"
-            + "采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）"
-            + "→ 处置任务归档 handled（附注缺省「已采纳，菜品信息已更新」；部分采纳时逐项告知已采纳/未采纳），并投递站内回执。"
-            + "采纳已执行时返回 data=null（code=200）。")
-    @PostMapping("/{id}/adopt")
-    public Result<?> adopt(
+    @Operation(summary = "标记已处理（接受反馈）", description = "ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该反馈已处理」）。"
+            + "**只归档处置结论 + 投递站内回执，不改写任何菜品数据**："
+            + "处置任务归档 handled / outcome='handled'（已受理，管理员已手动处理），"
+            + "标题缺省「已收到你的反馈」、正文缺省「感谢反馈，我们已核实处理」，并投递站内回执。"
+            + "菜品资料修改 / gone 型可逆下架由管理员在菜品管理（web/dishes）手动执行，不在本端点。")
+    @PostMapping("/{id}/handle")
+    public Result<Void> handle(
             @Parameter(description = "反馈ID", example = "1")
             @PathVariable Long id,
-            @Parameter(description = "**field 型**采纳请求体 {acceptedFields[], stallId?, createIfMissing?, replyContent?}；"
-                    + "**gone 型**忽略差异项参数（下架无需勾选）")
-            @RequestBody(required = false) DishCorrectionAdoptReq body) {
-        StallConfirmVO confirm = correctionService.adopt(id, body, SecurityUtil.getCurrentAdminId());
-        return confirm == null ? Result.success() : Result.success(confirm);
+            @Parameter(description = "处置请求体 {replyTitle?, replyContent?}：均可选（回执标题 ≤40 字 / 处理附注 ≤600 字）")
+            @Valid @RequestBody(required = false) DishCorrectionHandleReq body) {
+        correctionService.handle(id, body, SecurityUtil.getCurrentAdminId());
+        return Result.success();
     }
 
     @Operation(summary = "驳回反馈", description = "ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该纠错已处理」）。"

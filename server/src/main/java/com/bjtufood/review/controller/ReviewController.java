@@ -62,6 +62,9 @@ public class ReviewController {
 
     private static final IpRateLimiter.Rule WRITE_USER_PER_HOUR = new IpRateLimiter.Rule(20, 3_600_000L);
 
+    /** 删除本人评价限频：账号维度 3/分（不可逆操作，且触发菜品评分重算） */
+    private static final IpRateLimiter.Rule DELETE_USER_PER_MINUTE = new IpRateLimiter.Rule(3, 60_000L);
+
     @Operation(
             summary = "菜品评价列表（时间倒序，可按星级筛选）",
             description = """
@@ -164,8 +167,21 @@ public class ReviewController {
             @Parameter(description = "评价ID", example = "1")
             @PathVariable Long id) {
         Long userId = SecurityUtil.getCurrentUserId();
+        checkDeleteRateLimit(userId);
         reviewService.deleteReview(id, userId);
         return Result.success();
+    }
+
+    /**
+     * 删除限频（账号维度 3/分）：删除**不可逆**且会触发菜品评分重算，
+     * 挂账号维度（换 IP 绕不过）；正常用户删除行为远低于此，不挂 IP 维度以免误伤校园网共享出口。
+     */
+    private void checkDeleteRateLimit(Long userId) {
+        long waitSeconds = ipRateLimiter.tryAcquire(
+                "review-delete:user", String.valueOf(userId), DELETE_USER_PER_MINUTE);
+        if (waitSeconds > 0) {
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+        }
     }
 
 }

@@ -1,6 +1,10 @@
 package com.bjtufood.upload.controller;
 
+import com.bjtufood.auth.support.SecurityUtil;
+import com.bjtufood.common.exception.BusinessException;
+import com.bjtufood.common.ratelimit.IpRateLimiter;
 import com.bjtufood.common.result.Result;
+import com.bjtufood.common.utils.ClientIpUtil;
 import com.bjtufood.upload.dto.CloudImageUploadReq;
 import com.bjtufood.upload.dto.UploadResultVO;
 import com.bjtufood.upload.service.UploadService;
@@ -29,6 +33,19 @@ public class UploadController {
 
     private final UploadService uploadService;
 
+    /** IP 维度限频器（与其余写入口同一实现） */
+    private final IpRateLimiter ipRateLimiter;
+
+    /**
+     * 转存限频：IP 维度 6/分 · 30/时。
+     * <p>
+     * 阈值高于 UGC 文本写入口（2/分）：本端点是**逐张**调用 —— 一次提交最多 3 张配图即连发 3 次，
+     * 按文本入口的阈值会误伤正常用户。
+     */
+    private static final IpRateLimiter.Rule PER_MINUTE = new IpRateLimiter.Rule(6, 60_000L);
+
+    private static final IpRateLimiter.Rule PER_HOUR = new IpRateLimiter.Rule(30, 3_600_000L);
+
     @Operation(
             summary = "云存储配图转存（UGC 配图主链路）",
             description = """
@@ -48,6 +65,26 @@ public class UploadController {
     )
     @PostMapping("/cloud-image")
     public Result<UploadResultVO> uploadCloudImage(@Valid @RequestBody CloudImageUploadReq req) {
+        checkRateLimit(SecurityUtil.getCurrentUserId());
         return Result.success(uploadService.uploadCloudImage(req.getFileId()));
+    }
+
+    /**
+     * 双维度滥用防护（**IP × 账号**，任一超限即拒）。
+     * <p>
+     * 本端点是**唯一有外部成本的写入口**：每次调用都会让后端向微信换取临时链接、下载图片、
+     * 送 {@code imgSecCheck} 并转存对象存储 —— 既烧微信调用配额也烧对象存储流量。
+     * 账号维度是换 IP 也绕不过的那一道。
+     */
+    private void checkRateLimit(Long userId) {
+        long waitSeconds = ipRateLimiter.tryAcquire(
+                "cloud-image", ClientIpUtil.resolveCurrent(), PER_MINUTE, PER_HOUR);
+        if (waitSeconds == 0L) {
+            waitSeconds = ipRateLimiter.tryAcquire("cloud-image:user",
+                    String.valueOf(userId), PER_MINUTE, PER_HOUR);
+        }
+        if (waitSeconds > 0) {
+            throw BusinessException.tooManyRequests("上传过于频繁，请 " + waitSeconds + " 秒后再试");
+        }
     }
 }

@@ -60,6 +60,13 @@
 ### `outcome` 必须显式落列
 「通过 / 不采纳」必须**可从行本身判定**：处置文案只有一列（原因并入其中），故结论独立落 `outcome` —— `handled` 通过 ｜ `rejected` 不采纳；`status='handled'` 时**必填**（应用层校验），`pending` 行恒 NULL。
 
+### `status` 与 `outcome` 的冗余是**有意的**
+`status` 可由 `outcome` 派生（`outcome IS NULL` ⇔ `pending`，非 NULL ⇔ `handled`），两列并存属**登记在案的冗余**（见 [README §派生数据与反范式清单](./README.md)）：
+
+- **为何保留 `status`**：待处置计数（看板）与按状态筛选都以它为索引前缀（`idx_task_status_created`），是唯一高频访问路径；
+- **结论真源是 `outcome`**：`status` 只是它的可索引投影；
+- **写入纪律**：两列由**同一处置动作**在同一事务内写入，不接受单独改一列（否则出现「pending 却有结论」这类不自洽行）。
+
 ### `handled_by` 记录处置人，且**必须有读方**
 `handled_by` 引用 `admin.id`，管理端处置列表 / 抽屉以 `handledByName` 出参呈现「处理人」—— 否则该列只写不读，违背字段可达性口径（见 [README §管理端字段可达性](./README.md)）。
 

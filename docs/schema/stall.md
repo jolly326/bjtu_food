@@ -8,7 +8,7 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 档口 ID |
-| `canteen_id` | BIGINT | NO | 0 | KEY | 所属食堂 ID（见 [canteen.md](./canteen.md)） |
+| `canteen_id` | BIGINT | NO | 无 | KEY | 所属食堂 ID（见 [canteen.md](./canteen.md)）；**必填、无默认值**（不用 `0` 占位） |
 | `name` | VARCHAR(64) | NO | `''` | | 档口名；经菜品位置行出参；**同食堂下唯一**（应用层校验） |
 | `images` | VARCHAR(1024) | YES | NULL | | 档口多图 JSON；经管理端出参 `images`（转绝对 URL 数组），**A2 详情抽屉内可编辑**（有序、首图作封面、≤5 张；序列化后 ≤1024，超长 `400`） |
 | `location` | VARCHAR(128) | YES | NULL | | 档口位置；经管理端出参 `location`，**A2 详情抽屉内可编辑**（≤128 字，空串 = 清空） |

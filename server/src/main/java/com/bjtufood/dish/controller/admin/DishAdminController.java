@@ -28,7 +28,8 @@ public class DishAdminController {
 
     private final DishService dishService;
 
-    @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。")
+    @Operation(summary = "后台菜品列表", description = "用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。"
+            + "支持 withoutStall=true 只看「未归入档口」的存量菜品（与 stallId 互斥，同时传 → 400）。")
     @GetMapping
     public Result<AdminPageResult<DishAdminListItemVO>> listMyDishes(
             @Parameter(description = "按档口筛选") @RequestParam(required = false) Long stallId,
@@ -38,9 +39,11 @@ public class DishAdminController {
             @RequestParam(required = false) String status,
             @Parameter(description = "关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径）")
             @RequestParam(required = false) String keyword,
+            @Parameter(description = "只看未归入档口的菜品（stall_id 为空）；与 stallId 互斥")
+            @RequestParam(required = false) Boolean withoutStall,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        DishAdminListQuery query = new DishAdminListQuery(stallId, canteenId, categoryId, status, keyword);
+        DishAdminListQuery query = new DishAdminListQuery(stallId, canteenId, categoryId, status, keyword, withoutStall);
         return Result.success(AdminPageResult.of(dishService.listAllForAdmin(query, page, pageSize)));
     }
 

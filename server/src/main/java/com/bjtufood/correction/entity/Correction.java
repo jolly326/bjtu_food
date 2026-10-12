@@ -21,15 +21,14 @@ import java.util.List;
  * <b>按 {@link #type} 分两类</b>：
  * <ul>
  *   <li>{@code field}（信息有误）：提交的各字段为用户修正后的新值（<b>改动项快照</b>），
- *       管理端采纳后整体写回 dish（adopt 路径）；</li>
+ *       使用时仅供管理员阅读对照；</li>
  *   <li>{@code gone}（已经下架）：<b>一键提交即可成立</b> —— 各差异项列<b>恒 NULL</b>
  *       （语义是「无可对照的原值」，不是「未改动」），仅 {@link #note} 与 {@link #images}
  *       承载<b>选填</b>补充；管理端处置<b>只能下架</b>（{@code dish.status=off}，可逆），
  *       <b>绝不删除</b>（删除会级联清掉该菜全部评价）。</li>
  * </ul>
  * <p>
- * 例外：{@code floor}（楼层纠错）归属<b>档口</b>而非菜品——菜品无楼层字段，
- * 采纳时写回目标档口的 {@code stall.floor}（同档口其他菜品一并生效），详情出参的 {@code floor} 亦来自 stall 联表。
+ * 例外：{@code floor}（楼层纠错）归属<b>档口</b>而非菜品——本反馈流程不写实时楼层，目标档口的 {@code stall.floor} 改动由管理员在 [A2 档口管理](../A-主数据维护/A2-档口管理.md) 手动执行；详情出参的 {@code floor} 仅作对照值，不参与本处置流程。
  */
 @Data
 @TableName(value = "correction", autoResultMap = true)
@@ -64,25 +63,22 @@ public class Correction {
     @Schema(description = "提交的食堂名称", example = "学一食堂")
     private String canteenName;
 
-    /** 提交的档口名称（自由文本，采纳时两段式确认归档） */
+    /** 提交的档口名称（自由文本，不参与本处置流程） */
     @Schema(description = "提交的档口名称", example = "学一基本伙食")
     private String stallName;
 
     /**
      * 提交的楼层（**改动项快照**，受控字典值·值即汉字，未改动留 NULL）。
      * <p>
-     * 楼层归属档口：采纳时写回<b>目标档口</b>的 {@code stall.floor}，而不是 dish
-     * （档口归属与 {@link #stallName} 一致，均经 canteen 域服务写契约下发）。
-     * 长度上限与 {@code stall.floor VARCHAR(16)} 一致，值域见 {@code canteen.constant.FloorDict}，
-     * 由 correction 侧提交时校验（字典外值 → 400）。
+     * 楼层归属<b>档口</b>而非菜品：本反馈流程**不写实时楼层**；目标档口的 {@code stall.floor} 改动仅由管理员在 [A2 档口管理](../A-主数据维护/A2-档口管理.md) 手动执行。长度上限与 {@code stall.floor VARCHAR(16)} 一致，值域见 {@code canteen.constant.FloorDict}，由 correction 侧提交时校验（字典外值 → 400）。
      */
-    @Schema(description = "提交的楼层（受控字典值·值即汉字，采纳时写回目标档口 stall.floor）", example = "二层")
+    @Schema(description = "提交的楼层（受控字典值·值即汉字，不写入本处置流程，仅作对照）", example = "二层")
     private String floor;
 
     /**
      * 提交的描述属性（**改动项快照**：仅含用户改动的维度，未改动维度留 NULL）。
-     * JSON 对象：键 = 维度 {@code id}（字符串形态），值 = <b>中文文本 / 数组</b>
-     * （采纳时由服务端按「维度 + 中文」解析为取值 ID 后写回 {@code dish.attributes}）。
+     * <p>
+     * 快照仅作留痕：本反馈流程**不写入** {@code dish.attributes}；取值 ID 解析与字典登记发生在 [A3 菜品管理](../A-主数据维护/A3-菜品管理.md) 编辑链路。
      */
     @Schema(description = "提交的描述属性（JSON：键=维度 ID，值=中文/数组；仅改动维度，可空）",
             example = "{\"1\":\"素\",\"3\":[\"辣\",\"酸\"]}")

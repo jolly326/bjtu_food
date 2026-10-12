@@ -8,13 +8,15 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 评价 ID |
-| `user_id` | BIGINT | NO | 无 | FK→user | 评价者；取自 JWT，**禁止信任前端传入**；**现行写入路径恒为真实用户** —— 提交评价需学号邮箱认证（[`POST /dishes/{id}/reviews`](../api/client/dishes.md#post-dishesidreviews)），服务端按登录态回填。**已收紧为 `NOT NULL`，无默认占位值 `0`** |
-| `dish_id` | BIGINT | NO | 0 | KEY, FK→dish | 所属菜品 |
+| `user_id` | BIGINT | NO | 无 | FK→user | 评价者；取自 JWT，**禁止信任前端传入**；服务端按登录态回填，**写入路径恒为真实用户** —— 提交评价需学号邮箱认证（[`POST /dishes/{id}/reviews`](../api/client/dishes.md#post-dishesidreviews)）。**`NOT NULL` 且无默认值，不存在占位 `0`** |
+| `dish_id` | BIGINT | NO | 无 | KEY, FK→dish | 所属菜品；**必填、无默认值**（不用 `0` 占位） |
 | `rating` | INT | NO | 0 | | 评分 **1~5** |
 | `content` | VARCHAR(512) | YES | NULL | | 评价文字；可只打星不写字（底层允许 NULL，出参空串兜底） |
 | `images` | VARCHAR(1024) | YES | NULL | | 配图 JSON 数组（COS 绝对地址），≤3 张 |
 | `is_hidden` | TINYINT | NO | 0 | | `0` 可见 / `1` 被管理员隐藏 |
 | `hidden_note` | VARCHAR(200) | YES | NULL | | 隐藏附注（管理员**可选**填写，随回执下发给作者）；`is_hidden = 0` 时为 NULL |
+| `moderated_by` | BIGINT | YES | NULL | KEY, FK→admin | **处置人**（最近一次可见性处置）；未处置为 NULL。🔴 **覆盖式**，随 `hidden_note` 同生命周期（见下「评价处置的留痕边界」） |
+| `moderated_at` | DATETIME | YES | NULL | | **处置时间**（最近一次可见性处置）；未处置为 NULL。**由处置 UPDATE 以 DB 时钟 `NOW()` 写入、不用 `ON UPDATE`** —— 用户重评覆盖本行时会误刷新该列 |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | 发表时间；🔴 **重复提交保留原值**（覆盖不改时间 ⇒ 评价位置固定，见下「关键设计」） |
 
 ## 索引
@@ -25,6 +27,7 @@
 | `uk_review_user_dish` | `user_id`, `dish_id` | **唯一** | **一人一菜一条评价** |
 | `idx_review_dish_visible` | `dish_id`, `is_hidden`, `created_at` | 复合 | **菜品详情评价列表**（`WHERE dish_id=? AND is_hidden=0 ORDER BY created_at DESC`，无 filesort） |
 | `idx_review_user_visible` | `user_id`, `is_hidden`, `created_at` | 复合 | **「我的评价」**（`WHERE user_id=? AND is_hidden=0 ORDER BY created_at DESC`） |
+| `fk_review_moderated_by` | `moderated_by` | **外键** | `admin(id)`，**无级联**（外键要求该列上存在索引） |
 
 > 索引设计说明：单列 `idx_review_user` 已由复合索引 `idx_review_user_visible` 取代（前缀即 `user_id`）；`idx_review_dish` **保留** —— 外键 `fk_review_dish`（`review.dish_id → dish.id`）要求该列上存在索引，不可删除。
 > **本表无 `updated_at`** —— 「管理端列表统一带 `updatedAt`」口径的**明确例外**：`created_at` **只表达「首次发表时间」**，覆盖更新**不刷新**它（见下「关键设计」）。
@@ -52,6 +55,17 @@
 - 不设「已下架」态；管理员可事后隐藏（举报 → 处置通道）
 - **隐藏 / 删除会投递站内回执**（登录级）；隐藏可附 `hidden_note`（可选文案）；回执失败**不阻塞**处置
 
+### 评价处置的留痕边界（与三类工单不同口径）
+评价的隐藏是**可反复切换的状态**（不是一次性归档），故不落 [`moderation_task`](./moderation_task.md) —— 处置留痕直接落在本表：
+
+| 项 | 口径 |
+|---|---|
+| 留痕内容 | `moderated_by`（**处置人**）+ `moderated_at`（**处置时间**）+ `is_hidden`（当前态）+ `hidden_note`（隐藏附注） |
+| 覆盖式语义 | 只记**最近一次**可见性处置：**隐藏与恢复显示**两种处置都写，每次整体覆盖（4 列同批写入），随 `hidden_note` **同生命周期**（无历史处置记录，不含处置次数） |
+| 写入时机 | 处置 `UPDATE` 同时写 `is_hidden` / `hidden_note` / `moderated_by` / `moderated_at` |
+| 处置人识别 | `moderated_by` → [`admin.id`](./admin.md)（外键 `fk_review_moderated_by`，无级联）；出参以 `moderatedByName`（登录名）呈现 |
+| 删除 | **物理删行、不留痕** —— 删除后既无处置人亦无处置时间（行已不存在） |
+
 ### 评分聚合口径
 **仅统计 `is_hidden = 0` 的评价**，结果写入 `dish.avg_rating` / `dish.rating_count` 两个**缓存列**（见 [dish.md](./dish.md#派生与缓存列)）。
 
@@ -61,6 +75,7 @@
 |---|---|---|---|
 | N→1 | `dish.id` | 所属菜品 | **`ON DELETE CASCADE`**（外键名 `fk_review_dish`） |
 | N→1 | `user.id` | 评价者 | 无级联（外键 `fk_review_user`） |
+| N→1 | `admin.id` | **处置人**（最近一次可见性处置） | 无级联（外键 `fk_review_moderated_by`）—— `admin` 行不做物理删除（[admin.md](./admin.md)） |
 
 **菜品删除的级联是两级防护**：
 

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
@@ -177,6 +178,21 @@ class VerifyCodePersisterTest {
         assertThat(evt.getValue().fromUserId()).isEqualTo(9L);
         assertThat(evt.getValue().toUserId()).isEqualTo(1L);
         assertThat(current.getEmail()).isEqualTo("20240001@bjtu.edu.cn");
+    }
+
+    @Test
+    @DisplayName("写入：唯一索引 uk_user_email 兜底（并发两笔写同一非空邮箱）→ 400「该邮箱已被其他账号占用」，不得退化为 500")
+    void duplicateEmailIsReportedAsBusinessError() {
+        // 正常路径会先腾空旧占用者；能落到唯一索引上的只有「两笔并发各自都没查到占用者」的竞态
+        when(userMapper.selectOne(any())).thenReturn(null);
+        when(userMapper.updateById(any())).thenThrow(new DuplicateKeyException("uk_user_email"));
+        User current = user(1L);
+
+        assertThatThrownBy(() -> persister().applyVerifiedBinding(current, "20240001@bjtu.edu.cn"))
+                .isInstanceOf(BusinessException.class)
+                .as("库级冲突必须转既有 400 文案（见 docs/api/client/auth.md）；落到兜底 500 会让端上无法提示")
+                .hasMessage("该邮箱已被其他账号占用")
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
     }
 
     @Test

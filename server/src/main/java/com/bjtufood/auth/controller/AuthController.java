@@ -64,6 +64,14 @@ public class AuthController {
     /** 请求头中 Token 的前缀（与 JwtAuthFilter 保持一致） */
     private static final String TOKEN_PREFIX = "Bearer ";
 
+    /**
+     * 修改资料限频：账号维度 5/分。
+     * <p>
+     * 昵称变更会外呼微信 {@code msgSecCheck}（有外部成本），故按账号维度挂闸（换 IP 绕不过）；
+     * 挂账号维度而非 IP，避免校园网 NAT 共享出口的同 IP 多用户互相挤兑。
+     */
+    private static final IpRateLimiter.Rule PROFILE_USER_PER_MINUTE = new IpRateLimiter.Rule(5, 60_000L);
+
     @Operation(
             summary = "获取邮箱验证码（认证用途）",
             description = """
@@ -194,7 +202,17 @@ public class AuthController {
     @PutMapping("/auth/profile")
     public Result<UserInfoVO> updateProfile(@Valid @RequestBody ProfileUpdateReq req) {
         Long userId = SecurityUtil.getCurrentUserId();
+        checkProfileRateLimit(userId);
         return Result.success(authService.updateProfile(userId, req));
+    }
+
+    /** 修改资料限频（账号维度 5/分）：昵称变更触发微信机审（外部成本），防脚本连续改资料。 */
+    private void checkProfileRateLimit(Long userId) {
+        long waitSeconds = ipRateLimiter.tryAcquire(
+                "profile:user", String.valueOf(userId), PROFILE_USER_PER_MINUTE);
+        if (waitSeconds > 0) {
+            throw BusinessException.tooManyRequests("操作过于频繁，请 " + waitSeconds + " 秒后再试");
+        }
     }
 
     @Operation(

@@ -39,7 +39,7 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `dishesWithoutImage` | number | **无图片**的菜品数 |
-| `dishesWithoutStall` | number | **未归入档口**的菜品数（`stall_id = 0`） |
+| `dishesWithoutStall` | number | **未归入档口**的菜品数（`stall_id` 为空） |
 | `dishesWithoutCategory` | number | **种类为空**的菜品数（`dish.category_id IS NULL`） |
 | `stallsWithoutDish` | number | **无菜品**的档口数（空档口） |
 

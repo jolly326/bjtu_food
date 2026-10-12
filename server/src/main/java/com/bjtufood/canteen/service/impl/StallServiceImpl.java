@@ -53,7 +53,7 @@ public class StallServiceImpl implements StallService {
     //   若由 canteen 主动拉取，会形成 canteen -> review -> dish -> canteen 包级循环依赖。
     //   故 canteen 只产出档口自身字段，均分由编排方（CanteenAdminController）
     //   调用 ReviewQueryService 补齐——controller 位于依赖图顶端，不产生新包级边。
-    //   口径与出参（含无评价时按 0.00 兜底）保持不变。
+    //   出参口径（1 位小数；无可见评价按 0.0 兜底）保持不变。
 
     @Override
     public List<StallAdminVO> listAllForAdmin() {
@@ -75,17 +75,17 @@ public class StallServiceImpl implements StallService {
         // 查询数仍随行数线性放大）。跨行批量化范式与 CanteenAdminController#fillAvgRatings 一致。
         Map<Long, String> canteenNames = loadCanteenNames(stalls);
         // 均分由调用方批量补齐（编排在 CanteenAdminController#fillAvgRatings，以断开 canteen -> review 包级边）；
-        // 本方法只负责档口自身字段，未补齐前保持 0.00 语义。
+        // 本方法只负责档口自身字段，未补齐前保持 0.0 兜底语义（无可见评价即 0.0，不为 null）。
         return stalls.stream()
-                .map(s -> toAdminVO(s, canteenNames.get(s.getCanteenId()), BigDecimal.ZERO))
+                .map(s -> toAdminVO(s, canteenNames.get(s.getCanteenId()), new BigDecimal("0.0")))
                 .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, StallSaveReq req) {
-        // canteen_id=0 收口：canteenId 是必填字段，必须为有效食堂
-        // （dish 列表/详情 joinDishSql 对 canteen 为 INNER JOIN，挂 0 的档口菜品会被静默剔除）。
+        // canteenId 为 NOT NULL 必填且必须命中有效食堂：id 值域为正整数，0 / 负数 / 不存在的 id
+        // 一律不合法（菜品列表与详情对 canteen 走 INNER JOIN，挂到无效食堂的档口其菜品会被静默剔除）。
         if (req.getCanteenId() == null || req.getCanteenId() <= 0
                 || canteenMapper.selectById(req.getCanteenId()) == null) {
             throw new BusinessException(MSG_CANTEEN_REQUIRED);
@@ -198,7 +198,8 @@ public class StallServiceImpl implements StallService {
         saved.setWindowNo(StringUtils.hasText(req.getWindowNo()) ? req.getWindowNo() : null);
         applyOptionalFields(saved, req);
         stallMapper.insert(saved);
-        return toAdminVO(stallMapper.selectById(saved.getId()), canteen.getName(), BigDecimal.ZERO);
+        // 新建档口必然零评价 ⇒ 均分按 0.0 兜底（不为 null，端上无需判空）
+        return toAdminVO(stallMapper.selectById(saved.getId()), canteen.getName(), new BigDecimal("0.0"));
     }
 
     @Override
@@ -252,7 +253,8 @@ public class StallServiceImpl implements StallService {
         }
         Long canteenId = upsertCanteenIdByName(rawCanteenName);
         if (canteenId == null) {
-            // 新建档口必须挂有效食堂：拦截在写入前，杜绝 canteen_id=0 的不可见脏数据
+            // 新建档口必须挂有效食堂：拦截在写入前（canteen_id 为 NOT NULL 必填），
+            // 否则会产出「食堂无效 ⇒ 菜品在任何联表列表中都查不到」的不可见脏数据
             throw new BusinessException(MSG_CANTEEN_REQUIRED);
         }
         Stall stall = new Stall();
@@ -301,8 +303,10 @@ public class StallServiceImpl implements StallService {
     public long countWithoutDish() {
         // `NOT IN (SELECT ...)` 用 EXISTS 语义更稳，但 MyBatis-Plus 的 notInSql 已足够且更易读；
         // 子查询只扫 dish.stall_id（档口量级为十数条），无性能顾虑。
+        // 🔴 必须排除 stall_id 为空的行：`NOT IN` 的子查询一旦含 NULL，整条谓词恒为 UNKNOWN
+        // ⇒ 空档口数会被算成 0（「未归入档口」的菜品不应把任何档口判定为「有菜」）。
         return stallMapper.selectCount(new LambdaQueryWrapper<Stall>()
-                .notInSql(Stall::getId, "SELECT stall_id FROM dish WHERE stall_id > 0"));
+                .notInSql(Stall::getId, "SELECT stall_id FROM dish WHERE stall_id IS NOT NULL"));
     }
 
     @Override
@@ -340,9 +344,9 @@ public class StallServiceImpl implements StallService {
     /**
      * 按名 upsert 食堂（仅当新建档口时消费）：有效名称查字典命中则复用，未命中自动建档。
      * <p>
-     * 空白/「其他」等空值语义名称 <b>不建档也不落 0</b>，返回 null 由调用方 400 拦截
-     * （收口：旧逻辑返回 0L 会产生 canteen_id=0 的档口，其菜品被
-     * joinDishSql 的 INNER JOIN 静默剔除，属隐性数据丢失）。
+     * 空白/「其他」等空值语义名称 <b>不建档</b>，返回 null 由调用方 400 拦截 ——
+     * {@code stall.canteen_id} 为 NOT NULL 必填，无有效食堂名时不允许写库
+     * （否则该档口下的菜品会因联表 INNER JOIN 被静默剔除，属隐性数据丢失）。
      *
      * @return 食堂 ID；null=无可解析的有效食堂名（调用方必须 400，不得写库）
      */
@@ -427,8 +431,9 @@ public class StallServiceImpl implements StallService {
         vo.setDescription(orEmpty(stall.getDescription()));
         vo.setImages(imageUrlUtil.parseAndToAbsoluteUrls(stall.getImages()));
         // 档口评分统一实时聚合（均分不落库，与 toVO 同口径，避免两端不一致）
-        // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.00 兜底
-        vo.setAvgRating((avgRating != null ? avgRating : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
+        // BE-08：avgRating 由批量 IN 查询一次性取回；无评价（不在结果集）按 0.0 兜底
+        // 🔴 精度固定 1 位小数：与 dish.avg_rating（DECIMAL(3,1)）及档口均分聚合口径同源
+        vo.setAvgRating((avgRating != null ? avgRating : new BigDecimal("0.0")).setScale(1, RoundingMode.HALF_UP));
         vo.setUpdatedAt(stall.getUpdatedAt());
         return vo;
     }

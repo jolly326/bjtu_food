@@ -52,7 +52,7 @@ public class CorrectionController {
             + "**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）"
             + "｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；"
             + "传差异项字段 → 400；同用户对同一菜品只计一次）。"
-            + "floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。"
+            + "floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），归属档口（管理员据此在档口管理手动修改 stall.floor）。"
             + "菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。"
             + "同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。")
     @PostMapping("/dishes/{id}/correction")

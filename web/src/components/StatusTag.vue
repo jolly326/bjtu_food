@@ -10,7 +10,7 @@
  * - **`dish`：在售 / 已下架**（菜品本体，刻意与 `onoff` 区分）
  * - `user`：正常 / 已禁用 / 已注销
  * - `feedback`：待处理 / 已处理
- * - `correction`：待处理 / 已采纳 / 已拒绝
+ * - `correction`：待处理 / 已受理 / 已拒绝（已处置的两种结论由页面按 `outcome` 派生键）
  * - **`correctionType`：信息有误 / 已经下架**（菜品问题反馈的**类型列**，两档同为中性灰 ——
  *   「已经下架」不是错误，与 `dish` 的「已下架」同色档）
  * - `review`：显示中 / 已隐藏（传 `visible` / `hidden`）
@@ -40,10 +40,20 @@ const LABELS: Record<string, string> = {
   deleted: '已注销',
   pending: '待处理',
   handled: '已处理',
-  adopted: '已采纳',
   rejected: '已拒绝',
   visible: '显示中',
   hidden: '已隐藏',
+}
+
+/**
+ * 菜品问题反馈状态文案（`kind='correction'`）。
+ * 契约 `status` 只有 `pending` / `handled` 两档，「已受理 / 已拒绝」由页面按 `outcome` 派生键
+ * —— 理由见 [菜品问题反馈 §一 #4](../../../docs/ui/web/菜品问题反馈.md)。
+ */
+const CORRECTION_LABELS: Record<string, string> = {
+  pending: '待处理',
+  handled: '已受理',
+  rejected: '已拒绝',
 }
 
 function label(): string {
@@ -51,6 +61,7 @@ function label(): string {
   if (props.kind === 'dish') return s === 'on' ? '在售' : '已下架'
   // 反馈类型（`field` / `gone`）：两者都是「用户在说什么」，不是处理结论 —— 两档均中性灰
   if (props.kind === 'correctionType') return s === 'gone' ? '已经下架' : '信息有误'
+  if (props.kind === 'correction') return CORRECTION_LABELS[s] ?? s
   return LABELS[s] ?? s
 }
 
@@ -65,7 +76,7 @@ function cls(): string {
   if (props.kind === 'correctionType') return 'tag tag-gray'
   if (props.kind === 'feedback' || props.kind === 'correction') {
     if (s === 'pending') return 'tag tag-gray'
-    if (s === 'handled' || s === 'adopted') return 'tag tag-green'
+    if (s === 'handled') return 'tag tag-green'
     return 'tag tag-red'
   }
   // onoff / dish：on 绿、off 中性灰（"下架"不是错误，不引入红色）

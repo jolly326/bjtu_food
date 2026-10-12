@@ -6,7 +6,6 @@ import com.bjtufood.dish.dto.DishAdminListItemVO;
 import com.bjtufood.dish.dto.DishAdminListQuery;
 import com.bjtufood.dish.dto.DishAdminVO;
 import com.bjtufood.dish.dto.DishHealthVO;
-import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
@@ -69,8 +68,8 @@ public interface DishService {
      * 获取菜品详情
      * <p>
      * <b>浏览计数副作用（PV 口径）</b>：本方法在**成功取到详情后**向 {@code dish_view_log}
-     * 插一行浏览明细（**不去重**：同一用户反复看同一道菜每次都计；🔴 <b>不累加 {@code dish.view_count}</b>，
-     * 该列已停写）。菜品不存在（含已下架）抛
+     * 插一行浏览明细（**不去重**：同一用户反复看同一道菜每次都计；🔴 该明细是浏览量的**唯一载体**，
+     * 菜品上不维护累计列）。菜品不存在（含已下架）抛
      * {@code BusinessException(4001)}，**不计数**。
      * <p>
      * 🔴 <b>浏览量不参与任何排序</b>（热度算法已全量下线）：唯一消费方是管理端「近 30 天浏览」列，
@@ -247,15 +246,4 @@ public interface DishService {
      * @return dishId → name 映射
      */
     Map<Long, String> mapNameByIds(Collection<Long> dishIds);
-
-    /**
-     * 纠错采纳写回（跨域写契约：correction → dish）。
-     * <p>
-     * 写库动作与落库形态（images 的 JSON 序列化、null 字段跳过不覆盖策略）由 dish 域唯一持有；
-     * 调用方 SHALL NOT 再构造 {@code Dish} 实体或注入 DishMapper。
-     *
-     * @param cmd 写回指令（可空字段按「不覆盖既有值」处理）
-     * @return true=已写回；false=目标菜品行不存在（并发删除，调用方按 4001 处理）
-     */
-    boolean applyCorrection(DishCorrectionCmd cmd);
 }

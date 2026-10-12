@@ -12,8 +12,10 @@ import java.util.Map;
  * 后台菜品列表展示信息（管理端专用）。
  * <p>
  * 与公开 VO 的差异：保留 {@code status}（上下架，管理端需处置）、{@code stallId} /
- * {@code createdAt} / {@code updatedAt}（管理端维护用）；<b>不返回 {@code viewCount}</b>
- * （管理端不展示）。
+ * {@code createdAt} / {@code updatedAt}（管理端维护用）。
+ * <p>
+ * <b>不返回浏览量</b> —— 浏览量的唯一载体是 {@code dish_view_log}（30 天滚动窗口明细），
+ * 其派生值 {@code recentViewCount} 只在<b>管理端列表行</b>下发（见 {@link DishAdminListItemVO}）。
  */
 @Data
 @Schema(description = "后台菜品列表展示信息")
@@ -22,7 +24,7 @@ public class DishAdminVO {
     @Schema(description = "菜品ID")
     private Long id;
 
-    @Schema(description = "所属档口ID")
+    @Schema(description = "所属档口ID（null = 未归入档口）")
     private Long stallId;
 
     @Schema(description = "菜品名称", example = "牛肉拉面")
@@ -43,7 +45,7 @@ public class DishAdminVO {
     @Schema(description = "状态（on/off）", example = "on")
     private String status;
 
-    @Schema(description = "平均评分", example = "4.5")
+    @Schema(description = "平均评分（1 位小数；零评价为 null）", example = "4.5")
     private BigDecimal avgRating;
 
     @Schema(description = "评价数")

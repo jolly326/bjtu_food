@@ -5,21 +5,18 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.service.UserService;
-import com.bjtufood.canteen.dto.StallBriefVO;
 import com.bjtufood.canteen.service.StallService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
 import com.bjtufood.correction.constant.CorrectionConst;
 import com.bjtufood.correction.dto.CorrectionAdminVO;
 import com.bjtufood.correction.dto.CorrectionDetailVO;
-import com.bjtufood.correction.dto.DishCorrectionAdoptReq;
 import com.bjtufood.correction.dto.DishCorrectionDifferenceVO;
+import com.bjtufood.correction.dto.DishCorrectionHandleReq;
 import com.bjtufood.correction.dto.DishCorrectionReq;
-import com.bjtufood.correction.dto.StallConfirmVO;
 import com.bjtufood.correction.entity.Correction;
 import com.bjtufood.correction.mapper.CorrectionMapper;
 import com.bjtufood.dish.dto.DishAdminVO;
-import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.service.DishAttributeAdminService;
 import com.bjtufood.dish.service.DishService;
 import com.bjtufood.moderation.constant.ModerationConst;
@@ -51,16 +48,17 @@ import static org.mockito.Mockito.when;
 /**
  * {@link CorrectionServiceImpl} 单元测试。
  * <p>
- * 目的：把提交 / 处置的可见行为钉死。聚焦五类退化后即为安全 / 数据问题的逻辑：
+ * 目的：把提交 / 处置的可见行为钉死。聚焦四类退化后即为安全 / 数据问题的逻辑：
  * <ol>
  *   <li><b>局部提交（patch）语义</b>：未传字段保持未改动（落库 NULL），空请求体 400「未提交任何改动」；</li>
  *   <li><b>机审合并送检</b>：多文本字段须合并为<b>单次</b> {@code checkText}（按调用计费）；
  *       纯 price / images 改动<b>不送检</b>；</li>
- *   <li><b>处置前置校验</b>：处置任务非 pending 一律 400（重复点击 = 已处理），菜品物理删除 4001；</li>
- *   <li><b>两段式档口确认</b>：未命中且未确认新建 ⇒ 只返回候选、<b>不得写回 dish / stall</b>；</li>
- *   <li><b>楼层纠错</b>：floor 传入即非空 / ∈ 楼层字典（值即汉字）/ ≤16 字校验；仅改楼层也算「有改动」；
- *       采纳时 floor 写回<b>目标档口</b>（{@code stall.floor}）而非 dish，且档口未落定前不得写。</li>
+ *   <li><b>处置前置校验</b>：处置任务非 pending 一律 400（重复点击 = 已处理），反馈不存在 4001；</li>
+ *   <li><b>楼层纠错</b>：floor 传入即非空 / ∈ 楼层字典（值即汉字）/ ≤16 字校验；仅改楼层也算「有改动」。</li>
  * </ol>
+ * <b>标记已处理不改写菜品</b>：{@code handle} 只归档 {@code outcome=handled}（已受理）+ 回执，
+ * 菜品资料修改 / {@code gone} 可逆下架由管理员在菜品管理手动执行，不在本域。
+ * <p>
  * <b>处置归档与回执</b>（状态 / 结论 / 文案 / 投递）已外置到处置任务服务，
  * 由 {@code ModerationTaskServiceImplTest} 逐条断言；本类只断言「委派时的入参正确」。
  * <p>
@@ -133,10 +131,11 @@ class CorrectionServiceImplTest {
         return live;
     }
 
-    /** 采纳请求：只勾选给定差异项（逐项采纳） */
-    private static DishCorrectionAdoptReq adoptReq(String... fields) {
-        DishCorrectionAdoptReq req = new DishCorrectionAdoptReq();
-        req.setAcceptedFields(List.of(fields));
+    /** 标记已处理请求：带可选回执标题 / 处理附注 */
+    private static DishCorrectionHandleReq handleReq(String title, String content) {
+        DishCorrectionHandleReq req = new DishCorrectionHandleReq();
+        req.setReplyTitle(title);
+        req.setReplyContent(content);
         return req;
     }
 
@@ -412,268 +411,93 @@ class CorrectionServiceImplTest {
         when(correctionMapper.selectPage(any(), any())).thenReturn(page);
         when(userService.mapNameByIds(any())).thenReturn(Map.of(1L, "交大干饭王", 2L, "食堂常客"));
         when(dishService.mapNameByIds(any())).thenReturn(Map.of(3L, "牛肉拉面"));
-        when(dishService.mapStallIdByIds(any())).thenReturn(Map.of(3L, 10L));
-        when(dishService.countByStallId(anyLong())).thenReturn(4L);
 
         List<CorrectionAdminVO> records = service().listForAdmin(null, null, null, 1, 10).getRecords();
 
         assertThat(records).hasSize(2);
         assertThat(records.get(0).getFloor()).isEqualTo("二层");
-        assertThat(records.get(0).getFloorImpact()).isEqualTo("将同步修改该档口下 4 个菜品");
         assertThat(records.get(1).getFloor()).isNull();
     }
 
-    // ==================== adopt：前置校验与两段式档口确认 ====================
+    // ==================== 标记已处理：前置校验 + 只归档不改菜品 ====================
 
     @Test
-    @DisplayName("adopt：纠错不存在 → 4001（目标态契约，见 docs/api/web/corrections.md）")
-    void adopt_notFound_4001() {
+    @DisplayName("handle：反馈不存在 → 4001（目标态契约，见 docs/api/web/corrections.md）")
+    void handle_notFound_4001() {
         when(correctionMapper.selectById(anyLong())).thenReturn(null);
-        assertThatThrownBy(() -> service().adopt(9L, null, 1L))
+        assertThatThrownBy(() -> service().handle(9L, null, 1L))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
     }
 
     @Test
-    @DisplayName("adopt：处置任务缺失（数据不一致）→ 4001（不当成「已处理」误导管理员）")
-    void adopt_taskMissing_4001() {
+    @DisplayName("handle：处置任务缺失（数据不一致）→ 4001（不当成「已处理」误导管理员）")
+    void handle_taskMissing_4001() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
         when(moderationTaskService.findByTypeAndId(eq(ModerationConst.TYPE_CORRECTION), anyLong())).thenReturn(null);
 
-        assertThatThrownBy(() -> service().adopt(9L, adoptReq("name"), 1L))
+        assertThatThrownBy(() -> service().handle(9L, handleReq(null, null), 1L))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
-        verify(dishService, never()).applyCorrection(any());
+        verify(moderationTaskService, never()).handle(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
-    @DisplayName("adopt：已处置（非 pending）→ 400（幂等：重复点击读作「该反馈已处理」）")
-    void adopt_alreadyHandled_400() {
+    @DisplayName("handle：已处置（非 pending）→ 400（幂等：重复点击读作「该反馈已处理」）")
+    void handle_alreadyHandled_400() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
         ModerationTaskVO handled = new ModerationTaskVO();
         handled.setStatus(ModerationConst.STATUS_HANDLED);
         when(moderationTaskService.findByTypeAndId(eq(ModerationConst.TYPE_CORRECTION), anyLong()))
                 .thenReturn(handled);
 
-        assertThatThrownBy(() -> service().adopt(9L, adoptReq("name"), 1L))
+        assertThatThrownBy(() -> service().handle(9L, handleReq(null, null), 1L))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(dishService, never()).applyCorrection(any());
-    }
-
-    @Test
-    @DisplayName("adopt：目标菜品已被物理删除 → 4001 且不写回")
-    void adopt_dishDeleted_4001() {
-        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
-        when(dishService.existsById(anyLong())).thenReturn(false);
-
-        assertThatThrownBy(() -> service().adopt(9L, adoptReq("name"), 1L))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
-        verify(dishService, never()).applyCorrection(any());
-    }
-
-    @Test
-    @DisplayName("adopt：档口名未命中且未确认新建 → 只返回候选，**不得写回 dish、不得归档**")
-    void adopt_unmatchedStall_returnsCandidatesWithoutWriting() {
-        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.findIdByName(any())).thenReturn(null);
-        StallBriefVO s = mock(StallBriefVO.class);
-        when(s.getId()).thenReturn(11L);
-        when(s.getName()).thenReturn("清真面档B");
-        when(stallService.listBriefCandidates(any())).thenReturn(List.of(s));
-
-        StallConfirmVO result = service().adopt(9L, adoptReq("stallName"), 1L);
-
-        assertThat(result).isNotNull();
-        // record 访问器：needStallConfirm() / candidates()
-        assertThat(result.needStallConfirm()).isTrue();
-        assertThat(result.candidates()).hasSize(1);
-        // 关键：未确认前绝不写回，也不把反馈标记为已处置
-        verify(dishService, never()).applyCorrection(any());
         verify(moderationTaskService, never()).handle(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
-    @DisplayName("adopt：显式 stallId 不存在 → 400")
-    void adopt_explicitStallMissing_400() {
+    @DisplayName("handle：field 型 → 归档 outcome=handled + 缺省文案，**绝不写回 dish / stall**")
+    void handle_field_archivesWithoutWritingDish() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.existsById(anyLong())).thenReturn(false);
-        DishCorrectionAdoptReq req = adoptReq("stallName");
-        req.setStallId(404L);
 
-        assertThatThrownBy(() -> service().adopt(9L, req, 1L))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(dishService, never()).applyCorrection(any());
-    }
+        service().handle(9L, null, 1L);
 
-    @Test
-    @DisplayName("adopt：档口名精确命中 → 写回 dish + 归档 handled（缺省回执文案交由处置任务服务）")
-    void adopt_matchedStall_appliesAndArchives() {
-        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.findIdByName(any())).thenReturn(10L);
-        when(dishService.applyCorrection(any())).thenReturn(true);
-
-        // 命中即直接采纳，无需二次确认（采纳了档口项才走两段式解析）
-        assertThat(service().adopt(9L, adoptReq("stallName"), 3L)).isNull();
-
-        ArgumentCaptor<DishCorrectionCmd> cmd = ArgumentCaptor.forClass(DishCorrectionCmd.class);
-        verify(dishService).applyCorrection(cmd.capture());
-        assertThat(cmd.getValue().getDishId()).isEqualTo(3L);
-        assertThat(cmd.getValue().getStallId()).isEqualTo(10L);
-
-        // 提交行不被改写（append-only）：处置结果只落在处置任务行
+        verify(moderationTaskService).handle(ModerationConst.TYPE_CORRECTION, 9L, ModerationConst.OUTCOME_HANDLED,
+                CorrectionConst.HANDLE_TITLE, CorrectionConst.HANDLE_REPLY, 1L, 1L);
+        // 红线：标记已处理不改菜品（不写 dish 上下架、不写 stall 楼层）
+        verify(dishService, never()).updateStatus(anyLong(), anyString());
+        verify(stallService, never()).updateFloor(any(), any());
+        // 提交行 append-only：处置不改写提交行
         verify(correctionMapper, never()).updateById(any());
-
-        // 只采纳档口项 ⇒ 部分采纳：缺省回执文案逐项告知（未填附注时不至于让用户以为全被采纳）
-        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(moderationTaskService).handle(eq(ModerationConst.TYPE_CORRECTION), eq(9L),
-                eq(ModerationConst.OUTCOME_HANDLED), eq(null), content.capture(), eq(3L), eq(1L));
-        assertThat(content.getValue()).contains("已采纳：档口名称").contains("未采纳：");
     }
 
     @Test
-    @DisplayName("adopt：本次纠错含楼层改动 → 写回**目标档口** stall.floor（楼层归属档口，不写 dish）")
-    void adopt_floorChanged_writesBackToResolvedStall() {
-        Correction c = pendingCorrection(1L);
-        c.setFloor("二层");
-        when(correctionMapper.selectById(anyLong())).thenReturn(c);
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.findIdByName(any())).thenReturn(10L);
-        when(dishService.applyCorrection(any())).thenReturn(true);
-
-        assertThat(service().adopt(9L, adoptReq("stallName", "floor"), 1L)).isNull();
-
-        // 落点 = 本次采纳解析出的目标档口（两段式确认的最终结果），而非提交名对应的档口
-        verify(stallService).updateFloor(10L, "二层");
-        // 楼层不进 dish 写回指令（DishCorrectionCmd 无 floor 字段）：菜品无楼层列
-        ArgumentCaptor<DishCorrectionCmd> cmd = ArgumentCaptor.forClass(DishCorrectionCmd.class);
-        verify(dishService).applyCorrection(cmd.capture());
-        assertThat(cmd.getValue().getStallId()).isEqualTo(10L);
-    }
-
-    @Test
-    @DisplayName("adopt：只采纳 floor（未采纳档口项）→ 不触发两段式确认，楼层写回该菜**当前所属档口**")
-    void adopt_floorOnlyWithoutStallItem_writesToCurrentStall() {
-        Correction c = pendingCorrection(1L);
-        c.setFloor("二层");
-        c.setStallName(null);   // 档口名未改动的局部提交
-        c.setCanteenName(null);
-        when(correctionMapper.selectById(anyLong())).thenReturn(c);
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(dishService.applyCorrection(any())).thenReturn(true);
-
-        // 只勾选 floor：档口未变 ⇒ 不需要（也不应要求）管理端确认档口
-        assertThat(service().adopt(9L, adoptReq("floor"), 1L)).isNull();
-
-        // 楼层写回该菜**当前所属档口**（liveDish.stallId=10L），而不是提交/指定的档口
-        verify(stallService).updateFloor(10L, "二层");
-        verify(stallService, never()).findIdByName(any());
-    }
-
-    @Test
-    @DisplayName("adopt：本次纠错未改楼层（floor=null）→ 不触碰档口楼层（空值不得覆盖既有 stall.floor）")
-    void adopt_floorAbsent_doesNotTouchStallFloor() {
+    @DisplayName("handle：管理员自填回执标题 / 附注 → 原样下发（trim）")
+    void handle_customTitleAndNote_win() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.findIdByName(any())).thenReturn(10L);
-        when(dishService.applyCorrection(any())).thenReturn(true);
 
-        assertThat(service().adopt(9L, adoptReq("stallName"), 1L)).isNull();
+        service().handle(9L, handleReq(" 已核实 ", " 已按反馈更正 "), 3L);
 
-        verify(stallService, never()).updateFloor(any(), any());
-        verify(dishService).applyCorrection(any());
+        verify(moderationTaskService).handle(ModerationConst.TYPE_CORRECTION, 9L, ModerationConst.OUTCOME_HANDLED,
+                "已核实", "已按反馈更正", 3L, 1L);
     }
 
     @Test
-    @DisplayName("adopt：档口名未命中且未确认新建（含楼层改动）→ 只返回候选，**楼层亦不得写回**")
-    void adopt_unmatchedStallWithFloor_doesNotWriteFloor() {
-        Correction c = pendingCorrection(1L);
-        c.setFloor("二层");
-        when(correctionMapper.selectById(anyLong())).thenReturn(c);
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.findIdByName(any())).thenReturn(null);
-        StallBriefVO s = mock(StallBriefVO.class);
-        when(s.getId()).thenReturn(11L);
-        when(s.getName()).thenReturn("清真面档B");
-        when(stallService.listBriefCandidates(any())).thenReturn(List.of(s));
+    @DisplayName("handle：gone 型 → 同样只归档（下架不在本端点），不触发 updateStatus")
+    void handle_gone_archivesOnly() {
+        Correction gone = pendingCorrection(1L);
+        gone.setType(CorrectionConst.TYPE_GONE);
+        when(correctionMapper.selectById(anyLong())).thenReturn(gone);
 
-        StallConfirmVO result = service().adopt(9L, adoptReq("stallName", "floor"), 1L);
+        service().handle(9L, null, 3L);
 
-        assertThat(result.needStallConfirm()).isTrue();
-        // 关键：档口未落定前不写 dish、不写 stall.floor、不归档
-        verify(stallService, never()).updateFloor(any(), any());
-        verify(dishService, never()).applyCorrection(any());
-        verify(moderationTaskService, never()).handle(any(), any(), any(), any(), any(), any(), any());
+        verify(moderationTaskService).handle(ModerationConst.TYPE_CORRECTION, 9L, ModerationConst.OUTCOME_HANDLED,
+                CorrectionConst.HANDLE_TITLE, CorrectionConst.HANDLE_REPLY, 3L, 1L);
+        // gone 型下架由管理员在菜品管理手动执行，本端点不调 updateStatus
+        verify(dishService, never()).updateStatus(anyLong(), anyString());
     }
 
     @Test
-    @DisplayName("adopt：写回返回 false（并发删除兜底）→ 4001 且不归档")
-    void adopt_applyReturnsFalse_4001() {
-        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(stallService.findIdByName(any())).thenReturn(10L);
-        when(dishService.applyCorrection(any())).thenReturn(false);
-
-        assertThatThrownBy(() -> service().adopt(9L, adoptReq("stallName"), 1L))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
-        verify(moderationTaskService, never()).handle(any(), any(), any(), any(), any(), any(), any());
-    }
-
-    // ==================== 详情 + 逐项采纳 ====================
-
-    @Test
-    @DisplayName("adopt：acceptedFields 缺失或空 → 400 且不写回（「什么都不采纳」不是采纳，是驳回）")
-    void adopt_acceptedFieldsMissingOrEmpty_400() {
-        when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
-        when(dishService.existsById(anyLong())).thenReturn(true);
-
-        assertThatThrownBy(() -> service().adopt(9L, null, 1L))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        assertThatThrownBy(() -> service().adopt(9L, adoptReq(), 1L))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(dishService, never()).applyCorrection(any());
-        verify(moderationTaskService, never()).handle(any(), any(), any(), any(), any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("adopt：采纳项「已无差异」→ 400 且不写回（避免采纳一个已经相同的值）")
-    void adopt_acceptedFieldAlreadySynced_400() {
-        Correction c = pendingCorrection(1L);
-        when(correctionMapper.selectById(anyLong())).thenReturn(c);
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        CorrectionServiceImpl svc = service();
-        // 实时菜品与快照**逐字段一致** ⇒ 差异清单为空 ⇒ 任何采纳项都无效
-        DishAdminVO same = liveDish();
-        same.setName(c.getName());
-        same.setCanteenName(c.getCanteenName());
-        same.setStallName(c.getStallName());
-        when(dishService.getForAdmin(anyLong())).thenReturn(same);
-
-        assertThatThrownBy(() -> svc.adopt(9L, adoptReq("name"), 1L))
-                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(dishService, never()).applyCorrection(any());
-    }
-
-    @Test
-    @DisplayName("adopt：部分采纳 → 缺省回执文案逐项告知已采纳 / 未采纳项（用户不会重复提交同一项）")
-    void adopt_partial_usesFieldLevelNotice() {
-        Correction c = pendingCorrection(1L);
-        c.setPrice(1600);   // 快照含价格改动
-        when(correctionMapper.selectById(anyLong())).thenReturn(c);
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(dishService.applyCorrection(any())).thenReturn(true);
-
-        service().adopt(9L, adoptReq("name"), 1L);
-
-        ArgumentCaptor<String> content = ArgumentCaptor.forClass(String.class);
-        verify(moderationTaskService).handle(eq(ModerationConst.TYPE_CORRECTION), eq(9L),
-                eq(ModerationConst.OUTCOME_HANDLED), eq(null), content.capture(), any(), any());
-        // 差异项：name / canteenName / stallName / price（liveDish 处处不同）⇒ 未采纳项必须点名
-        assertThat(content.getValue()).contains("已采纳：菜品名称").contains("未采纳：");
-    }
-
-    @Test
-    @DisplayName("getDetail：differences 只列「仍有差异」项，oldValue 取实时值（不是快照值）")
+    @DisplayName("getDetail：differences 只列「用户提交过的项」，oldValue 取实时值 + same 标记是否一致")
     void getDetail_listsOnlyRemainingDifferencesWithLiveValues() {
         Correction c = pendingCorrection(1L);
         c.setPrice(1600);   // 快照含价格改动
@@ -694,18 +518,42 @@ class CorrectionServiceImplTest {
                 .filter(d -> "name".equals(d.getField())).findFirst().orElseThrow();
         assertThat(nameDiff.getOldValue()).isEqualTo("旧菜名");
         assertThat(nameDiff.getNewValue()).isEqualTo("牛肉拉面");
+        // same = 提交值与当前实时值是否一致（此处不同 ⇒ false）
+        assertThat(nameDiff.isSame()).isFalse();
     }
 
     @Test
-    @DisplayName("getDetail：目标菜品已物理删除 → differences 为空且不抛（采纳本身另有 4001）")
-    void getDetail_dishDeleted_emptyDifferences() {
+    @DisplayName("getDetail：提交值与当前值一致的项 → same=true（只列用户提交过的项，不改写菜品）")
+    void getDetail_sameValue_markedSame() {
+        Correction c = pendingCorrection(1L);   // 快照 name=牛肉拉面
+        when(correctionMapper.selectById(anyLong())).thenReturn(c);
+        when(dishService.existsById(anyLong())).thenReturn(true);
+        CorrectionServiceImpl svc = service();
+        when(userService.mapNameByIds(any())).thenReturn(Map.of(1L, "交大干饭王"));
+        // 实时菜品名称 = 快照名称 ⇒ 该项 same=true
+        DishAdminVO same = liveDish();
+        same.setName(c.getName());
+        when(dishService.getForAdmin(anyLong())).thenReturn(same);
+
+        CorrectionDetailVO vo = svc.getDetail(9L);
+
+        DishCorrectionDifferenceVO nameDiff = vo.getDifferences().stream()
+                .filter(d -> "name".equals(d.getField())).findFirst().orElseThrow();
+        assertThat(nameDiff.isSame()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getDetail：目标菜品已物理删除 → 仍列用户提交过的项（oldValue 为 null，无从对照）")
+    void getDetail_dishDeleted_listsSubmittedWithNullLive() {
         when(correctionMapper.selectById(anyLong())).thenReturn(pendingCorrection(1L));
         when(dishService.existsById(anyLong())).thenReturn(false);
         CorrectionServiceImpl svc = service();
 
         CorrectionDetailVO vo = svc.getDetail(9L);
 
-        assertThat(vo.getDifferences()).isEmpty();
+        // 仍列出用户提交过的项，只是 oldValue（当前实时值）无从对照为 null
+        assertThat(vo.getDifferences()).isNotEmpty();
+        assertThat(vo.getDifferences()).allMatch(d -> d.getOldValue() == null || d.getOldValue().isEmpty());
         assertThat(vo.getDishName()).isNull();
         assertThat(vo.getDishStatus()).isNull();
     }
@@ -809,38 +657,4 @@ class CorrectionServiceImplTest {
                 "信息有误已核实", "价格与公示一致", 3L, 1L);
     }
 
-    // ==================== 采纳：gone 型仅下架 ====================
-
-    @Test
-    @DisplayName("adopt：gone 型 → 仅下架菜品（不删除），归档 handled 且缺省文案「已下架，感谢反馈」")
-    void adopt_gone_takesOffShelfOnly() {
-        Correction gone = pendingCorrection(1L);
-        gone.setType(CorrectionConst.TYPE_GONE);
-        when(correctionMapper.selectById(anyLong())).thenReturn(gone);
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(dishService.existsOnSale(anyLong())).thenReturn(true);
-
-        assertThat(service().adopt(9L, null, 3L)).isNull();
-
-        // 只调 updateStatus（可逆），绝不触碰删除路径
-        verify(dishService).updateStatus(3L, "off");
-        verify(dishService, never()).applyCorrection(any());
-        verify(moderationTaskService).handle(ModerationConst.TYPE_CORRECTION, 9L, ModerationConst.OUTCOME_HANDLED,
-                CorrectionConst.GONE_ADOPT_TITLE, CorrectionConst.GONE_ADOPT_REPLY, 3L, 1L);
-    }
-
-    @Test
-    @DisplayName("adopt：gone 型菜品已下架 → 幂等（不重复写状态），仍归档 + 回执")
-    void adopt_gone_alreadyOffShelf_isIdempotent() {
-        Correction gone = pendingCorrection(1L);
-        gone.setType(CorrectionConst.TYPE_GONE);
-        when(correctionMapper.selectById(anyLong())).thenReturn(gone);
-        when(dishService.existsById(anyLong())).thenReturn(true);
-        when(dishService.existsOnSale(anyLong())).thenReturn(false);
-
-        assertThat(service().adopt(9L, null, 3L)).isNull();
-
-        verify(dishService, never()).updateStatus(anyLong(), anyString());
-        verify(moderationTaskService).handle(any(), any(), any(), any(), any(), any(), any());
-    }
 }

@@ -23,7 +23,6 @@ import com.bjtufood.dish.dto.DishDetailVO;
 import com.bjtufood.dish.dto.DishListItemVO;
 import com.bjtufood.dish.dto.DishQueryReq;
 import com.bjtufood.dish.constant.DishConst;
-import com.bjtufood.dish.dto.DishCorrectionCmd;
 import com.bjtufood.dish.dto.GuessLikeVO;
 import com.bjtufood.dish.entity.Dish;
 import com.bjtufood.dish.entity.DishAttributeDimension;
@@ -221,7 +220,7 @@ public class DishServiceImpl implements DishService {
      * 菜品详情（含**浏览计数副作用**）。
      * <p>
      * 计数口径（PV）：本方法**成功取到详情后**向 {@code dish_view_log} 插一行明细
-     * （<b>不去重</b>：同一用户反复看同一道菜每次都计），不累加 {@code dish.view_count}（该列已停写）。
+     * （<b>不去重</b>：同一用户反复看同一道菜每次都计）—— 明细即浏览量的唯一载体。
      * 菜品不存在 / 已下架（vo == null）抛 {@code BusinessException(4001)}，不计数。
      * <p>
      * 🔴 **浏览量不参与排序**（2026-10-05，热度算法全量下线）—— 本方法只负责记录数据，
@@ -244,8 +243,8 @@ public class DishServiceImpl implements DishService {
         }
 
         // ===== 浏览计数副作用（先于返回值组装，成功路径恒执行）=====
-        // 🔴 不写 dish.view_count（该列停写，历史累计值仅作参考），浏览明细写入 dish_view_log，
-        //    支撑管理端「近 30 天浏览量」滚动窗口（见 docs/schema/dish_view_log.md §2.4）。
+        // 🔴 浏览量唯一载体 = dish_view_log 明细（不维护 dish 上的累计列）：
+        //    明细支撑管理端「近 30 天浏览量」滚动窗口（见 docs/schema/dish_view_log.md）。
         // 不去重（PV 口径）：同一用户反复看同一道菜每次都计 —— MVP 期浏览量不参与排序，被刷无用户可见危害，
         //    去重需引入 user_id 列与唯一约束，写入成本与锁竞争显著上升，收益当前无消费方。
         DishViewLog viewLog = new DishViewLog(id, LocalDateTime.now());
@@ -315,13 +314,19 @@ public class DishServiceImpl implements DishService {
         page = norm[0];
         pageSize = norm[1];
         // 上架状态筛选走白名单（非法值 400，不静默恒空 —— 否则会掩盖真实数据）
+        boolean withoutStall = query != null && Boolean.TRUE.equals(query.withoutStall());
+        // 互斥显式拒绝：两条件同时成立时结果恒空，静默返回空集会让「筛完什么都没有」被误读为数据问题
+        if (withoutStall && query.stallId() != null) {
+            throw new BusinessException("未归入档口与按档口筛选不能同时使用");
+        }
         DishAdminListQuery effective = new DishAdminListQuery(
                 query == null ? null : query.stallId(),
                 query == null ? null : query.canteenId(),
                 query == null ? null : query.categoryId(),
                 query == null ? null
                         : ParamValidator.optionalInWhitelist(query.status(), DishConst.QUERY_STATUSES, "上架状态"),
-                query == null || !StringUtils.hasText(query.keyword()) ? null : query.keyword().trim());
+                query == null || !StringUtils.hasText(query.keyword()) ? null : query.keyword().trim(),
+                withoutStall ? Boolean.TRUE : null);
         // A3：列表走**瘦身列表 VO**（不含 description / attributes / 全量 images）
         IPage<DishAdminListItemVO> result = dishMapper.selectAdminListPage(new Page<>(page, pageSize), effective);
         // 种类中文名（A6 种类字典 dish_category）：列表直接可读，端上零硬编码；字典量级极小，逐页取一次
@@ -329,7 +334,7 @@ public class DishServiceImpl implements DishService {
                 .collect(Collectors.toMap(DishCategoryAdminVO::getId, DishCategoryAdminVO::getName,
                         (a, b) -> a));
         // 近 30 天浏览量：一次性按当前页 dish_id 批量聚合（BE 惯用法，避免 N+1）；
-        // 🔴 走 dish_view_log 滚动窗口而非 dish.view_count（后者已停写且是历史累计，语义不同）
+        // 🔴 浏览量唯一载体 = dish_view_log 明细，本值是它的 30 天滚动窗口聚合（无时间窗的累计值不受支持）
         Map<Long, Long> recentViews = loadRecentViewCounts(result.getRecords());
         return PageUtil.toVoPage(result, recs -> recs.stream()
                 .map(vo -> {
@@ -406,7 +411,6 @@ public class DishServiceImpl implements DishService {
         dish.setStallId(stallId);
         // avg_rating 保持 NULL（零评价）；公开出参由 ZERO_RATING_FALLBACK 兜底为 5.0（仅出参层，不落库）
         dish.setRatingCount(0);
-        dish.setViewCount(0);
         if (!StringUtils.hasText(dish.getStatus())) {
             dish.setStatus(DishConst.STATUS_ON);
         }
@@ -427,8 +431,9 @@ public class DishServiceImpl implements DishService {
         // 三个「缺失」项统计**全部菜品（含下架）**：健康度是存量清理指标，下架菜品的缺失同样要修
         vo.setWithoutImage(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                 .and(w -> w.isNull(Dish::getImages).or().apply("JSON_LENGTH(images) = 0"))));
+        // 「未归入档口」的唯一判据是 stall_id 为空（库列可空、无 0 占位）
         vo.setWithoutStall(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
-                .and(w -> w.isNull(Dish::getStallId).or().eq(Dish::getStallId, 0L))));
+                .isNull(Dish::getStallId)));
         // 种类缺失 = dish.category_id 为空（种类字典的引用列）
         vo.setWithoutCategory(dishMapper.selectCount(new LambdaQueryWrapper<Dish>()
                 .isNull(Dish::getCategoryId)));
@@ -496,9 +501,8 @@ public class DishServiceImpl implements DishService {
         copy.setCategoryId(source.getCategoryId());
         // 副本是「半成品」：默认下架，确认内容后再上架（见 A3 备注）
         copy.setStatus(DishConst.STATUS_OFF);
-        // 评价 / 浏览量归零、均分置空（副本自带独立评分聚合）
+        // 评价数归零、均分置空（副本自带独立评分聚合）；浏览量随 dish_view_log 明细天然从零起算
         copy.setRatingCount(0);
-        copy.setViewCount(0);
         copy.setAvgRating(null);
         dishMapper.insert(copy);
         attributeCatalog.invalidateCandidates();
@@ -672,8 +676,8 @@ public class DishServiceImpl implements DishService {
      * <ol>
      *   <li>{@code stallName} 传了有效名称（非空白且不在 {@link #EMPTY_NAME_VALUES} 空值集合内）：
      *       按名查字典——命中同名档口则复用其 ID（同名不重复建档）；未命中则自动建档
-     *       （建档时 {@code canteenName} 必须为有效名称并按名 upsert 所属食堂，
-     *       空值/未传 → 400「请选择所属食堂」，不允许落 canteen_id=0）。</li>
+     *       （建档时 {@code canteenName} 必须为有效名称并按名 upsert 所属食堂 ——
+     *       {@code stall.canteen_id} 为 NOT NULL 必填，空值/未传 → 400「请选择所属食堂」）。</li>
      *   <li>否则回退 {@code stallId}：null=不修改（编辑路径部分更新语义）；非 null 时校验档口存在，
      *       不存在 400（新增/编辑同口径，PR-06）。</li>
      * </ol>
@@ -839,68 +843,5 @@ public class DishServiceImpl implements DishService {
                         .in(Dish::getId, dishIds))
                 .forEach(d -> map.put(d.getId(), d.getName()));
         return map;
-    }
-
-    /**
-     * 纠错采纳写回（dish 域写契约，由 {@code CorrectionServiceImpl} 调用）：
-     * 可空快照字段（name/price/stallId）不覆盖既有值（MyBatis-Plus NOT_NULL 策略跳过 null），
-     * 保护「菜品首图必填」等既有不变量；images 的 JSON 序列化形态属 dish 落库口径，故收在本域。
-     * <p>
-     * <b>属性必须「按维度合并」</b>（口径见 docs/func/web/B-UGC治理/B4-菜品问题反馈管理.md 与
-     * docs/schema/correction.md）：纠错快照只含<b>改动维度</b>，整体覆盖会静默抹掉其余维度；
-     * 用户提交空数组表示「清空该维度」⇒ 删除该键，不落空数组。
-     * <p>
-     * <b>images 入库前还原为相对路径</b>：快照存的是绝对地址，而 dish.images 是相对路径列。
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public boolean applyCorrection(DishCorrectionCmd cmd) {
-        // 合并需要「现有属性」作为基线；顺带用「行不存在」实现并发删除兜底
-        Dish existing = dishMapper.selectById(cmd.getDishId());
-        if (existing == null) {
-            return false;
-        }
-        Dish update = new Dish();
-        update.setId(cmd.getDishId());
-        update.setName(cmd.getName());
-        update.setPrice(cmd.getPrice());
-        update.setStallId(cmd.getStallId());
-        if (cmd.getAttributes() != null && !cmd.getAttributes().isEmpty()) {
-            update.setAttributes(JsonMapUtil.toJson(mergeAttributes(existing.getAttributes(), cmd.getAttributes())));
-        }
-        if (cmd.getImages() != null && !cmd.getImages().isEmpty()) {
-            update.setImages(JsonListUtil.toJson(imageUrlUtil.toRelativePaths(cmd.getImages())));
-        }
-        boolean updated = dishMapper.updateById(update) > 0;
-        if (updated) {
-            // 纠错采纳改写 dish.attributes → 候选值集合同步失效（管理端与端上编辑弹层下次即见新值）
-            attributeCatalog.invalidateCandidates();
-        }
-        return updated;
-    }
-
-    /**
-     * 纠错采纳的属性合并：<b>以菜品现有 attributes 为基线</b>，只覆盖本次采纳的维度。
-     *
-     * @param existingJson 菜品当前属性 JSON（可为 null）
-     * @param patch        本次采纳的维度补丁（键 = **描述维度** ID 字符串）
-     * @return 合并后的属性 JSON 入参对象
-     */
-    private Map<String, Object> mergeAttributes(String existingJson, Map<String, Object> patch) {
-        Map<String, Object> merged = new LinkedHashMap<>(JsonMapUtil.parseObject(existingJson));
-        // 纠错快照里的属性是**中文**（用户提交原样）⇒ 入库前解析为**取值 ID**
-        // （命中即用 / 未命中自动登记新取值）—— 见 A4「灵活取值」与 B4「属性采纳的存储口径」。
-        Map<String, Object> resolvedPatch = attributeAdminService.resolveForWrite(patch);
-        patch.forEach((dimension, value) -> {
-            // 空值 / 空数组 = 用户清空该维度 ⇒ 删除该键（resolveForWrite 会丢弃该键，故按 patch 判定）
-            Object resolved = resolvedPatch.get(dimension);
-            if (value == null || (value instanceof Collection<?> items && items.isEmpty())
-                    || resolved == null) {
-                merged.remove(dimension);
-            } else {
-                merged.put(dimension, resolved);
-            }
-        });
-        return merged;
     }
 }

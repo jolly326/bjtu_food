@@ -20,13 +20,13 @@ import java.time.LocalDateTime;
  *
  * <p><b>{@code ratingCount} 必须留</b>：它是删除二次确认「将一并删除 N 条评价」的影响面来源。
  *
- * <p><b>🔴 {@code recentViewCount} = 近 30 天浏览量</b>（2026-10-05 新增）：来自
- * {@code dish_view_log} 明细日志的滚动窗口统计（{@code COUNT(*) WHERE viewed_at >= NOW()-30d}），
- * **不是**历史累计的 {@code dish.view_count}（该列已停写，仅作历史参考）。
+ * <p><b>🔴 {@code recentViewCount} = 近 30 天浏览量</b>：浏览量的**唯一载体**是
+ * {@code dish_view_log} 明细日志（一行 = 一次浏览），本值即它的滚动窗口统计
+ * （{@code COUNT(*) WHERE viewed_at >= NOW()-30d}）。
  * 用途：让运营看出「哪道菜多人看但没评价」⇒ 判断要不要推它做活动 / 引导其产出评价。
  *
- * <p><b>为何不复用 {@code viewCount} 字段名</b>：一个是无时间窗的历史累计（单调递增），
- * 一个是 30 天窗口值（会随时间回落），语义不同 —— 混用会产生「老菜永远高」的错误结论。
+ * <p><b>字段名带 {@code recent} / {@code Count}</b>：本值是**有窗口、会随时间回落**的计数 ——
+ * 时间窗写进名字，端上才不会把它读成「累计热度」并据此得出「老菜永远高」的错误结论。
  */
 @Data
 @Schema(description = "管理端菜品列表行（瘦身）")
@@ -65,13 +65,13 @@ public class DishAdminListItemVO {
     @Schema(description = "上架状态：on / off")
     private String status;
 
-    @Schema(description = "均分（零评价为 null）")
+    @Schema(description = "均分（1 位小数；零评价为 null）")
     private BigDecimal avgRating;
 
     @Schema(description = "评价数（删除确认的影响面来源）", example = "12")
     private Integer ratingCount;
 
-    @Schema(description = "近 30 天浏览量（dish_view_log 滚动窗口统计；非历史累计。窗口内无浏览为 0）",
+    @Schema(description = "近 30 天浏览量（dish_view_log 滚动窗口统计；窗口内无浏览为 0）",
             example = "86")
     private Long recentViewCount;
 

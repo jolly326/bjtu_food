@@ -2,17 +2,17 @@
 /**
  * B4 菜品问题反馈管理（页面规格见 [菜品问题反馈.md](../../../docs/ui/web/菜品问题反馈.md)）。
  *
- * <p>**按 `type` 分派**（两类反馈的处置动作不同，列表先分 Tab）：
- * - `field`（信息有误）→ 抽屉内**差异对照 + 逐项勾选采纳**（`acceptedFields`）；档口**两段式确认**
- *   （`needStallConfirm` ⇒ 选既有档口或按提交名新建）；
- * - `gone`（已经下架）→ 抽屉内展示用户的**补充说明 / 图片 / 反馈人数**，处置动作**仅「下架」**或「驳回」
- *   （🔴 **不提供「删除」**：删除为物理删除且级联删除评价，仅在菜品管理中由管理员主动执行）。
+ * <p>**按 `type` 分 Tab，两类处置动作完全一致**（管理端只「阅读 + 处置回执」，**绝不写回菜品**）：
+ * - `field`（信息有误）→ 抽屉内展示 `differences[]` 的**只读并排对照**（当前值 / 提交值 / 是否一致）；
+ * - `gone`（已经下架）→ 抽屉内展示用户的**补充说明 / 图片 / 反馈人数**（`differences` 恒空）。
  *
- * <p>表格**只放基础列**（类型 / 目标菜品 / 提交人 / 状态 / 提交时间）—— 改动项、楼层影响、处理回复与
- * **处置**都在**处置抽屉**内（同一抽屉两态：`pending` = 处置表单 / 已处理 = 只读详情）。
+ * <p>表格**只放基础列**（类型 / 目标菜品 / 提交人 / 状态 / 提交时间）—— 提交项对照、`gone` 的用户佐证、
+ * 处置结论与回执都在**处置抽屉**内（同一抽屉两态：`pending` = 处置表单 / 已处理 = 只读详情）。
  *
- * <p>采纳 / 下架 / 驳回**均向提交人投递站内回执**（**文案由服务端按 `type`
- * 与「是否部分采纳」分派**，端上只传可选附注，不拼回执正文）。
+ * <p>**处置动作恰好两个**：**标记已处理**（`POST …/handle`，附注可选）与**驳回**（`PUT …`，原因必填）；
+ * 两者都只归档处置结论并投递**站内回执**（**文案由服务端按结论下发**，端上只传标题 / 附注）。
+ * 菜品资料修改与 `gone` 的可逆下架由管理员在「菜品管理」手动执行，
+ * 🔴 本页任何状态都不提供「删除菜品」。
  */
 import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
@@ -20,18 +20,21 @@ import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/datetime'
 import { fail } from '@/utils/error'
 import {
-  adoptCorrection,
   getCorrection,
+  handleCorrection,
   listCorrections,
   rejectCorrection,
 } from '@/api/corrections'
 import type {
   CorrectionAdminVO,
   CorrectionDetailVO,
+  CorrectionDifference,
   CorrectionListParams,
   CorrectionStatus,
   CorrectionType,
+  DishCorrectionHandleReq,
 } from '@/types/common'
+import { formatYuan } from '@/utils/money'
 import { usePagedList } from '@/composables/usePagedList'
 import BaseDrawer from '@/components/BaseDrawer.vue'
 import ImagePreview from '@/components/ImagePreview.vue'
@@ -87,18 +90,12 @@ const row = ref<CorrectionAdminVO | null>(null)
 const detail = ref<CorrectionDetailVO | null>(null)
 const detailLoading = ref(false)
 const detailError = ref<string | null>(null)
-const outcome = ref<'adopted' | 'rejected'>('adopted')
-const accepted = ref<Record<string, boolean>>({})
-/** 回执短标题（可选 ≤40 字）与处置文案（≤600 字；不采纳 / 驳回时必填） */
+/** 处置结论：`handled` 标记已处理（接受）｜ `rejected` 驳回（拒绝，原因必填） */
+const outcome = ref<'handled' | 'rejected'>('handled')
+/** 回执短标题（可选 ≤40 字）与处置文案（≤600 字；驳回时必填，即不采纳原因） */
 const replyTitle = ref('')
 const replyContent = ref('')
 const submitting = ref(false)
-
-/* 档口两段式确认 */
-const candidates = ref<{ id: number; name: string }[]>([])
-const chosenStallId = ref(0)
-const createIfMissing = ref(false)
-const needStallConfirm = ref(false)
 
 /** 当前详情的反馈类型（`field` = 信息有误 / `gone` = 已经下架） */
 const isGone = computed(() => detail.value?.type === 'gone')
@@ -109,33 +106,46 @@ const isPending = computed(() => row.value?.status === 'pending')
 const outcomeLabel = computed(() => {
   const r = row.value
   if (!r || r.status === 'pending') return '待处理'
-  if (r.outcome === 'rejected') return r.type === 'gone' ? '已驳回（仍在售）' : '已拒绝'
-  return r.type === 'gone' ? '已下架' : '已采纳'
+  return r.outcome === 'rejected' ? '已拒绝' : '已受理'
 })
 
 /**
- * 状态列取值（`StatusTag kind="correction"`：待处理 / 已采纳 / 已拒绝）。
+ * 状态列取值（`StatusTag kind="correction"`：待处理 / 已受理 / 已拒绝）。
  * 契约 `status` 仅 `pending` / `handled`，已处置的两种结论由 `outcome` 区分。
  */
 function statusTag(item: CorrectionAdminVO): string {
   if (item.status === 'pending') return 'pending'
-  return item.outcome === 'rejected' ? 'rejected' : 'adopted'
+  return item.outcome === 'rejected' ? 'rejected' : 'handled'
 }
 
 /**
  * 提交按钮可用性。
- * - `gone` 型：下架**无需勾选任何项**（无可对照差异）⇒ 采纳侧恒可提交；
- * - `field` 型：至少勾选一项（空数组服务端 `400`），且档口确认段须选定归属；
- * - 驳回：处置文案必填（纯空白校验，服务端对空白同样返回 400）。
+ * - **驳回**：处置文案（不采纳原因）必填 —— 纯空白服务端 `400`，UI 从源头避免；
+ * - **标记已处理**：附注可选（服务端有缺省文案）⇒ 恒可提交。
  */
-const canSubmit = computed(() => {
-  if (outcome.value === 'adopted') {
-    if (isGone.value) return true
-    if (needStallConfirm.value && !createIfMissing.value && !chosenStallId.value) return false
-    return Object.values(accepted.value).some(Boolean)
+const canSubmit = computed(() =>
+  outcome.value === 'rejected' ? replyContent.value.trim().length > 0 : true,
+)
+
+/** 处置文案输入提示（驳回 = 必填原因；标记已处理 = 可选附注） */
+const replyPlaceholder = computed(() =>
+  outcome.value === 'rejected'
+    ? '请写明不采纳原因，将随站内回执下发给提交人'
+    : '可选，将随站内回执下发给提交人；留空则用缺省文案',
+)
+
+/**
+ * 对照值展示：`oldValue` / `newValue` 均为服务端可读文本，
+ * 仅 `price` 项为**分**（`label` 即「现价（分）」）⇒ 按 `¥x.xx` 呈现；空值显 `—`。
+ */
+function displayValue(diff: CorrectionDifference, value: string): string {
+  if (!value) return '—'
+  if (diff.field === 'price') {
+    const fen = Number(value)
+    if (Number.isFinite(fen)) return formatYuan(fen)
   }
-  return replyContent.value.trim().length > 0
-})
+  return value
+}
 
 /** 行内动作并发保护：提交中该行按钮 `:disabled`（列表页模板 §1.3「并发保护」） */
 // 抽屉详情加载也占同一把锁（无「动作 / 成功提示 / 刷新」语义，故不进 runRowAction，只借锁与置灰判据）
@@ -147,20 +157,12 @@ async function openDetail(target: CorrectionAdminVO): Promise<void> {
   detail.value = null
   detailError.value = null
   detailLoading.value = true
-  outcome.value = 'adopted'
+  outcome.value = 'handled'
   replyTitle.value = ''
   replyContent.value = ''
-  accepted.value = {}
-  candidates.value = []
-  chosenStallId.value = 0
-  createIfMissing.value = false
-  needStallConfirm.value = false
   busyId.value = target.id
   try {
-    const d = await getCorrection(target.id)
-    detail.value = d
-    // `field` 型默认全选（管理员可逐项取消）；`gone` 型无差异项，无可勾选
-    for (const diff of d.differences) accepted.value[diff.field] = true
+    detail.value = await getCorrection(target.id)
   } catch (e) {
     detailError.value = e instanceof Error ? e.message : '加载详情失败'
   } finally {
@@ -174,43 +176,29 @@ async function submit(): Promise<void> {
   if (!d) return
   submitting.value = true
   try {
-    if (outcome.value === 'adopted') {
-      const note = replyContent.value.trim()
-      // `gone` 型：请求体只带可选附注，服务端忽略差异项并直接下架菜品（可逆）
-      const res = isGone.value
-        ? await adoptCorrection(d.id, note ? { replyContent: note } : {})
-        : await adoptCorrection(d.id, {
-            acceptedFields: Object.entries(accepted.value)
-              .filter(([, v]) => v)
-              .map(([k]) => k),
-            ...(needStallConfirm.value
-              ? createIfMissing.value
-                ? { createIfMissing: true }
-                : { stallId: chosenStallId.value }
-              : {}),
-            ...(note ? { replyContent: note } : {}),
-          })
-      if (res != null) {
-        // 档口未匹配：进入第二段确认
-        needStallConfirm.value = true
-        candidates.value = res.candidates
-        chosenStallId.value = res.candidates[0]?.id ?? 0
-        return
-      }
-      ElMessage.success(isGone.value ? '已下架' : '已采纳')
+    const title = replyTitle.value.trim()
+    const content = replyContent.value.trim()
+    if (outcome.value === 'handled') {
+      // 只归档处置结论（outcome=handled）+ 投递回执，不改写菜品
+      const req: DishCorrectionHandleReq = {}
+      if (title) req.replyTitle = title
+      if (content) req.replyContent = content
+      await handleCorrection(d.id, req)
+      ElMessage.success('已受理')
     } else {
+      // 驳回：不采纳原因必填（服务端对纯空白同样返回 400）
       await rejectCorrection(d.id, {
-        replyTitle: replyTitle.value.trim() || undefined,
-        replyContent: replyContent.value.trim(),
+        ...(title ? { replyTitle: title } : {}),
+        replyContent: content,
         outcome: 'rejected',
       })
-      ElMessage.success(isGone.value ? '已驳回' : '已拒绝')
+      ElMessage.success('已驳回')
     }
     open.value = false
     row.value = null
     await reload()
   } catch (e) {
-    // 已处理再处理（400）/ 不存在（4001）/ 被引用 → 后端原文
+    // 已处理再处置（400）/ 反馈不存在（4001）→ 后端原文
     fail(e, '提交失败')
   } finally {
     submitting.value = false
@@ -279,7 +267,7 @@ onMounted(() => reloadFirstPage())
   <div class="page">
     <div class="page-header">
       <h2>菜品问题反馈管理</h2>
-      <!-- 类型 Tab（`type` 筛选）：两类反馈处置动作不同，先分流再看列表 -->
+      <!-- 类型 Tab（`type` 筛选）：先分流看列表；两类反馈的处置动作相同 -->
       <div class="tabs" role="tablist" aria-label="问题类型">
         <button
           v-for="t in TYPE_TABS"
@@ -359,8 +347,8 @@ onMounted(() => reloadFirstPage())
       </table>
 
       <p class="foot-note">
-        「类型 / 目标菜品 / 提交人 /
-        状态」是快速查阅列；改动项对照、楼层影响、用户佐证与处置入口都在行内「处理 / 详情」内。
+        「类型 / 目标菜品 / 提交人 / 状态」是快速查阅列；提交项对照、`gone`
+        的用户佐证、处置结论与回执都在行内「处理 / 详情」内。
       </p>
 
       <Pager
@@ -388,7 +376,7 @@ onMounted(() => reloadFirstPage())
           </div>
         </div>
 
-        <!-- `gone` 型：用户佐证（补充说明 + 图片）+ 同菜品反馈人数（下架与否人工判断） -->
+        <!-- `gone` 型：用户佐证（补充说明 + 图片）+ 同菜品反馈人数（是否下架人工判断） -->
         <template v-if="isGone">
           <div class="field">
             <label id="corr-gone-label">用户反馈</label>
@@ -419,43 +407,38 @@ onMounted(() => reloadFirstPage())
           </div>
         </template>
 
-        <!-- `field` 型差异对照：待处理时可逐项勾选；已处理时只读回放 -->
+        <!-- `field` 型：提交项对照（**只读**，无勾选框）—— 只列用户提交过的项 -->
         <div v-if="!isGone" class="field">
-          <label id="corr-adopt-label">
-            {{ isPending ? '采纳项（逐项勾选）' : '提交的差异项' }}
-          </label>
+          <label id="corr-diff-label">提交项对照</label>
           <!-- 表格外包 `.table-wrap` ⇒ 窄屏获得横向滚动兜底 -->
           <div class="table-wrap">
-            <table class="table table--compact" aria-labelledby="corr-adopt-label">
+            <table class="table table--compact" aria-labelledby="corr-diff-label">
               <thead>
                 <tr>
-                  <th v-if="isPending" class="pick-col"></th>
                   <th>字段</th>
-                  <th>原值</th>
+                  <th>当前值</th>
                   <th>提交值</th>
+                  <th>是否一致</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="diff in detail.differences" :key="diff.field">
-                  <td v-if="isPending" class="pick-col">
-                    <input type="checkbox" v-model="accepted[diff.field]" />
+                  <td>{{ diff.label }}</td>
+                  <td class="muted">{{ displayValue(diff, diff.oldValue) }}</td>
+                  <td>{{ displayValue(diff, diff.newValue) }}</td>
+                  <td :class="diff.same ? 'flag-same' : 'flag-warn'">
+                    {{ diff.same ? '已一致' : '不一致' }}
                   </td>
-                  <td>
-                    {{ diff.label }}
-                    <div v-if="diff.affectsOthers" class="warn">将连带同档口其它菜品</div>
-                  </td>
-                  <td class="muted">{{ diff.oldValue || '—' }}</td>
-                  <td>{{ diff.newValue || '—' }}</td>
                 </tr>
                 <tr v-if="!detail.differences.length">
-                  <td :colspan="isPending ? 4 : 3" class="muted">已无待采纳差异项</td>
+                  <td colspan="4" class="muted">无提交项对照</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- 已处理 → 只读结论与回复 -->
+        <!-- 已处理 → 只读结论与回执 -->
         <div v-if="!isPending" class="detail-group">
           <div class="detail-group-title">处理结果</div>
           <div class="detail-meta detail-meta--grid">
@@ -467,12 +450,9 @@ onMounted(() => reloadFirstPage())
                 <span class="muted"> #{{ detail.userId }}</span>
               </span>
             </div>
-            <div v-if="detail.replyTitle" class="meta-row meta-row--span">
-              <span class="meta-key">回执标题</span>
-              <span class="meta-val">{{ detail.replyTitle }}</span>
-            </div>
-            <DetailMetaRow k="处理回复" span>{{ detail.replyContent || '—' }}</DetailMetaRow>
             <DetailMetaRow k="处置人">{{ detail.handledByName || '—' }}</DetailMetaRow>
+            <DetailMetaRow k="回执标题" span>{{ detail.replyTitle || '—' }}</DetailMetaRow>
+            <DetailMetaRow k="处置文案" span>{{ detail.replyContent || '—' }}</DetailMetaRow>
           </div>
         </div>
 
@@ -485,8 +465,16 @@ onMounted(() => reloadFirstPage())
           </div>
         </div>
 
-        <!-- 待处理 → 处置表单 -->
+        <!-- 待处理 → 处置表单（动作恰好两个：标记已处理 / 驳回） -->
         <template v-else>
+          <p class="warn note-line">
+            {{
+              isGone
+                ? '本抽屉只归档处置结论：如需下架该菜品，请到「菜品管理」手动执行（可重新上架、评价保留）。'
+                : '本抽屉只归档处置结论：菜品资料修改请到「菜品管理」手动执行。'
+            }}
+          </p>
+
           <div class="field">
             <label id="corr-outcome-label">处理结论</label>
             <div class="tag-options" role="radiogroup" aria-labelledby="corr-outcome-label">
@@ -494,11 +482,11 @@ onMounted(() => reloadFirstPage())
                 class="tag-option"
                 type="button"
                 role="radio"
-                :aria-checked="outcome === 'adopted'"
-                :class="{ active: outcome === 'adopted' }"
-                @click="outcome = 'adopted'"
+                :aria-checked="outcome === 'handled'"
+                :class="{ active: outcome === 'handled' }"
+                @click="outcome = 'handled'"
               >
-                {{ isGone ? '下架该菜品' : '采纳' }}
+                标记已处理
               </button>
               <button
                 class="tag-option"
@@ -508,48 +496,18 @@ onMounted(() => reloadFirstPage())
                 :class="{ active: outcome === 'rejected' }"
                 @click="outcome = 'rejected'"
               >
-                {{ isGone ? '驳回（仍在售）' : '不采纳' }}
+                驳回
               </button>
             </div>
           </div>
 
-          <!-- `gone` 型采纳 = 下架：说明写回影响（可逆，评价保留；本流程不提供删除） -->
-          <p v-if="isGone && outcome === 'adopted'" class="warn note-line">
-            下架仅把该菜品置为「已下架」，可重新上架、评价完整保留；删除请到「菜品管理」由管理员主动执行。
-          </p>
-
-          <!-- 档口两段式确认（仅 `field` 型采纳了档口名时才触发） -->
-          <div
-            v-if="!isGone && outcome === 'adopted' && needStallConfirm"
-            class="field stall-confirm"
-          >
-            <label for="corr-stall">档口归属确认</label>
-            <select
-              id="corr-stall"
-              class="form-input"
-              v-model.number="chosenStallId"
-              :disabled="createIfMissing"
-            >
-              <option v-for="c in candidates" :key="c.id" :value="c.id">{{ c.name }}</option>
-            </select>
-            <label class="check-line">
-              <input type="checkbox" v-model="createIfMissing" />
-              <span>按提交的档口名新建档口后挂靠</span>
-            </label>
-          </div>
-
-          <!-- 回执短标题：两分支共用，可选（留空按类型 + 结论用服务端缺省文案） -->
+          <!-- 回执短标题：两分支共用，可选（留空由服务端下发给缺省文案） -->
           <div class="field">
             <label for="corr-reply-title">回执标题（可选，≤40 字）</label>
-            <input
-              id="corr-reply-title"
-              class="form-input"
-              v-model="replyTitle"
-              maxlength="40"
-            />
+            <input id="corr-reply-title" class="form-input" v-model="replyTitle" maxlength="40" />
           </div>
 
-          <!-- 处置文案：不采纳 / 驳回 = 必填（即不采纳原因）；采纳 / 下架 = 可选附注 -->
+          <!-- 处置文案：驳回 = 必填（即不采纳原因）；标记已处理 = 可选附注 -->
           <div class="field">
             <label for="corr-reply-content">{{
               outcome === 'rejected'
@@ -564,7 +522,7 @@ onMounted(() => reloadFirstPage())
               v-model="replyContent"
               rows="3"
               maxlength="600"
-              placeholder="随站内回执下发给提交人；留空则用固定文案"
+              :placeholder="replyPlaceholder"
             />
             <div class="hint">{{ replyContent.length }} / 600</div>
           </div>
@@ -636,6 +594,14 @@ onMounted(() => reloadFirstPage())
   line-height: 1.5;
 }
 
+/* 提交项对照的「是否一致」列：不一致需人工处理 ⇒ 告警色；已一致 ⇒ 弱化 */
+.flag-warn {
+  color: var(--color-warning);
+}
+.flag-same {
+  color: var(--text-secondary);
+}
+
 /* `gone` 型佐证区：说明 + 反馈人数（定义列表，左标签右内容） */
 .gone-info {
   display: grid;
@@ -653,7 +619,7 @@ onMounted(() => reloadFirstPage())
   overflow-wrap: anywhere;
 }
 
-/* 用户配图（只读对比，不提供上传 / 删除） */
+/* 用户配图（只读展示，点击开大图） */
 .ctx-thumbs {
   display: flex;
   flex-wrap: wrap;
@@ -665,13 +631,5 @@ onMounted(() => reloadFirstPage())
   height: 64px;
   border-radius: var(--radius-sm);
   object-fit: cover;
-}
-.pick-col {
-  width: 32px;
-}
-.stall-confirm {
-  background: var(--bg-soft);
-  border-radius: var(--radius);
-  padding: var(--space-3);
 }
 </style>

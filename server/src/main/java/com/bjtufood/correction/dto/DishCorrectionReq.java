@@ -53,7 +53,8 @@ public class DishCorrectionReq {
     /**
      * 楼层（**归属档口**，非菜品）：楼层是 {@code stall.floor} 的属性，菜品无楼层字段。
      * <p>
-     * 采纳时写回「目标档口」的 {@code stall.floor}——同档口下的其他菜品<b>一并生效</b>
+     * 本字段只是**用户提交记录**：管理员据此在档口管理手动修改「目标档口」的
+     * {@code stall.floor}——同档口下的其他菜品<b>一并生效</b>
      * （楼层是档口级描述，不是单菜属性）。**受控字典值、值即汉字**（`负一层` / `一层` /
      * `二层` / `三层` / `四层`，值域见 {@code canteen.constant.FloorDict}），传入即校验非空、∈ 字典、≤16 字
      * （与 {@code stall.floor VARCHAR(16)} 对齐）；字典外值 → {@code 400}。

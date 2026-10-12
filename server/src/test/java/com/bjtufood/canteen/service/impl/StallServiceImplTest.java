@@ -436,7 +436,7 @@ class StallServiceImplTest {
     // ==================== 列表出参 ====================
 
     @Test
-    @DisplayName("listAllForAdmin：档口自身字段逐项映射；食堂名批量取回、取不到落 null；均分未补齐按 0.00 兜底")
+    @DisplayName("listAllForAdmin：档口自身字段逐项映射；食堂名批量取回、取不到落 null；均分未补齐按 0.0 兜底")
     void listAllForAdmin_mapsOwnFieldsAndCanteenNames() {
         Stall first = stall(1L, 1L, "面食窗口");
         Stall second = stall(2L, 2L, "清真窗口");
@@ -457,9 +457,9 @@ class StallServiceImplTest {
         assertThat(vo.getFloor()).isEmpty();
         assertThat(vo.getWindowNo()).isEmpty();
         assertThat(vo.getDescription()).isEmpty();
-        // 均分由调用方批量补齐；未补齐时按 0.00（2 位小数）兜底
-        assertThat(vo.getAvgRating()).isEqualByComparingTo("0.00");
-        assertThat(vo.getAvgRating().scale()).isEqualTo(2);
+        // 均分由调用方批量补齐；未补齐时按 0.0（1 位小数）兜底
+        assertThat(vo.getAvgRating()).isEqualByComparingTo("0.0");
+        assertThat(vo.getAvgRating().scale()).isEqualTo(1);
         // 食堂查不到 ⇒ canteenName 为 null（与逐档口回查同口径）
         assertThat(list.get(1).getCanteenName()).isNull();
         assertThat(list.get(1).getWindowNo()).isEmpty();

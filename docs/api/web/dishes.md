@@ -22,6 +22,7 @@
 | `categoryId` | number | 否 | — | 按种类筛选（种类 ID，见 [web/categories.md](./categories.md)） |
 | `status` | string | 否 | — | 按上架状态筛选（`on` / `off`；不传 = 全部，**含已下架**）；非法值 `400` |
 | `keyword` | string | 否 | — | 关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径） |
+| `withoutStall` | boolean | 否 | — | 只看**未归入档口**（`stall_id` 为空）的菜品 —— 看板健康度项的定位入口；**与 `stallId` 互斥**（同时传 → `400`） |
 
 **排序**：`updatedAt DESC`（最近维护在前）。
 
@@ -32,20 +33,20 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `id` | number | 菜品 ID |
-| `stallId` | number | 所属档口 ID（行内跳转用） |
+| `stallId` | number \| null | 所属档口 ID（行内跳转用）；**`null` = 未归入档口** —— 管理端列表走 **LEFT JOIN**，故这类存量行**在列表可见**（配合 `withoutStall=true` 直接定位修复）；学生端路径为 INNER JOIN，这类菜品不出现在公开列表 / 详情 |
 | `stallName` / `canteenName` | string | 档口 / 食堂名（联表带出） |
 | `name` | string | 菜品名称 |
 | `price` / `originalPrice` | number \| null | 现价（分）/ 原价（分） |
 | `coverImage` | string | **封面图**（取 `images` 首图的派生值；无图为空串） |
 | `categoryId` / `categoryName` | number / string | 种类 ID / 种类中文名 |
 | `status` | string | `on` / `off` |
-| `avgRating` | number \| null | 均分（零评价为 `null`） |
+| `avgRating` | number \| null | 均分（**1 位小数**；零评价为 `null`） |
 | `ratingCount` | number | 评价数（**列表即删除确认的影响面来源**） |
-| `recentViewCount` | number | **近 30 天浏览量**（`dish_view_log` 滚动窗口；非历史累计。窗口内无浏览为 `0`） |
+| `recentViewCount` | number | **近 30 天浏览量**（`dish_view_log` 的 30 天滚动窗口；窗口内无浏览为 `0`） |
 | `updatedAt` | string | 更新时间（排序依据） |
 
-> 列表**不下发** `description` / `images[]` / `attributes` / `createdAt` / `viewCount` —— 列表 UI 不消费。
-> **`viewCount`（历史累计）不出参**；浏览量由 `recentViewCount`（**近 30 天窗口**）下发 —— 两者语义不同、不可互相替代，详见 [`schema/dish_view_log.md`](../../schema/dish_view_log.md) §2.4。
+> 列表**不下发** `description` / `images[]` / `attributes` / `createdAt` —— 列表 UI 不消费。
+> **浏览量的唯一读数就是 `recentViewCount`**（近 30 天窗口，唯一载体 [`dish_view_log`](../../schema/dish_view_log.md)）；`dish` 表无浏览量列。
 
 ---
 
@@ -63,7 +64,7 @@
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `id` | number | 菜品 ID |
-| `stallId` | number | 所属档口 ID |
+| `stallId` | number \| null | 所属档口 ID；**`null` = 未归入档口**（比列表列多可空语义同源，见 [schema/dish.md](../../schema/dish.md)） |
 | `name` | string | 菜品名称 |
 | `price` / `originalPrice` | number \| null | 现价（分）/ 原价（分，可空） |
 | `description` | string | 描述（无为空串） |
@@ -71,10 +72,10 @@
 | `categoryId` / `categoryName` | number / string | 种类 ID / 种类中文名 |
 | `attributes` | object | 描述属性（键 = **描述维度** ID，值 = **中文**，服务端由取值 ID 翻译；**不含菜品种类**） |
 | `status` | string | `on` / `off` |
-| `avgRating` / `ratingCount` | number \| null / number | 均分 / 评价数（只读展示） |
+| `avgRating` / `ratingCount` | number \| null / number | 均分（**1 位小数**）/ 评价数（只读展示） |
 | `createdAt` / `updatedAt` | string | 时间（`yyyy-MM-dd HH:mm:ss`） |
 
-> **不返回 `viewCount`**（历史累计浏览量）。浏览量由 `dish_view_log` 的 **30 天滚动窗口**承载，仅在**列表行**下发 `recentViewCount`（见上表），**详情不返回**。
+> **详情不返回浏览量**。浏览量唯一载体是 `dish_view_log` 的 **30 天滚动窗口**，仅在**列表行**下发 `recentViewCount`（见上表）。
 > `stallName` / `canteenName` **只在列表回带**：详情的归属编辑是**档口下拉**（选项取自 [web/stalls.md](./stalls.md)）。
 
 ---
@@ -189,7 +190,7 @@
 
 | code | 条件 |
 |---|---|
-| `400` | 名称为空 / 超长；价格非正整数；`stallId` 不存在；`categoryId` 缺失或**不存在**；`attributes` 的维度 ID 不在维度字典 / 值形态非法；图片超过 5 张、地址非法或**序列化后超 1024 字**；`status` 非法 |
+| `400` | 名称为空 / 超长；价格非正整数；`stallId` 不存在；`categoryId` 缺失或**不存在**；`attributes` 的维度 ID 不在维度字典 / 值形态非法；图片超过 5 张、地址非法或**序列化后超 1024 字**；`status` 非法；**列表查询同时传 `withoutStall` 与 `stallId`** |
 | `4001` | 菜品不存在（`GET` / `PUT` / `PUT .../status` / `DELETE` / `copy` 目标不存在） |
 | `401` | 未带 / token 失效 |
 

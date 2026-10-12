@@ -8,7 +8,7 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 通知 ID |
-| `user_id` | BIGINT | NO | 0 | KEY, FK→user | 接收人 |
+| `user_id` | BIGINT | NO | 无 | KEY, FK→user | 接收人；**必填、无默认值**（不用 `0` 占位） |
 | `reply_title` | VARCHAR(128) | NO | — | | 回执标题（处置时**快照**：来自 [`moderation_task.reply_title`](./moderation_task.md)，≤40 字，留空由缺省文案兜底） |
 | `reply_content` | VARCHAR(1024) | NO | — | | 回执正文（处置时**快照**：来自 [`moderation_task.reply_content`](./moderation_task.md)，≤600 字；**不采纳原因与处置说明同列**）——**恒非空**（空回执用缺省文案，出参不做 null 兜底）；**SHALL NOT 截断** |
 | `is_read` | TINYINT | NO | 0 | | `0` 未读 / `1` 已读 |

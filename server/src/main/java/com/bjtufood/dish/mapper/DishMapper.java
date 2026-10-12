@@ -49,16 +49,15 @@ public interface DishMapper extends BaseMapper<Dish> {
      * 猜你喜欢：抽取在售菜品名（原「热搜词条」，改名 + 语义变更）
      *
      * @param limit 返回条数（由 Service 侧常量传入，避免 SQL 内硬编码）
-     * @param seed  会话随机种子（可选）；非空 ⇒ {@code CRC32(seed:ID)} 稳定伪随机序
-     *              ；
-     *              空 ⇒ 退回 {@code ORDER BY RAND()}（向后兼容未传 seed 的调用方）
+     * @param seed  会话随机种子（可选）；{@code CRC32(seed:ID)} 稳定伪随机序，
+     *              未传由 Service 侧补一次性随机值 ⇒ 每次调用都不同
      * @return 猜你喜欢词条列表（GuessLikeVO{name}）
      */
     List<GuessLikeVO> selectGuessLike(@Param("limit") int limit, @Param("seed") String seed);
 
     /**
-     * 🔴 **浏览量只写明细、不做原子自增**：向 {@code dish_view_log} 插一行带时间戳的明细，
-     * 支撑「近 30 天浏览量」滚动窗口（{@code dish.view_count} 列停写）。
+     * 🔴 **浏览量唯一载体 = 明细**：向 {@code dish_view_log} 插一行带时间戳的明细（不做聚合自增），
+     * 明细之上的滚动窗口聚合支撑「近 30 天浏览量」。
      *
      * @see com.bjtufood.dish.mapper.DishViewLogMapper 浏览日志读写
      * @see com.bjtufood.dish.task.DishViewLogCleanupTask 30 天滚动窗口清理

@@ -59,7 +59,8 @@ const CONFIG = {
     entryName: '举报弹层',
     createPlaceholder: '如 垃圾广告 / 营销刷屏',
     emptyMessage: '暂无举报原因',
-    footnote: '原因 ID 是历史举报的数据锚点（由后端生成，不可修改）；下线一律用「停用」；列表按原因 ID 升序。',
+    footnote:
+      '原因 ID 是历史举报的数据锚点（由后端生成，不可修改）；下线一律用「停用」；列表按原因 ID 升序。',
   },
   feedback: {
     title: '反馈类型',
@@ -68,7 +69,8 @@ const CONFIG = {
     entryName: '反馈页',
     createPlaceholder: '如 程序功能Bug',
     emptyMessage: '暂无反馈类型',
-    footnote: '类型 ID 是历史反馈的数据锚点（由后端生成，不可修改）；下线一律用「停用」；列表按类型 ID 升序。',
+    footnote:
+      '类型 ID 是历史反馈的数据锚点（由后端生成，不可修改）；下线一律用「停用」；列表按类型 ID 升序。',
   },
 } as const
 
@@ -357,7 +359,9 @@ onMounted(() => load())
             @keyup.enter="submitRename"
           />
         </div>
-        <p class="hint">改名免费：历史工单的「{{ copy.entity }}」会同步显示新文案（数据锚在 ID）。</p>
+        <p class="hint">
+          改名免费：历史工单的「{{ copy.entity }}」会同步显示新文案（数据锚在 ID）。
+        </p>
       </template>
 
       <template #actions>

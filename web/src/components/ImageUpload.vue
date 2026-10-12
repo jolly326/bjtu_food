@@ -26,13 +26,18 @@ import { ElMessage } from 'element-plus'
 const props = withDefaults(
   defineProps<{
     modelValue: ImageItem[]
+    /**
+     * 数量上限。**缺省 3**（= 全站 UGC 配图上限，即缺省值就是严格值）——
+     * 运营多图素材位（A1 食堂 / A2 档口 / A3 菜品）**显式传 `:max="5"`**；
+     * 单图位（A5 Banner）传 `:max="1"` 并配 `:cover="false"`。
+     */
     max?: number
     ratioHint?: string
     ariaLabel?: string
     /** 是否呈现「封面 = 首图」语义（角标 + 设为封面）；单图运营位传 `false` */
     cover?: boolean
   }>(),
-  { cover: true },
+  { cover: true, max: 3 },
 )
 const emit = defineEmits<{ 'update:modelValue': [ImageItem[]] }>()
 
@@ -40,13 +45,13 @@ const uploading = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 /** 起拖的缩略图下标（null = 未在拖拽） */
 const dragIndex = ref<number | null>(null)
-/** 数量上限（缺省 5；满额后隐藏「添加」框而非点击后提示） */
-const maxLimit = computed(() => props.max ?? 5)
+/** 数量上限（缺省 3；满额后隐藏「添加」框而非点击后提示） */
+const maxLimit = computed(() => props.max)
 
 async function onPick(e: Event): Promise<void> {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  const limit = props.max ?? 5
+  const limit = props.max
   if (props.modelValue.length >= limit) {
     ElMessage.warning(`最多 ${limit} 张`)
     return

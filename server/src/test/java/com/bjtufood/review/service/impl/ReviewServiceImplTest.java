@@ -1,10 +1,14 @@
 package com.bjtufood.review.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.dto.UserBriefVO;
+import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ImageUrlUtil;
@@ -25,6 +29,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -71,6 +76,7 @@ class ReviewServiceImplTest {
     private final ReviewMapper reviewMapper = mock(ReviewMapper.class);
     private final UserService userService = mock(UserService.class);
     private final DishService dishService = mock(DishService.class);
+    private final AdminAccountService adminAccountService = mock(AdminAccountService.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final ImageUrlUtil imageUrlUtil = mock(ImageUrlUtil.class);
     private final LocalSensitiveFilter localSensitiveFilter = mock(LocalSensitiveFilter.class);
@@ -82,8 +88,8 @@ class ReviewServiceImplTest {
         // 落库 Bean 用**真实实现**包裹 mock 的 mapper 与事件发布器：事务边界收窄（机审移出事务）后，
         // 本类断言仍原样落在 reviewMapper.insert / update 与 eventPublisher 上 —— 即「可见行为未变」的直接证据。
         return new ReviewServiceImpl(reviewMapper, new ReviewPersister(reviewMapper, eventPublisher),
-                userService, dishService, eventPublisher, imageUrlUtil, localSensitiveFilter, contentSecurityService,
-                notificationService);
+                userService, dishService, adminAccountService, eventPublisher, imageUrlUtil, localSensitiveFilter,
+                contentSecurityService, notificationService);
     }
 
     private static Review review(Long id, Long userId, Long dishId, int rating) {
@@ -231,6 +237,102 @@ class ReviewServiceImplTest {
         // 用户不在契约返回图中（用户已注销被剔除等）：头像同样为 null，不得抛 NPE
         assertThat(vos.get(2).getUserAvatar()).isNull();
         assertThat(vos.get(2).getUserName()).isNull();
+    }
+
+    // ==================== 处置留痕：写入（一次 UPDATE 写 4 列 + DB 时钟） ====================
+
+    @Test
+    @DisplayName("setHidden：一次 UPDATE 同批写 is_hidden / hidden_note / moderated_by / moderated_at，"
+            + "处置时间必须走 DB 时钟 NOW()")
+    void setHiddenWritesVisibilityAndTraceInOneUpdate() {
+        when(reviewMapper.selectById(8L)).thenReturn(review(8L, 3L, 7L, 4));
+        AtomicReference<Wrapper<Review>> captured = new AtomicReference<>();
+        when(reviewMapper.update(isNull(), any())).thenAnswer(inv -> {
+            captured.set(inv.getArgument(1));
+            return 1;
+        });
+
+        service().setHidden(8L, true, "  含违规配图  ", 42L);
+
+        assertThat(captured.get())
+                .as("必须走列级 UPDATE（update(entity=null, LambdaUpdateWrapper)）："
+                        + "整行回写会连带写回内容列，与用户覆盖提交并发时互相覆盖")
+                .isInstanceOf(LambdaUpdateWrapper.class);
+        AbstractWrapper<?, ?, ?> wrapper = (AbstractWrapper<?, ?, ?>) captured.get();
+        assertThat(wrapper.getSqlSet())
+                .as("四列必须同批写入（可见性 + 附注 + 处置人 + 处置时间），否则「最近一次处置」会残缺")
+                .contains("is_hidden=")
+                .contains("hidden_note=")
+                .contains("moderated_by=")
+                .contains("moderated_at = NOW()");
+        assertThat(wrapper.getParamNameValuePairs().values())
+                .as("处置人取当前管理员；附注须 trim 后落库")
+                .contains(42L, "含违规配图");
+        // 处置时间的唯一来源是 DB 时钟：不能用 LocalDateTime.now()（重评覆盖本行会误刷新它）
+        assertThat(wrapper.getParamNameValuePairs().values())
+                .as("处置时间不得作为应用层参数落库")
+                .noneMatch(v -> v instanceof java.time.LocalDateTime);
+        // 可见性翻转后仍须重算评分（隐藏的评价不计入均分）
+        verify(eventPublisher).publishEvent(any(ReviewSubmittedEvent.class));
+    }
+
+    @Test
+    @DisplayName("setHidden：恢复显示同样写处置人 + 处置时间，且附注槽显式写 NULL（不清空会串到下一条回执）")
+    void setHiddenOnUnhideClearsNoteAndStillRecordsTrace() {
+        when(reviewMapper.selectById(8L)).thenReturn(review(8L, 3L, 7L, 4));
+        AtomicReference<Wrapper<Review>> captured = new AtomicReference<>();
+        when(reviewMapper.update(isNull(), any())).thenAnswer(inv -> {
+            captured.set(inv.getArgument(1));
+            return 1;
+        });
+
+        service().setHidden(8L, false, "旧附注", 42L);
+
+        AbstractWrapper<?, ?, ?> wrapper = (AbstractWrapper<?, ?, ?>) captured.get();
+        assertThat(wrapper.getSqlSet())
+                .as("恢复显示也是「一次可见性处置」：处置人 / 处置时间必须刷新，不能只在隐藏时写")
+                .contains("hidden_note=", "moderated_by=", "moderated_at = NOW()");
+        assertThat(wrapper.getParamNameValuePairs().values())
+                .as("附注槽被显式写 NULL —— updateById 的 NOT_NULL 策略会跳过 null，旧附注将永远清不掉")
+                .containsNull();
+    }
+
+    @Test
+    @DisplayName("hideIfVisible：已隐藏 → 不发起任何写入（幂等，且不覆盖既有处置留痕）")
+    void hideIfVisibleIsIdempotentAndKeepsTrace() {
+        Review hidden = review(8L, 3L, 7L, 4);
+        hidden.setIsHidden(1);
+        when(reviewMapper.selectById(8L)).thenReturn(hidden);
+
+        assertThat(service().hideIfVisible(8L, 42L)).isFalse();
+
+        verify(reviewMapper, never()).update(isNull(), any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    // ==================== 处置留痕：出参 ====================
+
+    @Test
+    @DisplayName("listAllForAdmin：处置人经 auth 域契约批量带出 —— 已处置 → 登录名；未处置 → null")
+    void listAllForAdminBringsModeratorNameThrough() {
+        Review handled = review(1L, 1L, 10L, 5);
+        handled.setModeratedBy(42L);
+        handled.setModeratedAt(java.time.LocalDateTime.of(2026, 1, 2, 10, 30));
+        Review untouched = review(2L, 2L, 10L, 4);
+        Page<Review> page = new Page<>(1, 10);
+        page.setRecords(List.of(handled, untouched));
+        doReturn(page).when(reviewMapper).selectPage(any(), any());
+        when(userService.mapBriefByIds(any())).thenReturn(Map.of());
+        when(dishService.mapNameByIds(any())).thenReturn(Map.of(10L, "番茄炒蛋"));
+        when(adminAccountService.mapUsernameByIds(any())).thenReturn(Map.of(42L, "superadmin"));
+
+        List<ReviewAdminVO> vos = service().listAllForAdmin(1, 10, null, null, null, null).getRecords();
+
+        assertThat(vos.get(0).getModeratedByName()).isEqualTo("superadmin");
+        assertThat(vos.get(0).getModeratedAt()).isEqualTo(java.time.LocalDateTime.of(2026, 1, 2, 10, 30));
+        // 未处置：两列均 null（端上显示 —），不得伪造成「已处置」
+        assertThat(vos.get(1).getModeratedByName()).isNull();
+        assertThat(vos.get(1).getModeratedAt()).isNull();
     }
 
     // ==================== deleteByDishId：级联清理 ====================

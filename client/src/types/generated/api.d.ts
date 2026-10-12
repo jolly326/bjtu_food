@@ -53,7 +53,7 @@ export interface paths {
   "/admin/reviews/{id}/hidden": {
     /**
      * 设置评价隐藏/显示
-     * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。
+     * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。两条路径都记录处置人（当前管理员）与处置时间，覆盖式只留最近一次。
      */
     put: operations["setHidden"];
   };
@@ -179,7 +179,7 @@ export interface paths {
   "/admin/corrections/{id}": {
     /**
      * 问题反馈详情
-     * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**），供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
+     * @description ADM。返回提交项对照（只读）：**type=field** → differences[]（**只列用户提交过的项**，oldValue 取当前菜品/档口**实时值**，same 标记是否一致），供管理员阅读判断；**type=gone** → differences 恒空，只返回 note + images + goneUserCount。菜品已物理删除时 oldValue 各项为 null（无从对照）；反馈不存在 → 4001。
      */
     get: operations["detail"];
     /**
@@ -271,7 +271,7 @@ export interface paths {
   "/dishes/{id}/correction": {
     /**
      * 提交菜品问题反馈
-     * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+     * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），归属档口（管理员据此在档口管理手动修改 stall.floor）。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
      */
     post: operations["submitCorrection"];
   };
@@ -365,7 +365,7 @@ export interface paths {
   "/admin/dishes": {
     /**
      * 后台菜品列表
-     * @description 用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。
+     * @description 用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。支持 withoutStall=true 只看「未归入档口」的存量菜品（与 stallId 互斥，同时传 → 400）。
      */
     get: operations["listMyDishes"];
     /**
@@ -429,12 +429,12 @@ export interface paths {
      */
     post: operations["create_3"];
   };
-  "/admin/corrections/{id}/adopt": {
+  "/admin/corrections/{id}/handle": {
     /**
-     * 采纳反馈（按 type 分派）
-     * @description ADM。仅待处置（moderation_task.status=pending）可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体的差异项，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ 处置任务归档 handled/replyContent 缺省「已下架，感谢反馈」、标题「菜品已下架」，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ 处置任务归档 handled（附注缺省「已采纳，菜品信息已更新」；部分采纳时逐项告知已采纳/未采纳），并投递站内回执。采纳已执行时返回 data=null（code=200）。
+     * 标记已处理（接受反馈）
+     * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该反馈已处理」）。**只归档处置结论 + 投递站内回执，不改写任何菜品数据**：处置任务归档 handled / outcome='handled'（已受理，管理员已手动处理），标题缺省「已收到你的反馈」、正文缺省「感谢反馈，我们已核实处理」，并投递站内回执。菜品资料修改 / gone 型可逆下架由管理员在菜品管理（web/dishes）手动执行，不在本端点。
      */
-    post: operations["adopt"];
+    post: operations["handle_2"];
   };
   "/admin/canteens": {
     /**
@@ -1252,7 +1252,7 @@ export interface components {
       /** @description 档口展示图片列表 */
       images?: string[];
       /**
-       * @description 平均评分
+       * @description 平均评分（实时聚合，1 位小数；无可见评价为 0.0）
        * @example 4.5
        */
       avgRating?: number;
@@ -1319,7 +1319,7 @@ export interface components {
       id?: number;
       /**
        * Format: int64
-       * @description 所属档口ID
+       * @description 所属档口ID（null = 未归入档口）
        */
       stallId?: number;
       /**
@@ -1349,7 +1349,7 @@ export interface components {
        */
       status?: string;
       /**
-       * @description 平均评分
+       * @description 平均评分（1 位小数；零评价为 null）
        * @example 4.5
        */
       avgRating?: number;
@@ -1624,45 +1624,15 @@ export interface components {
       message?: string;
       data?: components["schemas"]["DishCategoryAdminVO"];
     };
-    /** @description **field 型**采纳请求体 {acceptedFields[], stallId?, createIfMissing?, replyContent?}；**gone 型**忽略差异项参数（下架无需勾选） */
-    DishCorrectionAdoptReq: {
+    /** @description 处置请求体 {replyTitle?, replyContent?}：均可选（回执标题 ≤40 字 / 处理附注 ≤600 字） */
+    DishCorrectionHandleReq: {
       /**
-       * @description 采纳哪些差异项（取值 = GET /admin/corrections/{id} 的 differences[].field）；**必填且非空**
-       * @example [
-       *   "name",
-       *   "price"
-       * ]
+       * @description 回执短标题（可选，≤40 字；缺省「已收到你的反馈」）
+       * @example 已收到你的反馈
        */
-      acceptedFields?: string[];
-      /**
-       * Format: int64
-       * @description 档口ID（可选，两段式第二段：管理端选定的既有档口，校验存在后挂靠）
-       * @example 3
-       */
-      stallId?: number;
-      /**
-       * @description 是否按提交档口名新建档口（可选，默认 false；两段式第二段「确认新建」）
-       * @example false
-       */
-      createIfMissing?: boolean;
-      /** @description 采纳附注（可选，≤600 字；缺省用固定文案「已采纳，菜品信息已更新」随回执下发） */
+      replyTitle?: string;
+      /** @description 处理附注（可选，≤600 字；缺省「感谢反馈，我们已核实处理」，随回执下发） */
       replyContent?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultObject: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: Record<string, never>;
     };
     /** @description 后台食堂列表展示信息 */
     CanteenAdminVO: {
@@ -2378,7 +2348,7 @@ export interface components {
       message?: string;
       data?: components["schemas"]["AdminPageResultReviewAdminVO"];
     };
-    /** @description 评价展示信息（管理端专用，含审核标记） */
+    /** @description 评价展示信息（管理端专用，含可见性状态与处置留痕） */
     ReviewAdminVO: {
       /**
        * Format: int64
@@ -2420,6 +2390,15 @@ export interface components {
       createdAt?: string;
       /** @description 是否被隐藏（管理端用） */
       hidden?: boolean;
+      /** @description 隐藏附注（最近一次隐藏说明；未隐藏为 null） */
+      hiddenNote?: string;
+      /** @description 最近一次可见性处置的处置人登录名（未处置为 null） */
+      moderatedByName?: string;
+      /**
+       * Format: date-time
+       * @description 最近一次可见性处置的时间（未处置为 null）
+       */
+      moderatedAt?: string;
     };
     /** @description 管理端分页响应结果（含总数） */
     AdminPageResultReportAdminVO: {
@@ -2653,7 +2632,7 @@ export interface components {
       categoryName?: string;
       /** @description 上架状态：on / off */
       status?: string;
-      /** @description 均分（零评价为 null） */
+      /** @description 均分（1 位小数；零评价为 null） */
       avgRating?: number;
       /**
        * Format: int32
@@ -2663,7 +2642,7 @@ export interface components {
       ratingCount?: number;
       /**
        * Format: int64
-       * @description 近 30 天浏览量（dish_view_log 滚动窗口统计；非历史累计。窗口内无浏览为 0）
+       * @description 近 30 天浏览量（dish_view_log 滚动窗口统计；窗口内无浏览为 0）
        * @example 86
        */
       recentViewCount?: number;
@@ -2767,7 +2746,7 @@ export interface components {
       dishesWithoutImage?: number;
       /**
        * Format: int64
-       * @description 未归入档口的菜品数（stall_id = 0）
+       * @description 未归入档口的菜品数（stall_id 为空）
        */
       dishesWithoutStall?: number;
       /**
@@ -2932,7 +2911,7 @@ export interface components {
       note?: string;
       /** @description 处置状态：pending / handled */
       status?: string;
-      /** @description 处置结论：handled=采纳/已下架 / rejected=不采纳；未处置为 null */
+      /** @description 处置结论：handled=已受理（管理员已手动处理）/ rejected=不采纳；未处置为 null */
       outcome?: string;
       /** @description 处置回执短标题（未处置为 null） */
       replyTitle?: string;
@@ -2940,13 +2919,6 @@ export interface components {
       replyContent?: string;
       /** @description 处置人登录名（未处置 / 账号已删除为 null） */
       handledByName?: string;
-      /**
-       * Format: int32
-       * @description 差异项数量（一眼看出「改了几项」；列表不必展开全部内容）
-       */
-      changeCount?: number;
-      /** @description 含 floor 改动时的连带影响提示（同档口菜品数） */
-      floorImpact?: string;
       /**
        * Format: date-time
        * @description 提交时间
@@ -3006,7 +2978,7 @@ export interface components {
       userName?: string;
       /** @description 处置状态：pending / handled */
       status?: string;
-      /** @description 处置结论：handled=采纳/已下架 / rejected=不采纳；未处置为 null */
+      /** @description 处置结论：handled=已受理（管理员已手动处理）/ rejected=不采纳；未处置为 null */
       outcome?: string;
       /**
        * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
@@ -3019,7 +2991,7 @@ export interface components {
        * @example 3
        */
       goneUserCount?: number;
-      /** @description 差异对照清单（仅仍有差异的项） */
+      /** @description 提交项对照清单（只列用户提交过的项） */
       differences?: components["schemas"]["DishCorrectionDifferenceVO"][];
       /** @description 提交的菜品图片 URL 列表（COS 绝对地址） */
       images?: string[];
@@ -3040,10 +3012,10 @@ export interface components {
        */
       handledAt?: string;
     };
-    /** @description 纠错差异对照项 */
+    /** @description 菜品问题反馈提交项对照项 */
     DishCorrectionDifferenceVO: {
       /**
-       * @description 差异项键（可直接作为 acceptedFields 的取值）：name/price/canteenName/stallName/floor/images/attributes.<维度ID>
+       * @description 对照项键：name/price/canteenName/stallName/floor/images/attributes.<维度ID>
        * @example name
        */
       field?: string;
@@ -3052,12 +3024,12 @@ export interface components {
        * @example 菜品名称
        */
       label?: string;
-      /** @description 当前实时值（回查 dish / stall） */
+      /** @description 当前实时值（回查 dish / stall；菜品已物理删除为 null） */
       oldValue?: string;
       /** @description 用户提交的值 */
       newValue?: string;
-      /** @description 是否连带影响同档口其它菜品（仅 floor 为 true） */
-      affectsOthers?: boolean;
+      /** @description 提交值是否与当前值一致（true = 已一致，端上据此标注「已一致 / 有差异」） */
+      same?: boolean;
     };
     /** @description 统一响应结果 */
     ResultCorrectionDetailVO: {
@@ -3073,6 +3045,22 @@ export interface components {
        */
       message?: string;
       data?: components["schemas"]["CorrectionDetailVO"];
+    };
+    /** @description 统一响应结果 */
+    ResultObject: {
+      /**
+       * Format: int32
+       * @description 状态码
+       * @example 200
+       */
+      code?: number;
+      /**
+       * @description 提示信息
+       * @example 操作成功
+       */
+      message?: string;
+      /** @description 数据 */
+      data?: Record<string, never>;
     };
     /** @description 统一响应结果 */
     ResultListBannerAdminVO: {
@@ -3457,7 +3445,7 @@ export interface operations {
   };
   /**
    * 设置评价隐藏/显示
-   * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。
+   * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。两条路径都记录处置人（当前管理员）与处置时间，覆盖式只留最近一次。
    */
   setHidden: {
     parameters: {
@@ -4467,7 +4455,7 @@ export interface operations {
   };
   /**
    * 问题反馈详情
-   * @description ADM。按 type 分派返回：**type=field** → differences[]（**仅仍有差异的项**，oldValue 取当前菜品/档口的**实时值**），供「**逐项勾选采纳**」；楼层项的 affectsOthers=true（采纳会连带同档口所有菜品，UI 需二次确认）。**type=gone** → **不返回差异对照**（differences 恒空），只返回 note + images + goneUserCount，处置动作**仅「下架」**（🔴 本流程不提供删除，删除仅在菜品管理中由管理员主动执行）。目标菜品已物理删除时 differences 为空列表（采纳本身也会 4001）；反馈不存在 → 4001。
+   * @description ADM。返回提交项对照（只读）：**type=field** → differences[]（**只列用户提交过的项**，oldValue 取当前菜品/档口**实时值**，same 标记是否一致），供管理员阅读判断；**type=gone** → differences 恒空，只返回 note + images + goneUserCount。菜品已物理删除时 oldValue 各项为 null（无从对照）；反馈不存在 → 4001。
    */
   detail: {
     parameters: {
@@ -5125,7 +5113,7 @@ export interface operations {
   };
   /**
    * 提交菜品问题反馈
-   * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），采纳时写回目标档口 stall.floor。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
+   * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），归属档口（管理员据此在档口管理手动修改 stall.floor）。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
    */
   submitCorrection: {
     parameters: {
@@ -5691,7 +5679,7 @@ export interface operations {
   };
   /**
    * 后台菜品列表
-   * @description 用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。
+   * @description 用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。支持 withoutStall=true 只看「未归入档口」的存量菜品（与 stallId 互斥，同时传 → 400）。
    */
   listMyDishes: {
     parameters: {
@@ -5706,6 +5694,8 @@ export interface operations {
         status?: string;
         /** @description 关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径） */
         keyword?: string;
+        /** @description 只看未归入档口的菜品（stall_id 为空）；与 stallId 互斥 */
+        withoutStall?: boolean;
         page?: number;
         pageSize?: number;
       };
@@ -6206,10 +6196,10 @@ export interface operations {
     };
   };
   /**
-   * 采纳反馈（按 type 分派）
-   * @description ADM。仅待处置（moderation_task.status=pending）可采纳（否则 400「该反馈已处理」）；目标菜品已物理删除返回 4001。**type=gone（已经下架）**：**忽略请求体的差异项，直接下架该菜品**（dish.status=off，**可逆**、评价完整保留）→ 处置任务归档 handled/replyContent 缺省「已下架，感谢反馈」、标题「菜品已下架」，并投递站内回执。⚠️ **本流程绝不删除菜品**（review.dish_id ON DELETE CASCADE ⇒ 删除会永久清空该菜评价）；误下架可在菜品管理中重新上架。**type=field（信息有误）**：acceptedFields 必填且非空（空数组 → 400），取值须为详情 differences[].field 且**此刻仍有差异**（否则 400「采纳项无效或已无差异」）——只写回选中项。两段式档口确认（**仅在采纳了 canteenName/stallName 项时**）：①不带 stallId/createIfMissing 调用——提交档口名精确匹配现有档口：命中直接采纳；未命中则不执行采纳，HTTP 200 返回 data={needStallConfirm:true, candidates:[{id,name}]}（候选档口列表）；②管理端选定既有档口（带 stallId）或确认新建（createIfMissing=true）后再次调用，执行采纳。采纳动作：选中项写回目标菜品；含 floor 时另外写回**目标档口** stall.floor（同档口其他菜品一并生效）→ 处置任务归档 handled（附注缺省「已采纳，菜品信息已更新」；部分采纳时逐项告知已采纳/未采纳），并投递站内回执。采纳已执行时返回 data=null（code=200）。
+   * 标记已处理（接受反馈）
+   * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该反馈已处理」）。**只归档处置结论 + 投递站内回执，不改写任何菜品数据**：处置任务归档 handled / outcome='handled'（已受理，管理员已手动处理），标题缺省「已收到你的反馈」、正文缺省「感谢反馈，我们已核实处理」，并投递站内回执。菜品资料修改 / gone 型可逆下架由管理员在菜品管理（web/dishes）手动执行，不在本端点。
    */
-  adopt: {
+  handle_2: {
     parameters: {
       path: {
         /**
@@ -6221,14 +6211,14 @@ export interface operations {
     };
     requestBody?: {
       content: {
-        "application/json": components["schemas"]["DishCorrectionAdoptReq"];
+        "application/json": components["schemas"]["DishCorrectionHandleReq"];
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ResultObject"];
+          "*/*": components["schemas"]["ResultVoid"];
         };
       };
       /** @description Bad Request */

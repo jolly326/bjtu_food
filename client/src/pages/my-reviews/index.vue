@@ -106,6 +106,7 @@ import { useUserStore } from '@/stores/user'
 import { useAuthStore } from '@/stores/auth'
 import { listMyReviews, deleteReview } from '@/api/review'
 import { isResourceNotFound } from '@/api/errors'
+import { useRateLimitCooldown } from '@/composables/useRateLimitCooldown'
 import type { Review, MyReview } from '@/types/review'
 import { backToHome } from '@/utils/back'
 import { PATH } from '@/utils/routes'
@@ -207,7 +208,16 @@ function removeLocal(id: number) {
 /** 删除在途锁（不可逆操作防重复）：非 null 时表示正在删除的评价 id */
 const deletingId = ref<number | null>(null)
 
+/** 删除限频退避（账号维度 3/分）：退避期内不发请求，由提示告知剩余秒数 */
+const { cooldownSeconds, cooling, handleError: handleRateLimit, clearCooldown } =
+  useRateLimitCooldown()
+
 function onDelete(r: MyReview) {
+  // 退避期：直接给倒计时提示，不再弹确认（连点只会持续撞限频、把封锁越拖越长）
+  if (cooling()) {
+    toastInfo(`删除太频繁，${cooldownSeconds.value} 秒后再试`)
+    return
+  }
   uni.showModal({
     ...CONFIRM_DELETE_REVIEW,
     confirmColor: MODAL_CONFIRM_DANGER_COLOR,
@@ -219,6 +229,7 @@ function onDelete(r: MyReview) {
       try {
         await deleteReview(r.id)
         removeLocal(r.id)
+        clearCooldown()
         toastSuccess(TOAST_REVIEW_DELETED)
       } catch (e) {
         if (isResourceNotFound(e)) {
@@ -226,6 +237,8 @@ function onDelete(r: MyReview) {
           toastInfo(REVIEW_GONE_TEXT)
           return
         }
+        // 被限频：请求层已 toast「请 N 秒后再试」，此处只进退避，不重复提示
+        if (handleRateLimit(e)) return
         toastError(e, '删除失败')
       } finally {
         deletingId.value = null

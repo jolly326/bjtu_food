@@ -12,6 +12,7 @@ import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.DateTimeUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -127,10 +128,27 @@ public class VerifyCodePersister {
                     .set(User::getEmail, null));
             publishOwnershipMigrated(occupied.getId(), currentUser.getId());
         }
+        bindEmail(currentUser, email);
+    }
 
-        // 置当前微信为已认证：**认证态唯一写入点 = email**（无布尔列，派生判据见 AuthStateUtil）
+    /**
+     * 置当前微信为已认证：**认证态唯一写入点 = email**（无布尔列，派生判据见 AuthStateUtil）。
+     * <p>
+     * 唯一索引 {@code uk_user_email} 是「同一邮箱至多一行非空」的库级固化，本方法是该约束
+     * <b>唯一可能被触发</b>的写入点 —— 占用者腾空写的是 {@code NULL}，MySQL 唯一索引不约束
+     * {@code NULL} 行，故腾空永不冲突，冲突只可能出现在这次非空写入上。
+     * <p>
+     * 兜底场景：两笔「认证到同一邮箱」并发时各自都没查到占用者（替换绑定链路的正常路径会先腾空旧占用者），
+     * 由唯一索引拦下后者 ⇒ 转既有 `400` 文案（见 docs/api/client/auth.md），**不得退化为 500**。
+     * 抛出后本方法所在事务整体回滚 ⇒ 占用者腾空与归属迁移一并撤销，不留「邮箱已释放但数据没迁移」的中间态。
+     */
+    private void bindEmail(User currentUser, String email) {
         currentUser.setEmail(email);
-        userMapper.updateById(currentUser);
+        try {
+            userMapper.updateById(currentUser);
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(400, "该邮箱已被其他账号占用");
+        }
     }
 
     /**

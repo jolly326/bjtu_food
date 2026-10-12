@@ -102,8 +102,9 @@ public interface StallService {
      * 并发双写极端情况由调用方幂等容忍）。菜品录入/编辑（DishServiceImpl#resolveStallId）
      * 与菜品问题反馈采纳（createIfMissing=true）共用本入口。
      * <p>
-     * 新建档口必须有可解析的有效所属食堂（canteenName 有效并按名 upsert 所属食堂，
-     * 空白/「其他」等空值语义名称 → 400「请选择所属食堂」），不允许落 canteen_id=0。
+     * 新建档口必须有可解析的有效所属食堂（canteenName 有效并按名 upsert 所属食堂；
+     * 空白/「其他」等空值语义名称 → 400「请选择所属食堂」）—— {@code stall.canteen_id}
+     * 为 NOT NULL 必填，无有效食堂名即拒绝建档。
      *
      * @param stallName      档口名（调用方保证非空白）
      * @param rawCanteenName 所属食堂名（仅新建档口时消费，可空）

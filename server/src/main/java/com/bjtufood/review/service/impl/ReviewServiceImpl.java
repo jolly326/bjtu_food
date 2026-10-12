@@ -24,6 +24,7 @@ import com.bjtufood.review.mapper.ReviewMapper;
 import com.bjtufood.review.service.ReviewService;
 import com.bjtufood.auth.dto.UserAuthContextVO;
 import com.bjtufood.auth.dto.UserBriefVO;
+import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.auth.service.UserService;
 import com.bjtufood.dish.service.DishService;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +59,12 @@ public class ReviewServiceImpl implements ReviewService {
     private final UserService userService;
     /** 跨域只读契约：管理端列表菜品名（P0-1，替代 DishMapper 直连） */
     private final DishService dishService;
+    /**
+     * 跨域只读契约：处置人登录名（P0-1，替代 AdminMapper 直连）——
+     * 取的是 {@code review.moderated_by → admin.id} 的登录名（同 {@code moderation} 域取
+     * {@code handledByName} 的口径），本域不 import admin 实体、不注入 admin Mapper。
+     */
+    private final AdminAccountService adminAccountService;
     private final ApplicationEventPublisher eventPublisher;
     private final ImageUrlUtil imageUrlUtil;
     private final LocalSensitiveFilter localSensitiveFilter;
@@ -265,8 +272,10 @@ public class ReviewServiceImpl implements ReviewService {
         page = norm[0]; pageSize = norm[1];
         IPage<Review> pageResult = reviewMapper.selectPage(new Page<>(page, pageSize), new LambdaQueryWrapper<Review>()
                 // R6：review 表无 updated_at 列，选取字段与排序只用 created_at
+                // 处置留痕两列必须显式入 SELECT：select(...) 是白名单，漏选会让出参恒为 null
                 .select(Review::getId, Review::getUserId, Review::getDishId, Review::getRating,
                         Review::getContent, Review::getImages, Review::getIsHidden,
+                        Review::getHiddenNote, Review::getModeratedBy, Review::getModeratedAt,
                         Review::getCreatedAt)
                 // B1：hidden 是**布尔**（库列 is_hidden 仍 0/1，在此翻译）；dishId 为新增筛选
                 .eq(hidden != null, Review::getIsHidden, hidden == null ? null : (hidden ? 1 : 0))
@@ -279,7 +288,8 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 管理端评价列表批量 enrich：补齐评价者昵称/头像、菜品名，避免前端本地 find 退化。
+     * 管理端评价列表批量 enrich：补齐评价者昵称/头像、菜品名、处置人登录名，
+     * 三者一律**批量**取回（逐行取名会退化成 N+1）。
      */
     private List<ReviewAdminVO> enrichAdminBatch(List<Review> records) {
         if (records == null || records.isEmpty()) {
@@ -287,10 +297,13 @@ public class ReviewServiceImpl implements ReviewService {
         }
         Set<Long> userIds = records.stream().map(Review::getUserId).filter(id -> id != null).collect(Collectors.toSet());
         Set<Long> dishIds = records.stream().map(Review::getDishId).filter(id -> id != null).collect(Collectors.toSet());
-        // 作者昵称/头像经 auth 域只读契约下发、菜品名经 dish 域只读契约下发（P0-1：
-        // 本域不注入 UserMapper/DishMapper，不 import 他域实体）
+        Set<Long> moderatorIds = records.stream().map(Review::getModeratedBy)
+                .filter(id -> id != null).collect(Collectors.toSet());
+        // 作者昵称/头像与处置人登录名经 auth 域只读契约下发、菜品名经 dish 域只读契约下发（P0-1：
+        // 本域不注入 UserMapper/DishMapper/AdminMapper，不 import 他域实体）
         Map<Long, UserBriefVO> userMap = userService.mapBriefByIds(userIds);
         Map<Long, String> dishNameMap = dishService.mapNameByIds(dishIds);
+        Map<Long, String> moderatorNameMap = adminAccountService.mapUsernameByIds(moderatorIds);
         List<ReviewAdminVO> vos = new ArrayList<>(records.size());
         for (Review r : records) {
             ReviewAdminVO vo = toAdminVO(r);
@@ -299,6 +312,8 @@ public class ReviewServiceImpl implements ReviewService {
             // 头像由 auth 域完成相对路径 → 绝对 URL 转换，本处原样透传
             vo.setUserAvatar(u != null ? u.getAvatarUrl() : null);
             vo.setDishName(r.getDishId() == null ? null : dishNameMap.get(r.getDishId()));
+            // 未处置（moderated_by 为 null）与「账号不在图」同为 null，端上一律按未处置展示
+            vo.setModeratedByName(r.getModeratedBy() == null ? null : moderatorNameMap.get(r.getModeratedBy()));
             vos.add(vo);
         }
         return vos;
@@ -306,22 +321,32 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void setHidden(Long id, boolean hidden, String note) {
+    public void setHidden(Long id, boolean hidden, String note, Long adminId) {
         Review review = reviewMapper.selectById(id);
         if (review == null) {
             throw new BusinessException(4001, "评价不存在");
         }
-        review.setIsHidden(hidden ? 1 : 0);
         // 附注只属「隐藏」：恢复显示时清空，避免旧附注残留到下一条回执
-        review.setHiddenNote(hidden ? normalizeHiddenNote(note) : null);
-        reviewMapper.updateById(review);
+        String hiddenNote = hidden ? normalizeHiddenNote(note) : null;
+        // 处置留痕：**一次 UPDATE 同批写 4 列**（可见性 + 附注 + 处置人 + 处置时间），
+        // 隐藏与恢复显示两条路径都写、每次整体覆盖 ⇒ 只留最近一次（见 docs/schema/review.md）。
+        // 🔴 moderated_at 用 DB 时钟 NOW()：本表无 ON UPDATE，而用户在详情页重评会覆盖本行 ——
+        //    若改用 LocalDateTime.now() 或 ON UPDATE，重评会顺手把「处置时刻」冲成「重评时刻」。
+        // 必须走 LambdaUpdateWrapper：updateById 的 NOT_NULL 策略会跳过 null 字段 ——
+        // 「恢复显示」要清空附注，走 updateById 时该列根本不会被写，旧附注会残留到下一条回执。
+        reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
+                .eq(Review::getId, id)
+                .set(Review::getIsHidden, hidden ? 1 : 0)
+                .set(Review::getHiddenNote, hiddenNote)
+                .set(Review::getModeratedBy, adminId)
+                .setSql("moderated_at = NOW()"));
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, review.getDishId(), review.getRating()));
         if (hidden) {
             // 隐藏后该评价对作者本人亦不可见（见 B1「客户端可见性」）⇒ 回执是作者唯一解释渠道
             sendReviewReceipt(review.getUserId(),
                     "评价已被隐藏",
                     "你的评价已被管理员隐藏。"
-                            + (review.getHiddenNote() == null ? "" : "说明：" + review.getHiddenNote()));
+                            + (hiddenNote == null ? "" : "说明：" + hiddenNote));
         }
     }
 
@@ -370,7 +395,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public boolean hideIfVisible(Long reviewId) {
+    public boolean hideIfVisible(Long reviewId, Long adminId) {
         if (reviewId == null) {
             return false;
         }
@@ -378,7 +403,8 @@ public class ReviewServiceImpl implements ReviewService {
         if (review == null || review.getIsHidden() != null && review.getIsHidden() == 1) {
             return false;   // 不存在或已隐藏 ⇒ 无需再隐藏（幂等，也不重复投回执）
         }
-        setHidden(reviewId, true, null);
+        // 联动隐藏同样是一次可见性处置 ⇒ 与手动隐藏同口径写明处置人与处置时间
+        setHidden(reviewId, true, null, adminId);
         return true;
     }
 
@@ -449,7 +475,10 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     /**
-     * 转换为管理端 VO（携带 is_hidden 处置字段与配图；人工复核已取消）
+     * 转换为管理端 VO（携带可见性处置字段、处置留痕与配图；人工复核已取消）。
+     * <p>
+     * {@code moderatedByName} 不在此组装：它需要 auth 域的登录名映射，必须在
+     * {@link #enrichAdminBatch} 里**批量**补齐（逐行取名会退化成 N+1）。
      */
     private ReviewAdminVO toAdminVO(Review review) {
         ReviewAdminVO vo = new ReviewAdminVO();
@@ -463,6 +492,9 @@ public class ReviewServiceImpl implements ReviewService {
         vo.setCreatedAt(review.getCreatedAt());
         // B1 出参布尔化（库列 0/1 → boolean）
         vo.setHidden(review.getIsHidden() != null && review.getIsHidden() == 1);
+        // 隐藏附注与处置时间直出（未处置 / 恢复显示为 null，端上按未处置展示）
+        vo.setHiddenNote(review.getHiddenNote());
+        vo.setModeratedAt(review.getModeratedAt());
         return vo;
     }
 }

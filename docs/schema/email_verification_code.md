@@ -57,6 +57,8 @@ UPDATE email_verification_code SET used_at = ? WHERE id = ? AND used_at IS NULL
 
 ⚠️ 若核验失败率异常（爆破），服务端无法从本表区分攻击者与正常用户。
 
+**触发条件**：若要恢复「按申请者归属」的能力（发码即记录归属人、核验时按人收窄候选），须改动发码链路的鉴权前提（当前发码端点为匿名），属产品口径变更而非本表局部加列。
+
 ### 清理策略
 - **定时任务**每日 03:00 清理 1 天前已过期的记录（`EmailVerificationCodeCleanupTask`）
 - **账号注销时**按目标邮箱 `email` 与用户 `user.email`（认证绑定邮箱）两批删除（避免残留验证码在他端被消费）

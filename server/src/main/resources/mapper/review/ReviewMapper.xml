@@ -96,10 +96,12 @@
     <!--
         批量：多个档口下所有菜品评价的平均分，一次查询返回 stall_id → avg(rating) 映射。
         计入口径：仅 is_hidden=0 的评价计入（与 dish 评分聚合同口径）。
+        精度口径：ROUND(AVG(rating), 1) —— 与 DishMapper#recalcRatingBySubquery 同源，
+        全站评分**统一 1 位小数**（与 dish.avg_rating DECIMAL(3,1) 同精度）。
     -->
     <select id="selectAvgRatingByStallIds" resultType="com.bjtufood.review.dto.StallAvgRatingVO">
-        SELECT d.stall_id     AS stallId,
-               AVG(r.rating)  AS avgRating
+        SELECT d.stall_id              AS stallId,
+               ROUND(AVG(r.rating), 1) AS avgRating
         FROM review r
                  JOIN dish d ON r.dish_id = d.id
         WHERE d.stall_id IN

@@ -7,8 +7,11 @@
  * 删除为物理删除（**触发评分重算 + 向作者投递回执**），确认文案写明影响面。
  *
  * <p>审核可用性：配图缩略图（56px）**点击即开 `ImagePreview` 看大图**；行操作「详情」开
- * `BaseDrawer`，抽屉内给**评价全文**（不截断）+ **大尺寸配图**（点击同样看原图）+ 元信息，
+ * `BaseDrawer`，抽屉内给**评价全文**（不截断）+ **大尺寸配图**（点击同样看原图）+ 元信息
+ * （含**最近处置**：处置人 + 处置时间，未处置显示 `—`），
  * 底部复用行内的「隐藏 / 恢复显示 / 删除」（提交中沿用 `busyId` 置灰）。
+ *
+ * <p>本页**无详情端点**：抽屉由列表行既有出参组装（`GET /admin/reviews` 即全部字段）。
  */
 import ActiveFilters from '@/components/ActiveFilters.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -76,7 +79,7 @@ const submitting = ref(false)
 
 function openHide(row: ReviewAdminVO): void {
   hideTarget.value = row
-  hideNote.value = row.hiddenNote ?? ''
+  hideNote.value = ''
   hideOpen.value = true
 }
 
@@ -399,8 +402,7 @@ onMounted(() => reloadFirstPage())
                   <AppIcon name="user" :size="16" color="var(--text-muted)" />
                 </span>
                 <span>
-                  {{ current?.userName
-                  }}<span class="muted"> #{{ current?.userId }}</span>
+                  {{ current?.userName }}<span class="muted"> #{{ current?.userId }}</span>
                 </span>
               </span>
             </span>
@@ -440,13 +442,19 @@ onMounted(() => reloadFirstPage())
           </div>
           <DetailMetaRow k="评价 ID" num>#{{ current?.id }}</DetailMetaRow>
           <DetailMetaRow k="发表时间">{{ formatDateTime(current?.createdAt) }}</DetailMetaRow>
-          <div
-            v-if="current && current.hidden && current.hiddenNote"
-            class="meta-row meta-row--span"
-          >
-            <span class="meta-key">隐藏附注</span>
-            <span class="meta-val">{{ current.hiddenNote }}</span>
-          </div>
+          <!-- 最近处置：处置人 + 处置时间（隐藏与恢复显示都刷新，覆盖式只留最近一次）；
+               未处置两者皆 null ⇒ 只显示 —，不伪造成「已处置」 -->
+          <DetailMetaRow k="最近处置" span>
+            <template v-if="current?.moderatedByName || current?.moderatedAt">
+              {{ current.moderatedByName ?? '—' }}
+              <span class="muted">· {{ formatDateTime(current.moderatedAt) }}</span>
+            </template>
+            <template v-else>—</template>
+          </DetailMetaRow>
+          <!-- 隐藏附注：最近一次隐藏时填写（恢复显示后为 null）⇒ 有值才渲染，不占空行 -->
+          <DetailMetaRow v-if="current?.hiddenNote" k="隐藏附注" span>
+            {{ current.hiddenNote }}
+          </DetailMetaRow>
         </div>
       </div>
 

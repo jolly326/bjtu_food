@@ -46,7 +46,7 @@ public class NotificationServiceImpl implements NotificationService {
      *       {@code REQUIRED} 同样会「无事务则新建」，与 REQUIRES_NEW 的实际效果一致；</li>
      *   <li><b>危险</b>：{@code AsyncConfig} 的拒绝策略是 {@code CallerRunsPolicy}，
      *       队列打满时任务<b>在调用方线程同步执行</b>——而调用方
-     *       （{@code FeedbackServiceImpl#handle} / {@code CorrectionServiceImpl#adopt|reject}）
+     *       （{@code FeedbackServiceImpl#handle} / {@code CorrectionServiceImpl#handle|reject}）
      *       正处于事务中。此时 REQUIRES_NEW 会<b>挂起外层事务再新开一条</b>，
      *       即单请求峰值占用 <b>2 条连接</b>。HikariCP 池上限仅 20
      *       （{@code application.yml}），并发写叠加队列打满即成倍放大连接需求，最坏自锁耗尽。
