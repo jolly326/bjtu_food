@@ -8,7 +8,7 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 评价 ID |
-| `user_id` | BIGINT | NO | 0 | KEY | 评价者；取自 JWT，**禁止信任前端传入**；**现行写入路径恒为真实用户** —— 提交评价需学号邮箱认证（[`POST /dishes/{id}/reviews`](../api/client/dishes.md#post-dishesidreviews)），服务端按登录态回填，列默认值 `0` 不承载额外语义 |
+| `user_id` | BIGINT | NO | 无 | FK→user | 评价者；取自 JWT，**禁止信任前端传入**；**现行写入路径恒为真实用户** —— 提交评价需学号邮箱认证（[`POST /dishes/{id}/reviews`](../api/client/dishes.md#post-dishesidreviews)），服务端按登录态回填。**已收紧为 `NOT NULL`，无默认占位值 `0`** |
 | `dish_id` | BIGINT | NO | 0 | KEY, FK→dish | 所属菜品 |
 | `rating` | INT | NO | 0 | | 评分 **1~5** |
 | `content` | VARCHAR(512) | YES | NULL | | 评价文字；可只打星不写字（底层允许 NULL，出参空串兜底） |
@@ -42,7 +42,7 @@
 
 **次数不限**（一人一菜只有一票，改多少次也只是一票）。端上不区分首评 / 重评。
 
-> 🔴 **不设提交限频**：防「反复重提刷位置」由「`created_at` 保留原值」承担 —— 改评价不改变 `created_at`，故在时间倒序下位置不动，不需要额外的 24h 限频（限频反而会阻断正当的「菜换做法了，改一下」）。
+> **提交次数不限，但写入口有频控**：「反复重提刷位置」由「`created_at` 保留原值」承担 —— 改评价不改变 `created_at`，故在时间倒序下位置不动；阈值按「正常用户远不会触及」设定（IP 2/分 · 10/时 + 账号 3/分 · 20/时，见 [secur/server/通用防护机制.md §1.4](../secur/server/通用防护机制.md)），不阻断正当的「菜换做法了，改一下」。
 
 并发兜底：应用层先 `selectCount` 判断首评，但两个并发请求可能同时判定为「首评」，由唯一键拦截后者 → 返回「您已评价过该菜品」。
 
@@ -60,7 +60,7 @@
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
 | N→1 | `dish.id` | 所属菜品 | **`ON DELETE CASCADE`**（外键名 `fk_review_dish`） |
-| N→1 | `user.id` | 评价者 | 无外键 |
+| N→1 | `user.id` | 评价者 | 无级联（外键 `fk_review_user`） |
 
 **菜品删除的级联是两级防护**：
 

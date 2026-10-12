@@ -50,7 +50,7 @@
 
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
-| 1→n | `review.user_id` | 本人的评价 | 无外键（`user` 行永不删除） |
+| 1→n | `review.user_id` | 本人的评价 | **外键 `fk_review_user`（无级联）** |
 | 1→n | `feedback.user_id` | 本人的意见反馈 | **外键 `fk_feedback_user`（无级联 —— `user` 行永不物理删除，外键是纯引用完整性兜底）** |
 | 1→n | `report.user_id` | 本人的举报 | **外键 `fk_report_user`（无级联 —— 同上）** |
 | 1→n | `correction.user_id` | 本人的菜品问题反馈 | **外键 `fk_correction_user`（无级联 —— 同上）** |

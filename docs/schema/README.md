@@ -56,7 +56,7 @@ canteen 1 ── n stall 1 ── n dish ── n review
                                     │        └── 1:1 report   (review_id，**外键 `fk_report_review`**，ON DELETE SET NULL)
                                     └── n correction          (dish_id，非外键)
 
-user 1 ── n review            (user_id，无外键)
+user 1 ── n review            (user_id，**外键 `fk_review_user`**，无级联)
 user 1 ── n feedback          (user_id，**外键 `fk_feedback_user`**，无级联)
 user 1 ── n report            (user_id，**外键 `fk_report_user`**，无级联)
 user 1 ── n correction        (user_id，**外键 `fk_correction_user`**，无级联)
@@ -213,11 +213,12 @@ private LocalDateTime updatedAt;
 
 ### 外键与级联
 
-**全库十条外键**，其余关系由应用层维护：
+**全库十一条外键**，其余关系由应用层维护：
 
 | 关系（外键名） | 级联方式 | 维护方 |
 |---|---|---|
 | `review.dish_id` → `dish.id`（`fk_review_dish`） | `ON DELETE CASCADE` | 应用层 `ReviewDishCascadeListener` 先删（同步事务内），外键兜底 |
+| `review.user_id` → `user.id`（`fk_review_user`） | **无级联** | 纯引用完整性兜底：提交评价需学号邮箱认证 ⇒ `user_id` 恒为真实用户；`user` 行永不物理删除 ⇒ 无级联需求 |
 | `notification.user_id` → `user.id`（`fk_notification_user`） | `ON DELETE CASCADE` | 应用层 `NotificationAccountCleanListener` 硬删，外键兜底 |
 | `feedback.user_id` → `user.id`（`fk_feedback_user`） | **无级联** | 纯引用完整性兜底：提交入口恒带登录态，`user_id` 必指向真实用户；`user` 行永不物理删除 ⇒ 无级联需求 |
 | `report.user_id` → `user.id`（`fk_report_user`） | **无级联** | 同 `feedback.user_id` |
@@ -228,13 +229,12 @@ private LocalDateTime updatedAt;
 | `moderation_task.handled_by` → `admin.id`（`fk_task_handled_by`） | **无级联** | 纯引用完整性兜底：`admin` 行不做物理删除（账号行由库与自助端点维护）⇒ 无级联需求 |
 | `dish_filter_view.category_id` → `dish_category.id`（`fk_filter_view_category`） | **无级联** | 纯引用完整性兜底：`category_id` 可空（`NULL` = 为你推荐），非 NULL 必须是既有种类；种类无删除入口 ⇒ 无级联需求 |
 
-**刻意不设外键的四处**：
+**刻意不设外键的三处**：
 
 | 关系 | 原因 |
 |---|---|
 | `correction.dish_id` | 菜品删除后反馈记录**有意保留**（历史痕迹，非附属数据）。CASCADE 会删掉它们；RESTRICT 会让菜品删不掉 |
 | `moderation_task.type_id` | **多态键**：目标列随 `type` 在 `feedback` / `report` / `correction` 三表间变化，单列无法指向多个父表 ⇒ 引用完整性由**提交事务**保证（工单行与任务行同时写入） |
-| `review.user_id` 指向 `user` | `user` 行**永不物理删除**（注销为匿名化），加约束无实际收益 |
 | `dish.stall_id` | `stall` 是**管理端维护的实体**，有独立的合并 / 清理语义，约束化会干扰管理操作 |
 
 > 两级方向一致（都删）时，应用层 + 外键是**冗余防护**：正常路径下应用层已删完，外键命中 0 行；只有应用层失效时外键才兜底。
@@ -245,6 +245,7 @@ private LocalDateTime updatedAt;
 2. **再在数据库执行**对应 `ALTER` / `CREATE`（表结构变更须直连远程库执行，凭据取 `server/.env`）
 3. 两边必须一致；**发现不一致时以数据库实况为准并立即回写文档**
 4. 若涉及出参字段 → 同步 [api/](../api/) 并刷新 `client/openapi.json`
+5. **迁移前快照不长期保留**：变更前导出的 SQL 快照只作当次执行的临时兜底（落在构建产物目录内，随 `mvn clean` 清理），**不入库、不复制留档** —— 文档与数据库实况的一致性由本节 1–3 条保证，回归靠 git 历史
 
 > ⚠️ **禁止直连 `ALTER` 而不同步文档** —— 文档是唯一真源，否则新环境无法重建出相同结构。
 >
