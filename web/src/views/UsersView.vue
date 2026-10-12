@@ -151,6 +151,7 @@ async function deleteAccount(row: UserAdminVO): Promise<void> {
     id: row.id,
     action: () => deleteUserAccount(row.id),
     successMessage: '已注销',
+    // 注销后该行不再命中「正常 / 已禁用」等状态筛选 ⇒ 末页删空的页码回退由 `reload` 统一兜底
     refresh: reload,
     syncAfterRefresh: syncCurrent,
   })
@@ -214,14 +215,21 @@ onMounted(() => reloadFirstPage())
   <div class="page">
     <div class="page-header"><h2>用户管理</h2></div>
 
+    <!-- 筛选区是紧凑单行（不引入可见 `<label>`）⇒ 每个控件以 `aria-label` 自报字段名 -->
     <div class="card filters">
       <input
         class="form-input"
         v-model="fKeyword"
+        aria-label="昵称 / 账号 / 邮箱关键词"
         placeholder="昵称 / 账号 / 邮箱"
         @keyup.enter="reloadFirstPage"
       />
-      <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model="fStatus"
+        aria-label="按状态筛选"
+        @change="reloadFirstPage"
+      >
         <option value="">全部状态</option>
         <option value="active">正常</option>
         <option value="disabled">已禁用</option>

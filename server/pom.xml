@@ -69,10 +69,8 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
-        <!-- Actuator：生产就绪的运维端点（2026-09-28 架构收口 D）。
-             本项目有 application-prod.yml 并按云托管部署，此前却无任何健康检查/指标出口，
-             平台侧无法探活、无法采集运行指标。开启后由 application-prod.yml 控制暴露面
-             （仅 health/info，不默认暴露 env/beans/heapdump 等敏感端点）。 -->
+        <!-- Actuator：云托管部署的运维端点出口（平台探活与运行指标采集依赖它）。
+             暴露面由 application-prod.yml 收敛（仅 health/info，不暴露 env/beans/heapdump 等敏感端点）。 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
@@ -110,22 +108,15 @@
             <version>${mybatis-plus.version}</version>
         </dependency>
 
-        <!-- Caffeine 进程内缓存已于 2026-09-22 整包退役（change search-page-refresh 扩展项）：
-             唯一读缓存「热搜词条」随「猜你喜欢」去缓存（随机推送语义与缓存冲突）后零消费，
-             `CacheConfig` + `@EnableCaching` + 本依赖同批删除；如需恢复读缓存，须重新论证并登记。
-
-             —— 恢复登记（2026-10-01，P1 读路径优化）——
-             按上述要求补做论证与登记后恢复：
-             ① 论证：原退役理由针对的是「推荐/热门缓存」——缓存对象是按会话随机的内容，与该类缓存语义冲突。
-                本次缓存的三个对象与之无关，均为「全站共享 + 变化极慢 + 重算昂贵」的字典/聚合读结果：
+        <!-- Caffeine 进程内缓存：**只服务「全站共享 + 变化极慢 + 重算昂贵」的字典/聚合读结果**，
+             当前登记对象三个：
                 · attributeCandidates：编辑弹层候选值 = 全库在售 attributes 逐行 JSON 解析（实测热路径 11.67ms → 0.72ms）
                 · attributeDimensions：维度字典，应用内**无写入口**（建表种子维护）
                 · dishViews：首页筛选视图所依赖的「在售大类集合」
-                取舍与一致性口径（TTL 上限即最大陈旧窗口、写侧显式失效、刻意不缓存的对象）
-                完整写在上方 `CacheConfig` 的类注释与 `docs/perf/perf-00-度量口径与基线.md` §8。
-             ② 登记：本注释即登记点（与退役记录同处），并同步 `docs/perf/perf-00` §8 改动清单。
-             ③ 边界：恢复范围仅限上述三个字典/聚合缓存；「猜你喜欢」等随机内容仍**不缓存**（本次未恢复旧配置）。
-             若后续要新增读缓存对象，沿用同一判据（全站共享 + 变化极慢 + 重算昂贵）并在本注释追加登记。 -->
+             🔴 边界（防误用）：**随机内容一律不缓存** —— 「猜你喜欢」等按会话随机的推送与缓存语义冲突，
+                误缓存会让随机推送退化成固定序列。新增读缓存对象须沿用同一判据，并在本注释追加登记。
+             TTL 上限即最大陈旧窗口、写侧显式失效等取舍口径见 `CacheConfig` 类注释与
+             `docs/perf/perf-00-度量口径与基线.md` §8。 -->
 
 
         <!-- 腾讯云对象存储 COS Java SDK：UGC 配图最终存储（wx.cloud 中转 → 内容安全检测 → COS 转存）。

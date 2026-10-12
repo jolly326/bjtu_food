@@ -18,7 +18,6 @@ import ActiveFilters from '@/components/ActiveFilters.vue'
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { formatDateTime } from '@/utils/datetime'
-import { fail } from '@/utils/error'
 import { canWrite } from '@/utils/permissions'
 import { handleReport, listReports } from '@/api/reports'
 import type {
@@ -28,6 +27,7 @@ import type {
   ReportListParams,
 } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
+import { useRowAction } from '@/composables/useRowAction'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -70,7 +70,8 @@ const outcome = ref<ModerationOutcome>('handled')
 const hideReview = ref(true)
 const replyTitle = ref('')
 const replyContent = ref('')
-const submitting = ref(false)
+/** 行内 / 抽屉动作并发保护：提交中该行（或抽屉当前行）动作置灰（列表页模板 §1.3「并发保护」） */
+const { isBusy, runRowAction } = useRowAction()
 
 /** 待处理 → 处置表单；已处理 → 只读详情 */
 const isPending = computed(() => current.value?.status === 'pending')
@@ -93,31 +94,30 @@ function openHandle(row: ReportAdminVO): void {
   open.value = true
 }
 
-async function submitHandle(): Promise<void> {
+function submitHandle(): Promise<void> {
   const row = current.value
-  if (!row) return
+  if (!row) return Promise.resolve()
   if (outcome.value === 'rejected' && !replyContent.value.trim()) {
     ElMessage.warning('不予处理时必须填写不采纳原因')
-    return
+    return Promise.resolve()
   }
-  submitting.value = true
-  try {
-    await handleReport(row.id, {
-      outcome: outcome.value,
-      // hideReview 仅受理时消费：不予处理不下发
-      hideReview: outcome.value === 'handled' ? hideReview.value : undefined,
-      replyTitle: replyTitle.value.trim() || undefined,
-      replyContent: replyContent.value.trim() || undefined,
-    })
-    ElMessage.success('已处置')
-    open.value = false
-    await reload()
-  } catch (e) {
-    // 已处置再处理（400）/ 记录不存在（4001）→ 后端原文
-    fail(e, '处置失败')
-  } finally {
-    submitting.value = false
-  }
+  return runRowAction({
+    id: row.id,
+    action: () =>
+      handleReport(row.id, {
+        outcome: outcome.value,
+        // hideReview 仅受理时消费：不予处理不下发
+        hideReview: outcome.value === 'handled' ? hideReview.value : undefined,
+        replyTitle: replyTitle.value.trim() || undefined,
+        replyContent: replyContent.value.trim() || undefined,
+      }),
+    successMessage: '已处置',
+    failMessage: '处置失败',
+    refresh: reload,
+    closeDrawer: () => {
+      open.value = false
+    },
+  })
 }
 
 function reset(): void {
@@ -155,8 +155,14 @@ onMounted(() => reloadFirstPage())
   <div class="page">
     <div class="page-header"><h2>举报管理</h2></div>
 
+    <!-- 筛选区是紧凑单行（不引入可见 `<label>`）⇒ 每个控件以 `aria-label` 自报字段名 -->
     <div class="card filters">
-      <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model="fStatus"
+        aria-label="按状态筛选"
+        @change="reloadFirstPage"
+      >
         <option value="">全部状态</option>
         <option value="pending">待处理</option>
         <option value="handled">已处理</option>
@@ -166,6 +172,7 @@ onMounted(() => reloadFirstPage())
         v-model.number="fUserId"
         type="number"
         min="1"
+        aria-label="按举报人 ID 筛选"
         placeholder="举报人 ID"
         @keyup.enter="reloadFirstPage"
       />
@@ -219,7 +226,13 @@ onMounted(() => reloadFirstPage())
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
-              <button v-if="canWrite()" class="link" type="button" @click="openHandle(row)">
+              <button
+                v-if="canWrite()"
+                class="link"
+                type="button"
+                :disabled="isBusy(row.id)"
+                @click="openHandle(row)"
+              >
                 {{ row.status === 'pending' ? '处置' : '详情' }}
               </button>
             </td>
@@ -307,11 +320,11 @@ onMounted(() => reloadFirstPage())
           <button
             class="btn-primary"
             type="button"
-            :disabled="submitting"
+            :disabled="isBusy(current?.id)"
             v-press
             @click="submitHandle"
           >
-            {{ submitting ? '提交中…' : '提交处置' }}
+            {{ isBusy(current?.id) ? '提交中…' : '提交处置' }}
           </button>
         </template>
         <template v-else>
@@ -325,7 +338,7 @@ onMounted(() => reloadFirstPage())
 <style scoped>
 /* 筛选区内控件定宽（`.filters` 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
-  width: 200px;
+  width: 160px;
 }
 /* 被举报评价摘要：单行截断（完整内容在抽屉内看） */
 .review-summary {

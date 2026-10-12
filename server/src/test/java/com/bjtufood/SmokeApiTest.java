@@ -847,7 +847,7 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("请填写不采纳原因"));
 
-        verify(moderationTaskMapper, never()).updateById(any());
+        verify(moderationTaskMapper, never()).update(any(), any());
     }
 
     /** 处置：正常受理 → 任务行归档 handled + 站内回执（同一事务的快照两列同名） */
@@ -863,6 +863,7 @@ class SmokeApiTest {
         task.setTypeId(5L);
         task.setStatus(ModerationConst.STATUS_PENDING);
         when(moderationTaskMapper.selectOne(any())).thenReturn(task);
+        when(moderationTaskMapper.update(any(ModerationTask.class), any())).thenReturn(1);
 
         mockMvc.perform(put("/admin/feedbacks/5")
                         .header(ADMIN_AUTH_HEADER, adminBearer())
@@ -872,7 +873,7 @@ class SmokeApiTest {
                 .andExpect(jsonPath("$.code").value(200));
 
         ArgumentCaptor<ModerationTask> saved = ArgumentCaptor.forClass(ModerationTask.class);
-        verify(moderationTaskMapper).updateById(saved.capture());
+        verify(moderationTaskMapper).update(saved.capture(), any());
         Assertions.assertEquals(ModerationConst.STATUS_HANDLED, saved.getValue().getStatus());
         Assertions.assertEquals("反馈已处理", saved.getValue().getReplyTitle());
         Assertions.assertEquals("已收到，下个版本优化", saved.getValue().getReplyContent());
@@ -914,6 +915,7 @@ class SmokeApiTest {
         task.setTypeId(4L);
         task.setStatus(ModerationConst.STATUS_PENDING);
         when(moderationTaskMapper.selectOne(any())).thenReturn(task);
+        when(moderationTaskMapper.update(any(ModerationTask.class), any())).thenReturn(1);
         when(reviewService.hideIfVisible(30L, 1L)).thenReturn(true);
 
         mockMvc.perform(put("/admin/reports/4")
@@ -926,7 +928,7 @@ class SmokeApiTest {
         // 处置人取自管理端登录态（token 内 admin id = 1）—— 联动隐藏同样要留痕，不由请求体传入
         verify(reviewService).hideIfVisible(30L, 1L);
         ArgumentCaptor<ModerationTask> saved = ArgumentCaptor.forClass(ModerationTask.class);
-        verify(moderationTaskMapper).updateById(saved.capture());
+        verify(moderationTaskMapper).update(saved.capture(), any());
         Assertions.assertEquals("举报已受理", saved.getValue().getReplyTitle());
         Assertions.assertEquals("举报属实（已隐藏该评价）", saved.getValue().getReplyContent());
     }

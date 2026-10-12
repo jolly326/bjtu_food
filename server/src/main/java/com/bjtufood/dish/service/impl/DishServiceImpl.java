@@ -291,23 +291,6 @@ public class DishServiceImpl implements DishService {
     }
 
     @Override
-    public Map<Long, Long> mapStallIdByIds(Collection<Long> dishIds) {
-        if (dishIds == null || dishIds.isEmpty()) {
-            return Map.of();
-        }
-        List<Dish> rows = dishMapper.selectList(new LambdaQueryWrapper<Dish>()
-                .select(Dish::getId, Dish::getStallId)
-                .in(Dish::getId, dishIds));
-        Map<Long, Long> result = new HashMap<>(rows.size());
-        for (Dish row : rows) {
-            if (row.getStallId() != null) {
-                result.put(row.getId(), row.getStallId());
-            }
-        }
-        return result;
-    }
-
-    @Override
     public IPage<DishAdminListItemVO> listAllForAdmin(DishAdminListQuery query, int page, int pageSize) {
         // 分页上限统一由 PageUtil 约束，避免一次性全表加载
         int[] norm = PageUtil.normalize(page, pageSize);
@@ -602,7 +585,9 @@ public class DishServiceImpl implements DishService {
         if (req.getImages() != null) {
             wrapper.set(Dish::getImages, JsonListUtil.toJson(req.getImages()));
         }
-        if (attributesJson != null) {
+        // 判据是「请求带没带 attributes」而不是「JSON 是否为空」：空对象经 toAttributesJson 得 null，
+        // 若按 JSON 判空，「传空对象清空属性」会被退化成「不修改」，与「不传即不动」无法区分。
+        if (req.getAttributes() != null) {
             wrapper.set(Dish::getAttributes, attributesJson);
         }
         dishMapper.update(null, wrapper);
@@ -659,7 +644,7 @@ public class DishServiceImpl implements DishService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后异步触发，故写库与重算之间无竞态窗口
+    // 评分重算由 RatingUpdateListener 在事务 AFTER_COMMIT 后同步触发（刻意不加 @Async），故写库与重算之间无竞态窗口
     // （评分无缓存设施，不存在缓存失效时序问题）
     public void recalcAvgRating(Long dishId) {
         // 并发安全：子查询 AVG/COUNT 整体写回，避免全量查询后回写丢数据。

@@ -333,7 +333,8 @@ async function save(): Promise<void> {
     if (detail.value) {
       await updateDish(detail.value.id, req)
       ElMessage.success('已保存')
-      await reload()
+      // 列表按更新时间倒序 ⇒ 保存后该行回到第 1 页，留在原页会「看不见刚改的行」
+      await reloadFirstPage()
       // 回填详情：`GET` 详情是唯一全字段来源，保存后重新取一次保证抽屉不停在旧快照
       detail.value = await getDish(detail.value.id)
       fillFormFrom(detail.value)
@@ -341,7 +342,7 @@ async function save(): Promise<void> {
     } else {
       await createDish(req)
       ElMessage.success('已新建')
-      await reload()
+      await reloadFirstPage()
       drawerOpen.value = false
     }
   } catch (e) {
@@ -376,7 +377,7 @@ async function submitCopy(): Promise<void> {
     ElMessage.success('已复制（副本默认下架，确认内容后再上架）')
     copyOpen.value = false
     drawerOpen.value = false
-    await reload()
+    await reloadFirstPage()
   } catch (e) {
     fail(e, '复制失败')
   } finally {
@@ -417,6 +418,7 @@ function remove(): Promise<void> {
     },
     successMessage: '已删除',
     failMessage: '删除失败',
+    // 末页删空不留空页：越界 / 本页删空的页码回退由 `reload` 统一兜底
     refresh: reload,
     closeDrawer: () => {
       drawerOpen.value = false
@@ -442,6 +444,13 @@ const catOpen = ref(false)
 const newCatName = ref('')
 const editingCatId = ref<number | null>(null)
 const editingCatName = ref('')
+/**
+ * 分类字典动作并发保护：**另起一把锁** —— 分类 id 与菜品 id 是两个命名空间，
+ * 共用一把锁会让「改分类名」把同 id 的菜品行一并置灰（或反之）。
+ * 登记无行 id ⇒ 用 `ADD_CATEGORY_LOCK_ID` 作锁位。
+ */
+const { isBusy: isCatBusy, runRowAction: runCatAction } = useRowAction()
+const ADD_CATEGORY_LOCK_ID = 0
 
 async function refreshCategories(): Promise<void> {
   categories.value = await listCategories()
@@ -452,21 +461,22 @@ function openCategories(): void {
   refreshCategories().catch(() => undefined)
 }
 
-async function addCategory(): Promise<void> {
+function addCategory(): Promise<void> {
   const name = newCatName.value.trim()
   if (!name) {
     ElMessage.warning('请填写分类名')
-    return
+    return Promise.resolve()
   }
-  try {
-    await createCategory(name)
-    newCatName.value = ''
-    ElMessage.success('已登记')
-    await refreshCategories()
-  } catch (e) {
-    // 名非法 / 重名 → 后端原文（400）
-    fail(e, '登记失败')
-  }
+  return runCatAction({
+    id: ADD_CATEGORY_LOCK_ID,
+    action: async () => {
+      await createCategory(name)
+      newCatName.value = ''
+    },
+    successMessage: '已登记',
+    failMessage: '登记失败',
+    refresh: refreshCategories,
+  })
 }
 
 function startRenameCategory(row: DishCategoryAdminVO): void {
@@ -474,17 +484,19 @@ function startRenameCategory(row: DishCategoryAdminVO): void {
   editingCatName.value = row.name
 }
 
-async function commitRenameCategory(row: DishCategoryAdminVO): Promise<void> {
+function commitRenameCategory(row: DishCategoryAdminVO): Promise<void> {
   const name = editingCatName.value.trim()
-  if (!name) return
-  try {
-    await renameCategory(row.id, name)
-    editingCatId.value = null
-    ElMessage.success('已改名')
-    await refreshCategories()
-  } catch (e) {
-    fail(e, '改名失败')
-  }
+  if (!name) return Promise.resolve()
+  return runCatAction({
+    id: row.id,
+    action: async () => {
+      await renameCategory(row.id, name)
+      editingCatId.value = null
+    },
+    successMessage: '已改名',
+    failMessage: '改名失败',
+    refresh: refreshCategories,
+  })
 }
 
 function reset(): void {
@@ -578,19 +590,27 @@ onMounted(async () => {
     </div>
 
     <div class="card filters">
+      <!-- 筛选区是紧凑单行（不引入可见 `<label>`）⇒ 每个控件以 `aria-label` 自报字段名 -->
       <input
         class="form-input"
         v-model="fKeyword"
+        aria-label="菜品名关键词"
         placeholder="菜品名"
         @keyup.enter="reloadFirstPage"
       />
-      <select class="form-input" v-model.number="fCanteenId" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model.number="fCanteenId"
+        aria-label="按食堂筛选"
+        @change="reloadFirstPage"
+      >
         <option :value="null">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
       <select
         class="form-input"
         v-model.number="fStallId"
+        aria-label="按档口筛选"
         :disabled="fWithoutStall"
         @change="reloadFirstPage"
       >
@@ -603,11 +623,21 @@ onMounted(async () => {
         只看未归入档口
       </label>
       <!-- A6 种类字典驱动的下拉：筛选值 = 种类 ID（`dish_category.id`） -->
-      <select class="form-input" v-model.number="fCategoryId" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model.number="fCategoryId"
+        aria-label="按分类筛选"
+        @change="reloadFirstPage"
+      >
         <option :value="null">全部分类</option>
         <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
-      <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model="fStatus"
+        aria-label="按状态筛选"
+        @change="reloadFirstPage"
+      >
         <option value="">全部状态</option>
         <option value="on">在售</option>
         <option value="off">已下架</option>
@@ -855,12 +885,17 @@ onMounted(async () => {
         <div v-if="dimensions.length" class="dim-block">
           <div class="dim-title">描述属性（下拉给出字典建议；填新值保存时自动登记）</div>
           <div class="field" v-for="d in dimensions" :key="d.id">
-            <label>{{ d.name }}{{ d.valueType === 'multi' ? '（多值）' : '' }}</label>
+            <!-- 动态属性行：维度名即字段名 ⇒ `<label for>` 与输入 `id` 按维度 ID 成对
+                 （id 带 `dish-attr-` 前缀，与同行的 `datalist` id `dim-${id}` 不冲突） -->
+            <label :for="`dish-attr-${d.id}`">
+              {{ d.name }}{{ d.valueType === 'multi' ? '（多值）' : '' }}
+            </label>
             <!-- 字典建议 + 自由录入：value 为中文，服务端同维度内未命中即自动登记为新取值；
                  键 = 维度 ID 字符串（`dish.attributes` JSON 键形态）。
                  v-model 必须是成员表达式 ⇒ 单值 / 多值分列两个输入（不用三元写法）。 -->
             <input
               v-if="d.valueType === 'single'"
+              :id="`dish-attr-${d.id}`"
               class="form-input"
               :list="`dim-${d.id}`"
               placeholder="选择或输入新值"
@@ -868,6 +903,7 @@ onMounted(async () => {
             />
             <input
               v-else
+              :id="`dish-attr-${d.id}`"
               class="form-input"
               :list="`dim-${d.id}`"
               placeholder="多个值用顿号分隔"
@@ -952,13 +988,24 @@ onMounted(async () => {
     <!-- 分类管理（抽屉）：种类字典的登记 / 改名（种类 ID 由后端生成，列表按种类 ID 升序） -->
     <BaseDrawer title="菜品分类" :open="catOpen" @close="catOpen = false">
       <div class="add-row">
+        <!-- 登记行是紧凑单行（无可见 `<label>`）⇒ 由 `aria-label` 自报字段名 -->
         <input
           class="form-input"
           v-model="newCatName"
+          aria-label="新分类名"
           placeholder="分类名（≤32 字）"
           @keyup.enter="addCategory"
         />
-        <button class="btn-primary" type="button" v-press @click="addCategory">登记</button>
+        <!-- 提交中去重（基线 §1.7）：无行 id 的登记同样要置灰 -->
+        <button
+          class="btn-primary"
+          type="button"
+          v-press
+          :disabled="isCatBusy(ADD_CATEGORY_LOCK_ID)"
+          @click="addCategory"
+        >
+          登记
+        </button>
       </div>
       <StateBox v-if="!categories.length" status="empty" message="暂无分类" />
       <div v-else class="table-wrap">
@@ -974,10 +1021,12 @@ onMounted(async () => {
           <tbody>
             <tr v-for="row in categories" :key="row.id">
               <td>
+                <!-- 行内改名：表格单元格内无可见 `<label>` ⇒ 由 `aria-label` 自报字段名 -->
                 <input
                   v-if="editingCatId === row.id"
                   class="form-input inline"
                   v-model="editingCatName"
+                  aria-label="分类名"
                   @keyup.enter="commitRenameCategory(row)"
                   @keyup.esc="editingCatId = null"
                 />
@@ -987,12 +1036,30 @@ onMounted(async () => {
               <td class="muted">{{ formatDateTime(row.updatedAt) }}</td>
               <td class="actions">
                 <template v-if="editingCatId === row.id">
-                  <button class="link" type="button" @click="commitRenameCategory(row)">
+                  <button
+                    class="link"
+                    type="button"
+                    :disabled="isCatBusy(row.id)"
+                    @click="commitRenameCategory(row)"
+                  >
                     保存
                   </button>
-                  <button class="link" type="button" @click="editingCatId = null">取消</button>
+                  <button
+                    class="link"
+                    type="button"
+                    :disabled="isCatBusy(row.id)"
+                    @click="editingCatId = null"
+                  >
+                    取消
+                  </button>
                 </template>
-                <button v-else class="link" type="button" @click="startRenameCategory(row)">
+                <button
+                  v-else
+                  class="link"
+                  type="button"
+                  :disabled="isCatBusy(row.id)"
+                  @click="startRenameCategory(row)"
+                >
                   改名
                 </button>
               </td>
@@ -1019,7 +1086,7 @@ onMounted(async () => {
 <style scoped>
 /* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
-  width: 150px;
+  width: 160px;
 }
 /* 「只看未归入档口」：与其它控件同行的勾选项（文案随正文默认档，命中区靠 label 撑开） */
 .filter-check {

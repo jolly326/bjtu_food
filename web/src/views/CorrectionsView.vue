@@ -285,8 +285,14 @@ onMounted(() => reloadFirstPage())
       </div>
     </div>
 
+    <!-- 筛选区是紧凑单行（不引入可见 `<label>`）⇒ 每个控件以 `aria-label` 自报字段名 -->
     <div class="card filters">
-      <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model="fStatus"
+        aria-label="按状态筛选"
+        @change="reloadFirstPage"
+      >
         <option value="">全部状态</option>
         <option value="pending">待处理</option>
         <option value="handled">已处理</option>
@@ -294,6 +300,7 @@ onMounted(() => reloadFirstPage())
       <input
         class="form-input"
         v-model="fDishId"
+        aria-label="按菜品 ID 筛选"
         placeholder="菜品 ID"
         @keyup.enter="reloadFirstPage"
       />

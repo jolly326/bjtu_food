@@ -63,6 +63,7 @@
 | 留痕内容 | `moderated_by`（**处置人**）+ `moderated_at`（**处置时间**）+ `is_hidden`（当前态）+ `hidden_note`（隐藏附注） |
 | 覆盖式语义 | 只记**最近一次**可见性处置：**隐藏与恢复显示**两种处置都写，每次整体覆盖（4 列同批写入），随 `hidden_note` **同生命周期**（无历史处置记录，不含处置次数） |
 | 写入时机 | 处置 `UPDATE` 同时写 `is_hidden` / `hidden_note` / `moderated_by` / `moderated_at` |
+| 🔴 **重评覆盖即清空** | 用户重新评价（覆盖同一行）时 `is_hidden` 重置 0，**`hidden_note` / `moderated_by` / `moderated_at` 一并置 NULL** —— 重评是全新内容、重新过机审且恢复可见，留痕必须与可见性同步归零，否则会出现「已恢复可见却仍带隐藏附注与处置人」的自相矛盾行 |
 | 处置人识别 | `moderated_by` → [`admin.id`](./admin.md)（外键 `fk_review_moderated_by`，无级联）；出参以 `moderatedByName`（登录名）呈现 |
 | 删除 | **物理删行、不留痕** —— 删除后既无处置人亦无处置时间（行已不存在） |
 

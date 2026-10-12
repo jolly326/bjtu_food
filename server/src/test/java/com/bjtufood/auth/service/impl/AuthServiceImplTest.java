@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -206,10 +207,11 @@ class AuthServiceImplTest {
         svc.verifyEmail("123456", 1L);
 
         assertThat(guard.isLocked(1L)).isFalse();
-        // 成功路径确实写入了绑定邮箱（认证态唯一写入点 = email）
-        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
-        verify(userMapper).updateById(saved.capture());
-        assertThat(saved.getValue().getEmail()).isEqualTo("20240001@bjtu.edu.cn");
+        // 成功路径确实写入了绑定邮箱（认证态唯一写入点 = email），且只写该列（不整行回写快照）
+        ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper> saved =
+                ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+        verify(userMapper).update(isNull(), saved.capture());
+        assertThat(saved.getValue().getParamNameValuePairs()).containsValue("20240001@bjtu.edu.cn");
 
         // 之后再失败同样的次数仍不应被封禁：证明计数确实从零重开，而不是残留旧计数
         when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);

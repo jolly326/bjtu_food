@@ -99,7 +99,7 @@ export async function getDishDetail(id: number): Promise<DishDetail> {
  *
  * 传入**会话级** `seed`（可选）⇒ 服务端按 `CRC32(seed:ID)` 稳定伪随机序取数：
  * 同一次会话内多次进入发现态拿到同一批菜品名，**重进小程序**才整体重洗
- * ；不传 ⇒ 服务端退回 `ORDER BY RAND()` 真随机（向后兼容）。
+ * ；不传 ⇒ 服务端补一次性随机值（同一套伪随机序，每次调用结果不同）。
  * 出参只有 `name`；条数与文案由服务端决定，端上不写死、不排序。
  */
 export async function listGuessLike(seed?: string): Promise<GuessLike[]> {

@@ -231,8 +231,9 @@ onMounted(async () => {
       <button class="btn-primary" type="button" v-press @click="openCreate">新建档口</button>
     </div>
 
+    <!-- 筛选区是紧凑单行（不引入可见 `<label>`）⇒ 控件以 `aria-label` 自报字段名 -->
     <div class="card filters">
-      <select class="form-input" v-model="filterCanteenId" @change="load">
+      <select class="form-input" v-model="filterCanteenId" aria-label="按食堂筛选" @change="load">
         <option value="">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>

@@ -37,7 +37,7 @@ public class MyReviewVO {
     @Schema(description = "评价配图 URL 列表（COS 绝对地址，≤3 张；无图返回空列表）")
     private List<String> images;
 
-    @Schema(description = "评价时间（重新评价后取新时间）")
+    @Schema(description = "评价时间（首次发表时间；重复提交覆盖内容但保留原值）")
     private LocalDateTime createdAt;
 
     /** 关联菜品ID（本人视角专属；公开列表不返回 —— 归属已由路径 / 列表上下文表达） */

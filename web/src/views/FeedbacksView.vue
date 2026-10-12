@@ -26,6 +26,7 @@ import type {
   OptionAdminVO,
 } from '@/types/common'
 import { usePagedList } from '@/composables/usePagedList'
+import { useRowAction } from '@/composables/useRowAction'
 import ListState from '@/components/ListState.vue'
 import Pager from '@/components/Pager.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -87,7 +88,8 @@ const current = ref<FeedbackAdminVO | null>(null)
 const outcome = ref<ModerationOutcome>('handled')
 const replyTitle = ref('')
 const replyContent = ref('')
-const submitting = ref(false)
+/** 行内 / 抽屉动作并发保护：提交中该行（或抽屉当前行）动作置灰（列表页模板 §1.3「并发保护」） */
+const { isBusy, runRowAction } = useRowAction()
 
 /** 待处理 → 处置表单；已处理 → 只读详情（再处置服务端会以 400 拒绝） */
 const isPending = computed(() => current.value?.status === 'pending')
@@ -106,29 +108,28 @@ function openHandle(row: FeedbackAdminVO): void {
   open.value = true
 }
 
-async function submitHandle(): Promise<void> {
+function submitHandle(): Promise<void> {
   const row = current.value
-  if (!row) return
+  if (!row) return Promise.resolve()
   if (outcome.value === 'rejected' && !replyContent.value.trim()) {
     ElMessage.warning('不采纳时必须填写不采纳原因')
-    return
+    return Promise.resolve()
   }
-  submitting.value = true
-  try {
-    await handleFeedback(row.id, {
-      outcome: outcome.value,
-      replyTitle: replyTitle.value.trim() || undefined,
-      replyContent: replyContent.value.trim() || undefined,
-    })
-    ElMessage.success('已处理')
-    open.value = false
-    await reload()
-  } catch (e) {
-    // 已处理再处理（400）/ 记录不存在（4001）→ 后端原文
-    fail(e, '处理失败')
-  } finally {
-    submitting.value = false
-  }
+  return runRowAction({
+    id: row.id,
+    action: () =>
+      handleFeedback(row.id, {
+        outcome: outcome.value,
+        replyTitle: replyTitle.value.trim() || undefined,
+        replyContent: replyContent.value.trim() || undefined,
+      }),
+    successMessage: '已处理',
+    failMessage: '处理失败',
+    refresh: reload,
+    closeDrawer: () => {
+      open.value = false
+    },
+  })
 }
 
 /* ===== 配图大图预览（表格角标 / 抽屉配图共用入口） ===== */
@@ -185,13 +186,24 @@ function clearFilter(key: string): void {
   <div class="page">
     <div class="page-header"><h2>意见反馈管理</h2></div>
 
+    <!-- 筛选区是紧凑单行（不引入可见 `<label>`）⇒ 每个控件以 `aria-label` 自报字段名 -->
     <div class="card filters">
-      <select class="form-input" v-model="fStatus" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model="fStatus"
+        aria-label="按状态筛选"
+        @change="reloadFirstPage"
+      >
         <option value="">全部状态</option>
         <option value="pending">待处理</option>
         <option value="handled">已处理</option>
       </select>
-      <select class="form-input" v-model.number="fOptionId" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model.number="fOptionId"
+        aria-label="按反馈类型筛选"
+        @change="reloadFirstPage"
+      >
         <option value="0">全部类型</option>
         <option v-for="opt in options" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
       </select>
@@ -200,12 +212,14 @@ function clearFilter(key: string): void {
         v-model.number="fUserId"
         type="number"
         min="1"
+        aria-label="按提交人 ID 筛选"
         placeholder="提交人 ID"
         @keyup.enter="reloadFirstPage"
       />
       <input
         class="form-input"
         v-model="fKeyword"
+        aria-label="正文 / 处置文案关键词"
         placeholder="正文 / 处置文案"
         @keyup.enter="reloadFirstPage"
       />
@@ -250,7 +264,13 @@ function clearFilter(key: string): void {
             <td><StatusTag :status="row.status" kind="feedback" /></td>
             <td class="muted">{{ formatDateTime(row.createdAt) }}</td>
             <td class="actions">
-              <button v-if="canWrite()" class="link" type="button" @click="openHandle(row)">
+              <button
+                v-if="canWrite()"
+                class="link"
+                type="button"
+                :disabled="isBusy(row.id)"
+                @click="openHandle(row)"
+              >
                 {{ row.status === 'pending' ? '处理' : '详情' }}
               </button>
             </td>
@@ -334,11 +354,11 @@ function clearFilter(key: string): void {
           <button
             class="btn-primary"
             type="button"
-            :disabled="submitting"
+            :disabled="isBusy(current?.id)"
             v-press
             @click="submitHandle"
           >
-            {{ submitting ? '提交中…' : '提交处置' }}
+            {{ isBusy(current?.id) ? '提交中…' : '提交处置' }}
           </button>
         </template>
         <template v-else>

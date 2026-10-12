@@ -71,10 +71,26 @@ public class BannerServiceImpl implements BannerService {
         Banner banner = new Banner();
         banner.setImageUrl(url);
         // 新增默认启用，且排最后（避免插到首位打乱运营顺序）
-        banner.setSortOrder((int) (bannerMapper.selectCount(null) + 1));
+        banner.setSortOrder(nextSortOrder());
         banner.setStatus(STATUS_ON);
         bannerMapper.insert(banner);
         return toAdminVO(bannerMapper.selectById(banner.getId()));
+    }
+
+    /**
+     * 下一个展示序号 = 当前最大序号 + 1。
+     * <p>
+     * 🔴 不按「行数 + 1」取号：删除中间行后行数会回缩，新行必然撞上现存序号；
+     * 并发新增同样会读到同一个行数。取「最大值 + 1」在删除后仍单调不撞号。
+     */
+    private int nextSortOrder() {
+        int max = 0;
+        for (Banner b : bannerMapper.selectList(new LambdaQueryWrapper<Banner>().select(Banner::getSortOrder))) {
+            if (b.getSortOrder() != null && b.getSortOrder() > max) {
+                max = b.getSortOrder();
+            }
+        }
+        return max + 1;
     }
 
     @Override

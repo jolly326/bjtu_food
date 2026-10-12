@@ -14,8 +14,10 @@ import { fail } from '@/utils/error'
  * `busyId=id → action() → 成功提示 → refresh() → closeDrawer() → syncAfterRefresh(id) → finally 清 busyId`。
  * 其中 `refresh` / `closeDrawer` / `syncAfterRefresh` 三步均可省略 ⇒ 各视图只声明自己真正需要的。
  *
- * <p><b>用法</b>：视图内**只调一次** `useRowAction()`，本文件多个动作共用同一把锁
- * （否则同一行会被两把锁分别置灰，出现「锁不住」的漏洞）：
+ * <p><b>用法</b>：**同一 id 命名空间内只调一次** `useRowAction()`，该命名空间的多个动作共用同一把锁
+ * （否则同一行会被两把锁分别置灰，出现「锁不住」的漏洞）。
+ * 不同命名空间（如「维度 vs 取值」「菜品 vs 分类字典」）**各起一把锁** —— 它们的 id 互不相干，
+ * 共用会让「改字典」把同 id 的业务行一并置灰；无行 id 的新增动作另取常量锁位（如 `0`）并同样置灰：
  *
  * ```ts
  * const { isBusy, runRowAction } = useRowAction()

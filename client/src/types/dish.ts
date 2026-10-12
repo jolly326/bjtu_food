@@ -97,9 +97,8 @@ export interface DishQuery {
   view?: number
   /**
    * 会话随机种子：端上**冷启动生成一次、会话内恒定**，翻页沿用同一值。
-   * 服务端**仅对「推荐类」视图**（sortKind=SEED_RANDOM）且无 keyword 时按
-   * `CRC32(CONCAT(seed,'-',id)), id` 做稳定伪随机排序（同 seed 全序恒定，翻页不重不漏）；
-   * 其余视图忽略本参数 ⇒ 端上可无脑随请求下发。
+   * 服务端**恒按** `CRC32(CONCAT(seed,'-',id)), id` 做稳定伪随机排序（同 seed 全序恒定，
+   * 翻页不重不漏；`id` 作决胜键消除哈希并列）—— 与所选视图无关 ⇒ 端上可无脑随请求下发。
    */
   seed?: string
   page?: number
@@ -109,7 +108,7 @@ export interface DishQuery {
 /**
  * 猜你喜欢（`GET /dishes/for-you`）：语义为「**随机抽取在售菜品名**」（不看热度、不排序、不个性化）。
  * 请求可带**会话级** `seed`（由 `stores/dish.ts` 生成）：服务端按稳定伪随机序取数 ⇒ 同一次会话内
- * 多次进入拿到同一批词条，**重进小程序**才整体重洗；不传 ⇒ 服务端退回 `ORDER BY RAND()`。
+ * 多次进入拿到同一批词条，**重进小程序**才整体重洗；不传 ⇒ 服务端补一次性随机值（每次结果不同）。
  * 出参**只有 `name`**（随机语义下无其他消费点），契约留扩展位。
  */
 export interface GuessLike {

@@ -47,17 +47,29 @@ export function usePagedList<T>(
   }
 
   /**
+   * 移除行后的落点页：**越界** ⇒ 最后一页；**本页已被删空且不在首页** ⇒ 上一页；其余 ⇒ 当前页。
+   *
+   * <p>`pageCount` 在 `total = 0` 时兜底为 1 ⇒ 整表删空时落点恒为第 1 页。
+   * 回退只走「上一页 / 最后一页」两档，**不跳回第 1 页**（丢失浏览位置）。
+   */
+  function fallbackPage(): number {
+    if (page.value > pageCount.value) return pageCount.value
+    if (items.value.length === 0 && page.value > 1) return page.value - 1
+    return page.value
+  }
+
+  /**
    * 重新加载**当前页**（保存 / 删除 / 启停 / 处置后调用：保持筛选与页码）。
    * <p>
-   * 🔴 **末页删空自动回退**：删除会令 `total` 变小，若当前页已越界，接口会返回空记录
-   * ⇒ 列表误显「暂无数据」且用户被卡在越界页。这里在首次加载后按**刷新过的** `pageCount`
-   * 判断，越界则再加载最后一页（仅边界场景多发一次请求）。
+   * 🔴 **移除行后不留在空页**：删除（或处置后不再命中当前筛选）会令 `total` 变小，
+   * 越界页返回空记录 ⇒ 列表停在「空列表 + 上一页可点」。这里先按刷新后的 `total`
+   * 用 {@link fallbackPage} 定落点，落点与当前页不同才再加载一次；
+   * 未移除行时落点 = 当前页 ⇒ 不产生额外请求（筛选 / 翻页 / 保存路径零感知）。
    */
   async function reload(): Promise<void> {
     await load(page.value)
-    if (page.value > pageCount.value) {
-      await load(pageCount.value)
-    }
+    const target = fallbackPage()
+    if (target !== page.value) await load(target)
   }
 
   /** 回到**第 1 页并加载**（筛选变更 / 重置后调用） */
@@ -65,12 +77,26 @@ export function usePagedList<T>(
     return load(1)
   }
 
-  /** 翻页（翻页后滚动回表格顶部，避免长表格翻页后停在页脚） */
+  /**
+   * 翻页后回到**列表顶边**（基线 §1.6）：滚到列表容器而不是文档顶端 ——
+   * 后者会把页头与筛选区一并推出视口，翻页后失去「当前筛选是什么」的上下文。
+   * 动效随 `prefers-reduced-motion: reduce` 降级为瞬时跳转（基线 §1.13）。
+   */
+  function scrollToListTop(): void {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    const anchor =
+      document.querySelector<HTMLElement>('.table-wrap') ??
+      document.querySelector<HTMLElement>('.page')
+    const top = anchor ? Math.max(0, anchor.getBoundingClientRect().top + window.scrollY - 12) : 0
+    window.scrollTo({ top, behavior: reduce ? 'auto' : 'smooth' })
+  }
+
+  /** 翻页（翻页后滚动回列表顶部，避免长表格翻页后停在页脚） */
   function goToPage(target: number): Promise<void> {
     const clamped = Math.min(Math.max(1, target), pageCount.value)
     if (clamped === page.value) return Promise.resolve()
     const p = load(clamped)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    scrollToListTop()
     return p
   }
 

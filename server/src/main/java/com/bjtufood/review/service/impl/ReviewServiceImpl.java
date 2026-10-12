@@ -36,6 +36,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -83,14 +84,6 @@ public class ReviewServiceImpl implements ReviewService {
                 .eq(Review::getIsHidden, 0)) > 0;
     }
 
-    @Override
-    public Long findAuthorId(Long id) {
-        if (id == null) {
-            return null;
-        }
-        Review review = reviewMapper.selectById(id);
-        return review == null ? null : review.getUserId();
-    }
 
     /**
      * 菜品评价公开列表：时间倒序唯一口径（created_at DESC）。
@@ -117,7 +110,7 @@ public class ReviewServiceImpl implements ReviewService {
         // 我的评价：对评价全集按用户过滤拆分（is_hidden=0，与公开列表同口径——被隐藏的评价
         // 不对客户端含作者本人返回）。排序固定时间倒序。
         // dishId 可选过滤：详情页判定「我是否已评价」并取回评价 ID（避免分页边界丢失）。
-        // R9：返回类型由 ReviewVO 改 MyReviewVO（本人视角 10 字段），与公开链路分型。
+        // R9：返回类型由 ReviewVO 改 MyReviewVO（本人视角 7 字段），与公开链路分型。
         IPage<MyReviewVO> pageResult = reviewMapper.selectReviewPageByUserId(new Page<>(page, pageSize), userId, dishId);
         fillMyReviewImages(pageResult.getRecords());
         return pageResult;
@@ -394,7 +387,16 @@ public class ReviewServiceImpl implements ReviewService {
         return result;
     }
 
+    /**
+     * 联动隐藏（举报受理时对被举报评价执行）。
+     * <p>
+     * 🔴 本方法自带事务：内部 {@code this.setHidden(...)} 是**同类自调用**，会绕过 Spring 代理，
+     * 其 {@code @Transactional} 不生效；若本方法无事务，{@code ReviewSubmittedEvent} 将发布在
+     * 无活动事务的上下文里 —— {@code AFTER_COMMIT} 相位、{@code fallbackExecution=false} 的
+     * 评分重算监听器不会触发，菜品均分永不刷新。调用方即便已有事务，本方法也靠 REQUIRED 直接并入。
+     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean hideIfVisible(Long reviewId, Long adminId) {
         if (reviewId == null) {
             return false;
@@ -465,13 +467,34 @@ public class ReviewServiceImpl implements ReviewService {
         if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
             return 0;
         }
-        // 唯一键 uk_review_user_dish：若新账号已对该 dish 有评价，删除旧账号同 dish 评价（保留新账号）
-        reviewMapper.delete(new LambdaUpdateWrapper<Review>()
-                .eq(Review::getUserId, fromUserId)
-                .inSql(Review::getDishId, "SELECT dish_id FROM review WHERE user_id = " + toUserId));
+        // 唯一键 uk_review_user_dish：若新账号已对该 dish 有评价，删除旧账号同 dish 评价（保留新账号）。
+        // 🔴 必须「先查 id 集合 → 再按值删除」两段式：MySQL **1093** 不允许 DELETE / UPDATE 的
+        // 子查询引用目标表本身（`DELETE FROM review WHERE dish_id IN (SELECT dish_id FROM review …)`
+        // 恒报错），而拼字符串又会脱离预编译 —— 本路径由邮箱认证触发，报错会让认证整体回滚。
+        List<Long> conflictDishIds = conflictDishIdsOf(toUserId);
+        if (!conflictDishIds.isEmpty()) {
+            reviewMapper.delete(new LambdaQueryWrapper<Review>()
+                    .eq(Review::getUserId, fromUserId)
+                    .in(Review::getDishId, conflictDishIds));
+        }
         return reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
                 .eq(Review::getUserId, fromUserId)
                 .set(Review::getUserId, toUserId));
+    }
+
+    /** 新账号已有评价的菜品 id（供冲突清理按值删除，避免同表自引用子查询） */
+    private List<Long> conflictDishIdsOf(Long toUserId) {
+        List<Review> rows = reviewMapper.selectList(new LambdaQueryWrapper<Review>()
+                .select(Review::getDishId)
+                .eq(Review::getUserId, toUserId));
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        return rows.stream()
+                .map(Review::getDishId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     /**

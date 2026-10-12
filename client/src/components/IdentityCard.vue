@@ -33,7 +33,7 @@
         <ImagePlaceholder v-else name="user" :size="60" />
       </view>
       <view class="identity-card-meta">
-        <text class="identity-card-name">{{ displayNickname(name, verified) }}</text>
+        <text class="identity-card-name">{{ displayNickname(name) }}</text>
         <text class="identity-card-sub">{{ displaySubLine(email, verified) }}</text>
       </view>
       <!-- 动作位：两页**均仅认证态渲染**（基线 §三：「游客态两页均不渲染动作位」）
@@ -75,7 +75,7 @@ import { COLOR_MAP } from '@/theme/tokens'
 import { displayNickname, displaySubLine } from '@/utils/userDisplay'
 
 const props = withDefaults(defineProps<{
-  /** 昵称（空值按认证态「食客」/ 游客态「游客」兜底） */
+  /** 昵称（**后端保证非空**，端上不兜底、不派生；见 `displayNickname`） */
   name?: string
   /** 校园邮箱（认证态副行；空值回落占位符） */
   email?: string

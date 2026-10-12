@@ -110,7 +110,7 @@ class ModerationTaskServiceImplTest {
                     ModerationConst.OUTCOME_REJECTED, null, blank, 1L, 9L))
                     .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         }
-        verify(moderationTaskMapper, never()).updateById(any());
+        verify(moderationTaskMapper, never()).update(any(), any());
         verify(notificationService, never()).notifyNow(any());
     }
 
@@ -122,18 +122,19 @@ class ModerationTaskServiceImplTest {
         assertThatThrownBy(() -> service().handle(ModerationConst.TYPE_FEEDBACK, 5L,
                 "whatever", null, "文案", 1L, 9L))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(moderationTaskMapper, never()).updateById(any());
+        verify(moderationTaskMapper, never()).update(any(), any());
     }
 
     @Test
     @DisplayName("handle：通过且文案留空 → 补缺省文案（回执必须可读），标题/正文快照与任务行同一份")
     void handle_handled_blankTextFallsBackToDefaults() {
         when(moderationTaskMapper.selectOne(any())).thenReturn(task(ModerationConst.STATUS_PENDING));
+        when(moderationTaskMapper.update(any(ModerationTask.class), any())).thenReturn(1);
 
         service().handle(ModerationConst.TYPE_FEEDBACK, 5L, null, "  ", null, 3L, 9L);
 
         ArgumentCaptor<ModerationTask> saved = ArgumentCaptor.forClass(ModerationTask.class);
-        verify(moderationTaskMapper).updateById(saved.capture());
+        verify(moderationTaskMapper).update(saved.capture(), any());
         ModerationTask updated = saved.getValue();
         assertThat(updated.getStatus()).isEqualTo(ModerationConst.STATUS_HANDLED);
         assertThat(updated.getOutcome()).isEqualTo(ModerationConst.OUTCOME_HANDLED);
@@ -155,12 +156,13 @@ class ModerationTaskServiceImplTest {
         ModerationTask report = task(ModerationConst.STATUS_PENDING);
         report.setType(ModerationConst.TYPE_REPORT);
         when(moderationTaskMapper.selectOne(any())).thenReturn(report);
+        when(moderationTaskMapper.update(any(ModerationTask.class), any())).thenReturn(1);
 
         service().handle(ModerationConst.TYPE_REPORT, 5L, ModerationConst.OUTCOME_HANDLED,
                 null, "已受理并隐藏该评价", 3L, 9L);
 
         ArgumentCaptor<ModerationTask> saved = ArgumentCaptor.forClass(ModerationTask.class);
-        verify(moderationTaskMapper).updateById(saved.capture());
+        verify(moderationTaskMapper).update(saved.capture(), any());
         assertThat(saved.getValue().getReplyTitle()).isEqualTo("举报已受理");
         assertThat(saved.getValue().getReplyContent()).isEqualTo("已受理并隐藏该评价");
     }
@@ -178,7 +180,7 @@ class ModerationTaskServiceImplTest {
                 ModerationConst.OUTCOME_HANDLED, null,
                 "文".repeat(ModerationConst.REPLY_CONTENT_MAX_LENGTH + 1), 1L, 9L))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(moderationTaskMapper, never()).updateById(any());
+        verify(moderationTaskMapper, never()).update(any(), any());
     }
 
     @Test
@@ -189,7 +191,7 @@ class ModerationTaskServiceImplTest {
         assertThatThrownBy(() -> service().handle(ModerationConst.TYPE_FEEDBACK, 5L,
                 ModerationConst.OUTCOME_HANDLED, null, "文案", 1L, 9L))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(4001));
-        verify(moderationTaskMapper, never()).updateById(any());
+        verify(moderationTaskMapper, never()).update(any(), any());
     }
 
     @Test
@@ -200,7 +202,20 @@ class ModerationTaskServiceImplTest {
         assertThatThrownBy(() -> service().handle(ModerationConst.TYPE_FEEDBACK, 5L,
                 ModerationConst.OUTCOME_HANDLED, null, "文案", 1L, 9L))
                 .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
-        verify(moderationTaskMapper, never()).updateById(any());
+        verify(moderationTaskMapper, never()).update(any(), any());
+        verify(notificationService, never()).notifyNow(any());
+    }
+
+    @Test
+    @DisplayName("handle：并发窗口内被他人抢先处置 → UPDATE 落空 → 400 且不投递回执（判据在 WHERE，不靠预检）")
+    void handle_racedByAnotherAdmin_updateMissesWithoutReceipt() {
+        when(moderationTaskMapper.selectOne(any())).thenReturn(task(ModerationConst.STATUS_PENDING));
+        // 读到 pending，但 UPDATE 的 status=pending 条件已落空（他人抢先归档）
+        when(moderationTaskMapper.update(any(ModerationTask.class), any())).thenReturn(0);
+
+        assertThatThrownBy(() -> service().handle(ModerationConst.TYPE_FEEDBACK, 5L,
+                ModerationConst.OUTCOME_HANDLED, null, "文案", 1L, 9L))
+                .satisfies(ex -> assertThat(((BusinessException) ex).getCode()).isEqualTo(400));
         verify(notificationService, never()).notifyNow(any());
     }
 
@@ -208,11 +223,12 @@ class ModerationTaskServiceImplTest {
     @DisplayName("handle：收件人为空 → 归档照常但不投递（兜底分支：无归属即无可投对象）")
     void handle_withoutRecipient_archivesWithoutReceipt() {
         when(moderationTaskMapper.selectOne(any())).thenReturn(task(ModerationConst.STATUS_PENDING));
+        when(moderationTaskMapper.update(any(ModerationTask.class), any())).thenReturn(1);
 
         service().handle(ModerationConst.TYPE_FEEDBACK, 5L, ModerationConst.OUTCOME_HANDLED,
                 null, "文案", 1L, null);
 
-        verify(moderationTaskMapper).updateById(any());
+        verify(moderationTaskMapper).update(any(), any());
         verify(notificationService, never()).notifyNow(any());
     }
 

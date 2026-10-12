@@ -96,5 +96,5 @@
 ### 备注
 - **动作恰好三个**：隐藏 / 恢复显示 / 删除。**无内容安全态处置端点** —— 机审 `pass` / `review` 直接放行、`risky` 直接拒绝（不存在待复核队列）。
 - **回执口径**：隐藏 / 删除向作者投递登录级回执（作者 `userId` 由登录态回填，恒为真实用户，不按邮箱认证过滤）；投递失败不阻塞处置。
-- **「重新评价即恢复可见」保持现状**（覆盖提交时 `is_hidden` 重置为 0）：重新提交是全新内容、重新过机审。
+- **「重新评价即恢复可见」保持现状**（覆盖提交时 `is_hidden` 重置为 0，并**清空 `hidden_note` / `moderated_by` / `moderated_at`**）：重新提交是全新内容、重新过机审，故出参的 `hiddenNote` / `moderatedByName` / `moderatedAt` 随之归 `null`。
 - **附注与处置留痕都落库**：处置可追溯（隐藏附注写 `review.hidden_note`；处置人与处置时间写 `review.moderated_by` / `review.moderated_at`，见 [schema/review.md](../../schema/review.md)）。

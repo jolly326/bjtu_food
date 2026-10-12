@@ -131,6 +131,7 @@ function remove(row: ReviewAdminVO): Promise<void> {
     },
     successMessage: '已删除',
     failMessage: '删除失败',
+    // 末页删空不留空页：越界 / 本页删空的页码回退由 `reload` 统一兜底
     refresh: reload,
     // 行已不存在：抽屉若正开着这条，一并关闭（不留空壳）
     closeDrawer: () => {
@@ -223,26 +224,35 @@ onMounted(() => reloadFirstPage())
   <div class="page">
     <div class="page-header"><h2>评价管理</h2></div>
 
+    <!-- 筛选区是紧凑单行（不引入可见 `<label>`）⇒ 每个控件以 `aria-label` 自报字段名 -->
     <div class="card filters">
       <input
         class="form-input"
         v-model="fKeyword"
+        aria-label="评价内容关键词"
         placeholder="评价内容"
         @keyup.enter="reloadFirstPage"
       />
       <input
         class="form-input"
         v-model="fDishId"
+        aria-label="按菜品 ID 筛选"
         placeholder="菜品 ID"
         @keyup.enter="reloadFirstPage"
       />
       <input
         class="form-input"
         v-model="fUserId"
+        aria-label="按用户 ID 筛选"
         placeholder="用户 ID"
         @keyup.enter="reloadFirstPage"
       />
-      <select class="form-input" v-model="fHidden" @change="reloadFirstPage">
+      <select
+        class="form-input"
+        v-model="fHidden"
+        aria-label="按状态筛选"
+        @change="reloadFirstPage"
+      >
         <option value="">全部状态</option>
         <option :value="false">显示中</option>
         <option :value="true">已隐藏</option>
@@ -525,7 +535,7 @@ onMounted(() => reloadFirstPage())
 <style scoped>
 /* 筛选区内控件定宽（.filters 容器样式已收敛到全局 shared.css） */
 .filters .form-input {
-  width: 150px;
+  width: 160px;
 }
 /* 评分展示：内联 SVG 星形图标（--color-star，独立语义色）在数字前，数字保持 .num 等宽
    （表格评分格与抽屉评分位共用同一段展示结构） */

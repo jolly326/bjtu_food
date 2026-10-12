@@ -144,8 +144,13 @@ public class VerifyCodePersister {
      */
     private void bindEmail(User currentUser, String email) {
         currentUser.setEmail(email);
+        // 🔴 只写 email 列，不回写整行：currentUser 是在事务外读到的快照，中间隔着最长约 2 秒的
+        // BCrypt 逐条比对 —— 整行覆盖会把窗口内他人对 status / nickname / avatar 的写一并冲掉
+        // （管理员刚禁用账号却被改回 active 即属此类）。内存态照常置值，供调用方继续装配出参。
         try {
-            userMapper.updateById(currentUser);
+            userMapper.update(null, new LambdaUpdateWrapper<User>()
+                    .eq(User::getId, currentUser.getId())
+                    .set(User::getEmail, email));
         } catch (DuplicateKeyException e) {
             throw new BusinessException(400, "该邮箱已被其他账号占用");
         }

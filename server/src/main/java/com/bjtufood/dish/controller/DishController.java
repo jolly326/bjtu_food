@@ -46,12 +46,12 @@ public class DishController {
                     + "刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 "
                     + "CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条"
                     + "（内容不会自变），重进小程序才整体重洗（新鲜度）；"
-                    + "不传 seed ⇒ 退回 ORDER BY RAND()（可选参数，向后兼容）。"
+                    + "未传 seed ⇒ 服务端补一次性随机值（同一套稳定伪随机序，每次调用结果不同）。"
     )
     @GetMapping("/dishes/for-you")
     public Result<List<GuessLikeVO>> guessLike(
             @Parameter(description = "会话随机种子（可选）：端上冷启动生成、会话内恒定，重进小程序才换。"
-                    + "不传 ⇒ ORDER BY RAND() 真随机（向后兼容旧端 / 直连调试）", example = "m3k9x7q2")
+                    + "未传 ⇒ 服务端补一次性随机值（仍为随机序，每次调用不同）", example = "m3k9x7q2")
             @RequestParam(required = false) String seed
     ) {
         return Result.success(dishService.guessLike(seed));
@@ -142,16 +142,9 @@ public class DishController {
     }
 
     /**
-     * IP 维度滥用防护（浏览计数防刷兜底）。
-     * <p>
-     * 计数内聚于**匿名高频读接口**（{@code GET /dishes/{id}} 的成功响应），故由 IP 限频兜底：
-     * 不限制「谁」「何时」，只限制同一 IP 的请求速率。
-     * <p>
-     * 阈值「每分钟 30 + 每小时 300」：正常浏览（连续翻菜）远低于此、用户无感；
-     * 但可挡住脚本级刷量。接入层防护放 Controller（非业务逻辑），计数仍归 {@code DishService}。
-     * 写法对齐既有先例 {@code FeedbackController#checkIpRateLimit}。
+     * 列表读限频（IP 维度 60/分 · 600/时）：防脚本高频翻页把列表全量拉走。
+     * 正常浏览（含主动翻页）远低于此，用户无感；接入层防护放 Controller（非业务逻辑）。
      */
-    /** 列表读限频（IP 维度）：60/分 · 600/时 —— 防脚本高频翻页把列表全量拉走 */
     private static final IpRateLimiter.Rule RULE_LIST_PER_MINUTE = new IpRateLimiter.Rule(60, 60_000L);
 
     private static final IpRateLimiter.Rule RULE_LIST_PER_HOUR = new IpRateLimiter.Rule(600, 3_600_000L);

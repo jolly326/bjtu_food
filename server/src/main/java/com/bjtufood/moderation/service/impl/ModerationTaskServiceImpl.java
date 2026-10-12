@@ -1,6 +1,7 @@
 package com.bjtufood.moderation.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.bjtufood.auth.service.AdminAccountService;
 import com.bjtufood.common.exception.BusinessException;
 import com.bjtufood.common.utils.ParamValidator;
@@ -98,7 +99,16 @@ public class ModerationTaskServiceImpl implements ModerationTaskService {
         task.setReplyContent(finalContent);
         task.setHandledBy(adminId);
         task.setHandledAt(LocalDateTime.now());
-        moderationTaskMapper.updateById(task);
+        // 🔴 并发处置：状态判据必须写进 UPDATE 的 WHERE（读到的 pending 可能已被他人处置）——
+        // 按 id 无条件 update 时，两个管理员同时处置同一条会**双双成功**，结论被静默覆盖、回执重复投递。
+        // 实体只提供 SET 值，WHERE 由 wrapper 承载（故 SET 的 status=handled 与 WHERE 的 status=pending 不冲突）。
+        int updated = moderationTaskMapper.update(task, new LambdaUpdateWrapper<ModerationTask>()
+                .eq(ModerationTask::getId, task.getId())
+                .eq(ModerationTask::getStatus, ModerationConst.STATUS_PENDING));
+        if (updated == 0) {
+            // 落空 = 并发窗口内已被处置（与上面的预检同为「该记录已处理」）
+            throw new BusinessException(400, "该记录已处理");
+        }
 
         // 站内回执（登录级投递：提交恒带登录态 ⇒ 恒有收件人；null 为防御性兜底）
         if (recipientUserId != null) {

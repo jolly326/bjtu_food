@@ -693,6 +693,9 @@ public class CorrectionServiceImpl implements CorrectionService {
     // ==================== 管理端驳回（PUT /admin/corrections/{id}） ====================
 
     @Override
+    // 事务口径与 handle 一致：驳回同样「改任务行 + 投递回执」两步，必须原子 ——
+    // 否则回执投递失败会留下「任务已归档、作者没收到」的不一致状态。
+    @Transactional(rollbackFor = Exception.class)
     public void reject(Long id, ModerationHandleReq req, Long adminId) {
         Correction correction = correctionMapper.selectById(id);
         if (correction == null) {

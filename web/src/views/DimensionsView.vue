@@ -156,8 +156,13 @@ const valuesError = ref<string | null>(null)
 const newValueName = ref('')
 const editingValueId = ref<number | null>(null)
 const editingValueName = ref('')
-/** 取值表（抽屉内）行内动作并发保护：提交中该行按钮 `:disabled`（与列表行同范式） */
-const busyValueId = ref<number | null>(null)
+/**
+ * 取值表（抽屉内）行内动作并发保护：**另起一把锁**（与维度的 `busyId` 互不干扰）——
+ * 取值 id 与维度 id 是两个命名空间，共用一把锁会让「维度行的锁」盖掉「取值行的锁」，出现锁不住的漏洞。
+ * 新增取值无行 id ⇒ 用 `ADD_VALUE_LOCK_ID` 作锁位，与模板 `isValueBusy(ADD_VALUE_LOCK_ID)` 配对。
+ */
+const { isBusy: isValueBusy, runRowAction: runValueAction } = useRowAction()
+const ADD_VALUE_LOCK_ID = 0
 
 /** 取值管理态 → 查看态（抽屉留在维度详情上，不回列表） */
 function backToView(): void {
@@ -196,23 +201,24 @@ async function refreshAll(): Promise<void> {
   if (current.value) syncCurrent(current.value.id)
 }
 
-async function addValue(): Promise<void> {
+function addValue(): Promise<void> {
   const dim = current.value
   const name = newValueName.value.trim()
   if (!dim || !name) {
     ElMessage.warning('请输入取值名称')
-    return
+    return Promise.resolve()
   }
-  try {
-    await createValue(dim.id, { name })
-    newValueName.value = ''
-    ElMessage.success('已新增')
+  return runValueAction({
+    id: ADD_VALUE_LOCK_ID,
+    action: async () => {
+      await createValue(dim.id, { name })
+      newValueName.value = ''
+    },
+    successMessage: '已新增',
+    failMessage: '新增失败',
     // 抽屉保持打开（连续录入）；列表与计数同源刷新
-    await refreshAll()
-  } catch (e) {
-    // 同维度下重名 → 后端原文（400）
-    fail(e, '新增失败')
-  }
+    refresh: refreshAll,
+  })
 }
 
 function startRename(row: DishValueAdminVO): void {
@@ -220,43 +226,37 @@ function startRename(row: DishValueAdminVO): void {
   editingValueName.value = row.name
 }
 
-async function commitRename(row: DishValueAdminVO): Promise<void> {
+function commitRename(row: DishValueAdminVO): Promise<void> {
   const dim = current.value
   const name = editingValueName.value.trim()
-  if (!dim || !name) return
-  busyValueId.value = row.id
-  try {
-    await updateValue(dim.id, row.id, { name })
-    editingValueId.value = null
-    ElMessage.success('已改名')
-    await refreshAll()
-  } catch (e) {
-    fail(e, '改名失败')
-  } finally {
-    busyValueId.value = null
-  }
+  if (!dim || !name) return Promise.resolve()
+  return runValueAction({
+    id: row.id,
+    action: async () => {
+      await updateValue(dim.id, row.id, { name })
+      editingValueId.value = null
+    },
+    successMessage: '已改名',
+    failMessage: '改名失败',
+    refresh: refreshAll,
+  })
 }
 
-async function removeValue(row: DishValueAdminVO): Promise<void> {
+function removeValue(row: DishValueAdminVO): Promise<void> {
   const dim = current.value
-  if (!dim) return
-  try {
-    await confirmDelete(`确认删除取值「${row.name}」？被菜品引用时将无法删除。`, {
-      title: '删除取值',
-    })
-  } catch {
-    return
-  }
-  busyValueId.value = row.id
-  try {
-    await deleteValue(dim.id, row.id)
-    ElMessage.success('已删除')
-    await refreshAll()
-  } catch (e) {
-    fail(e, '删除失败')
-  } finally {
-    busyValueId.value = null
-  }
+  if (!dim) return Promise.resolve()
+  return runValueAction({
+    id: row.id,
+    action: async () => {
+      await confirmDelete(`确认删除取值「${row.name}」？被菜品引用时将无法删除。`, {
+        title: '删除取值',
+      })
+      await deleteValue(dim.id, row.id)
+    },
+    successMessage: '已删除',
+    failMessage: '删除失败',
+    refresh: refreshAll,
+  })
 }
 
 onMounted(() => load())
@@ -384,13 +384,24 @@ onMounted(() => load())
       <!-- ③ 取值管理态（紧凑表格，按取值 ID 升序） -->
       <template v-else>
         <div class="add-row">
+          <!-- 紧凑新增行无可见标签（与占位文案同源）⇒ 由 aria-label 承担字段名（基线 §1.7） -->
           <input
             class="form-input"
             v-model="newValueName"
+            aria-label="新增取值名称"
             placeholder="新增取值名称（≤32 字）"
             @keyup.enter="addValue"
           />
-          <button class="btn-primary" type="button" v-press @click="addValue">新增</button>
+          <!-- 提交中去重（基线 §1.7）：无行 id 的新增同样要置灰，不得只靠 toast 防连点 -->
+          <button
+            class="btn-primary"
+            type="button"
+            v-press
+            :disabled="isValueBusy(ADD_VALUE_LOCK_ID)"
+            @click="addValue"
+          >
+            新增
+          </button>
         </div>
 
         <StateBox v-if="valuesLoading" status="loading" />
@@ -415,10 +426,12 @@ onMounted(() => load())
             <tbody>
               <tr v-for="v in values" :key="v.id">
                 <td>
+                  <!-- 行内改名输入无可见标签 ⇒ aria-label 承担字段名（基线 §1.7） -->
                   <input
                     v-if="editingValueId === v.id"
                     class="form-input inline"
                     v-model="editingValueName"
+                    aria-label="取值名称"
                     @keyup.enter="commitRename(v)"
                     @keyup.esc="editingValueId = null"
                   />
@@ -431,7 +444,7 @@ onMounted(() => load())
                     <button
                       class="link"
                       type="button"
-                      :disabled="busyValueId === v.id"
+                      :disabled="isValueBusy(v.id)"
                       @click="commitRename(v)"
                     >
                       保存
@@ -439,7 +452,7 @@ onMounted(() => load())
                     <button
                       class="link"
                       type="button"
-                      :disabled="busyValueId === v.id"
+                      :disabled="isValueBusy(v.id)"
                       @click="editingValueId = null"
                     >
                       取消
@@ -449,7 +462,7 @@ onMounted(() => load())
                     <button
                       class="link"
                       type="button"
-                      :disabled="busyValueId === v.id"
+                      :disabled="isValueBusy(v.id)"
                       @click="startRename(v)"
                     >
                       改名
@@ -458,7 +471,7 @@ onMounted(() => load())
                       v-if="canDelete()"
                       class="link danger"
                       type="button"
-                      :disabled="busyValueId === v.id"
+                      :disabled="isValueBusy(v.id)"
                       @click="removeValue(v)"
                     >
                       删除

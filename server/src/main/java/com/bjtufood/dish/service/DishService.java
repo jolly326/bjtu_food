@@ -95,7 +95,8 @@ public interface DishService {
      * {@code CRC32(seed:ID)} 稳定伪随机序取数 ⇒ 同一次会话内多次进入拿到同一批词条，
      * 重进小程序才整体重洗。
      * <p>
-     * {@code seed} 为<b>可选</b>参数：为空时退回 {@code ORDER BY RAND()}，
+     * {@code seed} 为<b>可选</b>参数：为空时<b>由本方法补一次性随机值</b>（同一套稳定伪随机序，
+     * 每次调用结果不同；不下推到 SQL 的 {@code ORDER BY RAND()} —— 那是全表排序、无法用索引），
      * 旧端 / 第三方 / Swagger 直连不受影响（不加 {@code required}，避免破坏性变更）。
      * 契约留扩展位：将来升级为个性化 / 推荐算法时端上契约不变（仅换服务端取数逻辑）。
      *
@@ -113,14 +114,6 @@ public interface DishService {
      * @param pageSize 每页条数（上限由 PageUtil 约束）
      * @return 分页后台菜品 VO
      */
-    /**
-     * 批量投影：dishId → 所属 stallId（供跨域调用方**消除 N+1**；空集合返回空 Map，不发查询）。
-     *
-     * @param dishIds 菜品 ID
-     * @return dishId → stallId；菜品不存在或档口为空则不入图
-     */
-    Map<Long, Long> mapStallIdByIds(Collection<Long> dishIds);
-
     IPage<DishAdminListItemVO> listAllForAdmin(DishAdminListQuery query, int page, int pageSize);
 
     /**

@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 口径：<b>先机审（无事务、不占连接）→ 再落库（才开事务）</b>。
  * <p>
  * ⚠️ <b>为何本类必须同时承载「写库」与「发事件」</b>：
- * {@code RatingUpdateListener} 用 {@code @TransactionalEventListener(phase = AFTER_COMMIT)} 异步重算菜品均分。
+ * {@code RatingUpdateListener} 用 {@code @TransactionalEventListener(phase = AFTER_COMMIT)} 同步重算菜品均分。
  * 若把 {@code ReviewSubmittedEvent} 的发布挪到<b>事务之外</b>，Spring 会因无活动事务而
  * <b>不触发</b>该监听器（默认 {@code fallbackExecution=false}）⇒ 菜品评分<b>永不重算</b>，
  * 用户将<b>直接看到错误评分</b>（排序不受评分影响，但出参评分仍错）。故事件发布必须与写库同处一个事务，
@@ -58,6 +58,12 @@ public class ReviewPersister {
      * 重新评价：覆盖同一行 + 发布重算事件（同一事务内）。
      * 覆盖语义：评分 / 文字 / 配图显式 set、{@code is_hidden} 重置 0、
      * 🔴 <b>{@code created_at} 保留原值不刷新</b>（首次评价时间即固定位置，改评价不置顶）。
+     * <p>
+     * 🔴 <b>可见性处置留痕一并清空</b>（{@code hidden_note} / {@code moderated_by} / {@code moderated_at}）：
+     * 重评是全新内容、重新过机审，重新评价即恢复可见 ⇒ 旧的隐藏附注与「最近一次处置」必须与可见性同步归零，
+     * 否则会出现「已恢复可见、却仍带管理员隐藏附注与处置时间」的自相矛盾行
+     * （出参口径见 {@code docs/api/web/reviews.md}：`hiddenNote` / `moderatedByName` / `moderatedAt`
+     * 在「从未隐藏 / 恢复显示」两种形态下均为 {@code null}）。
      *
      * @param id        评价 ID
      * @param rating    新评分
@@ -67,7 +73,7 @@ public class ReviewPersister {
      */
     // 🔴 覆盖更新**不刷新 `created_at`**：首次评价时间即该评价的固定位置，
     // 反复修改无法把自己刷到列表顶部（时间倒序下位置不动）⇒ 无需额外的提交限频。
-    // is_hidden 重置 0：重新评价即恢复可见。
+    // is_hidden 重置 0：重新评价即恢复可见；留痕三列随之清空（见方法注释）。
     @Transactional(rollbackFor = Exception.class)
     public void updateAndPublish(Long id, Integer rating, String content, String imagesJson, Long dishId) {
         reviewMapper.update(null, new LambdaUpdateWrapper<Review>()
@@ -75,7 +81,10 @@ public class ReviewPersister {
                 .set(Review::getRating, rating)
                 .set(Review::getContent, content)
                 .set(Review::getImages, imagesJson)
-                .set(Review::getIsHidden, 0));
+                .set(Review::getIsHidden, 0)
+                .set(Review::getHiddenNote, null)
+                .set(Review::getModeratedBy, null)
+                .set(Review::getModeratedAt, null));
         // 必须写在事务内：监听器为 AFTER_COMMIT 相位（见类注释）
         eventPublisher.publishEvent(new ReviewSubmittedEvent(this, dishId, rating));
     }

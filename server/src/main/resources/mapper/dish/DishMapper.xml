@@ -257,7 +257,7 @@
         故端上传**会话级 seed**，本查询按 CRC32(CONCAT(seed,'-',d.id)), d.id 做稳定伪随机序
           · 同一次会话内多次进入 ⇒ 同一批词条（内容不会自己变）；
           · 重进小程序 ⇒ seed 重掷 ⇒ 整体重洗（新鲜度）。
-        算法与推荐流（selectDishPage 的 SEED_RANDOM 分支）同一套：d.id 作决胜键消除 CRC32 并列乱序。
+        算法与推荐流（selectDishPage 的会话稳定伪随机序）同一套：d.id 作决胜键消除 CRC32 并列乱序。
         seed 由 Service 侧保证非空：{@code DishServiceImpl#guessLike} 在未传 seed 时补一个一次性随机值，
         此处不保留 ORDER BY RAND() 兜底（那是全表排序：代价随行数增长且无法使用索引）。
         契约未变：未传 seed 的调用方仍得到「每次不同的随机序」，只是随机性改由 seed 承载。

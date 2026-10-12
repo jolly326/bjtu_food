@@ -74,9 +74,8 @@ const RAWROW_ALLOWLIST = new Set([])
 /**
  * 扫描范围：**src/ 全树**（api / stores / composables / pages / types）。
  *
- * <p>2026-09-29 修正：此前只扫 `src/api/*.ts`，而 `RawRow` 同样可以
- * 从 `stores/`（如 review store 直接持有接口行）、`composables/`、`pages/`
- * 流入——那些位置引入弱类型，编译期同样无感知。
+ * <p>全树覆盖：`RawRow` 不只从 `src/api/*.ts` 流入，`stores/`（如 review store 直接持有接口行）、
+ * `composables/`、`pages/` 同样可以引入弱类型，编译期一样无感知。
  * 数据一旦离开 `api/` 层的归一化边界，契约保障即失效，故必须全树覆盖。
  *
  * <p>**排除**：`.d.ts`（含生成产物 `types/generated/api.d.ts`）与 `.vue`
@@ -185,9 +184,8 @@ function contractVoFields(generated, name) {
 if (existsSync(API_DIR) && existsSync(GENERATED)) {
   const generated = readFileSync(GENERATED, 'utf8')
 
-  // 扫描范围与第 3 条（RawRow）**保持一致**：
-  // 2026-10-01 修正 —— 此前只扫 `src/api/`，而 `src/types/`（`feedback.ts` / `dish.ts` 等）
-  // 同样会手写契约副本，那里的重复声明可完全逃逸。现改为全树，两条护栏口径统一。
+  // 扫描范围与第 3 条（RawRow）**保持一致**（全树）：`src/types/`（`feedback.ts` / `dish.ts` 等）
+  // 同样会手写契约副本，那里的重复声明可完全逃逸。
   const files = []
   for (const sub of SCAN_ROOTS) {
     const dir = join(API_DIR, '..', sub)

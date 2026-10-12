@@ -15,7 +15,7 @@ export interface Review {
   userAvatar: string
   rating: number
   content: string
-  /** 发表时间（重新评价后取新时间） */
+  /** 发表时间（首次发表；重复提交覆盖内容但保留原值） */
   createdAt: string
   /** 配图（COS URL，≤3 张；无图统一空数组） */
   images?: string[]

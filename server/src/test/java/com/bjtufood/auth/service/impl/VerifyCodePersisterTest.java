@@ -1,6 +1,7 @@
 package com.bjtufood.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.bjtufood.auth.constant.UserConst;
 import com.bjtufood.auth.entity.EmailVerificationCode;
@@ -156,7 +157,10 @@ class VerifyCodePersisterTest {
         persister().applyVerifiedBinding(current, "20240001@bjtu.edu.cn");
 
         assertThat(current.getEmail()).isEqualTo("20240001@bjtu.edu.cn");
-        verify(userMapper).updateById(current);
+        // 🔴 只写 email 列，不得整行回写：currentUser 是事务外快照，updateById 会把窗口内
+        // 他人对 status / nickname 的写一并冲掉（管理员刚禁用却被改回 active 即属此类）
+        verify(userMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+        verify(userMapper, never()).updateById(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -171,7 +175,8 @@ class VerifyCodePersisterTest {
         // 旧微信必须被解绑（email 置 NULL），否则唯一键占用不释放。
         // 注意生产代码走的是**两参** update(entity, wrapper) 重载（实体位传 null + LambdaUpdateWrapper），
         // 打桩必须匹配该签名，否则匹配不上会静默漏验证。
-        verify(userMapper, times(1)).update(isNull(), any());
+        // 两笔：① 腾空旧占用者的 email ② 置当前账号 email —— 都是「只写 email 列」的条件 UPDATE
+        verify(userMapper, times(2)).update(isNull(), any(LambdaUpdateWrapper.class));
         // 关键断言：数据必须迁移到当前账号，否则旧账号掉登录态但数据悬空
         ArgumentCaptor<UserOwnershipMigratedEvent> evt = ArgumentCaptor.forClass(UserOwnershipMigratedEvent.class);
         verify(eventPublisher).publishEvent(evt.capture());
@@ -185,7 +190,8 @@ class VerifyCodePersisterTest {
     void duplicateEmailIsReportedAsBusinessError() {
         // 正常路径会先腾空旧占用者；能落到唯一索引上的只有「两笔并发各自都没查到占用者」的竞态
         when(userMapper.selectOne(any())).thenReturn(null);
-        when(userMapper.updateById(any())).thenThrow(new DuplicateKeyException("uk_user_email"));
+        when(userMapper.update(isNull(), any(LambdaUpdateWrapper.class)))
+                .thenThrow(new DuplicateKeyException("uk_user_email"));
         User current = user(1L);
 
         assertThatThrownBy(() -> persister().applyVerifiedBinding(current, "20240001@bjtu.edu.cn"))
@@ -203,10 +209,10 @@ class VerifyCodePersisterTest {
 
         persister().applyVerifiedBinding(current, "20240001@bjtu.edu.cn");
 
-        // 关键断言：from==to 应被过滤掉，不发事件、不做解绑 UPDATE
+        // 关键断言：from==to 应被过滤掉 —— 不发事件、不做解绑 UPDATE（只剩「置本人 email」这一笔写）
         verify(eventPublisher, never()).publishEvent(any());
-        verify(userMapper, never()).update(isNull(), any());
-        verify(userMapper).updateById(current);
+        verify(userMapper, times(1)).update(isNull(), any(LambdaUpdateWrapper.class));
+        verify(userMapper, never()).updateById(any());
         assertThat(current.getEmail()).isEqualTo("20240001@bjtu.edu.cn");
     }
 }

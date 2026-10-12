@@ -197,18 +197,35 @@ class ReviewServiceImplTest {
     @Test
     @DisplayName("migrateOwnership：先删冲突行再改归属（唯一键 uk_review_user_dish 要求此顺序），且不发事件")
     void migrateOwnershipDeletesConflictsBeforeReassigning() {
+        // 新账号已评价的菜品：冲突清理必须**先查出 id 集合**再按值删除（MySQL 1093 禁同表自引用子查询）
+        Review existing = new Review();
+        existing.setDishId(10L);
+        when(reviewMapper.selectList(any())).thenReturn(List.of(existing));
         when(reviewMapper.delete(any())).thenReturn(2);
         when(reviewMapper.update(any(), any())).thenReturn(3);
 
         int affected = service().migrateOwnership(1L, 2L);
 
         assertThat(affected).isEqualTo(3);
-        // 顺序验证：delete 先于 update（InOrder 语义由 verify 先后次序保证）
+        // 顺序验证：selectList → delete → update
         org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(reviewMapper);
+        inOrder.verify(reviewMapper).selectList(any());
         inOrder.verify(reviewMapper).delete(any());
         inOrder.verify(reviewMapper).update(any(), any());
         // 迁移不改评分，故不重算聚合
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("migrateOwnership：新账号无评价 ⇒ 跳过冲突删除，只改归属（且不发删除）")
+    void migrateOwnershipSkipsDeleteWhenNoConflict() {
+        when(reviewMapper.selectList(any())).thenReturn(List.of());
+        when(reviewMapper.update(any(), any())).thenReturn(4);
+
+        assertThat(service().migrateOwnership(1L, 2L)).isEqualTo(4);
+
+        verify(reviewMapper, never()).delete(any());
+        verify(reviewMapper).update(any(), any());
     }
 
     // ==================== 管理端列表：作者头像联表带出 ====================

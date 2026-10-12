@@ -68,8 +68,8 @@ public class DishDetailVO {
      * 均分。🔴 **零评价时下发 {@code 5.0}（不返回 null）** —— 冷启动阶段大量菜品零评价，
      * 缺失值会让卡片/详情评分位空缺；口径见 docs/api/client/dishes.md「零评价展示口径」。
      * <p>
-     * 值来自缓存列 {@code dish.avg_rating}（口径 = 仅未隐藏评价，由评价写操作异步重算）；
-     * 兜底只在出参层：库内零评价仍为 NULL，排序按 {@code COALESCE(avg_rating,0)} 计 0 分。
+     * 值来自缓存列 {@code dish.avg_rating}（口径 = 仅未隐藏评价，由评价写操作触发重算）；
+     * 兜底只在出参层：库内零评价仍为 NULL（零评价与「真的 5 分」可区分）。
      */
     @Schema(description = "平均评分（读缓存列 dish.avg_rating；零评价下发 5.0 兜底）", example = "4.5")
     private BigDecimal avgRating;

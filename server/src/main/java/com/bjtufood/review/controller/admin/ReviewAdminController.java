@@ -4,11 +4,13 @@ import com.bjtufood.auth.support.SecurityUtil;
 import com.bjtufood.common.result.AdminPageResult;
 import com.bjtufood.common.result.Result;
 import com.bjtufood.review.dto.ReviewAdminVO;
+import com.bjtufood.review.dto.ReviewHiddenReq;
 import com.bjtufood.review.service.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,15 +52,11 @@ public class ReviewAdminController {
     public Result<Void> setHidden(
             @Parameter(description = "评价ID", example = "1")
             @PathVariable Long id,
-            @RequestBody(required = false) java.util.Map<String, Object> body) {
-        boolean hidden = body != null && Boolean.TRUE.equals(body.get("hidden"));
-        Object rawNote = body == null ? null : body.get("note");
-        String note = rawNote == null ? null : String.valueOf(rawNote);
-        if (note != null && note.trim().length() > 200) {
-            throw new com.bjtufood.common.exception.BusinessException("隐藏附注不能超过 200 字");
-        }
+            @Valid @RequestBody ReviewHiddenReq req) {
+        // hidden 必填由 @NotNull 拦（缺少 / 非布尔 → 400）：端点是「设置状态」而非切换，
+        // 若缺省按 false 处理，一次漏传参数的隐藏请求会被静默执行成「恢复显示」。
         // 处置人取自管理端登录态（与 CorrectionAdminController 同口径），不由请求体传入
-        reviewService.setHidden(id, hidden, note, SecurityUtil.getCurrentAdminId());
+        reviewService.setHidden(id, req.getHidden(), req.getNote(), SecurityUtil.getCurrentAdminId());
         return Result.success();
     }
 

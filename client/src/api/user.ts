@@ -1,7 +1,6 @@
 import type { UserInfo } from '@/types/user'
 import { get, post, put, del } from './http'
 import type { UserInfoVO, LoginVO } from './shared'
-import { DEFAULT_NICKNAME } from '@/constants/copy'
 
 /**
  * 账号信息映射（`UserInfoVO` 4 字段：id / name / avatar / email）。
@@ -11,7 +10,8 @@ import { DEFAULT_NICKNAME } from '@/constants/copy'
 function toUserInfo(raw: UserInfoVO): UserInfo {
   return {
     id: Number(raw.id ?? 0),
-    name: raw.name || DEFAULT_NICKNAME,
+    // 昵称**后端保证非空**（新游客号默认「食客 + ID 尾 4 位」由后端生成）⇒ 端上不兜底、不派生
+    name: raw.name ?? '',
     avatar: raw.avatar || '',
     // 已认证绑定校园邮箱：后端 wechat-login / verify-email / profile 返回（认证判据 = 其非空）
     email: raw.email || undefined,

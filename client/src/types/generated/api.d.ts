@@ -557,7 +557,7 @@ export interface paths {
   "/dishes/for-you": {
     /**
      * 猜你喜欢
-     * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；不传 seed ⇒ 退回 ORDER BY RAND()（可选参数，向后兼容）。
+     * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；未传 seed ⇒ 服务端补一次性随机值（同一套稳定伪随机序，每次调用结果不同）。
      */
     get: operations["guessLike"];
   };
@@ -773,6 +773,19 @@ export interface components {
       description?: string;
       /** @description 档口图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
       images?: string[];
+    };
+    /** @description 设置评价隐藏状态的请求 */
+    ReviewHiddenReq: {
+      /**
+       * @description 是否隐藏：true 隐藏 / false 恢复显示（必填）
+       * @example true
+       */
+      hidden: boolean;
+      /**
+       * @description 隐藏附注（可选，≤200 字；隐藏时随回执下发给作者，恢复显示时忽略）
+       * @example 该评价含与菜品无关的辱骂内容
+       */
+      note?: string;
     };
     /** @description 处置请求体 {replyTitle, replyContent, outcome:'rejected'}；校验失败返回 400 */
     ModerationHandleReq: {
@@ -1799,7 +1812,7 @@ export interface components {
       images?: string[];
       /**
        * Format: date-time
-       * @description 评价时间（重新评价后取新时间）
+       * @description 评价时间（首次发表时间；重复提交覆盖内容但保留原值）
        */
       createdAt?: string;
       /**
@@ -3455,6 +3468,11 @@ export interface operations {
          * @example 1
          */
         id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReviewHiddenReq"];
       };
     };
     responses: {
@@ -6898,13 +6916,13 @@ export interface operations {
   };
   /**
    * 猜你喜欢
-   * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；不传 seed ⇒ 退回 ORDER BY RAND()（可选参数，向后兼容）。
+   * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；未传 seed ⇒ 服务端补一次性随机值（同一套稳定伪随机序，每次调用结果不同）。
    */
   guessLike: {
     parameters: {
       query?: {
         /**
-         * @description 会话随机种子（可选）：端上冷启动生成、会话内恒定，重进小程序才换。不传 ⇒ ORDER BY RAND() 真随机（向后兼容旧端 / 直连调试）
+         * @description 会话随机种子（可选）：端上冷启动生成、会话内恒定，重进小程序才换。未传 ⇒ 服务端补一次性随机值（仍为随机序，每次调用不同）
          * @example m3k9x7q2
          */
         seed?: string;
