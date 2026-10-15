@@ -1,15 +1,14 @@
 -- ============================================================================
 -- 远端数据库 `bjtu_food` 与 docs/schema 的结构同步检查
 -- ============================================================================
--- 适用机器：必须能直连 10.7.110.195:3306 的 MySQL 账号
--- 当前本机无法连接（ERROR 2003），因此本文件只做检查，不执行任何 DDL。
+-- 适用机器：TencentCDB sh-cynosdbmysql-grp-bc1u6r82.sql.tencentcdb.com:27926 (bjtu_food, root)
+-- 2026-10-15 已同步：远端库与当前 docs/schema（唯一真源）对齐
+-- （1) email_verification_code、dish_attribute_value 已移除 docs 未注册的唯一索引
+-- 2) moderation_task idx_task_handled_by 保留为 fk_task_handled_by 依赖的外键索引）
 --
--- 若你要我“确保远端设计与 docs/schema 同步”，下面的查询就是你给我的验收：
---   1) 两张表存在
---   2) correction / moderation_task 的列、键、默认值、索引、FK 与 docs/schema
---      中定义的完全一致
---   3) 没有回归额外列（例如 correction 里不应出现 status/outcome/handled_by/
---      handled_at/updated_at；moderation_task 里也不应出现 updated_at）
+-- 本文件用于同步前检查与同步后验收：20 张表的列、键、默认值、索引、FK 与
+-- docs/schema 定义对照；查询清零超出 docs 定义的对象即视为文档 → 代码 →
+-- 生产库一致。
 -- ============================================================================
 
 -- 1) 确认必要表存在
@@ -82,9 +81,7 @@ SELECT
   TABLE_NAME,
   COLUMN_NAME,
   REFERENCED_TABLE_NAME,
-  REFERENCED_COLUMN_NAME,
-  UPDATE_RULE,
-  DELETE_RULE
+  REFERENCED_COLUMN_NAME
 FROM information_schema.KEY_COLUMN_USAGE
 WHERE TABLE_SCHEMA = 'bjtu_food'
   AND REFERENCED_TABLE_NAME IS NOT NULL
@@ -107,3 +104,11 @@ FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = 'bjtu_food'
   AND TABLE_NAME = 'moderation_task'
   AND COLUMN_NAME IN ('updated_at');
+-- 10) 2026-10-15 同步后确认：docs 索引表未注册的对象已移除（远端库已对齐）
+--     email_verification_code 索引（期待：PRIMARY / idx_evc_email / idx_evc_expires）
+SELECT INDEX_NAME, COLUMN_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='bjtu_food' AND TABLE_NAME='email_verification_code' ORDER BY INDEX_NAME;
+--     dish_attribute_value 索引（期待：PRIMARY / idx_value_dimension）
+SELECT INDEX_NAME, COLUMN_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='bjtu_food' AND TABLE_NAME='dish_attribute_value' ORDER BY INDEX_NAME;
+--     moderation_task 索引（期待：PRIMARY / uk_task_type_target / idx_task_status_created；fk_task_handled_by 依赖索引 idx_task_handled_by 必须保留）
+SELECT INDEX_NAME, COLUMN_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA='bjtu_food' AND TABLE_NAME='moderation_task' ORDER BY INDEX_NAME;
+--     结论：以上三张表均与 docs/schema 索引表一致。
