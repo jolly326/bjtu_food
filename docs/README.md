@@ -22,7 +22,7 @@
 
 **校园菜品展示与轻量评分平台** —— 帮学生解决「今天吃什么」。菜品与档口信息由运营录入；学生只做三件事：**看海报、刷菜、点反馈**。
 
-- **学生端三个 tab**：海报（有哪些档口、卖什么、在哪）｜ 推荐菜品（撕日历式一次一道，可点「想吃」）｜ 记录（按日期分组，回来补评分）
+- **学生端三个 tab**（TabBar 显示名）：**橱窗**（看档口海报）｜ **美食**（卡片式一次一道，可点「去品尝」）｜ **回味**（按月回看饮食记录，就地补评分）
 - **运营端**：食堂 / 档口（含海报）/ 菜品录入 + 反馈数据查看
 - **无搜索**；**无「我的」页面**
 - **全匿名**：不做注册 / 登录 / 认证 / 注销；用户身份由微信 openid 静默识别，不在任何界面展示
@@ -30,22 +30,22 @@
 
 ## 技术栈
 
-- **后端**：Java 21 · Spring Boot 3.2 · MyBatis-Plus · MySQL 5.7（TDSQL-C）
+- **后端**：**Python · FastAPI · SQLAlchemy · MySQL 5.7（TDSQL-C）**
 - **学生端**：Vue 3 + TypeScript · uni-app（微信小程序）
 - **运营端**：Vue 3 + TypeScript + Vite
-- **质量门禁**：后端 JUnit 5 + ArchUnit；前端 `vue-tsc` / `check:contract` / `vitest`
+- **质量门禁**：后端 **pytest** + **分层护栏**（`import-linter` 等静态依赖检查）；前端 `vue-tsc` / `check:contract` / `vitest`
 
 ## 文档树
 
 | 目录 | 文档 |
 |---|---|
 | `docs/` | [`README.md`](./README.md) · [`todo.md`](./todo.md) |
-| [`func/client/`](./func/client/README.md) | `README` · `A1-档口海报` · `A2-推荐菜品` · `A3-食堂筛选` · `B1-想吃标记` · `B2-评分反馈` · `C1-openid 静默识别` · `D1-隐私政策与用户协议` |
-| [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-反馈查看` · `C1-管理员登录` |
-| [`ui/client/`](./ui/client/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `档口海报` · `推荐菜品` · `记录与反馈` |
-| [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `反馈数据` |
-| [`api/`](./api/README.md) | `README` · `client/`（`auth` · `posters` · `dishes` · `canteens` · `reactions`） · `web/`（`auth` · `canteens` · `stalls` · `dishes` · `reactions` · `upload`） |
-| [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `dish` · `user` · `admin` · `dish_reaction` · `dish_want` |
+| [`func/client/`](./func/client/README.md) | `README` · `A1-档口海报` · `A2-推荐菜品` · `A3-食堂筛选` · `B1-品尝标记` · `B2-评分反馈` · `B3-菜品纠错` · `B4-我的食谱` · `C1-openid 静默识别` |
+| [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-反馈查看` · `B2-纠错查看` · `B3-纠错选项管理` · `C1-管理员登录` |
+| [`ui/client/`](./ui/client/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `档口海报` · `推荐菜品` · `我的食谱` |
+| [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `评分数据` · `纠错处理` · `纠错选项` |
+| [`api/`](./api/README.md) | `README` · `client/`（`auth` · `posters` · `dishes` · `canteens` · `records` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `dishes` · `records` · `issues` · `images`） |
+| [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `dish` · `dish_record` · `dish_issue` · `dish_issue_option` · `user` · `admin` |
 | [`secur/`](./secur/README.md) | `README` · `S-01-身份与凭证` · `S-02-鉴权与归属校验` · `S-03-限频与接口防护` · `S-04-凭据与部署边界` |
 
 > **归档区**：旧体系文档（126 份）整体归档于 [`old/`](./old/README.md)，**非真源**、不参与文档一致性与命名约束。
@@ -53,10 +53,10 @@
 ## 变更流程
 
 1. 改**代码**时同步更新对应层文档（先按上表定位归属）。
-2. 改**契约**（后端 VO / 端点）后需刷新端上类型：由 agent 本地启动后端（**仅限**抓取契约快照 `GET /v3/api-docs`）并执行 `client/` 下 `npm run gen:api:fresh`，随后跑 `npm run verify`。
+2. 改**契约**（后端模型 / 端点）后需刷新端上类型：由 agent 本地启动后端（**仅限**抓取契约快照 `GET /openapi.json`）并执行 `client/` 下 `npm run gen:api:fresh`，随后跑 `npm run verify`。
 3. 改**库表**：先改 [`schema/`](./schema/README.md) 对应表文档（唯一真源），再直连远程库执行 `ALTER` / `CREATE`；**禁只 ALTER 不同步文档**。
 4. 提交前跑质量门禁：
-   - 后端：`./mvnw test`
+   - 后端：`pytest`
    - 前端：`cd client && npm run verify`
 
 ## 约定
