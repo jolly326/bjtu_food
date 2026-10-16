@@ -38,6 +38,9 @@ const HOST_BOX_SIZES = new Set([30, 52, 56, 60, 120])
  */
 const SHOW_TOAST_ICONS = new Set(['none', 'success', 'error', 'loading'])
 
+/** 预生成色调（与 scripts/gen-icons.mjs、docs/ui/client/图标资源.md 一致） */
+const TONES = new Set(['default', 'primary', 'muted'])
+
 const errors = []
 const warns = []
 const fail = (file, line, msg) => errors.push(`${relative(ROOT, file)}:${line}  ${msg}`)
@@ -54,23 +57,18 @@ function walk(dir, out = []) {
 
 const files = walk(SRC)
 
-// ---- 1. 提取 ICONS 键表（图标唯一真源）----
-const appIconPath = join(SRC, 'components', 'AppIcon.vue')
-const appIconSrc = readFileSync(appIconPath, 'utf8')
-const tableStart = appIconSrc.indexOf('const ICONS')
-const tableEnd = appIconSrc.indexOf('\n}', tableStart)
-if (tableStart < 0 || tableEnd < 0) {
-  console.error('✗ 无法在 AppIcon.vue 中定位 ICONS 表 —— 图标真源结构已变，请同步本脚本')
+// ---- 1. 提取图标键表（真源 = 下载的 SVG 资源目录，见 docs/ui/client/图标资源.md）----
+const appIconPath = join(SRC, 'components', 'base', 'AppIcon.vue')
+const ICON_DIR = join(SRC, 'assets', 'icons')
+const iconKeys = new Set(
+  readdirSync(ICON_DIR)
+    .filter((n) => n.endsWith('.svg'))
+    .map((n) => n.slice(0, -4)),
+)
+if (iconKeys.size === 0) {
+  console.error('✗ src/assets/icons/ 下未找到任何 SVG —— 图标资源缺失，请同步本脚本')
   process.exit(1)
 }
-const iconKeys = new Set(
-  appIconSrc
-    .slice(tableStart, tableEnd)
-    .split('\n')
-    .map((l) => l.match(/^\s{2}'?([a-z-]+)'?\s*:\s*\{/))
-    .filter(Boolean)
-    .map((m) => m[1]),
-)
 
 // ---- 2. 逐文件扫描 ----
 let usageCount = 0
@@ -110,14 +108,14 @@ for (const file of files) {
       const n = Number(sizeStatic[1])
       usedSizes.add(n)
       if (!ALLOWED_SIZES.has(n) && !HOST_BOX_SIZES.has(n)) {
-        fail(file, at, `size=${n} 不在 §1.14 档位表（${[...ALLOWED_SIZES].join('/')}）也不在宿主盒对齐例外档`)
+        fail(file, at, `size=${n} 不在 §1.8 档位表（${[...ALLOWED_SIZES].join('/')}）也不在宿主盒对齐例外档`)
       }
     }
 
-    // color：不得为 currentColor / var(...)
-    const colorStatic = tag.body.match(/\bcolor="([^"]*)"/)
-    if (colorStatic && (colorStatic[1] === 'currentColor' || colorStatic[1].startsWith('var('))) {
-      fail(file, at, `color="${colorStatic[1]}" 会被回退为兜底近黑：请传实色（COLOR_MAP['xxx']）`)
+    // tone：必须落在预生成着色变体表（见 docs/ui/client/图标资源.md）
+    const toneStatic = tag.body.match(/(?<![:\w-])tone="([a-z]+)"/)
+    if (toneStatic && !TONES.has(toneStatic[1])) {
+      fail(file, at, `tone="${toneStatic[1]}" 不在预生成色调表（${[...TONES].join('/')}）`)
     }
   })
 }
@@ -154,13 +152,7 @@ for (const file of files) {
     }
   }
 }
-// ---- 3. ICONS 表自身的完整性：键数与文档登记一致 ----
-const DOC_KEY_COUNT = 30 // §1.14：29 个业务键 + 1 个兜底键 empty
-if (iconKeys.size !== DOC_KEY_COUNT) {
-  errors.push(`AppIcon ICONS 键数 ${iconKeys.size} ≠ 文档 §1.14 登记的 ${DOC_KEY_COUNT}（请同批改文档与本脚本）`)
-}
-
-// ---- 4. 未消费的键（零消费即不登记）----
+// ---- 3. 预置资源库：未消费的键仅提示（预留库，不算错）----
 const consumed = new Set()
 for (const file of files) {
   const src = readFileSync(file, 'utf8')
@@ -168,12 +160,14 @@ for (const file of files) {
     if (new RegExp(`name="\\s*${k}"|'${k}'|"${k}"`).test(src)) consumed.add(k)
   }
 }
-// TabBar 以 `${icon}-filled` 动态拼接，两个 filled 变体由 ICON_KEYS 的拼接规则消费
-for (const k of ['home-filled', 'profile-filled']) consumed.add(k)
-// empty 是未知图标名的兜底回退目标（由 AppIcon 内部 ICONS.empty 引用，非模板消费）
+// empty 是未知图标名的兜底回退目标（由 AppIcon 内部引用，非模板消费）
 consumed.add('empty')
-const orphans = [...iconKeys].filter((k) => !consumed.has(k))
-if (orphans.length) errors.push(`ICONS 中存在零消费键（零消费即不登记）：${orphans.join(', ')}`)
+const unused = [...iconKeys].filter((k) => !consumed.has(k))
+if (unused.length) {
+  warns.push(
+    `预置但暂未消费的图标 ${unused.length} 个（预留资源库，不阻断）：${unused.slice(0, 12).join(', ')}${unused.length > 12 ? ' …' : ''}`,
+  )
+}
 
 // ---- 输出 ----
 console.log(`[图标体系] 图标键 ${iconKeys.size} 个（业务 ${iconKeys.size - 1} + 兜底 empty）`)

@@ -33,7 +33,7 @@ const EXEMPT = new Set(
   ['src/theme/generated-colors.css', 'src/theme/design-tokens.css'].map((p) => p.split('/').join(sep)),
 )
 
-/** 允许项：值级（物理/渲染量）+ 文件级（组件私有尺寸）；理由登记于 docs/ui/client/设计变量.md §6 */
+/** 允许项：值级（物理/渲染量）+ 文件级（组件私有尺寸）；理由登记于 docs/ui/client/设计变量.md §3 */
 const ALLOW = JSON.parse(readFileSync(join(CLIENT_ROOT, 'scripts', 'ui-token-allow.json'), 'utf8'))
 const ALLOW_VALUES = new Set(ALLOW.values || [])
 const ALLOW_FILES = new Map(

@@ -16,7 +16,6 @@
 
 > **同一事实只写一处**。需要跨目录说明时用链接，不要复制正文。
 > feature 文档只写业务规则，字段签名一律以 `api/` 为准；UI 文档只写视觉，字段同理。
-> [`todo.md`](./todo.md) 是**待决事项清单（非真源）**：登记需要所有者拍板的开放议题；拍板后结论写入对应真源，再从该文件移除。
 
 ## 产品定位
 
@@ -39,16 +38,16 @@
 
 | 目录 | 文档 |
 |---|---|
-| `docs/` | [`README.md`](./README.md) · [`todo.md`](./todo.md) |
+| `docs/` | [`README.md`](./README.md) |
 | [`func/client/`](./func/client/README.md) | `README` · `A1-档口海报` · `A2-推荐菜品` · `A3-食堂筛选` · `B1-品尝标记` · `B2-评分反馈` · `B3-菜品纠错` · `B4-我的食谱` · `C1-openid 静默识别` |
 | [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-反馈查看` · `B2-纠错查看` · `B3-纠错选项管理` · `C1-管理员登录` |
-| [`ui/client/`](./ui/client/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `档口海报` · `推荐菜品` · `我的食谱` |
+| [`ui/client/`](./ui/client/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `图标资源` · `档口海报` · `推荐菜品` · `我的食谱` |
 | [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `评分数据` · `纠错处理` · `纠错选项` |
 | [`api/`](./api/README.md) | `README` · `client/`（`auth` · `posters` · `dishes` · `canteens` · `records` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `dishes` · `records` · `issues` · `images`） |
 | [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `dish` · `dish_record` · `dish_issue` · `dish_issue_option` · `user` · `admin` |
 | [`secur/`](./secur/README.md) | `README` · `S-01-身份与凭证` · `S-02-鉴权与归属校验` · `S-03-限频与接口防护` · `S-04-凭据与部署边界` |
 
-> **归档区**：旧体系文档（126 份）整体归档于 [`old/`](./old/README.md)，**非真源**、不参与文档一致性与命名约束。
+> 本目录即现行设计的唯一真源。
 
 ## 变更流程
 

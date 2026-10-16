@@ -3,7575 +3,2012 @@
  * Do not make direct changes to the file.
  */
 
-
 export interface paths {
-  "/my/notifications/{id}/read": {
-    /**
-     * 单条已读
-     * @description STU（需登录；游客态亦可）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
-     */
-    put: operations["readOne"];
-  };
-  "/my/notifications/read-all": {
-    /**
-     * 全部已读
-     * @description STU（需登录；游客态亦可）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。
-     */
-    put: operations["readAll"];
-  };
-  "/auth/profile": {
-    /**
-     * 获取当前用户资料
-     * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 email 非空派生，不作独立出参字段）、绑定邮箱（email）。字段集与登录 / 认证链路一致（恰 4 项：id / name / avatar / email）。
-     */
-    get: operations["profile"];
-    /**
-     * 修改当前用户资料
-     * @description 用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/cloud-image（返回 URL）后作为 avatar 保存。
-     */
-    put: operations["updateProfile"];
-  };
-  "/admin/users/{id}/status": {
-    /**
-     * 启用/禁用用户
-     * @description 用途：修改用户账号状态（只改 status，取值为字符串枚举 active=启用 / disabled=禁用）。disabled 用户无法登录，且其已签发 token 即时失效。
-     */
-    put: operations["updateStatus"];
-  };
-  "/admin/stalls/{id}": {
-    /**
-     * 编辑档口
-     * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
-     */
-    put: operations["updateStall"];
-    /**
-     * 删除档口
-     * @description 用途：删除档口。其下仍有菜品 → 400（由本层编排跨域计数）；不存在 → 4001。
-     */
-    delete: operations["deleteStall"];
-  };
-  "/admin/reviews/{id}/hidden": {
-    /**
-     * 设置评价隐藏/显示
-     * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。两条路径都记录处置人（当前管理员）与处置时间，覆盖式只留最近一次。
-     */
-    put: operations["setHidden"];
-  };
-  "/admin/reports/{id}": {
-    /**
-     * 处置举报
-     * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome, hideReview}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（受理，缺省）或 rejected（不予处理），非法值 400；hideReview **仅受理时消费**：true 联动隐藏被举报评价（幂等：评价已隐藏 / 已删除时静默成功）。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
-     */
-    put: operations["handle"];
-  };
-  "/admin/report-options/{id}": {
-    /**
-     * 举报原因改名
-     * @description 用途：**只改 name**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
-     */
-    put: operations["rename"];
-    /**
-     * 删除举报原因
-     * @description 用途：删除。**被举报记录引用 → 400**（下线一律用停用，避免历史举报翻不出中文）；不存在 → 4001。
-     */
-    delete: operations["delete"];
-  };
-  "/admin/report-options/{id}/status": {
-    /**
-     * 举报原因启停
-     * @description 用途：只改 status。**停用最后一条启用 → 400**（举报入口不能配空）；启用数超 8 → 400；不存在 → 4001。
-     */
-    put: operations["updateStatus_1"];
-  };
-  "/admin/feedbacks/{id}": {
-    /**
-     * 处置反馈
-     * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
-     */
-    put: operations["handle_1"];
-  };
-  "/admin/feedback-options/{id}": {
-    /**
-     * 反馈类型改名
-     * @description 用途：**只改 name**（改名免费，历史反馈的中文翻译实时生效）；不存在 → 4001。
-     */
-    put: operations["rename_1"];
-    /**
-     * 删除反馈类型
-     * @description 用途：删除。**被反馈记录引用 → 400**（下线一律用停用，避免历史反馈翻不出中文）；不存在 → 4001。
-     */
-    delete: operations["delete_1"];
-  };
-  "/admin/feedback-options/{id}/status": {
-    /**
-     * 反馈类型启停
-     * @description 用途：只改 status。**停用最后一条启用 → 400**（反馈入口不能配空）；启用数超 8 → 400；不存在 → 4001。
-     */
-    put: operations["updateStatus_2"];
-  };
-  "/admin/dishes/{id}": {
-    /**
-     * 菜品详情
-     * @description 用途：编辑回填（全字段）。菜品不存在返回 4001。
-     */
-    get: operations["getDish"];
-    /**
-     * 编辑菜品
-     * @description 用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端 JWT 鉴权（AdminAuthFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。
-     */
-    put: operations["updateDish"];
-    /**
-     * 删除菜品
-     * @description 用途：物理删除菜品，并同步删除该菜品关联的评价与浏览足迹。
-     */
-    delete: operations["deleteDish"];
-  };
-  "/admin/dishes/{id}/status": {
-    /**
-     * 上下架
-     * @description 用途：只改 status（on 上架 / off 下架）。非法值 400，菜品不存在 4001。
-     */
-    put: operations["updateStatus_3"];
-  };
-  "/admin/dish-views/{id}": {
-    /**
-     * 修改视图
-     * @description 用途：改**文案 / 启停 / 归属种类**（整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
-     */
-    put: operations["update"];
-    /**
-     * 删除视图
-     * @description 用途：删除 tab（从下发集合移除）。删除「最后一个启用的视图」→ 400；不存在 → 4001。
-     */
-    delete: operations["delete_2"];
-  };
-  "/admin/dish-dimensions/{dimensionId}": {
-    /**
-     * 修改维度
-     * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；取值类型非法 → 400；不存在 → 4001。
-     */
-    put: operations["updateDimension"];
-    /**
-     * 删除维度
-     * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
-     */
-    delete: operations["deleteDimension"];
-  };
-  "/admin/dish-dimensions/{dimensionId}/values/{valueId}": {
-    /**
-     * 修改取值
-     * @description 用途：**只改取值名**（改名免费，菜品数据零迁移）；同维度下重名 → 400；不存在 → 4001。
-     */
-    put: operations["updateValue"];
-    /**
-     * 删除取值
-     * @description 用途：删除取值。**仍被菜品引用 → 400**；不存在 → 4001。
-     */
-    delete: operations["deleteValue"];
-  };
-  "/admin/dish-categories/{id}": {
-    /**
-     * 重命名分类
-     * @description 用途：**只改 name**（改名免费，零菜品迁移）；重名 400；不存在 4001。
-     */
-    put: operations["rename_2"];
-  };
-  "/admin/corrections/{id}": {
-    /**
-     * 问题反馈详情
-     * @description ADM。返回提交项对照（只读）：**type=field** → differences[]（**只列用户提交过的项**，oldValue 取当前菜品/档口**实时值**，same 标记是否一致），供管理员阅读判断；**type=gone** → differences 恒空，只返回 note + images + goneUserCount。菜品已物理删除时 oldValue 各项为 null（无从对照）；反馈不存在 → 4001。
-     */
-    get: operations["detail"];
-    /**
-     * 驳回反馈
-     * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该纠错已处理」）。仅接受 JSON body（{replyTitle?, replyContent, outcome:'rejected'}）：outcome 固定 rejected（其他值 400）；replyContent **必填**（即为不采纳原因，1~600 字，纯空白 → 400「请填写不采纳原因」）；replyTitle 可选（缺省按类型给「菜品信息未采纳」/「菜品仍在售」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：处置任务归档 rejected + 处置文案，并投递站内回执（含不采纳原因）。
-     */
-    put: operations["reject"];
-  };
-  "/admin/canteens/{id}": {
-    /**
-     * 编辑食堂
-     * @description 用途：修改食堂信息（name + location / description / images；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
-     */
-    put: operations["updateCanteen"];
-    /**
-     * 删除食堂
-     * @description 用途：删除食堂。其下仍有档口 → 400（避免孤儿档口）；不存在 → 4001。
-     */
-    delete: operations["deleteCanteen"];
-  };
-  "/admin/banners/{id}": {
-    /**
-     * 编辑 Banner
-     * @description 用途：换图（可编辑字段整体替换）；不存在 → 4001。
-     */
-    put: operations["update_1"];
-    /**
-     * 删除 Banner
-     * @description 用途：删除轮播图；不存在 → 4001。
-     */
-    delete: operations["delete_3"];
-  };
-  "/admin/banners/{id}/status": {
-    /**
-     * 启停 Banner
-     * @description 用途：只改 status（on 启用 / off 停用）；非法值 400，不存在 4001。
-     */
-    put: operations["updateStatus_4"];
-  };
-  "/admin/banners/sort": {
-    /**
-     * Banner 排序
-     * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
-     */
-    put: operations["sort"];
-  };
-  "/upload/cloud-image": {
-    /**
-     * 云存储配图转存（UGC 配图主链路）
-     * @description 用途：评价/反馈配图。前端先 wx.cloud.uploadFile 上传得 fileID，再调本接口：
-     * 后端 batchdownloadfile 拉临时链接 → 下载 → 大小/格式兜底校验 → imgSecCheck 内容安全检测 →
-     * 转存 COS → 返回最终 COS URL（data.url）。
-     * 限制：图片 ≤1MB（imgSecCheck 硬限制），jpg/png/webp。
-     * 违规返回 400「图片包含违规内容，无法上传」；COS 未配置返回 400「图片存储未配置」。
-     */
-    post: operations["uploadCloudImage"];
-  };
-  "/reviews/{id}/report": {
-    /**
-     * 举报评价
-     * @description 🔑 需登录。对指定评价提交举报（结论以结构化原因单选为准）。写入 report（option_id=举报原因、review_id=路径 id），并在同一事务内预建处置任务行。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"optionId":1}
-     */
-    post: operations["report"];
-  };
-  "/feedback": {
-    /**
-     * 提交反馈
-     * @description 🔑 需登录。写入 feedback（optionId=反馈类型字典项；处置状态与处置文案由管理端外置）。optionId 必填且须命中 GET /feedback-options 的启用项；content 必填（≤1000 字）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
-     */
-    post: operations["submitFeedback"];
-  };
-  "/dishes/{id}/reviews": {
-    /**
-     * 菜品评价列表（时间倒序，可按星级筛选）
-     * @description 用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
-     * 排序唯一为发表时间倒序，不提供排序参数。
-     * 可选 rating 按星级筛选（1~5 白名单，非法值 400 不静默降级；不传 = 全部）。
-     * 🔴 筛选为服务端过滤且参与分页 ⇒ 端上切换筛选须重置 page=1。
-     * 只返回未隐藏（is_hidden=0）的评价。
-     * 测试示例：/dishes/1/reviews?page=1&pageSize=20 / ?rating=5
-     */
-    get: operations["listReviews"];
-    /**
-     * 提交评价
-     * @description 用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。**同一用户对同一菜品重复提交 = 覆盖旧评价**，提交后重算菜品评分。需已完成学号邮箱认证。成功返回评价 ID（data.id）。
-     */
-    post: operations["submitReview"];
-  };
-  "/dishes/{id}/correction": {
-    /**
-     * 提交菜品问题反馈
-     * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），归属档口（管理员据此在档口管理手动修改 stall.floor）。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
-     */
-    post: operations["submitCorrection"];
-  };
-  "/auth/wechat-login": {
-    /**
-     * 微信静默登录
-     * @description 用途：小程序启动时调用 wx.login 获取 code，后端 code2Session 换 openid 自动登录。
-     * 新 openid 自动建号（游客态 verified=false）；已有 openid 直接返回原账号。返回 { token, userInfo }。
-     * 风控：同 IP 每分钟 ≤30 次、每小时 ≤300 次（防脚本刷微信外呼配额与批量建号）。
-     */
-    post: operations["wechatLogin"];
-  };
-  "/auth/verify-email": {
-    /**
-     * 学号邮箱认证（绑定/合并/替换）
-     * @description 用途：游客完成学号邮箱认证（verified=true）。入参仅验证码，绑定邮箱由验证码记录推导，当前微信账号从登录态取。
-     * 认证通过后：无历史邮箱则直接绑定；存在历史邮箱账号则数据归属转移（旧账号业务数据改挂到当前微信）；
-     * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、email=NULL）。返回更新后 UserInfoVO（email 已写入；JWT 不含 email、实时查库，无需重发 token）。
-     * 风控：同 IP 每分钟 ≤5 次、每小时 ≤20 次；同一账号 15 分钟内失败满 10 次将被暂时拒绝校验
-     * （发码接口匿名 ⇒ 服务端无「谁申请了这条码」的归属信息，故以「让枚举不成立」防 6 位码被暴力猜中）。
-     */
-    post: operations["verifyEmail"];
-  };
-  "/auth/email-code": {
-    /**
-     * 获取邮箱验证码（认证用途）
-     * @description 用途：向 @bjtu.edu.cn 校园邮箱发送 6 位验证码，用于学号邮箱认证。
-     * 校园邮箱 = {学号}@bjtu.edu.cn，传 username（学号）即可自动推导邮箱，无需填 email。
-     * 规则：同一邮箱 60 秒内不能重复发送，验证码 10 分钟有效。验证码经邮件发送，不会在响应中返回。
-     * 同 IP 每分钟 ≤3 次、每小时 ≤10 次。
-     * 出参：data 为 null（无载荷，成功即 code=200）。
-     */
-    post: operations["createEmailCode"];
-  };
-  "/admin/users/{id}/kick": {
-    /**
-     * 踢下线（吊销该用户全部 token）
-     * @description 用途：确认 token 被滥用 / 需要强制重新登录时的止损动作 —— 不改动账号任何列（状态、绑定邮箱、内容归属均保持不变），只让该 userId 已签发的**全部** token 立即失效。区别：禁用（PUT /{id}/status）会让用户连登录都进不去；踢下线只要求重新登录（小程序静默登录自动换发新 token）。目标不存在返回 4001「用户不存在」。
-     */
-    post: operations["kickSessions"];
-  };
-  "/admin/upload": {
-    /**
-     * 上传图片（multipart）
-     * @description 用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
-     * 鉴权：请求头 Authorization: Bearer <管理端 JWT>（由 AdminAuthFilter 校验，未带 / 失效即 401）。
-     * 测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
-     * 限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
-     * 返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
-     *       与 data.relativeUrl（本地降级链路才有；两者都可直接入库）。
-     * 小程序 UGC 配图请使用 POST /upload/cloud-image（云存储转存链路，学生 JWT）。
-     */
-    post: operations["uploadImage"];
-  };
-  "/admin/stalls": {
-    /**
-     * 后台档口列表
-     * @description 用途：浏览器管理端查看档口，可按 canteenId 筛选（不传=全部）。images 返回可访问的完整 URL 数组。
-     */
-    get: operations["listStalls"];
-    /**
-     * 新增档口
-     * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images）—— 时间列与派生统计不在写入面内。
-     */
-    post: operations["createStall"];
-  };
-  "/admin/report-options": {
-    /**
-     * 举报原因列表
-     * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
-     */
-    get: operations["list_2"];
-    /**
-     * 新增举报原因
-     * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
-     */
-    post: operations["create"];
-  };
-  "/admin/feedback-options": {
-    /**
-     * 反馈类型列表
-     * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
-     */
-    get: operations["list_4"];
-    /**
-     * 新增反馈类型
-     * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；类型 ID 由后端生成；启用数上限 8。
-     */
-    post: operations["create_1"];
-  };
-  "/admin/dishes": {
-    /**
-     * 后台菜品列表
-     * @description 用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。支持 withoutStall=true 只看「未归入档口」的存量菜品（与 stallId 互斥，同时传 → 400）。
-     */
-    get: operations["listMyDishes"];
-    /**
-     * 新增菜品
-     * @description 用途：管理员指定 stallId 创建菜品。
-     */
-    post: operations["addDish"];
-  };
-  "/admin/dishes/{id}/copy": {
-    /**
-     * 复制菜品
-     * @description 用途：以源菜品为模板新建一条（只改菜名，其余字段全部复制）。副本默认**下架**（半成品，确认内容后再上架）。源菜品不存在返回 4001。
-     */
-    post: operations["copyDish"];
-  };
-  "/admin/dish-views": {
-    /**
-     * 视图列表
-     * @description 用途：视图管理页（按 id 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
-     */
-    get: operations["list_5"];
-    /**
-     * 新建视图
-     * @description 用途：新建 tab（默认启用）。categoryId 缺省 = 不按种类过滤；种类不存在 → 400。
-     */
-    post: operations["create_2"];
-  };
-  "/admin/dish-dimensions": {
-    /**
-     * 维度列表
-     * @description 用途：维度管理页（按 id 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
-     */
-    get: operations["listDimensions"];
-    /**
-     * 新增维度
-     * @description 用途：新建维度。只填中文名与取值类型；维度 ID 由后端生成。
-     */
-    post: operations["createDimension"];
-  };
-  "/admin/dish-dimensions/{dimensionId}/values": {
-    /**
-     * 取值列表
-     * @description 用途：某维度下的取值（按 id 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
-     */
-    get: operations["listValues"];
-    /**
-     * 新增取值
-     * @description 用途：新增取值。同维度下**名称唯一**；维度不存在 → 4001。
-     */
-    post: operations["createValue"];
-  };
-  "/admin/dish-categories": {
-    /**
-     * 分类列表
-     * @description 用途：分类（种类）维护入口（按 id 升序，不分页）；带 dishCount（引用该种类的菜品数）。
-     */
-    get: operations["list_6"];
-    /**
-     * 登记分类
-     * @description 用途：登记新种类。种类的 ID 由后端生成；名 1~32 字、全表唯一。
-     */
-    post: operations["create_3"];
-  };
-  "/admin/corrections/{id}/handle": {
-    /**
-     * 标记已处理（接受反馈）
-     * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该反馈已处理」）。**只归档处置结论 + 投递站内回执，不改写任何菜品数据**：处置任务归档 handled / outcome='handled'（已受理，管理员已手动处理），标题缺省「已收到你的反馈」、正文缺省「感谢反馈，我们已核实处理」，并投递站内回执。菜品资料修改 / gone 型可逆下架由管理员在菜品管理（web/dishes）手动执行，不在本端点。
-     */
-    post: operations["handle_2"];
-  };
-  "/admin/canteens": {
-    /**
-     * 后台食堂列表
-     * @description 用途：浏览器管理端查看全部食堂（筛选属性字典）。images 返回可访问的完整 URL 数组。
-     */
-    get: operations["listCanteens"];
-    /**
-     * 新增食堂
-     * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内。
-     */
-    post: operations["createCanteen"];
-  };
-  "/admin/banners": {
-    /**
-     * Banner 列表
-     * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）。
-     */
-    get: operations["list_8"];
-    /**
-     * 新增 Banner
-     * @description 用途：新增轮播图（默认**启用**、排最后）。
-     */
-    post: operations["create_4"];
-  };
-  "/admin/auth/password": {
-    /**
-     * 修改管理员口令
-     * @description 需带 token，并提供当前口令。强度要求：≥12 位且含大写 / 小写 / 数字 / 符号中至少三类。🔴 改密即刻自增凭证版本 ⇒ **既有 token 全部失效**；响应回一个新 token 供本端续用，其余端需重新登录。
-     */
-    post: operations["changePassword"];
-  };
-  "/admin/auth/login": {
-    /**
-     * 管理员账密登录
-     * @description 公开端点。账号密码正确即签发管理端 JWT（默认 24h）；失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
-     */
-    post: operations["login"];
-  };
-  "/report-options": {
-    /**
-     * 举报原因字典
-     * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/report-options
-     */
-    get: operations["reportOptions"];
-  };
-  "/my/reviews": {
-    /**
-     * 我的评价列表
-     * @description STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userName/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1
-     */
-    get: operations["listMyReviews"];
-  };
-  "/my/notifications": {
-    /**
-     * 我的消息列表
-     * @description STU（需登录；游客态亦可）。倒序，支持 isRead 过滤。
-     */
-    get: operations["list"];
-  };
-  "/my/notifications/unread-count": {
-    /**
-     * 未读总数
-     * @description STU（需登录；游客态亦可）。驱动宫格红点。
-     */
-    get: operations["unreadCount"];
-  };
-  "/feedback-options": {
-    /**
-     * 反馈类型字典
-     * @description PUB。意见反馈页的「反馈类型」单选项（id 选项 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交反馈时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/feedback-options
-     */
-    get: operations["feedbackOptions"];
-  };
-  "/dishes": {
-    /**
-     * 菜品分页查询
-     * @description 用途：首页网格、搜索页。
-     * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-     * 参数集恰为 5 项：page、pageSize、keyword、view、seed（取数口径由所选 view 的归属种类决定：种类过滤（可空）+ CRC32(seed:ID) 会话伪随机序 + 在售；无排序入口）。
-     * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
-     */
-    get: operations["listDishes"];
-  };
-  "/dishes/{id}": {
-    /**
-     * 菜品详情
-     * @description 用途：菜品详情页。未登录可访问；登录态与游客态返回结构一致。
-     * **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）写入一行浏览明细（dish_view_log，精确到秒，不去重）；
-     * 4001（菜品不存在）与请求失败不计数。浏览量不参与任何排序，仅供管理端「近 30 天浏览」统计。
-     * 滥用防护：同 IP 每分钟 ≤30 次、每小时 ≤300 次（正常浏览远低于此，用户无感）。
-     * 测试示例：/dishes/1
-     */
-    get: operations["getDishDetail"];
-  };
-  "/dishes/{id}/attributes": {
-    /**
-     * 菜品描述属性编辑态选项（按菜现有维度）
-     * @description 用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
-     * 只返回**该菜现有维度**的候选值：每项含 dimensionId（维度 ID，与 GET /dishes/{id} 的
-     * attributes[].dimensionId 对齐）/ valueType（single|multi）/
-     * options（该维度全部候选值，按 order 升序）。
-     * **options 为空数组 = 暂无参考候选**（仍可自由输入）。
-     * 维度名与当前值在 GET /dishes/{id} 里已有，本端点不重复下发。公开接口。
-     * 测试示例：/dishes/1/attributes
-     */
-    get: operations["listDishAttributes"];
-  };
-  "/dishes/views": {
-    /**
-     * 首页筛选视图字典
-     * @description 用途：首页横向筛选栏数据源。
-     * 下发可见视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图表唯一定义，
-     * 端上不得维护任何标签中文映射（端上只认 id + name，回传 view=<id>）。
-     * 空视图自动隐藏（当前无在售菜品匹配即不下发）。
-     * 公开接口。测试示例：/dishes/views
-     */
-    get: operations["listDishViews"];
-  };
-  "/dishes/for-you": {
-    /**
-     * 猜你喜欢
-     * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；未传 seed ⇒ 服务端补一次性随机值（同一套稳定伪随机序，每次调用结果不同）。
-     */
-    get: operations["guessLike"];
-  };
-  "/banners": {
-    /**
-     * 首页顶部轮播图
-     * @description 用途：首页顶部 Banner 轮播（素材统一 16:10，端上 aspectFill 铺满）。
-     * 只返回启用中（status='on'）的 Banner，按 sort_order 升序；无分页（运营位数量级极小）。
-     * 出参仅 id + imageUrl（imageUrl 为可直接渲染的绝对 URL）；无请求参数、v1 无跳转字段。
-     * 测试示例：/banners
-     */
-    get: operations["listBanners"];
-  };
-  "/admin/users": {
-    /**
-     * 用户列表
-     * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=20&status=active&keyword=干饭
-     */
-    get: operations["listUsers"];
-  };
-  "/admin/reviews": {
-    /**
-     * 全部评价列表
-     * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=20&hidden=false&dishId=3
-     */
-    get: operations["listAll"];
-  };
-  "/admin/reports": {
-    /**
-     * 举报列表
-     * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按举报人筛选；排序固定 `createdAt DESC`。出参补齐举报人昵称、举报原因中文名（含已停用）、被举报评价摘要与当前隐藏态（决定「同时隐藏」复选是否置灰）。**被举报评价已删除时下发 reviewDeleted=true**（摘要与可见性置空，举报行本身保留）。测试示例：/admin/reports?page=1&pageSize=20&status=pending
-     */
-    get: operations["list_1"];
-  };
-  "/admin/feedbacks": {
-    /**
-     * 反馈列表
-     * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）、按反馈类型（optionId）/提交人筛选，关键词匹配反馈正文**或**处置文案；排序固定 `createdAt DESC`。出参补齐提交人昵称、类型中文名（含已停用）与处置结果（含处理人）。测试示例：/admin/feedbacks?page=1&pageSize=20&status=pending
-     */
-    get: operations["list_3"];
-  };
-  "/admin/dashboard": {
-    /**
-     * 运营看板
-     * @description 用途：登录后首屏（**只读、无参数、不分页**，一次返回全量）。待办区含跨三类合并的最近 5 条待办（可点击直达处置页）；健康度只收管理员当场能修的项；概况只给规模。
-     */
-    get: operations["dashboard"];
-  };
-  "/admin/corrections": {
-    /**
-     * 问题反馈列表
-     * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称，并按处置任务表回填状态 / 结论 / 处置文案 / 处置人。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
-     */
-    get: operations["list_7"];
-  };
-  "/admin/auth/me": {
-    /**
-     * 读取当前登录的管理员
-     * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 passwordAging 给出安全提示。
-     */
-    get: operations["me"];
-  };
-  "/reviews/{id}": {
-    /**
-     * 删除自己的评价
-     * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
-     */
-    delete: operations["deleteReview"];
-  };
-  "/auth/account": {
-    /**
-     * 注销账号（匿名化）
-     * @description 用途：用户主动注销当前登录账号（合规硬需求）。语义为匿名化而非物理删除：
-     * 昵称置为「已注销用户」，头像/邮箱/微信绑定全部清空，认证状态复位，
-     * username 改写为 deleted_{id} 以释放唯一键（同一微信可重新静默登录建新游客号）；
-     * 历史评价与反馈保留（展示昵称随 join user 自然变为「已注销用户」，评分聚合不破坏），
-     * 浏览足迹与系统通知随注销删除，该用户验证码记录删除。
-     * 注销后当前 token 立即失效（其余设备的历史 token 在单实例未重启期间一并失效）。
-     * **不可恢复**：同一微信重新登录创建全新账号，旧账号数据不归属新账号。
-     * 终态保护：已注销账号重复调用返回 400「账号已注销」。
-     */
-    delete: operations["deleteAccount"];
-  };
-  "/admin/users/{id}": {
-    /**
-     * 删除账号（注销）
-     * @description 用途：管理端代用户注销 —— 与本人 DELETE /auth/account 完全同口径：匿名化（昵称→已注销用户、username→deleted_{id}、avatar/email/openid/bind_email→NULL、status→deleted），非物理删除（user 行保留，历史评价/反馈归属不丢）；删除绑定邮箱验证码与全部站内通知；该 userId 全部已签发 token 拉黑。终态保护：已注销→400「账号已注销」，已禁用→400「账号已被禁用，无法注销」。
-     */
-    delete: operations["deleteAccount_1"];
-  };
-  "/admin/users/{id}/email": {
-    /**
-     * 解绑认证邮箱
-     * @description 用途：置空 email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不改 wxId（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
-     */
-    delete: operations["unbindEmail"];
-  };
-  "/admin/reviews/{id}": {
-    /**
-     * 管理员删除评价
-     * @description 用途：管理员删除评价。当前实现为物理删除，并触发菜品评分重算。
-     */
-    delete: operations["deleteReview_1"];
-  };
+    "/auth/wechat-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 微信静默登录 */
+        post: operations["wechat_login_auth_wechat_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/canteens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 食堂字典 */
+        get: operations["list_canteens_canteens_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 推荐菜品卡片 */
+        get: operations["list_dishes_dishes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/posters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 档口海报列表
+         * @description 只返回**已上传海报**的档口；顺序随机。
+         */
+        get: operations["list_posters_posters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/my/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 我的食谱 */
+        get: operations["list_records_my_records_get"];
+        put?: never;
+        /** 去品尝 */
+        post: operations["create_record_my_records_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/my/records/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 取消品尝 */
+        delete: operations["cancel_record_my_records__record_id__delete"];
+        options?: never;
+        head?: never;
+        /** 三态评分 */
+        patch: operations["react_record_my_records__record_id__patch"];
+        trace?: never;
+    };
+    "/dish-issue-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 纠错选项字典 */
+        get: operations["list_options_dish_issue_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dishes/{dish_id}/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 提交菜品纠错 */
+        post: operations["submit_issue_dishes__dish_id__issues_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 运营端登录 */
+        post: operations["login_admin_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/canteens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 食堂列表 */
+        get: operations["list_canteens_admin_canteens_get"];
+        put?: never;
+        /** 新建食堂 */
+        post: operations["create_canteen_admin_canteens_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/canteens/{canteen_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 修改食堂 */
+        put: operations["update_canteen_admin_canteens__canteen_id__put"];
+        post?: never;
+        /** 删除食堂 */
+        delete: operations["delete_canteen_admin_canteens__canteen_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dishes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 菜品列表 */
+        get: operations["list_dishes_admin_dishes_get"];
+        put?: never;
+        /** 新建菜品 */
+        post: operations["create_dish_admin_dishes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dishes/{dish_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 修改菜品 */
+        put: operations["update_dish_admin_dishes__dish_id__put"];
+        post?: never;
+        /** 删除菜品 */
+        delete: operations["delete_dish_admin_dishes__dish_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 上传图片 */
+        post: operations["upload_image_admin_images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dish-issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 纠错列表 */
+        get: operations["list_issues_admin_dish_issues_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dish-issues/{issue_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** 标记已处理 */
+        patch: operations["handle_issue_admin_dish_issues__issue_id__patch"];
+        trace?: never;
+    };
+    "/admin/dish-issue-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 纠错选项字典 */
+        get: operations["list_options_admin_dish_issue_options_get"];
+        put?: never;
+        /** 新建选项 */
+        post: operations["create_option_admin_dish_issue_options_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dish-issue-options/{option_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 改选项文案 */
+        put: operations["update_option_admin_dish_issue_options__option_id__put"];
+        post?: never;
+        /** 删除选项 */
+        delete: operations["delete_option_admin_dish_issue_options__option_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dish-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 评分数据 */
+        get: operations["list_records_admin_dish_records_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/stalls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 档口列表 */
+        get: operations["list_stalls_admin_stalls_get"];
+        put?: never;
+        /** 新建档口 */
+        post: operations["create_stall_admin_stalls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/stalls/{stall_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 修改档口 */
+        put: operations["update_stall_admin_stalls__stall_id__put"];
+        post?: never;
+        /** 删除档口 */
+        delete: operations["delete_stall_admin_stalls__stall_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/healthz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 探活 */
+        get: operations["healthz_healthz_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-
 export type webhooks = Record<string, never>;
-
 export interface components {
-  schemas: {
-    /** @description 统一响应结果 */
-    ResultVoid: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: Record<string, never>;
-    };
-    /** @description 修改个人资料请求参数 */
-    ProfileUpdateReq: {
-      /**
-       * @description 新的昵称
-       * @example 新的昵称
-       */
-      name?: string;
-      /**
-       * @description 头像图片路径。小程序端先调用 /upload/cloud-image 获取 URL。
-       * @example /images/seed/dishes/tomato-egg.jpg
-       */
-      avatar?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultUserInfoVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["UserInfoVO"];
-    };
-    /** @description 用户信息（微信登录体系） */
-    UserInfoVO: {
-      /**
-       * Format: int64
-       * @description 用户ID
-       * @example 1
-       */
-      id?: number;
-      /**
-       * @description 昵称
-       * @example 食客0001
-       */
-      name?: string;
-      /** @description 头像URL */
-      avatar?: string;
-      /**
-       * @description 绑定邮箱（可空；非空即已认证，认证状态唯一真源）
-       * @example 20240001@bjtu.edu.cn
-       */
-      email?: string;
-    };
-    /** @description 启用/禁用请求体 {status}；status 缺失/空白或非法返回 400 */
-    UserStatusReq: {
-      /**
-       * @description 状态：active=启用 / disabled=禁用
-       * @example disabled
-       */
-      status: string;
-    };
-    /** @description 档口新增 / 编辑请求 */
-    StallSaveReq: {
-      /**
-       * Format: int64
-       * @description 所属食堂ID（必填，须为已存在食堂）
-       * @example 1
-       */
-      canteenId: number;
-      /**
-       * @description 档口名称（1~64 字；同食堂下唯一，重名 400）
-       * @example 面食窗口
-       */
-      name: string;
-      /**
-       * @description 楼层（受控字典、值即汉字：负一层/一层/二层/三层/四层；缺省 = 保持原值，不支持清空）
-       * @example 二层
-       */
-      floor?: string;
-      /**
-       * @description 窗口号（≤32 字；缺省 = 保持原值，空串 = 清空）
-       * @example 3号窗口
-       */
-      windowNo?: string;
-      /**
-       * @description 档口位置（≤128 字；缺省 = 保持原值，空串 = 清空）
-       * @example 二层东侧
-       */
-      location?: string;
-      /** @description 档口描述（≤512 字；缺省 = 保持原值，空串 = 清空） */
-      description?: string;
-      /** @description 档口图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
-      images?: string[];
-    };
-    /** @description 设置评价隐藏状态的请求 */
-    ReviewHiddenReq: {
-      /**
-       * @description 是否隐藏：true 隐藏 / false 恢复显示（必填）
-       * @example true
-       */
-      hidden: boolean;
-      /**
-       * @description 隐藏附注（可选，≤200 字；隐藏时随回执下发给作者，恢复显示时忽略）
-       * @example 该评价含与菜品无关的辱骂内容
-       */
-      note?: string;
-    };
-    /** @description 处置请求体 {replyTitle, replyContent, outcome:'rejected'}；校验失败返回 400 */
-    ModerationHandleReq: {
-      /**
-       * @description 回执短标题（可选，≤40 字；留空用缺省文案）
-       * @example 反馈已处理
-       */
-      replyTitle?: string;
-      /**
-       * @description 处置文案（可选，≤600 字；outcome=rejected 时必填，即为不采纳原因）
-       * @example 该问题已在近期版本修复
-       */
-      replyContent?: string;
-      /**
-       * @description 处置结论：handled=通过/已处理（缺省）；rejected=不采纳/退回
-       * @example handled
-       */
-      outcome?: string;
-      /**
-       * @description 仅举报处置消费：通过时是否联动隐藏被举报评价（缺省 false）
-       * @example true
-       */
-      hideReview?: boolean;
-    };
-    /** @description 分类字典改名请求 */
-    OptionRenameReq: {
-      /**
-       * @description 中文名（1~32 字）
-       * @example 程序功能Bug
-       */
-      name: string;
-    };
-    /** @description 分类字典启停请求 */
-    OptionStatusReq: {
-      /**
-       * @description 状态：on=启用 / off=停用
-       * @example off
-       */
-      status: string;
-    };
-    /** @description 后台菜品新增/编辑请求参数 */
-    DishAdminReq: {
-      /**
-       * Format: int64
-       * @description 所属档口ID
-       * @example 1
-       */
-      stallId?: number;
-      /**
-       * @description 档口名称（按名 upsert：存在则复用，不存在则自动建档；「其他」等空值不建档）
-       * @example 面食窗口
-       */
-      stallName?: string;
-      /**
-       * @description 食堂名称（仅当 stallName 触发新建档口时按名 upsert；「其他」等空值不建档）
-       * @example 第一食堂
-       */
-      canteenName?: string;
-      /**
-       * @description 菜品名称
-       * @example 番茄炒蛋盖饭
-       */
-      name?: string;
-      /**
-       * Format: int32
-       * @description 现价，单位：分（已含折扣）。1200 表示 12 元。
-       * @example 1200
-       */
-      price?: number;
-      /**
-       * Format: int32
-       * @description 原价（分，可空）。1500 表示 15 元；originalPrice > price 视为有折扣。
-       * @example 1500
-       */
-      originalPrice?: number;
-      /**
-       * @description 菜品描述
-       * @example 学生餐厅常见基础套餐
-       */
-      description?: string;
-      /**
-       * @description 菜品图片 URL 列表。单图时只放一个 URL。
-       * @example [
-       *   "/images/seed/dishes/tomato-egg.jpg"
-       * ]
-       */
-      images?: string[];
-      /**
-       * @description 描述属性（键=描述维度 ID，值=取值 ID 或中文文本/数组；可空）
-       * @example {
-       *   "1": 2,
-       *   "2": [
-       *     "蛋"
-       *   ],
-       *   "3": [
-       *     "酸",
-       *     "甜"
-       *   ],
-       *   "4": "热食"
-       * }
-       */
-      attributes?: {
-        [key: string]: Record<string, never>;
-      };
-      /**
-       * Format: int64
-       * @description 菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories；必须存在，否则 400；不传 = 不修改）
-       * @example 3
-       */
-      categoryId?: number;
-      /**
-       * @description 状态：on=上架，off=下架
-       * @example on
-       */
-      status?: string;
-    };
-    /** @description 菜品上下架请求 */
-    DishStatusReq: {
-      /**
-       * @description 状态：on 上架 / off 下架
-       * @example off
-       */
-      status: string;
-    };
-    /** @description 筛选视图修改请求 */
-    DishViewUpdateReq: {
-      /**
-       * @description tab 文案（1~32 字）
-       * @example 面食粉类
-       */
-      name: string;
-      /** @description 是否在 client 首页出现（停用 = tab 隐藏） */
-      enabled: boolean;
-      /**
-       * Format: int64
-       * @description 归属种类 ID（值域 = dish_category.id；null = 不按种类过滤）
-       * @example 3
-       */
-      categoryId?: number;
-    };
-    /** @description 属性维度保存请求 */
-    DishDimensionSaveReq: {
-      /**
-       * @description 维度中文名（1~32 字）
-       * @example 饮食属性
-       */
-      name: string;
-      /**
-       * @description 取值类型：single=单值 / multi=多值（切换会自动迁移该维度下菜品的数据形状）
-       * @example single
-       */
-      valueType: string;
-    };
-    /** @description 属性取值保存请求 */
-    DishValueSaveReq: {
-      /**
-       * @description 取值中文名（1~32 字；同维度下唯一）
-       * @example 半荤
-       */
-      name: string;
-    };
-    /** @description 菜品种类重命名请求 */
-    DishCategoryRenameReq: {
-      /**
-       * @description 种类中文名（1~32 字；全表唯一）
-       * @example 面食粉类
-       */
-      name: string;
-    };
-    /** @description 食堂新增 / 编辑请求 */
-    CanteenSaveReq: {
-      /**
-       * @description 食堂名称（1~64 字；全站唯一，重名 400）
-       * @example 第一食堂
-       */
-      name: string;
-      /**
-       * @description 食堂位置（≤128 字；缺省 = 保持原值，空串 = 清空）
-       * @example 学苑路 3 号
-       */
-      location?: string;
-      /** @description 食堂描述（≤512 字；缺省 = 保持原值，空串 = 清空） */
-      description?: string;
-      /** @description 食堂图片地址列表（有序，首图作封面，≤5 张；缺省 = 保持原值，[] = 清空） */
-      images?: string[];
-    };
-    /** @description Banner 保存请求 */
-    BannerSaveReq: {
-      /**
-       * @description 轮播图地址（经 /admin/upload 取得，原样入库）
-       * @example /images/seed/banners/1.jpg
-       */
-      imageUrl: string;
-    };
-    /** @description Banner 启停请求 */
-    BannerStatusReq: {
-      /**
-       * @description 状态：on=启用 / off=停用
-       * @example off
-       */
-      status: string;
-    };
-    /** @description 排序提交的单行 */
-    SortItem: {
-      /**
-       * Format: int64
-       * @description 目标行 ID
-       * @example 3
-       */
-      id?: number;
-      /**
-       * Format: int32
-       * @description 目标顺序（1 起、连续、互不相同）
-       * @example 1
-       */
-      order?: number;
-    };
-    /** @description 排序提交体（全量行、整体替换） */
-    SortItemsReq: {
-      /** @description 全量行（不得缺行、不得重复 id / order） */
-      items: components["schemas"]["SortItem"][];
-    };
-    /** @description 云存储图片转存请求 */
-    CloudImageUploadReq: {
-      /**
-       * @description 微信云存储文件标识（wx.cloud.uploadFile 返回，形如 cloud://env.bucket/path）
-       * @example cloud://bjtu-dev.6a6x-bjtu-dev-1300000000/ugc/tmp.jpg
-       */
-      fileId: string;
-    };
-    /** @description 统一响应结果 */
-    ResultUploadResultVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["UploadResultVO"];
-    };
-    /** @description 图片上传结果 */
-    UploadResultVO: {
-      /** @description 可直接访问的图片绝对 URL */
-      url?: string;
-      /** @description 相对路径（仅本地存储降级链路返回，用于入库保存） */
-      relativeUrl?: string;
-    };
-    /** @description 提交评价举报请求 */
-    ReportReq: {
-      /**
-       * Format: int64
-       * @description 举报原因ID（必选，值域 = GET /report-options 下发项的 id）
-       * @example 1
-       */
-      optionId: number;
-    };
-    /** @description 提交意见反馈请求 */
-    FeedbackReq: {
-      /**
-       * Format: int64
-       * @description 反馈类型ID（值域 = GET /feedback-options 下发项的 id）
-       * @example 1
-       */
-      optionId: number;
-      /**
-       * @description 反馈内容（必填，≤1000 字）
-       * @example 希望增加更多素食档口
-       */
-      content: string;
-      /** @description 反馈配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张） */
-      images?: string[];
-    };
-    /** @description 评价提交/重新评价请求参数 */
-    ReviewReq: {
-      /**
-       * Format: int32
-       * @description 评分，1-5星
-       * @example 5
-       */
-      rating: number;
-      /**
-       * @description 文字评价
-       * @example 味道不错，分量也足。
-       */
-      content?: string;
-      /** @description 评价配图 URL 列表（经 POST /upload/cloud-image 转存的 COS 绝对地址，≤3 张） */
-      images?: string[];
-    };
-    /** @description 统一响应结果 */
-    ResultReviewCreatedVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["ReviewCreatedVO"];
-    };
-    /** @description 评价创建成功出参 */
-    ReviewCreatedVO: {
-      /**
-       * Format: int64
-       * @description 新评价 ID（供本地写回）
-       * @example 9
-       */
-      id?: number;
-    };
-    /** @description 反馈体 {**type**(必填: field|gone), name?, price?, canteenName?, stallName?, floor?, attributes?, images?, note?}；field 型只传改动项，gone 型仅用 note/images（选填） */
-    DishCorrectionReq: {
-      /**
-       * @description 反馈类型：field=信息有误 / gone=已经下架（**必填**）
-       * @example field
-       */
-      type: string;
-      /**
-       * @description 菜品名称（field 型传入时：非空、≤64 字）
-       * @example 宫保鸡丁
-       */
-      name?: string;
-      /**
-       * Format: int32
-       * @description 现价（传入时：>0 的整数，单位分）
-       * @example 1600
-       */
-      price?: number;
-      /**
-       * @description 食堂名称（自由文本；传入时：非空、≤64 字）
-       * @example 学一食堂
-       */
-      canteenName?: string;
-      /**
-       * @description 档口名称（自由文本；传入时：非空、≤64 字）
-       * @example 学一基本伙食
-       */
-      stallName?: string;
-      /**
-       * @description 楼层（受控字典值·值即汉字，归属档口 stall.floor；传入时：非空、∈ 楼层字典、≤16 字）
-       * @example 二层
-       */
-      floor?: string;
-      /**
-       * @description 动态描述属性（键=维度 ID，值=中文文本/数组；仅传改动维度）
-       * @example {
-       *   "1": "素",
-       *   "3": [
-       *     "辣",
-       *     "酸"
-       *   ]
-       * }
-       */
-      attributes?: {
-        [key: string]: Record<string, never>;
-      };
-      /** @description 菜品图片 URL 列表（field 型：改动后的完整数组，≤3 张 / gone 型：选填补充，≤3 张；均可不传） */
-      images?: string[];
-      /**
-       * @description 补充说明（≤200 字；**仅 gone 型**可选填，field 型传入 → 400）
-       * @example 这个窗口现在换成麻辣香锅了
-       */
-      note?: string;
-    };
-    /** @description 微信静默登录请求参数 */
-    WechatLoginReq: {
-      /**
-       * @description 微信 wx.login 临时凭证
-       * @example 0a3b...
-       */
-      code: string;
-    };
-    /** @description 登录响应结果（token + 用户信息） */
-    LoginVO: {
-      /**
-       * @description JWT Token（有效期7天）
-       * @example eyJhbGciOiJIUzI1NiJ9...
-       */
-      token?: string;
-      userInfo?: components["schemas"]["UserInfoVO"];
-    };
-    /** @description 统一响应结果 */
-    ResultLoginVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["LoginVO"];
-    };
-    /** @description 学号邮箱认证请求参数 */
-    VerifyEmailReq: {
-      /**
-       * @description 邮箱验证码（经 /auth/email-code 发送至校园邮箱）
-       * @example 123456
-       */
-      code: string;
-    };
-    /** @description 邮箱验证码请求参数（校园邮箱由学号推导，仅需学号） */
-    EmailCodeReq: {
-      /**
-       * @description 学号/账号；校园邮箱自动推导为 {学号}@bjtu.edu.cn，无需再传 email
-       * @example 20240001
-       */
-      username: string;
-    };
-    /** @description 统一响应结果 */
-    ResultStallAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["StallAdminVO"];
-    };
-    /** @description 后台档口列表展示信息 */
-    StallAdminVO: {
-      /**
-       * Format: int64
-       * @description 档口ID
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 所属食堂ID
-       */
-      canteenId?: number;
-      /**
-       * @description 所属食堂名
-       * @example 第一食堂
-       */
-      canteenName?: string;
-      /**
-       * Format: int64
-       * @description 其下菜品数
-       * @example 12
-       */
-      dishCount?: number;
-      /**
-       * @description 档口名称
-       * @example 面食窗口
-       */
-      name?: string;
-      /** @description 档口位置 */
-      location?: string;
-      /**
-       * @description 楼层（受控字典、值即汉字：负一层/一层/二层/三层/四层）
-       * @example 二层
-       */
-      floor?: string;
-      /**
-       * @description 窗口号
-       * @example 3号窗口
-       */
-      windowNo?: string;
-      /** @description 档口描述 */
-      description?: string;
-      /** @description 档口展示图片列表 */
-      images?: string[];
-      /**
-       * @description 平均评分（实时聚合，1 位小数；无可见评价为 0.0）
-       * @example 4.5
-       */
-      avgRating?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 新增分类字典项请求 */
-    OptionSaveReq: {
-      /**
-       * @description 中文名（1~32 字）
-       * @example 程序功能Bug
-       */
-      name: string;
-    };
-    /** @description 管理端分类字典出参 */
-    OptionAdminVO: {
-      /**
-       * Format: int64
-       * @description 选项ID（落库引用列 = 工单表的 option_id）
-       */
-      id?: number;
-      /**
-       * @description 中文名
-       * @example 程序功能Bug
-       */
-      name?: string;
-      /** @description 状态：on=启用 / off=停用 */
-      status?: string;
-      /**
-       * Format: int64
-       * @description 被工单引用次数（本字典的消费表按 option_id 统计）—— 删除前判断
-       */
-      usageCount?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultOptionAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["OptionAdminVO"];
-    };
-    /** @description 后台菜品列表展示信息 */
-    DishAdminVO: {
-      /**
-       * Format: int64
-       * @description 菜品ID
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 所属档口ID（null = 未归入档口）
-       */
-      stallId?: number;
-      /**
-       * @description 菜品名称
-       * @example 牛肉拉面
-       */
-      name?: string;
-      /**
-       * Format: int32
-       * @description 现价（分，已含折扣）
-       * @example 1200
-       */
-      price?: number;
-      /**
-       * Format: int32
-       * @description 原价（分，可空）
-       * @example 1500
-       */
-      originalPrice?: number;
-      /** @description 菜品描述 */
-      description?: string;
-      /** @description 菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成；2026-09-23 R5） */
-      images?: string[];
-      /**
-       * @description 状态（on/off）
-       * @example on
-       */
-      status?: string;
-      /**
-       * @description 平均评分（1 位小数；零评价为 null）
-       * @example 4.5
-       */
-      avgRating?: number;
-      /**
-       * Format: int32
-       * @description 评价数
-       */
-      ratingCount?: number;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-      /**
-       * @description 档口名称
-       * @example 面食窗口
-       */
-      stallName?: string;
-      /**
-       * @description 所属食堂名称
-       * @example 第一食堂
-       */
-      canteenName?: string;
-      /**
-       * @description 描述属性（键=描述维度 ID，值=中文文本/数组）
-       * @example {
-       *   "1": "半荤",
-       *   "2": [
-       *     "蛋"
-       *   ],
-       *   "3": [
-       *     "酸",
-       *     "甜"
-       *   ],
-       *   "4": "热食"
-       * }
-       */
-      attributes?: {
-        [key: string]: Record<string, never>;
-      };
-      /**
-       * Format: int64
-       * @description 菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories；管理端录入下拉 + 编辑回填）
-       * @example 3
-       */
-      categoryId?: number;
-      /**
-       * @description 分类中文名
-       * @example 面食粉类
-       */
-      categoryName?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultDishAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["DishAdminVO"];
-    };
-    /** @description 复制菜品请求 */
-    DishCopyReq: {
-      /**
-       * @description 新菜品名称（1~64 字）
-       * @example 牛肉拉面（大份）
-       */
-      name: string;
-    };
-    /** @description 筛选视图新建请求 */
-    DishViewCreateReq: {
-      /**
-       * @description tab 文案（1~32 字）
-       * @example 面食粉类
-       */
-      name: string;
-      /**
-       * Format: int64
-       * @description 归属种类 ID（值域 = dish_category.id；缺省 = 不按种类过滤）
-       * @example 3
-       */
-      categoryId?: number;
-    };
-    /** @description 管理端筛选视图出参 */
-    DishViewAdminVO: {
-      /**
-       * Format: int64
-       * @description 视图ID（端上回传 view=<id>）
-       */
-      id?: number;
-      /**
-       * @description tab 文案
-       * @example 面食粉类
-       */
-      name?: string;
-      /**
-       * Format: int64
-       * @description 归属种类ID（null = 不按种类过滤）
-       * @example 3
-       */
-      categoryId?: number;
-      /** @description 是否在 client 首页出现 */
-      enabled?: boolean;
-      /**
-       * Format: int64
-       * @description 当前匹配的在售菜品数
-       */
-      matchedCount?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultDishViewAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["DishViewAdminVO"];
-    };
-    /** @description 管理端属性维度出参 */
-    DishDimensionAdminVO: {
-      /**
-       * Format: int64
-       * @description 维度ID（= 菜品 attributes JSON 的键）
-       */
-      id?: number;
-      /**
-       * @description 维度中文名（可改，改名免费）
-       * @example 饮食属性
-       */
-      name?: string;
-      /** @description 取值类型：single / multi */
-      valueType?: string;
-      /**
-       * Format: int64
-       * @description 使用该维度的菜品数（删除前判断）
-       */
-      dishCount?: number;
-      /**
-       * Format: int64
-       * @description 该维度下的取值数（删除确认文案用）
-       */
-      valueCount?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultDishDimensionAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["DishDimensionAdminVO"];
-    };
-    /** @description 管理端属性取值出参 */
-    DishValueAdminVO: {
-      /**
-       * Format: int64
-       * @description 取值ID（菜品 attributes 引用的就是它）
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 所属维度ID
-       */
-      dimensionId?: number;
-      /**
-       * @description 取值中文名（可改，改名免费）
-       * @example 半荤
-       */
-      name?: string;
-      /**
-       * Format: int64
-       * @description 引用该取值的菜品数（删除前判断）
-       */
-      dishCount?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultDishValueAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["DishValueAdminVO"];
-    };
-    /** @description 菜品种类登记请求 */
-    DishCategorySaveReq: {
-      /**
-       * @description 种类中文名（1~32 字；全表唯一）
-       * @example 面食粉类
-       */
-      name: string;
-    };
-    /** @description 管理端菜品种类出参 */
-    DishCategoryAdminVO: {
-      /**
-       * Format: int64
-       * @description 种类ID（= dish.category_id 的存储值，值域 = dish_category.id）
-       */
-      id?: number;
-      /**
-       * @description 种类中文名（可改，改名免费）
-       * @example 面食粉类
-       */
-      name?: string;
-      /**
-       * Format: int64
-       * @description 引用该种类的菜品数（删除前判断）
-       */
-      dishCount?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultDishCategoryAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["DishCategoryAdminVO"];
-    };
-    /** @description 处置请求体 {replyTitle?, replyContent?}：均可选（回执标题 ≤40 字 / 处理附注 ≤600 字） */
-    DishCorrectionHandleReq: {
-      /**
-       * @description 回执短标题（可选，≤40 字；缺省「已收到你的反馈」）
-       * @example 已收到你的反馈
-       */
-      replyTitle?: string;
-      /** @description 处理附注（可选，≤600 字；缺省「感谢反馈，我们已核实处理」，随回执下发） */
-      replyContent?: string;
-    };
-    /** @description 后台食堂列表展示信息 */
-    CanteenAdminVO: {
-      /**
-       * Format: int64
-       * @description 食堂ID
-       */
-      id?: number;
-      /**
-       * @description 食堂名称
-       * @example 第一食堂
-       */
-      name?: string;
-      /**
-       * Format: int64
-       * @description 其下档口数
-       * @example 3
-       */
-      stallCount?: number;
-      /** @description 食堂位置 */
-      location?: string;
-      /** @description 食堂描述 */
-      description?: string;
-      /** @description 食堂图片URL列表 */
-      images?: string[];
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultCanteenAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["CanteenAdminVO"];
-    };
-    /** @description 管理端 Banner 出参 */
-    BannerAdminVO: {
-      /**
-       * Format: int64
-       * @description Banner ID
-       */
-      id?: number;
-      /** @description 轮播图地址（出参已转绝对 URL） */
-      imageUrl?: string;
-      /**
-       * Format: int32
-       * @description 展示顺序（升序；列名 sort_order，出参为 order）
-       */
-      order?: number;
-      /** @description 状态：on=启用 / off=停用 */
-      status?: string;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 更新时间
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultBannerAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["BannerAdminVO"];
-    };
-    PasswordChangeReq: {
-      oldPassword: string;
-      newPassword: string;
-    };
-    /** @description 数据 */
-    AdminLoginVO: {
-      token?: string;
-      username?: string;
-      /** Format: int64 */
-      expiresIn?: number;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminLoginVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminLoginVO"];
-    };
-    AdminLoginReq: {
-      username: string;
-      password: string;
-    };
-    /** @description 分类字典项 */
-    OptionVO: {
-      /**
-       * Format: int64
-       * @description 选项 ID（提交时作为 optionId 上送）
-       * @example 1
-       */
-      id?: number;
-      /**
-       * @description 中文名（端上直接渲染）
-       * @example 程序功能Bug
-       */
-      name?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultListOptionVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["OptionVO"][];
-    };
-    /** @description 我的评价展示信息（本人视角，7 字段） */
-    MyReviewVO: {
-      /**
-       * Format: int64
-       * @description 评价ID
-       */
-      id?: number;
-      /**
-       * Format: int32
-       * @description 评分（1-5星）
-       */
-      rating?: number;
-      /** @description 评价内容 */
-      content?: string;
-      /** @description 评价配图 URL 列表（COS 绝对地址，≤3 张；无图返回空列表） */
-      images?: string[];
-      /**
-       * Format: date-time
-       * @description 评价时间（首次发表时间；重复提交覆盖内容但保留原值）
-       */
-      createdAt?: string;
-      /**
-       * Format: int64
-       * @description 关联菜品ID（仅「我的评价」返回）
-       */
-      dishId?: number;
-      /** @description 关联菜品名称（仅「我的评价」返回，mapper 联表补齐） */
-      dishName?: string;
-    };
-    /** @description 分页响应结果 */
-    PageResultMyReviewVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["MyReviewVO"][];
-    };
-    /** @description 统一响应结果 */
-    ResultPageResultMyReviewVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["PageResultMyReviewVO"];
-    };
-    /** @description 消息通知展示信息 */
-    NotificationVO: {
-      /**
-       * Format: int64
-       * @description 通知ID
-       */
-      id?: number;
-      /** @description 通知标题 */
-      replyTitle?: string;
-      /** @description 通知正文 */
-      replyContent?: string;
-      /** @description 是否已读：true=已读 / false=未读 */
-      isRead?: boolean;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-    };
-    /** @description 分页响应结果 */
-    PageResultNotificationVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["NotificationVO"][];
-    };
-    /** @description 统一响应结果 */
-    ResultPageResultNotificationVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["PageResultNotificationVO"];
-    };
-    /** @description 统一响应结果 */
-    ResultUnreadCountVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["UnreadCountVO"];
-    };
-    /** @description 未读通知总数 */
-    UnreadCountVO: {
-      /**
-       * Format: int64
-       * @description 未读通知条数
-       * @example 3
-       */
-      count?: number;
-    };
-    /** @description 菜品列表查询参数 */
-    DishQueryReq: {
-      /**
-       * Format: int32
-       * @description 页码，从1开始
-       * @example 1
-       */
-      page?: number;
-      /**
-       * Format: int32
-       * @description 每页条数（服务端上限 100）
-       * @example 10
-       */
-      pageSize?: number;
-      /**
-       * @description 关键词，匹配菜品名 / 档口名 / 食堂名（三处模糊匹配）
-       * @example 牛肉
-       */
-      keyword?: string;
-      /**
-       * Format: int64
-       * @description 筛选视图 ID（值域见 GET /dishes/views；白名单校验，非法值 400；空 = 首个启用视图）
-       * @example 2
-       */
-      view?: number;
-      /**
-       * @description 推荐流会话随机种子（可选）：服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批内容；未传时服务端补一次性随机值（仍为随机序）
-       * @example m3k9x7q2
-       */
-      seed?: string;
-    };
-    /** @description 菜品列表行（公开 8 字段） */
-    DishListItemVO: {
-      /**
-       * Format: int64
-       * @description 菜品ID
-       */
-      id?: number;
-      /**
-       * @description 菜品名称
-       * @example 牛肉拉面
-       */
-      name?: string;
-      /** @description 封面图URL（取 images[0]，无图为空串） */
-      coverImage?: string;
-      /**
-       * Format: int32
-       * @description 现价（分，已含折扣）
-       * @example 1200
-       */
-      price?: number;
-      /**
-       * Format: int32
-       * @description 原价（分，可空）
-       * @example 1500
-       */
-      originalPrice?: number;
-      /**
-       * @description 平均评分（零评价下发 5.0 兜底）
-       * @example 4.5
-       */
-      avgRating?: number;
-      /**
-       * @description 食堂名称
-       * @example 第一食堂
-       */
-      canteenName?: string;
-      /**
-       * @description 档口名称
-       * @example 面食窗口
-       */
-      stallName?: string;
-    };
-    /** @description 分页响应结果 */
-    PageResultDishListItemVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["DishListItemVO"][];
-    };
-    /** @description 统一响应结果 */
-    ResultPageResultDishListItemVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["PageResultDishListItemVO"];
-    };
-    /** @description 菜品描述属性展示项（值即中文） */
-    DishAttributeItem: {
-      /**
-       * Format: int64
-       * @description 维度 ID（= dish.attributes JSON 的键）
-       * @example 3
-       */
-      dimensionId?: number;
-      /**
-       * @description 维度中文名
-       * @example 口味
-       */
-      name?: string;
-      /**
-       * @description 中文值（single=字符串 / multi=字符串数组）
-       * @example [
-       *   "辣",
-       *   "酸"
-       * ]
-       */
-      value?: Record<string, never>;
-    };
-    /** @description 菜品详情展示信息（公开 11 字段） */
-    DishDetailVO: {
-      /**
-       * Format: int64
-       * @description 菜品ID
-       */
-      id?: number;
-      /**
-       * @description 菜品名称
-       * @example 牛肉拉面
-       */
-      name?: string;
-      /**
-       * Format: int32
-       * @description 现价（分，已含折扣）
-       * @example 1200
-       */
-      price?: number;
-      /**
-       * Format: int32
-       * @description 原价（分，可空）
-       * @example 1500
-       */
-      originalPrice?: number;
-      /** @description 菜品描述 */
-      description?: string;
-      /** @description 菜品多图URL列表（列 ↔ List 转换由 StringListTypeHandler 在持久层完成） */
-      images?: string[];
-      /**
-       * @description 档口名称
-       * @example 面食窗口
-       */
-      stallName?: string;
-      /**
-       * @description 食堂名称
-       * @example 第一食堂
-       */
-      canteenName?: string;
-      /**
-       * @description 档口楼层（值即汉字，如「二层」）
-       * @example 二层
-       */
-      floor?: string;
-      /**
-       * @description 平均评分（读缓存列 dish.avg_rating；零评价下发 5.0 兜底）
-       * @example 4.5
-       */
-      avgRating?: number;
-      /** @description 菜品描述属性（仅含该菜实际拥有的维度，按维度顺序；value：single=字符串 / multi=数组） */
-      attributes?: components["schemas"]["DishAttributeItem"][];
-    };
-    /** @description 统一响应结果 */
-    ResultDishDetailVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["DishDetailVO"];
-    };
-    /** @description 分页响应结果 */
-    PageResultReviewVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["ReviewVO"][];
-    };
-    /** @description 统一响应结果 */
-    ResultPageResultReviewVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["PageResultReviewVO"];
-    };
-    /** @description 评价展示信息（公开视角，8 字段） */
-    ReviewVO: {
-      /**
-       * Format: int64
-       * @description 评价ID
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 评价者用户ID
-       */
-      userId?: number;
-      /**
-       * @description 评价者昵称
-       * @example 张三
-       */
-      userName?: string;
-      /** @description 评价者头像URL */
-      userAvatar?: string;
-      /**
-       * Format: int32
-       * @description 评分（1-5星）
-       */
-      rating?: number;
-      /** @description 评价内容 */
-      content?: string;
-      /** @description 评价配图 URL 列表（COS 绝对地址，≤3 张；无图返回空列表） */
-      images?: string[];
-      /**
-       * Format: date-time
-       * @description 评价时间
-       */
-      createdAt?: string;
-    };
-    /** @description 菜品属性编辑态项（按菜现有维度） */
-    DishAttributeEditVO: {
-      /**
-       * Format: int64
-       * @description 维度 ID（与 GET /dishes/{id} 的 attributes[].dimensionId 对齐；提交时即 attributes 的键）
-       * @example 3
-       */
-      dimensionId?: number;
-      /**
-       * @description 取值类型：single=单值 / multi=多值（值取数组）
-       * @example multi
-       */
-      valueType?: string;
-      /** @description 该维度参考候选值（中文文本；空数组=暂无参考值） */
-      options?: string[];
-    };
-    /** @description 统一响应结果 */
-    ResultListDishAttributeEditVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["DishAttributeEditVO"][];
-    };
-    /** @description 首页筛选视图项 */
-    DishViewVO: {
-      /**
-       * Format: int64
-       * @description 视图ID（端上回传 view=<id> 用于筛选）
-       * @example 2
-       */
-      id?: number;
-      /**
-       * @description tab 文案（端上直接渲染）
-       * @example 面食粉类
-       */
-      name?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultListDishViewVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["DishViewVO"][];
-    };
-    /** @description 猜你喜欢词条 */
-    GuessLikeVO: {
-      /**
-       * @description 菜品名（随机抽取的在售菜品）
-       * @example 牛肉拉面
-       */
-      name?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultListGuessLikeVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["GuessLikeVO"][];
-    };
-    /** @description 首页轮播图（公开 2 字段） */
-    BannerVO: {
-      /**
-       * Format: int64
-       * @description Banner ID（轮播项 key）
-       */
-      id?: number;
-      /** @description 轮播图绝对 URL（16:10 素材） */
-      imageUrl?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultListBannerVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["BannerVO"][];
-    };
-    /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultUserVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["UserVO"][];
-      /**
-       * Format: int64
-       * @description 总条数
-       */
-      total?: number;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminPageResultUserVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminPageResultUserVO"];
-    };
-    /** @description 用户视图对象（管理端用） */
-    UserVO: {
-      /**
-       * Format: int64
-       * @description 用户ID
-       */
-      id?: number;
-      /**
-       * @description 微信标识号（唯一）
-       * @example wx_oXXXXX_ab12cd34
-       */
-      wxId?: string;
-      /**
-       * @description 昵称
-       * @example 张三
-       */
-      name?: string;
-      /** @description 头像URL */
-      avatar?: string;
-      /**
-       * @description 状态
-       * @example active
-       */
-      status?: string;
-      /**
-       * @description 是否微信绑定（仅布尔标识，不返回 openid 明文，规避隐私泄露）
-       * @example false
-       */
-      wechatBound?: boolean;
-      /**
-       * @description 绑定邮箱（可空；非空即已认证，认证状态唯一真源）
-       * @example 20240001@bjtu.edu.cn
-       */
-      email?: string;
-      /**
-       * Format: date-time
-       * @description 创建时间
-       */
-      createdAt?: string;
-      /** Format: date-time */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultListStallAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["StallAdminVO"][];
-    };
-    /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultReviewAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["ReviewAdminVO"][];
-      /**
-       * Format: int64
-       * @description 总条数
-       */
-      total?: number;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminPageResultReviewAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminPageResultReviewAdminVO"];
-    };
-    /** @description 评价展示信息（管理端专用，含可见性状态与处置留痕） */
-    ReviewAdminVO: {
-      /**
-       * Format: int64
-       * @description 评价ID
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 评价者用户ID
-       */
-      userId?: number;
-      /**
-       * Format: int64
-       * @description 关联菜品ID
-       */
-      dishId?: number;
-      /** @description 关联菜品名称 */
-      dishName?: string;
-      /**
-       * @description 评价者昵称
-       * @example 张三
-       */
-      userName?: string;
-      /** @description 评价者头像URL */
-      userAvatar?: string;
-      /**
-       * Format: int32
-       * @description 评分（1-5星）
-       */
-      rating?: number;
-      /** @description 评价内容 */
-      content?: string;
-      /** @description 评价配图 URL 列表（COS 绝对地址，≤3 张） */
-      images?: string[];
-      /**
-       * Format: date-time
-       * @description 评价时间
-       */
-      createdAt?: string;
-      /** @description 是否被隐藏（管理端用） */
-      hidden?: boolean;
-      /** @description 隐藏附注（最近一次隐藏说明；未隐藏为 null） */
-      hiddenNote?: string;
-      /** @description 最近一次可见性处置的处置人登录名（未处置为 null） */
-      moderatedByName?: string;
-      /**
-       * Format: date-time
-       * @description 最近一次可见性处置的时间（未处置为 null）
-       */
-      moderatedAt?: string;
-    };
-    /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultReportAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["ReportAdminVO"][];
-      /**
-       * Format: int64
-       * @description 总条数
-       */
-      total?: number;
-    };
-    /** @description 举报管理端展示信息 */
-    ReportAdminVO: {
-      /**
-       * Format: int64
-       * @description 举报ID
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 举报人用户ID（恒为真实用户 ID —— 列带外键 fk_report_user → user(id)）
-       */
-      userId?: number;
-      /** @description 举报人昵称 */
-      userName?: string;
-      /**
-       * Format: int64
-       * @description 举报原因ID（report_option 字典项 ID）
-       */
-      optionId?: number;
-      /** @description 举报原因中文名（由 report_option 字典实时翻译，停用项仍可译出） */
-      optionName?: string;
-      /**
-       * Format: int64
-       * @description 被举报评价ID（被举报评价已删除为 null）
-       */
-      reviewId?: number;
-      /** @description 被举报评价是否已删除（reviewId 为 null 即 true；此时摘要与可见性均为 null） */
-      reviewDeleted?: boolean;
-      /** @description 被举报评价正文摘要（评价已删除为 null；完整内容去评价管理看） */
-      reviewContent?: string;
-      /** @description 被举报评价所属菜品名（评价已删除为 null） */
-      reviewDishName?: string;
-      /** @description 被举报评价当前是否已隐藏（决定「同时隐藏」复选是否置灰；评价已删除为 null） */
-      reviewHidden?: boolean;
-      /** @description 处置状态：pending / handled */
-      status?: string;
-      /** @description 处置结论：handled=通过 / rejected=不采纳；未处置为 null */
-      outcome?: string;
-      /** @description 处置回执短标题（未处置为 null） */
-      replyTitle?: string;
-      /** @description 处置文案 / 不采纳原因（未处置为 null） */
-      replyContent?: string;
-      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
-      handledByName?: string;
-      /**
-       * Format: date-time
-       * @description 提交时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 处置时间（未处置为 null）
-       */
-      handledAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminPageResultReportAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminPageResultReportAdminVO"];
-    };
-    /** @description 统一响应结果 */
-    ResultListOptionAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["OptionAdminVO"][];
-    };
-    /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultFeedbackAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["FeedbackAdminVO"][];
-      /**
-       * Format: int64
-       * @description 总条数
-       */
-      total?: number;
-    };
-    /** @description 反馈管理端展示信息 */
-    FeedbackAdminVO: {
-      /**
-       * Format: int64
-       * @description 反馈ID
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 提交人用户ID（恒为真实用户 ID —— 列带外键 fk_feedback_user → user(id)）
-       */
-      userId?: number;
-      /** @description 提交人昵称（账号已查无时为「已注销用户」以外的空值由前端兜底） */
-      userName?: string;
-      /**
-       * Format: int64
-       * @description 反馈类型ID（feedback_option 字典项 ID）
-       */
-      optionId?: number;
-      /** @description 反馈类型中文名（由 feedback_option 字典实时翻译，停用项仍可译出） */
-      optionName?: string;
-      /** @description 反馈正文（空串兜底） */
-      content?: string;
-      /** @description 反馈配图 URL 列表（COS 绝对地址，≤3 张；恒为数组） */
-      images?: string[];
-      /** @description 处置状态：pending / handled */
-      status?: string;
-      /** @description 处置结论：handled=通过 / rejected=不采纳；未处置为 null */
-      outcome?: string;
-      /** @description 处置回执短标题（未处置为 null） */
-      replyTitle?: string;
-      /** @description 处置文案 / 不采纳原因（未处置为 null） */
-      replyContent?: string;
-      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
-      handledByName?: string;
-      /**
-       * Format: date-time
-       * @description 提交时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 处置时间（未处置为 null）
-       */
-      handledAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminPageResultFeedbackAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminPageResultFeedbackAdminVO"];
-    };
-    /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultDishAdminListItemVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["DishAdminListItemVO"][];
-      /**
-       * Format: int64
-       * @description 总条数
-       */
-      total?: number;
-    };
-    /** @description 管理端菜品列表行（瘦身） */
-    DishAdminListItemVO: {
-      /**
-       * Format: int64
-       * @description 菜品ID
-       */
-      id?: number;
-      /**
-       * Format: int64
-       * @description 所属档口ID（行内跳转用）
-       * @example 3
-       */
-      stallId?: number;
-      /**
-       * @description 档口名（联表带出）
-       * @example 清真面档
-       */
-      stallName?: string;
-      /**
-       * @description 食堂名（联表带出）
-       * @example 清真食堂
-       */
-      canteenName?: string;
-      /**
-       * @description 菜品名称
-       * @example 牛肉拉面
-       */
-      name?: string;
-      /**
-       * Format: int32
-       * @description 现价（分）
-       * @example 1600
-       */
-      price?: number;
-      /**
-       * Format: int32
-       * @description 原价（分，可空）
-       * @example 2000
-       */
-      originalPrice?: number;
-      /** @description 封面图绝对 URL（首图派生；无图为空串） */
-      coverImage?: string;
-      /**
-       * Format: int64
-       * @description 菜品分类 ID（值域 = 种类字典 dish_category / /admin/dish-categories）
-       * @example 3
-       */
-      categoryId?: number;
-      /**
-       * @description 分类中文名（A6 种类字典派生，端上零硬编码）
-       * @example 面食粉类
-       */
-      categoryName?: string;
-      /** @description 上架状态：on / off */
-      status?: string;
-      /** @description 均分（1 位小数；零评价为 null） */
-      avgRating?: number;
-      /**
-       * Format: int32
-       * @description 评价数（删除确认的影响面来源）
-       * @example 12
-       */
-      ratingCount?: number;
-      /**
-       * Format: int64
-       * @description 近 30 天浏览量（dish_view_log 滚动窗口统计；窗口内无浏览为 0）
-       * @example 86
-       */
-      recentViewCount?: number;
-      /**
-       * Format: date-time
-       * @description 更新时间（列表排序依据）
-       */
-      updatedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminPageResultDishAdminListItemVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminPageResultDishAdminListItemVO"];
-    };
-    /** @description 统一响应结果 */
-    ResultListDishViewAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["DishViewAdminVO"][];
-    };
-    /** @description 统一响应结果 */
-    ResultListDishDimensionAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["DishDimensionAdminVO"][];
-    };
-    /** @description 统一响应结果 */
-    ResultListDishValueAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["DishValueAdminVO"][];
-    };
-    /** @description 统一响应结果 */
-    ResultListDishCategoryAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["DishCategoryAdminVO"][];
-    };
-    /** @description 运营看板（只读聚合） */
-    DashboardVO: {
-      todo?: components["schemas"]["Todo"];
-      health?: components["schemas"]["Health"];
-      overview?: components["schemas"]["Overview"];
-    };
-    /** @description 主数据健康度区 */
-    Health: {
-      /**
-       * Format: int64
-       * @description 无图片的菜品数（client 卡片只能走占位图）
-       */
-      dishesWithoutImage?: number;
-      /**
-       * Format: int64
-       * @description 未归入档口的菜品数（stall_id 为空）
-       */
-      dishesWithoutStall?: number;
-      /**
-       * Format: int64
-       * @description 种类为空的菜品数（category_id 为空）
-       */
-      dishesWithoutCategory?: number;
-      /**
-       * Format: int64
-       * @description 无菜品的档口数（空档口）
-       */
-      stallsWithoutDish?: number;
-    };
-    /** @description 概况区 */
-    Overview: {
-      /**
-       * Format: int64
-       * @description 用户总数（不含已注销）
-       */
-      userCount?: number;
-      /**
-       * Format: int64
-       * @description 已认证用户数（email 非空）
-       */
-      verifiedUserCount?: number;
-      /**
-       * Format: int64
-       * @description 在售菜品数（status='on'）
-       */
-      onSaleDishCount?: number;
-      /**
-       * Format: int64
-       * @description 评价总数（含已隐藏）
-       */
-      reviewCount?: number;
-    };
-    /** @description 最近待办项 */
-    RecentTodo: {
-      /**
-       * @description 类别：feedback / report / correction（决定跳转哪个处置页）
-       * @example feedback
-       */
-      kind?: string;
-      /**
-       * Format: int64
-       * @description 对应记录 ID（跳转定位）
-       * @example 12
-       */
-      id?: number;
-      /** @description 摘要：反馈=正文摘要；举报=被举报评价摘要（已删除时给固定文案）；纠错=菜品名 */
-      title?: string;
-      /** @description 提交时间（yyyy-MM-dd HH:mm:ss） */
-      submittedAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultDashboardVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["DashboardVO"];
-    };
-    /** @description 待办区 */
-    Todo: {
-      /**
-       * Format: int64
-       * @description 待处置意见反馈数（moderation_task：type='feedback' 且 status='pending'）
-       */
-      pendingFeedbackCount?: number;
-      /**
-       * Format: int64
-       * @description 待处置举报数（moderation_task：type='report' 且 status='pending'）
-       */
-      pendingReportCount?: number;
-      /**
-       * Format: int64
-       * @description 待处置纠错数（moderation_task：type='correction' 且 status='pending'）
-       */
-      pendingCorrectionCount?: number;
-      /** @description 最近 5 条待办（跨三类合并，按提交时间倒序） */
-      recent?: components["schemas"]["RecentTodo"][];
-    };
-    /** @description 管理端分页响应结果（含总数） */
-    AdminPageResultCorrectionAdminVO: {
-      /** @description 当前页数据列表 */
-      records?: components["schemas"]["CorrectionAdminVO"][];
-      /**
-       * Format: int64
-       * @description 总条数
-       */
-      total?: number;
-    };
-    /** @description 菜品问题反馈管理端展示信息 */
-    CorrectionAdminVO: {
-      /**
-       * Format: int64
-       * @description 反馈ID
-       */
-      id?: number;
-      /**
-       * @description 问题类型：field=信息有误 / gone=已经下架
-       * @example field
-       */
-      type?: string;
-      /**
-       * Format: int64
-       * @description 目标菜品ID
-       */
-      dishId?: number;
-      /** @description 目标菜品名（实时回查 dish；菜品已物理删除为 null） */
-      dishName?: string;
-      /**
-       * Format: int64
-       * @description 提交人用户ID（指向 user 表）
-       */
-      userId?: number;
-      /** @description 提交人昵称（账号已查无时为 null） */
-      userName?: string;
-      /** @description 提交的菜品名称 */
-      name?: string;
-      /**
-       * Format: int32
-       * @description 提交的现价（分）
-       * @example 1600
-       */
-      price?: number;
-      /** @description 提交的食堂名称 */
-      canteenName?: string;
-      /** @description 提交的档口名称 */
-      stallName?: string;
-      /**
-       * @description 提交的楼层（受控字典值·值即汉字，归属档口 stall.floor；未改动为 null）
-       * @example 二层
-       */
-      floor?: string;
-      /**
-       * @description 提交的描述属性（键=维度 ID，值=中文/数组；仅改动维度）
-       * @example {
-       *   "1": "素",
-       *   "3": [
-       *     "辣",
-       *     "酸"
-       *   ]
-       * }
-       */
-      attributes?: {
-        [key: string]: Record<string, never>;
-      };
-      /** @description 提交的菜品图片 URL 列表（field=改动后的完整数组≤3张 / gone=选填补充≤3张） */
-      images?: string[];
-      /**
-       * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
-       * @example 这个窗口现在换成麻辣香锅了
-       */
-      note?: string;
-      /** @description 处置状态：pending / handled */
-      status?: string;
-      /** @description 处置结论：handled=已受理（管理员已手动处理）/ rejected=不采纳；未处置为 null */
-      outcome?: string;
-      /** @description 处置回执短标题（未处置为 null） */
-      replyTitle?: string;
-      /** @description 处置文案 / 不采纳原因（未处置为 null） */
-      replyContent?: string;
-      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
-      handledByName?: string;
-      /**
-       * Format: date-time
-       * @description 提交时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 处置时间（未处置为 null）
-       */
-      handledAt?: string;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminPageResultCorrectionAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminPageResultCorrectionAdminVO"];
-    };
-    /** @description 菜品问题反馈详情（含差异对照） */
-    CorrectionDetailVO: {
-      /**
-       * Format: int64
-       * @description 反馈ID
-       */
-      id?: number;
-      /**
-       * @description 问题类型：field=信息有误 / gone=已经下架
-       * @example field
-       */
-      type?: string;
-      /**
-       * Format: int64
-       * @description 目标菜品ID
-       */
-      dishId?: number;
-      /** @description 目标菜品名（实时回查 dish；菜品已物理删除为 null） */
-      dishName?: string;
-      /**
-       * @description 目标菜品当前上下架状态（on/off；菜品已物理删除为 null）
-       * @example on
-       */
-      dishStatus?: string;
-      /**
-       * Format: int64
-       * @description 提交人用户ID（指向 user 表）
-       */
-      userId?: number;
-      /** @description 提交人昵称（账号已查无时为 null） */
-      userName?: string;
-      /** @description 处置状态：pending / handled */
-      status?: string;
-      /** @description 处置结论：handled=已受理（管理员已手动处理）/ rejected=不采纳；未处置为 null */
-      outcome?: string;
-      /**
-       * @description 补充说明（≤200 字；仅 type=gone 的选填补充，field 型为 null）
-       * @example 这个窗口现在换成麻辣香锅了
-       */
-      note?: string;
-      /**
-       * Format: int64
-       * @description 同菜品待处置的 gone 反馈数（已按用户去重；**仅参考，非下架阈值**）
-       * @example 3
-       */
-      goneUserCount?: number;
-      /** @description 提交项对照清单（只列用户提交过的项） */
-      differences?: components["schemas"]["DishCorrectionDifferenceVO"][];
-      /** @description 提交的菜品图片 URL 列表（COS 绝对地址） */
-      images?: string[];
-      /** @description 处置回执短标题（未处置为 null） */
-      replyTitle?: string;
-      /** @description 处置文案 / 不采纳原因（未处置为 null） */
-      replyContent?: string;
-      /** @description 处置人登录名（未处置 / 账号已删除为 null） */
-      handledByName?: string;
-      /**
-       * Format: date-time
-       * @description 提交时间
-       */
-      createdAt?: string;
-      /**
-       * Format: date-time
-       * @description 处置时间（未处置为 null）
-       */
-      handledAt?: string;
-    };
-    /** @description 菜品问题反馈提交项对照项 */
-    DishCorrectionDifferenceVO: {
-      /**
-       * @description 对照项键：name/price/canteenName/stallName/floor/images/attributes.<维度ID>
-       * @example name
-       */
-      field?: string;
-      /**
-       * @description 字段中文名（服务端下发，端上零硬编码）
-       * @example 菜品名称
-       */
-      label?: string;
-      /** @description 当前实时值（回查 dish / stall；菜品已物理删除为 null） */
-      oldValue?: string;
-      /** @description 用户提交的值 */
-      newValue?: string;
-      /** @description 提交值是否与当前值一致（true = 已一致，端上据此标注「已一致 / 有差异」） */
-      same?: boolean;
-    };
-    /** @description 统一响应结果 */
-    ResultCorrectionDetailVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["CorrectionDetailVO"];
-    };
-    /** @description 统一响应结果 */
-    ResultObject: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: Record<string, never>;
-    };
-    /** @description 统一响应结果 */
-    ResultListBannerAdminVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      /** @description 数据 */
-      data?: components["schemas"]["BannerAdminVO"][];
-    };
-    /** @description 数据 */
-    AdminMeVO: {
-      username?: string;
-      lastLoginAt?: string;
-      updatedAt?: string;
-      role?: string;
-      passwordAging?: boolean;
-    };
-    /** @description 统一响应结果 */
-    ResultAdminMeVO: {
-      /**
-       * Format: int32
-       * @description 状态码
-       * @example 200
-       */
-      code?: number;
-      /**
-       * @description 提示信息
-       * @example 操作成功
-       */
-      message?: string;
-      data?: components["schemas"]["AdminMeVO"];
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    schemas: {
+        /** AdminLoginIn */
+        AdminLoginIn: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+        };
+        /** AdminPageResult[CanteenOut] */
+        AdminPageResult_CanteenOut_: {
+            /** Records */
+            records: components["schemas"]["app__domains__admin_canteen__router__CanteenOut"][];
+            /** Total */
+            total: number;
+        };
+        /** AdminPageResult[DishIssueOut] */
+        AdminPageResult_DishIssueOut_: {
+            /** Records */
+            records: components["schemas"]["DishIssueOut"][];
+            /** Total */
+            total: number;
+        };
+        /** AdminPageResult[DishOut] */
+        AdminPageResult_DishOut_: {
+            /** Records */
+            records: components["schemas"]["DishOut"][];
+            /** Total */
+            total: number;
+        };
+        /** AdminPageResult[DishRecordOut] */
+        AdminPageResult_DishRecordOut_: {
+            /** Records */
+            records: components["schemas"]["DishRecordOut"][];
+            /** Total */
+            total: number;
+        };
+        /** AdminPageResult[StallOut] */
+        AdminPageResult_StallOut_: {
+            /** Records */
+            records: components["schemas"]["StallOut"][];
+            /** Total */
+            total: number;
+        };
+        /** AdminSessionOut */
+        AdminSessionOut: {
+            /** Token */
+            token: string;
+            /** Username */
+            username: string;
+        };
+        /** Body_upload_image_admin_images_post */
+        Body_upload_image_admin_images_post: {
+            /** File */
+            file: string;
+        };
+        /** CanteenSaveIn */
+        CanteenSaveIn: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * DishCardOut
+         * @description 推荐卡片出参（docs/api/client/dishes.md 的 DishCardVO）。
+         */
+        DishCardOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Price */
+            price: number;
+            /** Imageurl */
+            imageUrl?: string | null;
+            /** Avgreaction */
+            avgReaction?: number | null;
+            /**
+             * Wanted
+             * @default false
+             */
+            wanted: boolean;
+            /** Canteenname */
+            canteenName: string;
+            /** Stallname */
+            stallName: string;
+        };
+        /** DishIssueOut */
+        DishIssueOut: {
+            /** Id */
+            id: number;
+            /** Dishid */
+            dishId: number;
+            /** Dishname */
+            dishName: string;
+            /** Canteenname */
+            canteenName: string;
+            /** Stallname */
+            stallName: string;
+            /** Optionid */
+            optionId: number;
+            /** Optionname */
+            optionName: string;
+            /** Createdat */
+            createdAt: string;
+            /** Handledat */
+            handledAt?: string | null;
+        };
+        /** DishOut */
+        DishOut: {
+            /** Id */
+            id: number;
+            /** Stallid */
+            stallId: number;
+            /** Stallname */
+            stallName: string;
+            /** Canteenname */
+            canteenName: string;
+            /** Name */
+            name: string;
+            /** Price */
+            price: number;
+            /** Imageurl */
+            imageUrl?: string | null;
+            /** Status */
+            status: string;
+            /** Avgreaction */
+            avgReaction?: number | null;
+            /** Reactioncount */
+            reactionCount: number;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** DishRecordOut */
+        DishRecordOut: {
+            /** Id */
+            id: number;
+            /** Dishid */
+            dishId: number;
+            /** Dishname */
+            dishName: string;
+            /** Canteenname */
+            canteenName: string;
+            /** Stallname */
+            stallName: string;
+            /** Reaction */
+            reaction?: number | null;
+            /** Wantedat */
+            wantedAt: string;
+            /** Reactedat */
+            reactedAt?: string | null;
+        };
+        /** DishSaveIn */
+        DishSaveIn: {
+            /** Stallid */
+            stallId: number;
+            /** Name */
+            name: string;
+            /** Price */
+            price: number;
+            /** Imageurl */
+            imageUrl?: string | null;
+            /**
+             * Status
+             * @default on
+             */
+            status: string;
+        };
+        /** Envelope[AdminPageResult[CanteenOut]] */
+        Envelope_AdminPageResult_CanteenOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["AdminPageResult_CanteenOut_"] | null;
+        };
+        /** Envelope[AdminPageResult[DishIssueOut]] */
+        Envelope_AdminPageResult_DishIssueOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["AdminPageResult_DishIssueOut_"] | null;
+        };
+        /** Envelope[AdminPageResult[DishOut]] */
+        Envelope_AdminPageResult_DishOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["AdminPageResult_DishOut_"] | null;
+        };
+        /** Envelope[AdminPageResult[DishRecordOut]] */
+        Envelope_AdminPageResult_DishRecordOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["AdminPageResult_DishRecordOut_"] | null;
+        };
+        /** Envelope[AdminPageResult[StallOut]] */
+        Envelope_AdminPageResult_StallOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["AdminPageResult_StallOut_"] | null;
+        };
+        /** Envelope[AdminSessionOut] */
+        Envelope_AdminSessionOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["AdminSessionOut"] | null;
+        };
+        /** Envelope[CanteenOut] */
+        Envelope_CanteenOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["app__domains__admin_canteen__router__CanteenOut"] | null;
+        };
+        /** Envelope[DishIssueOut] */
+        Envelope_DishIssueOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["DishIssueOut"] | null;
+        };
+        /** Envelope[DishOut] */
+        Envelope_DishOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["DishOut"] | null;
+        };
+        /** Envelope[ImageOut] */
+        Envelope_ImageOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["ImageOut"] | null;
+        };
+        /** Envelope[NoneType] */
+        Envelope_NoneType_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            /** Data */
+            data?: null;
+        };
+        /** Envelope[OptionOut] */
+        Envelope_OptionOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["OptionOut"] | null;
+        };
+        /** Envelope[PageResult[DishCardOut]] */
+        Envelope_PageResult_DishCardOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["PageResult_DishCardOut_"] | null;
+        };
+        /** Envelope[RecordOut] */
+        Envelope_RecordOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["RecordOut"] | null;
+        };
+        /** Envelope[StallOut] */
+        Envelope_StallOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["StallOut"] | null;
+        };
+        /** Envelope[TokenOut] */
+        Envelope_TokenOut_: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            data?: components["schemas"]["TokenOut"] | null;
+        };
+        /** Envelope[list[CanteenOut]] */
+        Envelope_list_CanteenOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            /** Data */
+            data?: components["schemas"]["app__domains__canteen__router__CanteenOut"][] | null;
+        };
+        /** Envelope[list[IssueOptionOut]] */
+        Envelope_list_IssueOptionOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            /** Data */
+            data?: components["schemas"]["IssueOptionOut"][] | null;
+        };
+        /** Envelope[list[OptionOut]] */
+        Envelope_list_OptionOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            /** Data */
+            data?: components["schemas"]["OptionOut"][] | null;
+        };
+        /** Envelope[list[PosterOut]] */
+        Envelope_list_PosterOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            /** Data */
+            data?: components["schemas"]["PosterOut"][] | null;
+        };
+        /** Envelope[list[RecordOut]] */
+        Envelope_list_RecordOut__: {
+            /**
+             * Code
+             * @default 200
+             */
+            code: number;
+            /**
+             * Message
+             * @default 操作成功
+             */
+            message: string;
+            /** Data */
+            data?: components["schemas"]["RecordOut"][] | null;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HandleIn */
+        HandleIn: {
+            /** Handled */
+            handled: boolean;
+        };
+        /** ImageOut */
+        ImageOut: {
+            /** Url */
+            url: string;
+        };
+        /** IssueIn */
+        IssueIn: {
+            /** Optionid */
+            optionId: number;
+        };
+        /** IssueOptionOut */
+        IssueOptionOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** OptionOut */
+        OptionOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Refcount */
+            refCount: number;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** OptionSaveIn */
+        OptionSaveIn: {
+            /** Name */
+            name: string;
+        };
+        /** PageResult[DishCardOut] */
+        PageResult_DishCardOut_: {
+            /** Records */
+            records: components["schemas"]["DishCardOut"][];
+        };
+        /** PosterOut */
+        PosterOut: {
+            /** Id */
+            id: number;
+            /** Imageurl */
+            imageUrl: string;
+        };
+        /** ReactIn */
+        ReactIn: {
+            /** Reaction */
+            reaction: number;
+        };
+        /** RecordOut */
+        RecordOut: {
+            /** Id */
+            id: number;
+            /** Dishid */
+            dishId: number;
+            /** Name */
+            name: string;
+            /** Imageurl */
+            imageUrl?: string | null;
+            /** Wantedat */
+            wantedAt: string;
+            /** Reaction */
+            reaction?: number | null;
+        };
+        /** StallOut */
+        StallOut: {
+            /** Id */
+            id: number;
+            /** Canteenid */
+            canteenId: number;
+            /** Canteenname */
+            canteenName: string;
+            /** Name */
+            name: string;
+            /** Posterurl */
+            posterUrl?: string | null;
+            /** Floor */
+            floor?: string | null;
+            /** Windowno */
+            windowNo?: string | null;
+            /** Dishcount */
+            dishCount: number;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** StallSaveIn */
+        StallSaveIn: {
+            /** Canteenid */
+            canteenId: number;
+            /** Name */
+            name: string;
+            /** Posterurl */
+            posterUrl?: string | null;
+            /** Floor */
+            floor?: string | null;
+            /** Windowno */
+            windowNo?: string | null;
+        };
+        /** TokenOut */
+        TokenOut: {
+            /** Token */
+            token: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
+        /** WantIn */
+        WantIn: {
+            /** Dishid */
+            dishId: number;
+        };
+        /** WechatLoginIn */
+        WechatLoginIn: {
+            /** Code */
+            code: string;
+        };
+        /** CanteenOut */
+        app__domains__admin_canteen__router__CanteenOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Stallcount */
+            stallCount: number;
+            /** Updatedat */
+            updatedAt: string;
+        };
+        /** CanteenOut */
+        app__domains__canteen__router__CanteenOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-
 export type $defs = Record<string, never>;
-
-export type external = Record<string, never>;
-
 export interface operations {
-
-  /**
-   * 单条已读
-   * @description STU（需登录；游客态亦可）。通知不存在返回 4001；通知存在但不属于当前用户返回 403（不暴露他人通知存在性）。
-   */
-  readOne: {
-    parameters: {
-      path: {
-        /**
-         * @description 通知ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 全部已读
-   * @description STU（需登录；游客态亦可）。一次性把当前用户全部未读置为已读；幂等，无载荷（data=null）。
-   */
-  readAll: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 获取当前用户资料
-   * @description 用途：个人中心进入时读取当前登录用户的昵称、头像、认证状态（由 email 非空派生，不作独立出参字段）、绑定邮箱（email）。字段集与登录 / 认证链路一致（恰 4 项：id / name / avatar / email）。
-   */
-  profile: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultUserInfoVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 修改当前用户资料
-   * @description 用途：修改昵称或头像。头像地址须先取得：小程序端走云存储链路 POST /upload/cloud-image（返回 URL）后作为 avatar 保存。
-   */
-  updateProfile: {
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "name": "新的昵称",
-         *   "avatar": "/images/seed/dishes/tomato-egg.jpg"
-         * }
-         */
-        "application/json": components["schemas"]["ProfileUpdateReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultUserInfoVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 启用/禁用用户
-   * @description 用途：修改用户账号状态（只改 status，取值为字符串枚举 active=启用 / disabled=禁用）。disabled 用户无法登录，且其已签发 token 即时失效。
-   */
-  updateStatus: {
-    parameters: {
-      path: {
-        /**
-         * @description 用户ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "status": "disabled"
-         * }
-         */
-        "application/json": components["schemas"]["UserStatusReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 编辑档口
-   * @description 用途：修改档口信息（canteenId / name 必填整体替换；floor / windowNo / location / description / images 缺省 = 保持原值）。同食堂下重名 → 400；floor 不在楼层字典 → 400；windowNo / location / description 空串 = 清空、images 空数组 = 清空。
-   */
-  updateStall: {
-    parameters: {
-      path: {
-        /**
-         * @description 档口ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["StallSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除档口
-   * @description 用途：删除档口。其下仍有菜品 → 400（由本层编排跨域计数）；不存在 → 4001。
-   */
-  deleteStall: {
-    parameters: {
-      path: {
-        /**
-         * @description 档口ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 设置评价隐藏/显示
-   * @description 用途：显式设置评价隐藏状态（hidden=true 隐藏，false 恢复显示），避免 toggle 语义不确定。隐藏支持可选附注 note（≤200 字，随回执下发给作者）；隐藏与删除都会向作者投递站内回执。两条路径都记录处置人（当前管理员）与处置时间，覆盖式只留最近一次。
-   */
-  setHidden: {
-    parameters: {
-      path: {
-        /**
-         * @description 评价ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ReviewHiddenReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 处置举报
-   * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome, hideReview}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（受理，缺省）或 rejected（不予处理），非法值 400；hideReview **仅受理时消费**：true 联动隐藏被举报评价（幂等：评价已隐藏 / 已删除时静默成功）。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
-   */
-  handle: {
-    parameters: {
-      path: {
-        /**
-         * @description 举报ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ModerationHandleReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报原因改名
-   * @description 用途：**只改 name**（改名免费，历史举报的中文翻译实时生效）；不存在 → 4001。
-   */
-  rename: {
-    parameters: {
-      path: {
-        /**
-         * @description 原因ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["OptionRenameReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除举报原因
-   * @description 用途：删除。**被举报记录引用 → 400**（下线一律用停用，避免历史举报翻不出中文）；不存在 → 4001。
-   */
-  delete: {
-    parameters: {
-      path: {
-        /**
-         * @description 原因ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报原因启停
-   * @description 用途：只改 status。**停用最后一条启用 → 400**（举报入口不能配空）；启用数超 8 → 400；不存在 → 4001。
-   */
-  updateStatus_1: {
-    parameters: {
-      path: {
-        /**
-         * @description 原因ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["OptionStatusReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 处置反馈
-   * @description ADM。仅接受 JSON body（{replyTitle, replyContent, outcome}）：replyTitle 回执短标题（可选，≤40 字，留空用缺省文案）；replyContent 处置文案（可选，≤600 字；outcome=rejected 时**必填**，即为不采纳原因，纯空白 → 400）；outcome=handled（通过/已处理，缺省）或 rejected（不采纳/退回），非法值 400。处置动作 = 更新处置任务行 + 投递站内回执（同一事务）；已处置再处置 → 400；记录不存在 → 4001。
-   */
-  handle_1: {
-    parameters: {
-      path: {
-        /**
-         * @description 反馈ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ModerationHandleReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 反馈类型改名
-   * @description 用途：**只改 name**（改名免费，历史反馈的中文翻译实时生效）；不存在 → 4001。
-   */
-  rename_1: {
-    parameters: {
-      path: {
-        /**
-         * @description 类型ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["OptionRenameReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除反馈类型
-   * @description 用途：删除。**被反馈记录引用 → 400**（下线一律用停用，避免历史反馈翻不出中文）；不存在 → 4001。
-   */
-  delete_1: {
-    parameters: {
-      path: {
-        /**
-         * @description 类型ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 反馈类型启停
-   * @description 用途：只改 status。**停用最后一条启用 → 400**（反馈入口不能配空）；启用数超 8 → 400；不存在 → 4001。
-   */
-  updateStatus_2: {
-    parameters: {
-      path: {
-        /**
-         * @description 类型ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["OptionStatusReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 菜品详情
-   * @description 用途：编辑回填（全字段）。菜品不存在返回 4001。
-   */
-  getDish: {
-    parameters: {
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 编辑菜品
-   * @description 用途：修改菜品信息（支持部分更新，未传字段不修改）。管理端 JWT 鉴权（AdminAuthFilter）；单口令管理模型下无「档口归属」概念，管理员对全部菜品具备编辑权限。
-   */
-  updateDish: {
-    parameters: {
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishAdminReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除菜品
-   * @description 用途：物理删除菜品，并同步删除该菜品关联的评价与浏览足迹。
-   */
-  deleteDish: {
-    parameters: {
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 上下架
-   * @description 用途：只改 status（on 上架 / off 下架）。非法值 400，菜品不存在 4001。
-   */
-  updateStatus_3: {
-    parameters: {
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishStatusReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 修改视图
-   * @description 用途：改**文案 / 启停 / 归属种类**（整体替换）。停用「最后一个启用的视图」→ 400；不存在 → 4001。
-   */
-  update: {
-    parameters: {
-      path: {
-        /**
-         * @description 视图ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishViewUpdateReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除视图
-   * @description 用途：删除 tab（从下发集合移除）。删除「最后一个启用的视图」→ 400；不存在 → 4001。
-   */
-  delete_2: {
-    parameters: {
-      path: {
-        /**
-         * @description 视图ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 修改维度
-   * @description 用途：改维度名 / 取值类型。取值类型切换会**自动迁移**该维度下菜品的数据形状；取值类型非法 → 400；不存在 → 4001。
-   */
-  updateDimension: {
-    parameters: {
-      path: {
-        /**
-         * @description 维度ID
-         * @example 1
-         */
-        dimensionId: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishDimensionSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除维度
-   * @description 用途：删除维度（连带其下取值）。**仍被菜品使用 → 400**；不存在 → 4001。
-   */
-  deleteDimension: {
-    parameters: {
-      path: {
-        /**
-         * @description 维度ID
-         * @example 1
-         */
-        dimensionId: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 修改取值
-   * @description 用途：**只改取值名**（改名免费，菜品数据零迁移）；同维度下重名 → 400；不存在 → 4001。
-   */
-  updateValue: {
-    parameters: {
-      path: {
-        /**
-         * @description 维度ID
-         * @example 1
-         */
-        dimensionId: number;
-        /**
-         * @description 取值ID
-         * @example 3
-         */
-        valueId: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishValueSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除取值
-   * @description 用途：删除取值。**仍被菜品引用 → 400**；不存在 → 4001。
-   */
-  deleteValue: {
-    parameters: {
-      path: {
-        /**
-         * @description 维度ID
-         * @example 1
-         */
-        dimensionId: number;
-        /**
-         * @description 取值ID
-         * @example 3
-         */
-        valueId: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 重命名分类
-   * @description 用途：**只改 name**（改名免费，零菜品迁移）；重名 400；不存在 4001。
-   */
-  rename_2: {
-    parameters: {
-      path: {
-        /**
-         * @description 种类ID
-         * @example 3
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishCategoryRenameReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 问题反馈详情
-   * @description ADM。返回提交项对照（只读）：**type=field** → differences[]（**只列用户提交过的项**，oldValue 取当前菜品/档口**实时值**，same 标记是否一致），供管理员阅读判断；**type=gone** → differences 恒空，只返回 note + images + goneUserCount。菜品已物理删除时 oldValue 各项为 null（无从对照）；反馈不存在 → 4001。
-   */
-  detail: {
-    parameters: {
-      path: {
-        /**
-         * @description 反馈ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultCorrectionDetailVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 驳回反馈
-   * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该纠错已处理」）。仅接受 JSON body（{replyTitle?, replyContent, outcome:'rejected'}）：outcome 固定 rejected（其他值 400）；replyContent **必填**（即为不采纳原因，1~600 字，纯空白 → 400「请填写不采纳原因」）；replyTitle 可选（缺省按类型给「菜品信息未采纳」/「菜品仍在售」）。**gone 型驳回**语义为「经核实仍在售」，建议理由写明原因（如「今日临时售罄，明天恢复」）。处理：处置任务归档 rejected + 处置文案，并投递站内回执（含不采纳原因）。
-   */
-  reject: {
-    parameters: {
-      path: {
-        /**
-         * @description 反馈ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ModerationHandleReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 编辑食堂
-   * @description 用途：修改食堂信息（name + location / description / images；新名重名 → 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内；除 name 外缺省 = 保持原值。
-   */
-  updateCanteen: {
-    parameters: {
-      path: {
-        /**
-         * @description 食堂ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CanteenSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除食堂
-   * @description 用途：删除食堂。其下仍有档口 → 400（避免孤儿档口）；不存在 → 4001。
-   */
-  deleteCanteen: {
-    parameters: {
-      path: {
-        /**
-         * @description 食堂ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 编辑 Banner
-   * @description 用途：换图（可编辑字段整体替换）；不存在 → 4001。
-   */
-  update_1: {
-    parameters: {
-      path: {
-        /**
-         * @description Banner ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["BannerSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除 Banner
-   * @description 用途：删除轮播图；不存在 → 4001。
-   */
-  delete_3: {
-    parameters: {
-      path: {
-        /**
-         * @description Banner ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 启停 Banner
-   * @description 用途：只改 status（on 启用 / off 停用）；非法值 400，不存在 4001。
-   */
-  updateStatus_4: {
-    parameters: {
-      path: {
-        /**
-         * @description Banner ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["BannerStatusReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * Banner 排序
-   * @description 用途：拖拽后**整体提交全量行**（`{ items: [{ id, order }] }`）；缺行 / 重复 id / 重复 order / 未知 id → 400「排序提交非法」。
-   */
-  sort: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SortItemsReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 云存储配图转存（UGC 配图主链路）
-   * @description 用途：评价/反馈配图。前端先 wx.cloud.uploadFile 上传得 fileID，再调本接口：
-   * 后端 batchdownloadfile 拉临时链接 → 下载 → 大小/格式兜底校验 → imgSecCheck 内容安全检测 →
-   * 转存 COS → 返回最终 COS URL（data.url）。
-   * 限制：图片 ≤1MB（imgSecCheck 硬限制），jpg/png/webp。
-   * 违规返回 400「图片包含违规内容，无法上传」；COS 未配置返回 400「图片存储未配置」。
-   */
-  uploadCloudImage: {
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "fileId": "cloud://bjtu-dev.6a6x-bjtu-dev-1300000000/ugc/tmp.jpg"
-         * }
-         */
-        "application/json": components["schemas"]["CloudImageUploadReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultUploadResultVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报评价
-   * @description 🔑 需登录。对指定评价提交举报（结论以结构化原因单选为准）。写入 report（option_id=举报原因、review_id=路径 id），并在同一事务内预建处置任务行。同 IP 每分钟 ≤2 条、每小时 ≤10 条；被举报评价不存在或不可见 → 4001。测试示例：POST /reviews/3/report {"optionId":1}
-   */
-  report: {
-    parameters: {
-      path: {
-        /**
-         * @description 被举报的评价ID
-         * @example 3
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ReportReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 提交反馈
-   * @description 🔑 需登录。写入 feedback（optionId=反馈类型字典项；处置状态与处置文案由管理端外置）。optionId 必填且须命中 GET /feedback-options 的启用项；content 必填（≤1000 字）。同 IP 每分钟 ≤2 条、每小时 ≤10 条。
-   */
-  submitFeedback: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["FeedbackReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 菜品评价列表（时间倒序，可按星级筛选）
-   * @description 用途：菜品详情页评价区。菜品归属由路径表达，分页与筛选经查询串传递。
-   * 排序唯一为发表时间倒序，不提供排序参数。
-   * 可选 rating 按星级筛选（1~5 白名单，非法值 400 不静默降级；不传 = 全部）。
-   * 🔴 筛选为服务端过滤且参与分页 ⇒ 端上切换筛选须重置 page=1。
-   * 只返回未隐藏（is_hidden=0）的评价。
-   * 测试示例：/dishes/1/reviews?page=1&pageSize=20 / ?rating=5
-   */
-  listReviews: {
-    parameters: {
-      query?: {
-        page?: number;
-        pageSize?: number;
-        /**
-         * @description 按星级筛选（1~5；不传 = 全部）
-         * @example 5
-         */
-        rating?: number;
-      };
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultPageResultReviewVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 提交评价
-   * @description 用途：用户对菜品评分和评论。菜品归属由路径锁定，请求体不含菜品 ID。**同一用户对同一菜品重复提交 = 覆盖旧评价**，提交后重算菜品评分。需已完成学号邮箱认证。成功返回评价 ID（data.id）。
-   */
-  submitReview: {
-    parameters: {
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "rating": 5,
-         *   "content": "味道不错，分量也足。"
-         * }
-         */
-        "application/json": components["schemas"]["ReviewReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultReviewCreatedVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 提交菜品问题反馈
-   * @description 需登录（无登录态 → 401）。dishId 在路径上。**type 必填**：field=信息有误（局部提交，只传改动项；空改动 → 400；images ≤3 张）｜ gone=已经下架（**一键提交即可成立**，note ≤200 字 / images ≤3 张 **均为选填**；传差异项字段 → 400；同用户对同一菜品只计一次）。floor 传入时非空 ≤16 字（空白 → 400「楼层不能为空」，超长 → 400「楼层超长」），归属档口（管理员据此在档口管理手动修改 stall.floor）。菜品不存在或已下架返回 4001。写入 correction，并在同一事务内预建处置任务行（status=pending）。同 IP 每分钟 ≤2 条、每小时 ≤10 条（两类共用额度）。
-   */
-  submitCorrection: {
-    parameters: {
-      path: {
-        /**
-         * @description 目标菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishCorrectionReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 微信静默登录
-   * @description 用途：小程序启动时调用 wx.login 获取 code，后端 code2Session 换 openid 自动登录。
-   * 新 openid 自动建号（游客态 verified=false）；已有 openid 直接返回原账号。返回 { token, userInfo }。
-   * 风控：同 IP 每分钟 ≤30 次、每小时 ≤300 次（防脚本刷微信外呼配额与批量建号）。
-   */
-  wechatLogin: {
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "code": "0a3b...（wx.login 临时凭证）"
-         * }
-         */
-        "application/json": components["schemas"]["WechatLoginReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultLoginVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 学号邮箱认证（绑定/合并/替换）
-   * @description 用途：游客完成学号邮箱认证（verified=true）。入参仅验证码，绑定邮箱由验证码记录推导，当前微信账号从登录态取。
-   * 认证通过后：无历史邮箱则直接绑定；存在历史邮箱账号则数据归属转移（旧账号业务数据改挂到当前微信）；
-   * 邮箱已被他微信绑定则替换绑定（旧微信 verified=false、email=NULL）。返回更新后 UserInfoVO（email 已写入；JWT 不含 email、实时查库，无需重发 token）。
-   * 风控：同 IP 每分钟 ≤5 次、每小时 ≤20 次；同一账号 15 分钟内失败满 10 次将被暂时拒绝校验
-   * （发码接口匿名 ⇒ 服务端无「谁申请了这条码」的归属信息，故以「让枚举不成立」防 6 位码被暴力猜中）。
-   */
-  verifyEmail: {
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "code": "123456"
-         * }
-         */
-        "application/json": components["schemas"]["VerifyEmailReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultUserInfoVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 获取邮箱验证码（认证用途）
-   * @description 用途：向 @bjtu.edu.cn 校园邮箱发送 6 位验证码，用于学号邮箱认证。
-   * 校园邮箱 = {学号}@bjtu.edu.cn，传 username（学号）即可自动推导邮箱，无需填 email。
-   * 规则：同一邮箱 60 秒内不能重复发送，验证码 10 分钟有效。验证码经邮件发送，不会在响应中返回。
-   * 同 IP 每分钟 ≤3 次、每小时 ≤10 次。
-   * 出参：data 为 null（无载荷，成功即 code=200）。
-   */
-  createEmailCode: {
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "username": "20240001"
-         * }
-         */
-        "application/json": components["schemas"]["EmailCodeReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 踢下线（吊销该用户全部 token）
-   * @description 用途：确认 token 被滥用 / 需要强制重新登录时的止损动作 —— 不改动账号任何列（状态、绑定邮箱、内容归属均保持不变），只让该 userId 已签发的**全部** token 立即失效。区别：禁用（PUT /{id}/status）会让用户连登录都进不去；踢下线只要求重新登录（小程序静默登录自动换发新 token）。目标不存在返回 4001「用户不存在」。
-   */
-  kickSessions: {
-    parameters: {
-      path: {
-        /**
-         * @description 用户ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody?: {
-      content: {
-        "*/*": never;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 上传图片（multipart）
-   * @description 用途：管理端上传素材（菜品图 / Banner 图），契约真源见 docs/api/web/upload.md「管理端素材上传」。
-   * 鉴权：请求头 Authorization: Bearer <管理端 JWT>（由 AdminAuthFilter 校验，未带 / 失效即 401）。
-   * 测试：Swagger UI 中选择 multipart/form-data，字段名必须为 file。
-   * 限制：单文件 ≤5MB；仅 jpg / jpeg / png / webp；含文件头 magic number 校验。
-   * 返回：data.url（可直接访问的图片地址，COS 链路为绝对 URL、本地降级链路为站内相对路径）
-   *       与 data.relativeUrl（本地降级链路才有；两者都可直接入库）。
-   * 小程序 UGC 配图请使用 POST /upload/cloud-image（云存储转存链路，学生 JWT）。
-   */
-  uploadImage: {
-    requestBody?: {
-      content: {
-        /** @example file: <binary> */
-        "multipart/form-data": {
-          /**
-           * Format: binary
-           * @description 图片文件，支持 jpg/jpeg/png/webp，单文件 ≤5MB
-           */
-          file: string;
-        };
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultUploadResultVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 后台档口列表
-   * @description 用途：浏览器管理端查看档口，可按 canteenId 筛选（不传=全部）。images 返回可访问的完整 URL 数组。
-   */
-  listStalls: {
-    parameters: {
-      query?: {
-        /**
-         * @description 食堂ID（可选，不传=全部）
-         * @example 1
-         */
-        canteenId?: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListStallAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增档口
-   * @description 用途：管理端新建档口（canteenId 必填且须存在；同食堂下名称唯一；floor 须命中楼层字典）。请求体为 StallSaveReq（canteenId / name / floor / windowNo / location / description / images）—— 时间列与派生统计不在写入面内。
-   */
-  createStall: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["StallSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultStallAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报原因列表
-   * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
-   */
-  list_2: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListOptionAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增举报原因
-   * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；原因 ID 由后端生成；启用数上限 8。
-   */
-  create: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["OptionSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultOptionAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 反馈类型列表
-   * @description 用途：管理端列表（按 id 升序，**含已停用**，不分页）；带 usageCount 供删除前判断。
-   */
-  list_4: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListOptionAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增反馈类型
-   * @description 用途：新增（默认**启用**）。只填中文名（1~32 字，唯一）；类型 ID 由后端生成；启用数上限 8。
-   */
-  create_1: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["OptionSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultOptionAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 后台菜品列表
-   * @description 用途：后台菜品管理页。管理员可查看全部菜品（含已下架，分页）。images 返回可访问的完整 URL 数组。支持 withoutStall=true 只看「未归入档口」的存量菜品（与 stallId 互斥，同时传 → 400）。
-   */
-  listMyDishes: {
-    parameters: {
-      query?: {
-        /** @description 按档口筛选 */
-        stallId?: number;
-        /** @description 按食堂筛选（经档口间接） */
-        canteenId?: number;
-        /** @description 按分类筛选（种类字典 dish_category 的 ID） */
-        categoryId?: number;
-        /** @description 按上架状态筛选：on / off；不传 = 全部（含已下架） */
-        status?: string;
-        /** @description 关键词（菜名 / 档口名 / 食堂名，与 client 搜索同口径） */
-        keyword?: string;
-        /** @description 只看未归入档口的菜品（stall_id 为空）；与 stallId 互斥 */
-        withoutStall?: boolean;
-        page?: number;
-        pageSize?: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminPageResultDishAdminListItemVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增菜品
-   * @description 用途：管理员指定 stallId 创建菜品。
-   */
-  addDish: {
-    requestBody: {
-      content: {
-        /**
-         * @example {
-         *   "stallId": 1,
-         *   "name": "测试菜品",
-         *   "price": 1200,
-         *   "categoryId": 3,
-         *   "description": "Swagger UI 测试新增菜品",
-         *   "images": [
-         *     "/images/seed/dishes/tomato-egg.jpg"
-         *   ],
-         *   "attributes": {
-         *     "1": 2,
-         *     "2": [
-         *       "蛋",
-         *       "米饭"
-         *     ],
-         *     "3": [
-         *       "酸",
-         *       "甜"
-         *     ],
-         *     "4": "热食"
-         *   },
-         *   "status": "on"
-         * }
-         */
-        "application/json": components["schemas"]["DishAdminReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 复制菜品
-   * @description 用途：以源菜品为模板新建一条（只改菜名，其余字段全部复制）。副本默认**下架**（半成品，确认内容后再上架）。源菜品不存在返回 4001。
-   */
-  copyDish: {
-    parameters: {
-      path: {
-        /**
-         * @description 源菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishCopyReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 视图列表
-   * @description 用途：视图管理页（按 id 升序，不分页）；带 matchedCount（当前匹配的在售菜品数）。
-   */
-  list_5: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishViewAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新建视图
-   * @description 用途：新建 tab（默认启用）。categoryId 缺省 = 不按种类过滤；种类不存在 → 400。
-   */
-  create_2: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishViewCreateReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishViewAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 维度列表
-   * @description 用途：维度管理页（按 id 升序，不分页）；带 dishCount（使用该维度的菜品数）与 valueCount（其下取值数）。
-   */
-  listDimensions: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishDimensionAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增维度
-   * @description 用途：新建维度。只填中文名与取值类型；维度 ID 由后端生成。
-   */
-  createDimension: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishDimensionSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishDimensionAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 取值列表
-   * @description 用途：某维度下的取值（按 id 升序）；带 dishCount（引用该取值的菜品数，删除前判断）。
-   */
-  listValues: {
-    parameters: {
-      path: {
-        /**
-         * @description 维度ID
-         * @example 1
-         */
-        dimensionId: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishValueAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增取值
-   * @description 用途：新增取值。同维度下**名称唯一**；维度不存在 → 4001。
-   */
-  createValue: {
-    parameters: {
-      path: {
-        /**
-         * @description 维度ID
-         * @example 1
-         */
-        dimensionId: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishValueSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishValueAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 分类列表
-   * @description 用途：分类（种类）维护入口（按 id 升序，不分页）；带 dishCount（引用该种类的菜品数）。
-   */
-  list_6: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishCategoryAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 登记分类
-   * @description 用途：登记新种类。种类的 ID 由后端生成；名 1~32 字、全表唯一。
-   */
-  create_3: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DishCategorySaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishCategoryAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 标记已处理（接受反馈）
-   * @description ADM。仅待处置（moderation_task.status=pending）可处理（否则 400「该反馈已处理」）。**只归档处置结论 + 投递站内回执，不改写任何菜品数据**：处置任务归档 handled / outcome='handled'（已受理，管理员已手动处理），标题缺省「已收到你的反馈」、正文缺省「感谢反馈，我们已核实处理」，并投递站内回执。菜品资料修改 / gone 型可逆下架由管理员在菜品管理（web/dishes）手动执行，不在本端点。
-   */
-  handle_2: {
-    parameters: {
-      path: {
-        /**
-         * @description 反馈ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["DishCorrectionHandleReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 后台食堂列表
-   * @description 用途：浏览器管理端查看全部食堂（筛选属性字典）。images 返回可访问的完整 URL 数组。
-   */
-  listCanteens: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultObject"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增食堂
-   * @description 用途：管理端新建食堂。名称应用层查重（重名 400）。请求体为 CanteenSaveReq —— 时间列与派生统计不在写入面内。
-   */
-  createCanteen: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CanteenSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultCanteenAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * Banner 列表
-   * @description 用途：管理端列表（按 order 升序，**含已停用**，不分页）。
-   */
-  list_8: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListBannerAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 新增 Banner
-   * @description 用途：新增轮播图（默认**启用**、排最后）。
-   */
-  create_4: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["BannerSaveReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultBannerAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 修改管理员口令
-   * @description 需带 token，并提供当前口令。强度要求：≥12 位且含大写 / 小写 / 数字 / 符号中至少三类。🔴 改密即刻自增凭证版本 ⇒ **既有 token 全部失效**；响应回一个新 token 供本端续用，其余端需重新登录。
-   */
-  changePassword: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PasswordChangeReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminLoginVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 管理员账密登录
-   * @description 公开端点。账号密码正确即签发管理端 JWT（默认 24h）；失败一律返回「账号或密码错误」，不区分原因（防用户名枚举）。双维度限频：同 IP 5/分 · 20/时；同账号按失败次数渐进锁定（5次/5分钟 → 10次/1小时 → 20次/24小时）。
-   */
-  login: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["AdminLoginReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminLoginVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报原因字典
-   * @description PUB。举报时的原因单选项（id 原因 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交举报时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/report-options
-   */
-  reportOptions: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListOptionVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 我的评价列表
-   * @description STU（需邮箱认证）。返回当前用户本人的评价（MyReviewVO：本人视角 7 字段 = 公开 5（不含 userId/userName/userAvatar）+ dishId/dishName，与公开视角分型），按发表时间倒序。可选 dishId 按菜品过滤（详情页判定「我是否已评价」）。测试示例：/my/reviews?page=1&pageSize=20&dishId=1
-   */
-  listMyReviews: {
-    parameters: {
-      query?: {
-        page?: number;
-        pageSize?: number;
-        /**
-         * @description 菜品ID（可选，仅返回当前用户对该菜品的评价）
-         * @example 1
-         */
-        dishId?: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultPageResultMyReviewVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 我的消息列表
-   * @description STU（需登录；游客态亦可）。倒序，支持 isRead 过滤。
-   */
-  list: {
-    parameters: {
-      query?: {
-        /** @description 已读过滤：true=仅已读 / false=仅未读（可空=全部） */
-        isRead?: boolean;
-        page?: number;
-        pageSize?: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultPageResultNotificationVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 未读总数
-   * @description STU（需登录；游客态亦可）。驱动宫格红点。
-   */
-  unreadCount: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultUnreadCountVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 反馈类型字典
-   * @description PUB。意见反馈页的「反馈类型」单选项（id 选项 ID + name 中文名），仅含启用项；服务端按 id 升序下发，端上按数组顺序渲染；提交反馈时选中的 id 作为 optionId 上送。端上零硬编码。测试示例：/feedback-options
-   */
-  feedbackOptions: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListOptionVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 菜品分页查询
-   * @description 用途：首页网格、搜索页。
-   * 测试示例：/dishes?page=1&pageSize=10&keyword=牛肉
-   * 参数集恰为 5 项：page、pageSize、keyword、view、seed（取数口径由所选 view 的归属种类决定：种类过滤（可空）+ CRC32(seed:ID) 会话伪随机序 + 在售；无排序入口）。
-   * 出参为列表专用 DishListItemVO（8 字段；详情专属字段不发）。
-   */
-  listDishes: {
-    parameters: {
-      query: {
-        req: components["schemas"]["DishQueryReq"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultPageResultDishListItemVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 菜品详情
-   * @description 用途：菜品详情页。未登录可访问；登录态与游客态返回结构一致。
-   * **副作用（浏览计数，PV 口径）**：每次成功响应（code=200）写入一行浏览明细（dish_view_log，精确到秒，不去重）；
-   * 4001（菜品不存在）与请求失败不计数。浏览量不参与任何排序，仅供管理端「近 30 天浏览」统计。
-   * 滥用防护：同 IP 每分钟 ≤30 次、每小时 ≤300 次（正常浏览远低于此，用户无感）。
-   * 测试示例：/dishes/1
-   */
-  getDishDetail: {
-    parameters: {
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDishDetailVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 菜品描述属性编辑态选项（按菜现有维度）
-   * @description 用途：菜品问题反馈 / 编辑界面的属性表单（进编辑时才取，按需）。
-   * 只返回**该菜现有维度**的候选值：每项含 dimensionId（维度 ID，与 GET /dishes/{id} 的
-   * attributes[].dimensionId 对齐）/ valueType（single|multi）/
-   * options（该维度全部候选值，按 order 升序）。
-   * **options 为空数组 = 暂无参考候选**（仍可自由输入）。
-   * 维度名与当前值在 GET /dishes/{id} 里已有，本端点不重复下发。公开接口。
-   * 测试示例：/dishes/1/attributes
-   */
-  listDishAttributes: {
-    parameters: {
-      path: {
-        /**
-         * @description 菜品ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishAttributeEditVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 首页筛选视图字典
-   * @description 用途：首页横向筛选栏数据源。
-   * 下发可见视图（含「为你推荐」等聚合视角）；文案与顺序由后端视图表唯一定义，
-   * 端上不得维护任何标签中文映射（端上只认 id + name，回传 view=<id>）。
-   * 空视图自动隐藏（当前无在售菜品匹配即不下发）。
-   * 公开接口。测试示例：/dishes/views
-   */
-  listDishViews: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListDishViewVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 猜你喜欢
-   * @description 用途：搜索页「猜你喜欢」区块。抽取在售菜品名（不看热度、不排序、不做个性化推荐算法），出参仅 name。公开接口。刷新边界 = 重进小程序（2026-09-29 收窄）：端上传会话级 seed ⇒ 服务端按 CRC32(seed:ID) 稳定伪随机序取数，同一次会话内多次进入拿到同一批词条（内容不会自变），重进小程序才整体重洗（新鲜度）；未传 seed ⇒ 服务端补一次性随机值（同一套稳定伪随机序，每次调用结果不同）。
-   */
-  guessLike: {
-    parameters: {
-      query?: {
-        /**
-         * @description 会话随机种子（可选）：端上冷启动生成、会话内恒定，重进小程序才换。未传 ⇒ 服务端补一次性随机值（仍为随机序，每次调用不同）
-         * @example m3k9x7q2
-         */
-        seed?: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListGuessLikeVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 首页顶部轮播图
-   * @description 用途：首页顶部 Banner 轮播（素材统一 16:10，端上 aspectFill 铺满）。
-   * 只返回启用中（status='on'）的 Banner，按 sort_order 升序；无分页（运营位数量级极小）。
-   * 出参仅 id + imageUrl（imageUrl 为可直接渲染的绝对 URL）；无请求参数、v1 无跳转字段。
-   * 测试示例：/banners
-   */
-  listBanners: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultListBannerVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 用户列表
-   * @description 用途：后台分页查看用户。支持按 status 筛选，以及 keyword（**昵称 / 账号 / 绑定邮箱**模糊匹配，便于按人定位）。测试示例：/admin/users?page=1&pageSize=20&status=active&keyword=干饭
-   */
-  listUsers: {
-    parameters: {
-      query?: {
-        page?: number;
-        pageSize?: number;
-        /** @description 状态：active/disabled/deleted；不传 = 全部 */
-        status?: string;
-        /** @description 关键词：昵称 / 账号 / 绑定邮箱模糊匹配 */
-        keyword?: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminPageResultUserVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 全部评价列表
-   * @description 用途：后台查看所有评价，排序 `createdAt DESC`。支持按 hidden（布尔：true=仅已隐藏 / false=仅显示中；不传=全部）/ dishId / userId / keyword 筛选。测试示例：/admin/reviews?page=1&pageSize=20&hidden=false&dishId=3
-   */
-  listAll: {
-    parameters: {
-      query?: {
-        page?: number;
-        pageSize?: number;
-        /** @description 是否隐藏：true=仅已隐藏 / false=仅显示中；不传 = 全部 */
-        hidden?: boolean;
-        /** @description 按菜品筛选（可选） */
-        dishId?: number;
-        /** @description 提交用户ID（可选，用户行为聚合用） */
-        userId?: number;
-        /** @description 评价正文关键词（可选，模糊匹配） */
-        keyword?: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminPageResultReviewAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 举报列表
-   * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按举报人筛选；排序固定 `createdAt DESC`。出参补齐举报人昵称、举报原因中文名（含已停用）、被举报评价摘要与当前隐藏态（决定「同时隐藏」复选是否置灰）。**被举报评价已删除时下发 reviewDeleted=true**（摘要与可见性置空，举报行本身保留）。测试示例：/admin/reports?page=1&pageSize=20&status=pending
-   */
-  list_1: {
-    parameters: {
-      query?: {
-        /** @description 处置状态：pending=待处置 / handled=已处置；不传 = 全部；非法值 400 */
-        status?: string;
-        /** @description 举报人用户ID（可选） */
-        userId?: number;
-        page?: number;
-        pageSize?: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminPageResultReportAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 反馈列表
-   * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）、按反馈类型（optionId）/提交人筛选，关键词匹配反馈正文**或**处置文案；排序固定 `createdAt DESC`。出参补齐提交人昵称、类型中文名（含已停用）与处置结果（含处理人）。测试示例：/admin/feedbacks?page=1&pageSize=20&status=pending
-   */
-  list_3: {
-    parameters: {
-      query?: {
-        /** @description 处置状态：pending=待处置 / handled=已处置；不传 = 全部；非法值 400 */
-        status?: string;
-        /** @description 反馈类型ID（feedback_option 字典项；不传 = 全部） */
-        optionId?: number;
-        /** @description 提交用户ID（可选，用户行为聚合用） */
-        userId?: number;
-        /** @description 关键词（可选，匹配反馈正文或处置文案） */
-        keyword?: string;
-        page?: number;
-        pageSize?: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminPageResultFeedbackAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 运营看板
-   * @description 用途：登录后首屏（**只读、无参数、不分页**，一次返回全量）。待办区含跨三类合并的最近 5 条待办（可点击直达处置页）；健康度只收管理员当场能修的项；概况只给规模。
-   */
-  dashboard: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultDashboardVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 问题反馈列表
-   * @description ADM。分页，按处置状态筛选（pending/handled；不传 = 全部）与按 type 筛选（field/gone；不传 = 全部，管理端据此分Tab）。VO 实时回查 dish 补齐 dishName（含已下架；菜品已物理删除为 null）与提交人昵称，并按处置任务表回填状态 / 结论 / 处置文案 / 处置人。**type=gone 的行含 note（选填补充）与 goneUserCount（N 人反馈，仅参考、非下架阈值）。**
-   */
-  list_7: {
-    parameters: {
-      query?: {
-        /** @description 处置状态：pending/handled；不传 = 全部 */
-        status?: string;
-        /** @description 问题类型：field=信息有误 / gone=已经下架；不传 = 全部 */
-        type?: string;
-        /**
-         * @description 按目标菜品筛选（从菜品视角看反馈）
-         * @example 12
-         */
-        dishId?: number;
-        page?: number;
-        pageSize?: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminPageResultCorrectionAdminVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 读取当前登录的管理员
-   * @description 需带 Authorization: Bearer <token>。用于端上刷新页面时校验 token 是否仍有效，并据 role 隐显入口、据 passwordAging 给出安全提示。
-   */
-  me: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultAdminMeVO"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除自己的评价
-   * @description 用途：删除当前用户自己的评价，删除后重算菜品评分。需已完成学号邮箱认证。
-   */
-  deleteReview: {
-    parameters: {
-      path: {
-        /**
-         * @description 评价ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 注销账号（匿名化）
-   * @description 用途：用户主动注销当前登录账号（合规硬需求）。语义为匿名化而非物理删除：
-   * 昵称置为「已注销用户」，头像/邮箱/微信绑定全部清空，认证状态复位，
-   * username 改写为 deleted_{id} 以释放唯一键（同一微信可重新静默登录建新游客号）；
-   * 历史评价与反馈保留（展示昵称随 join user 自然变为「已注销用户」，评分聚合不破坏），
-   * 浏览足迹与系统通知随注销删除，该用户验证码记录删除。
-   * 注销后当前 token 立即失效（其余设备的历史 token 在单实例未重启期间一并失效）。
-   * **不可恢复**：同一微信重新登录创建全新账号，旧账号数据不归属新账号。
-   * 终态保护：已注销账号重复调用返回 400「账号已注销」。
-   */
-  deleteAccount: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 删除账号（注销）
-   * @description 用途：管理端代用户注销 —— 与本人 DELETE /auth/account 完全同口径：匿名化（昵称→已注销用户、username→deleted_{id}、avatar/email/openid/bind_email→NULL、status→deleted），非物理删除（user 行保留，历史评价/反馈归属不丢）；删除绑定邮箱验证码与全部站内通知；该 userId 全部已签发 token 拉黑。终态保护：已注销→400「账号已注销」，已禁用→400「账号已被禁用，无法注销」。
-   */
-  deleteAccount_1: {
-    parameters: {
-      path: {
-        /**
-         * @description 用户ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody?: {
-      content: {
-        "*/*": never;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 解绑认证邮箱
-   * @description 用途：置空 email（认证态唯一判据），账号立即回落游客态（UGC 写实时被拒 4031）。不改 status、不改 wxId（账号标识），登录与已发表内容不受影响；不代绑新邮箱。目标不存在返回 4001「用户不存在」；未绑定邮箱返回 400「该用户未绑定邮箱」。
-   */
-  unbindEmail: {
-    parameters: {
-      path: {
-        /**
-         * @description 用户ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    requestBody?: {
-      content: {
-        "*/*": never;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-    };
-  };
-  /**
-   * 管理员删除评价
-   * @description 用途：管理员删除评价。当前实现为物理删除，并触发菜品评分重算。
-   */
-  deleteReview_1: {
-    parameters: {
-      path: {
-        /**
-         * @description 评价ID
-         * @example 1
-         */
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Bad Request */
-      400: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Unauthorized */
-      401: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Forbidden */
-      403: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
-      /** @description Internal Server Error */
-      500: {
-        content: {
-          "*/*": components["schemas"]["ResultVoid"];
-        };
-      };
+    wechat_login_auth_wechat_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WechatLoginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TokenOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_canteens_canteens_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_CanteenOut__"];
+                };
+            };
+        };
+    };
+    list_dishes_dishes_get: {
+        parameters: {
+            query?: {
+                canteen_id?: number | null;
+                page?: number | null;
+                pageSize?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PageResult_DishCardOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_posters_posters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_PosterOut__"];
+                };
+            };
+        };
+    };
+    list_records_my_records_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_RecordOut__"];
+                };
+            };
+        };
+    };
+    create_record_my_records_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WantIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RecordOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_record_my_records__record_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    react_record_my_records__record_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RecordOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_options_dish_issue_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_IssueOptionOut__"];
+                };
+            };
+        };
+    };
+    submit_issue_dishes__dish_id__issues_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dish_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_admin_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLoginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminSessionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_canteens_admin_canteens_get: {
+        parameters: {
+            query?: {
+                page?: number | null;
+                pageSize?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPageResult_CanteenOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_canteen_admin_canteens_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CanteenSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CanteenOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_canteen_admin_canteens__canteen_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                canteen_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CanteenSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CanteenOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_canteen_admin_canteens__canteen_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                canteen_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_dishes_admin_dishes_get: {
+        parameters: {
+            query?: {
+                stall_id?: number | null;
+                canteen_id?: number | null;
+                status?: string | null;
+                page?: number | null;
+                pageSize?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPageResult_DishOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_dish_admin_dishes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DishSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DishOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_dish_admin_dishes__dish_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dish_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DishSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DishOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_dish_admin_dishes__dish_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dish_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_image_admin_images_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_image_admin_images_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ImageOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_issues_admin_dish_issues_get: {
+        parameters: {
+            query?: {
+                handled?: boolean | null;
+                dish_id?: number | null;
+                page?: number | null;
+                pageSize?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPageResult_DishIssueOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    handle_issue_admin_dish_issues__issue_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                issue_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DishIssueOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_options_admin_dish_issue_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_OptionOut__"];
+                };
+            };
+        };
+    };
+    create_option_admin_dish_issue_options_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OptionSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OptionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_option_admin_dish_issue_options__option_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                option_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OptionSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OptionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_option_admin_dish_issue_options__option_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                option_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_records_admin_dish_records_get: {
+        parameters: {
+            query?: {
+                dish_id?: number | null;
+                reaction?: string | null;
+                page?: number | null;
+                pageSize?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPageResult_DishRecordOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_stalls_admin_stalls_get: {
+        parameters: {
+            query?: {
+                canteen_id?: number | null;
+                page?: number | null;
+                pageSize?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPageResult_StallOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_stall_admin_stalls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StallSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StallOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_stall_admin_stalls__stall_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stall_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StallSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StallOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_stall_admin_stalls__stall_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                stall_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_NoneType_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    healthz_healthz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
     };
-  };
 }

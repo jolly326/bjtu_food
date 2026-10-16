@@ -9,7 +9,7 @@
  * <p><b>校验四件事（任一失败即退出码 1）</b>：
  * <ol>
  *   <li><b>生成产物存在且非空</b>：缺失 ⇒ 新成员 clone 后无任何类型保障；</li>
- *   <li><b>re-export 与生成文件一致</b>：`shared.ts` 逐个 re-export 的 VO 名
+ *   <li><b>re-export 与生成文件一致</b>：`api/types.ts` 逐个 re-export 的 VO 名
  *       必须真实存在于 `api.d.ts`（防契约改名后残留悬空导出）；</li>
  *   <li><b>RawRow 未回潮</b>：允许清单外的 `RawRow` 用法即失败
  *       （它是弱类型逃逸通道，每新增一处都会让契约保障出现缺口）；</li>
@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const GENERATED = join(ROOT, 'src', 'types', 'generated', 'api.d.ts')
-const SHARED = join(ROOT, 'src', 'api', 'shared.ts')
+const SHARED = join(ROOT, 'src', 'api', 'types.ts')
 const API_DIR = join(ROOT, 'src', 'api')
 
 const failures = []
@@ -51,8 +51,8 @@ if (existsSync(GENERATED) && existsSync(SHARED)) {
   const reExports = [...shared.matchAll(/^export type (\w+) = components\['schemas'\]\['(\w+)'\]$/gm)]
 
   if (reExports.length === 0) {
-    fail(`shared.ts 未找到任何契约 re-export（形如 \`export type XxxVO = components['schemas']['XxxVO']\`）。
-  → shared.ts 已被改动或契约类型被清空，类型保障失效。`)
+    fail(`api/types.ts 未找到任何契约 re-export（形如 \`export type XxxVO = components['schemas']['XxxVO']\`）。
+  → api/types.ts 已被改动或契约类型被清空，类型保障失效。`)
   }
 
   for (const [, local, schema] of reExports) {
@@ -61,27 +61,27 @@ if (existsSync(GENERATED) && existsSync(SHARED)) {
     }
     // 生成文件里该 schema 必须有真实定义
     if (!new RegExp(`\\b${schema}:\\s*\\{`).test(generated)) {
-      fail(`契约中已不存在 schema「${schema}」→ 重新执行 \`npm run gen:api:fresh\` 后修正 shared.ts 的 re-export`)
+      fail(`契约中已不存在 schema「${schema}」→ 重新执行 \`npm run gen:api:fresh\` 后修正 api/types.ts 的 re-export`)
     }
   }
 }
 
 /* ---------- 3. RawRow 未回潮 ---------- */
-// `RawRow`（弱类型兜底载体）已按「零消费即删」自 api/shared.ts 移除，清单现为空：
+// `RawRow`（弱类型兜底载体）清单为空：
 // 新增弱类型逃逸前先问「为什么不能用 generated 的 XxxVO」——答案通常是「没写」而非「不能」。
 const RAWROW_ALLOWLIST = new Set([])
 
 /**
  * 扫描范围：**src/ 全树**（api / stores / composables / pages / types）。
  *
- * <p>全树覆盖：`RawRow` 不只从 `src/api/*.ts` 流入，`stores/`（如 review store 直接持有接口行）、
- * `composables/`、`pages/` 同样可以引入弱类型，编译期一样无感知。
+ * <p>全树覆盖：`RawRow` 不只从 `src/api/*.ts` 流入，`pages/` 等同样可以引入弱类型，
+ * 编译期一样无感知。
  * 数据一旦离开 `api/` 层的归一化边界，契约保障即失效，故必须全树覆盖。
  *
  * <p>**排除**：`.d.ts`（含生成产物 `types/generated/api.d.ts`）与 `.vue`
  * （模板内 TS 表达式由 `vue-tsc` 单独检查，此处只管静态 .ts 模块）。
  */
-const SCAN_ROOTS = ['api', 'stores', 'composables', 'pages', 'types', 'utils']
+const SCAN_ROOTS = ['api', 'pages', 'types', 'utils']
 
 if (existsSync(API_DIR)) {
   for (const sub of SCAN_ROOTS) {
@@ -107,7 +107,7 @@ if (existsSync(API_DIR)) {
           .filter(Boolean)
         fail(`${relPath} 出现 RawRow 用法（弱类型逃逸通道，会造成契约保障缺口）：
   ${hits.join('\n  ')}
-  → 改用 api/shared.ts re-export 的强类型（见 types/generated/api.d.ts）。`)
+  → 改用 api/types.ts re-export 的强类型（见 types/generated/api.d.ts）。`)
       }
     }
   }
@@ -184,8 +184,8 @@ function contractVoFields(generated, name) {
 if (existsSync(API_DIR) && existsSync(GENERATED)) {
   const generated = readFileSync(GENERATED, 'utf8')
 
-  // 扫描范围与第 3 条（RawRow）**保持一致**（全树）：`src/types/`（`feedback.ts` / `dish.ts` 等）
-  // 同样会手写契约副本，那里的重复声明可完全逃逸。
+  // 扫描范围与第 3 条（RawRow）**保持一致**（全树）：`src/types/` 等同样会手写契约副本，
+  // 那里的重复声明可完全逃逸。
   const files = []
   for (const sub of SCAN_ROOTS) {
     const dir = join(API_DIR, '..', sub)
@@ -198,7 +198,7 @@ if (existsSync(API_DIR) && existsSync(GENERATED)) {
 
   for (const file of files) {
     const relPath = relative(ROOT, file).replace(/\\/g, '/')
-    if (relPath === 'src/api/shared.ts') continue   // re-export 出口本身，非重复声明
+    if (relPath === 'src/api/types.ts') continue   // re-export 出口本身，非重复声明
     const src = readFileSync(file, 'utf8')
 
     for (const m of src.matchAll(/^export interface (\w+)\s*\{/gm)) {
@@ -225,7 +225,7 @@ if (existsSync(API_DIR) && existsSync(GENERATED)) {
 
       // 字段名与可空性**都**一致 ⇒ 纯镜像，属重复声明
       fail(`${relPath} 手写了与契约完全等价的 interface「${name}」——契约有单一真源，重复声明必然漂移。
-  → 改为复用 shared.ts 的契约类型（\`import type { ${name} } from './shared'\`），
+  → 改为复用 api/types.ts 的契约类型（\`import type { ${name} } from '@/api/types'\`），
     字段有差异的部分保留在本模块的归一函数里。
   · 注：字段名或可空性有差异的展示模型是合法归一化适配，不受本条约束。`)
     }

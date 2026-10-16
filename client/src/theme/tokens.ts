@@ -1,35 +1,29 @@
-// 主题->颜色 token 映射（唯一事实源）。
-// WXSS 不接受 var() 的原生 API 常量兜底色登记于此；其余一律走 CSS 变量 var(--xxx)。
+/**
+ * 颜色取值真源（唯一）。
+ *
+ * 真源口径：色值只改这里；改完必须同步 `generated-colors.css` 的**同键变量声明**
+ * （变量名以 `generated-colors.css` 为准，逐键一致）。
+ * 已定稿：`--bg-page = #FFFDFE`（全站统一页面底色）；主色 `#B4531A`。
+ * 消费清单见 docs/ui/client/设计变量.md；零消费的键不登记。
+ */
 
-// ===== 全站色板「暖橙黄」（真源 = docs/ui/client/首页菜品浏览.md §10.2 色板与取色边界）=====
-// 主色按语义分档（填充 / 文字 / 图形 / 浅底 / 点击态），token 名见下方色板键
-// （`--color-primary-fill` / `--color-primary-text` / `--text-title` / `--text-body` / `--bg-soft-yellow` …），
-// 页面文档可直接引用。
 export const COLOR_MAP = {
-  /* ===== 主色（暖橙黄）=====
-     填充 / 文字档 #B4531A（「白字安全橙」）：白字 on 它 5.01:1 ✅；作 #FFF8EF 上的文字 4.75:1 ✅。
-     ⚠️ 取色边界：`--color-primary-orange` #E67E22 白字仅 2.85:1、作文字亦 2.85:1，
-        **不得**作填充底或正文色；`--color-orange-deep` #D35400 白字 3.88:1，仅可作点击态 / 图形。 */
+  /* ===== 主色（暖橙黄）===== */
   primary: '#B4531A',
   'primary-fill': '#B4531A',
-  /* 主色「文字档」= 填充档同值（浅底上的主色文字与价格；两档同色、语义不同） */
   'primary-text': '#B4531A',
-  /* 主色「图形档亮橙」：仅用于纯图形（标签下划线、TabBar 激活图标等），不作文字 / 填充底 */
   'primary-bright': '#B4531A',
-  'primary-amber': '#B4531A',
-  /* 主色「橙档」：关键图标 / 重点操作（**不得**作填充底白字 / 正文色，见上取色边界） */
   'primary-orange': '#E67E22',
-  /* 轻量高亮 / 推荐角标 / 装饰（**只作浅底**） */
   'primary-yellow': '#FFD166',
-  /* 主色压暗：按钮点击态、图形级强调 */
   'orange-deep': '#D35400',
-  /* 标题深棕（暖橙黄主题下替代纯黑的点缀色） */
   'brown-deep': '#7B4F2A',
   'on-primary': '#FFFFFF',
-  /* 主色浅底（标签 / chip 底）；与 `--bg-soft-yellow` 同值、同源 */
   'primary-soft': '#FFF3D6',
+
+  /* ===== 强调 ===== */
   accent: '#B4531A',
   'accent-soft': '#FAE0CE',
+
   /* ===== 功能色 ===== */
   error: '#C62828',
   'error-soft': '#FFECEB',
@@ -37,177 +31,35 @@ export const COLOR_MAP = {
   'warning-soft': '#FFF8E1',
   success: '#2E7D32',
   info: '#1565C0',
-  /* 价格色 = 主色「文字档」同值（不另立第三主色；浅底可读性由文字档保证） */
+
+  /* ===== 价格 ===== */
   price: '#B4531A',
-  /* 评分星级（独立语义色，**SHALL NOT 随主色换肤**；与 Web 管理端既有 --color-star 对齐）。
-     未选 / 空星见 --color-star-empty。 */
-  star: '#FBBF24',
-  'star-empty': '#E5E5EA',
-  'text-white': '#FFFFFF',
-  'text-white-edge': 'rgba(255,255,255,0.24)',
-  /* 详情页返回钮黑箭头（微信原生胶囊同款配色；WXSS 可直接消费 var(--nav-back-icon)） */
-  'nav-back-icon': '#1A1A1A',
-  /* ===== 文字四档（全部 ≥4.5:1，达标）=====
-     title 15.1:1 / body 10.9:1 / subtitle 4.86:1；placeholder 2.39:1 仅作「输入框占位」（从宽）。
-     ⚠️ 旧三阶（#262626 / #595959 / #999999）中 `--text-tertiary` #999999 对白仅 **2.85:1**，
-        **不达** WCAG AA 4.5:1 —— 本次替换同时修掉该可访问性缺陷。 */
-  'text-primary': '#2D1F14',
-  'text-title': '#2D1F14',
-  'text-body': '#44382E',
-  'text-secondary': '#44382E',
-  'text-subtitle': '#7F6A55',
+
+  /* ===== 文字四档 ===== */
+  'text-title': '#7B4F2A',
+  'text-body': '#7F6A55',
   'text-tertiary': '#7F6A55',
   'text-placeholder': '#B5A594',
-  /* ===== 背景 ===== */
-  'bg-page': '#FFF8EF',
-  /* ⚠️ 无独立页面顶部渐变键——装饰色按需取下方 `--bg-soft-*` 档。 */
-  'bg-soft-orange': '#FFE8D1',
-  'bg-soft-yellow': '#FFF3D6',
-  /* 页面底统一走 `.page { background: var(--bg-page) }` + 全站壁纸层，不另设页面私有底色。 */
+  'text-white': '#FFFFFF',
+
+  /* ===== 背景 / 边框 ===== */
+  'bg-page': '#FFFDFE',
+  'module-bg': '#FFFFFF',
   'bg-card': '#FFFFFF',
-  /* ===== 极简无卡片 · 模块表面（`.module-wrap`）=====
-     全站「不用大白卡框住全部内容」的模块形态：暖奶米半透底 + 极淡暖棕阴影。
-     α 是唯一旋钮（0.65）；若部分机型发糊，`--module-bg-strong`（0.75）为兜底档（更实、依旧不是死白）。 */
-  'module-bg': 'rgba(255, 250, 243, 0.65)',
-  'module-bg-strong': 'rgba(255, 250, 243, 0.75)',
-  /* 模块内输入项底：比模块底更浅一档，用于区分层级 */
-  'module-input-bg': 'rgba(255, 255, 255, 0.5)',
-  'module-shadow': '0 2rpx 8rpx rgba(180, 155, 125, 0.08)',
-  /* 模态浮层（弹窗）底色：暖米半透，**与页面模块区分**（弹窗保留卡片形态） */
-  'overlay-panel-bg': 'rgba(248, 244, 238, 0.92)',
   'bg-input': '#F7F5F2',
   'bg-soft': '#EDE9E5',
   'bg-placeholder': '#F2EBE1',
   'border-color': '#E8E3DE',
   'border-bold': '#CBC5BE',
-  'overlay-dark-strong': 'rgba(0,0,0,0.6)',
-  'overlay-dark-soft': 'rgba(0,0,0,0.15)',
-  'overlay-scrim': 'rgba(0,0,0,0.4)',
-  'shadow-card': '0 2px 12px rgba(0,0,0,0.04)',
-  /* 暖调柔和投影：**仅用于「选中 / 强调」态**（段控件选中项、未读通知卡）；
-     普通卡片一律 `shadow-card` */
-  'shadow-warm': '0 4rpx 12rpx rgba(180, 140, 120, 0.08)',
-  'shadow-modal': '0 18rpx 54rpx rgba(0,0,0,0.18)',
-  /* 详情页返回钮胶囊（微信右上角原生胶囊同款：中性浅灰透底 + 细边；原散落 App.vue，UI-03 收口） */
-  'bg-nav-back-chip': 'rgba(0, 0, 0, 0.08)',
-  'border-nav-back-chip': 'rgba(0, 0, 0, 0.1)',
-  /* 底栏/浮层阴影族（原散落 App.vue，UI-03 收口入唯一真源） */
-  'shadow-bar': '0 -4rpx 20rpx rgba(56, 42, 34, 0.08)',
-  'shadow-bar-soft': '0 -4rpx 12rpx rgba(0, 0, 0, 0.06)',
-  /* 主色通道随新主色 #B4531A（RGB 180, 83, 26）同步 */
-  'shadow-bar-primary': '0 12rpx 28rpx rgba(180, 83, 26, 0.28)',
+
+  /* ===== 阴影 / 遮罩 ===== */
+  'module-shadow': '0 2rpx 8rpx rgba(180, 155, 125, 0.08)',
+  'shadow-card': '0 2px 12px rgba(0, 0, 0, 0.04)',
+  'shadow-modal': '0 18rpx 54rpx rgba(0, 0, 0, 0.18)',
+  'shadow-bar': '0 6rpx 24rpx rgba(56, 42, 34, 0.12)',
   'shadow-float': '0 6rpx 16rpx rgba(0, 0, 0, 0.12)',
-  /* 长条删除按钮（图片移除）暗底（原散落 App.vue，UI-03 收口） */
-  'badge-dark-bg': 'rgba(0, 0, 0, 0.5)',
-  /* 全站页底「纱」（wash）：铺在壁纸之上的**整张**暖白遮罩（纯色、无分段），由
-     {@code components/PageWallpaper.vue} 以 `background-color` 消费（全站仅页面级一处壁纸层）。
-     `α` 是唯一旋钮：调大 = 背景更弱、文字更稳；调小 = 壁纸更清楚（当前 0.7）。
-     色值 = `--bg-page` #FFF8EF（CSS 无法给 hex token 加 alpha，故写 rgba 字面量）。 */
-  'page-wash': 'rgba(255, 248, 239, 0.7)',
+  'overlay-scrim': 'rgba(0, 0, 0, 0.4)',
+  'overlay-panel-bg': '#FFFFFF',
 } as const
 
-/**
- * CSS 变量注册表（UI-03 色值唯一真源）。
- *
- * 键 = 全局 CSS 变量名，值**一律引用上方 COLOR_MAP 同语义键**（同键同值，不重复写字面量），
- * 由 `scripts/gen-css-vars.ts` 遍历生成 `src/theme/generated-colors.css` 的 `page{…}` 颜色块，
- * App.vue 仅 `@import` 该生成物，禁止手工维护颜色变量。
- *
- * ⚠️ 生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不再存在，
- * `generated-colors.css` 须**手工维护**（内容与本表逐键一致）；类型检查直接执行
- * `npx vue-tsc --noEmit`。
- *
- * 收录口径：仅收录「以 CSS 变量形态被 WXSS 消费」的色值 token；
- * 仅原生 API 兜底直取实色的键（如 success 历史键）不在页面级声明，不收录。
- * 派生引用（--text-hint 等值为 var() 组合、不含裸色值）不属色值真源范畴，仍手写在 App.vue 派生区。
- *
- * ⚠️ 本常量供外部 codegen 脚本（scripts/gen-css-vars.ts）生成 CSS 使用，全仓零运行时引用，
- * 属构建资产真源，**勿当死代码删除**。
- */
-export const CSS_VARS: Record<string, string> = {
-  /* 品牌主色（填充档 / 文字档 / 图形档 / 橙档 / 浅底档） */
-  '--color-primary': COLOR_MAP.primary,
-  '--color-primary-fill': COLOR_MAP['primary-fill'],
-  '--color-primary-text': COLOR_MAP['primary-text'],
-  '--color-primary-bright': COLOR_MAP['primary-bright'],
-  '--color-primary-amber': COLOR_MAP['primary-amber'],
-  '--color-primary-orange': COLOR_MAP['primary-orange'],
-  '--color-primary-yellow': COLOR_MAP['primary-yellow'],
-  '--color-orange-deep': COLOR_MAP['orange-deep'],
-  '--color-brown-deep': COLOR_MAP['brown-deep'],
-  '--color-on-primary': COLOR_MAP['on-primary'],
-  '--color-primary-soft': COLOR_MAP['primary-soft'],
-  /* 强调色（热卖/热搜/新品） */
-  '--color-accent': COLOR_MAP.accent,
-  '--color-accent-soft': COLOR_MAP['accent-soft'],
-  /* 语义色（error/warning/success/info/price/star 深浅对称）。
-     不含 `--color-like`（「评价有用」能力不提供，PR-05） */
-  '--color-error': COLOR_MAP.error,
-  '--color-error-soft': COLOR_MAP['error-soft'],
-  '--color-warning': COLOR_MAP.warning,
-  '--color-warning-soft': COLOR_MAP['warning-soft'],
-  '--color-success': COLOR_MAP.success,
-  '--color-info': COLOR_MAP.info,
-  '--color-price': COLOR_MAP.price,
-  /* 评分星级（黄色实心星；未选/空星见 --color-star-empty） */
-  '--color-star': COLOR_MAP.star,
-  '--color-star-empty': COLOR_MAP['star-empty'],
-  /* 文字四档（--text-hint 派生引用见 App.vue） */
-  '--text-white': COLOR_MAP['text-white'],
-  '--text-primary': COLOR_MAP['text-primary'],
-  '--text-title': COLOR_MAP['text-title'],
-  '--text-body': COLOR_MAP['text-body'],
-  '--text-secondary': COLOR_MAP['text-secondary'],
-  '--text-subtitle': COLOR_MAP['text-subtitle'],
-  '--text-tertiary': COLOR_MAP['text-tertiary'],
-  '--text-placeholder': COLOR_MAP['text-placeholder'],
-  /* 背景 / 边框 */
-  '--bg-page': COLOR_MAP['bg-page'],
-  '--bg-soft-orange': COLOR_MAP['bg-soft-orange'],
-  '--bg-soft-yellow': COLOR_MAP['bg-soft-yellow'],
-  '--bg-card': COLOR_MAP['bg-card'],
-  /* 极简无卡片 · 模块表面（`.module-wrap`） */
-  '--module-bg': COLOR_MAP['module-bg'],
-  '--module-bg-strong': COLOR_MAP['module-bg-strong'],
-  '--module-input-bg': COLOR_MAP['module-input-bg'],
-  '--module-shadow': COLOR_MAP['module-shadow'],
-  /* 模态浮层底色（BaseSheet 抽屉等） */
-  '--overlay-panel-bg': COLOR_MAP['overlay-panel-bg'],
-  '--bg-input': COLOR_MAP['bg-input'],
-  '--bg-soft': COLOR_MAP['bg-soft'],
-  '--bg-placeholder': COLOR_MAP['bg-placeholder'],
-  '--border-color': COLOR_MAP['border-color'],
-  '--border-bold': COLOR_MAP['border-bold'],
-  /* 阴影（卡片 / 底栏 / 浮层） */
-  '--shadow-card': COLOR_MAP['shadow-card'],
-  '--shadow-warm': COLOR_MAP['shadow-warm'],
-  '--shadow-modal': COLOR_MAP['shadow-modal'],
-  '--shadow-bar': COLOR_MAP['shadow-bar'],
-  '--shadow-bar-soft': COLOR_MAP['shadow-bar-soft'],
-  '--shadow-bar-primary': COLOR_MAP['shadow-bar-primary'],
-  '--shadow-float': COLOR_MAP['shadow-float'],
-  /* 暗化遮罩 */
-  '--text-white-edge': COLOR_MAP['text-white-edge'],
-  '--overlay-dark-strong': COLOR_MAP['overlay-dark-strong'],
-  '--overlay-dark-soft': COLOR_MAP['overlay-dark-soft'],
-  '--overlay-scrim': COLOR_MAP['overlay-scrim'],
-  /* 详情页返回钮胶囊 */
-  '--bg-nav-back-chip': COLOR_MAP['bg-nav-back-chip'],
-  '--border-nav-back-chip': COLOR_MAP['border-nav-back-chip'],
-  '--nav-back-icon': COLOR_MAP['nav-back-icon'],
-  /* 长条删除按钮暗底 */
-  '--badge-dark-bg': COLOR_MAP['badge-dark-bg'],
-  /* 全站页底「纱」（PageWallpaper 消费） */
-  '--page-wash': COLOR_MAP['page-wash'],
-}
-
-// ========== 原生属性例外登记（uni-app 限制：不接受 var()，只能给实色） ==========
-// <swiper> 的 indicator-active-color / indicator-color，见 pages/detail/dish/ImageSwiper.vue
-export const SWIPER_INDICATOR_ACTIVE_COLOR = '#ffffff'
-export const SWIPER_INDICATOR_COLOR = 'rgba(255,255,255,0.4)'
-// uni.showModal 的 confirmColor。危险操作确认按钮，与 --color-error 同值
-export const MODAL_CONFIRM_DANGER_COLOR = '#C62828'
-// uni.showModal 的 confirmColor。重要操作确认按钮，取「文字档」--color-primary-text 的字面量
-export const MODAL_CONFIRM_PRIMARY_COLOR = '#B4531A'
-// AppIcon 描边兜底色：var() 形态与空值统一落到本常量（见 components/AppIcon.vue）
-export const ICON_FALLBACK_COLOR = '#1C1C1E'
+export type ColorToken = keyof typeof COLOR_MAP

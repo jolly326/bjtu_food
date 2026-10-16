@@ -1,11 +1,10 @@
 /// <reference types="vite/client" />
 
-// 构建期由 vite.config.ts 从 manifest.json 的 versionName 注入（小程序运行时读不到 manifest）
-declare const __APP_VERSION__: string;
+interface ImportMetaEnv {
+  /** 后端接口基础地址，如 http://127.0.0.1:8000 */
+  readonly VITE_API_BASE_URL: string
+}
 
-declare module '*.vue' {
-  import { DefineComponent } from 'vue'
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type -- Vue SFC 的通用 shim，泛型位无更精确写法
-  const component: DefineComponent<{}, {}, any>
-  export default component
+interface ImportMeta {
+  readonly env: ImportMetaEnv
 }

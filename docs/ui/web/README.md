@@ -1,7 +1,7 @@
 # 运营端 UI 总览
 
 > 本目录是**管理端（运营，Web）页面 UI 的唯一真源**（视觉 / 交互 / 间距 / 状态）。
-> 业务规则见 [`func/web/`](../../func/web/README.md)；接口与字段见 [`api/web/`](../../api/web/README.md)。
+> 业务规则见 [`func/web/`](../../func/web/README.md)；接口与字段见 [`api/`](../../api/README.md)。
 
 ## 页面清单
 

@@ -1,7 +1,7 @@
 # 运营端文档总览
 
 > 所属端：**管理端（运营，Web）**
-> 本目录写**业务规则**（为什么 / 边界在哪）；接口契约见 [`api/web/`](../../api/web/README.md)，库表见 [`schema/`](../../schema/README.md)，页面视觉见 [`ui/web/`](../../ui/web/)。
+> 本目录写**业务规则**（为什么 / 边界在哪）；接口契约见 [`api/`](../../api/README.md)，库表见 [`schema/`](../../schema/README.md)，页面视觉见 [`ui/web/`](../../ui/web/)。
 
 ## 阅读约定
 

@@ -63,9 +63,13 @@ for (const file of files) {
   })
 }
 
-const dangling = [...used.entries()].filter(([name]) => !declared.has(name))
-/** 仅核对声明真源（variables.css）的零消费情况，避免组件局部变量噪声 */
-const variablesCss = join(SRC_DIR, 'styles', 'variables.css')
+/** Element Plus 等外部组件库变量：由 node_modules 提供，本地无声明，不参与悬空检测 */
+const EXTERNAL_PREFIXES = ['el-']
+const isExternal = (name) => EXTERNAL_PREFIXES.some((p) => name.startsWith(p))
+
+const dangling = [...used.entries()].filter(([name]) => !declared.has(name) && !isExternal(name))
+/** 仅核对声明真源（theme.css）的零消费情况，避免组件局部变量噪声 */
+const variablesCss = join(SRC_DIR, 'styles', 'theme.css')
 const variablesText = readFileSync(variablesCss, 'utf8')
 const orphans = [...variablesText.matchAll(DECL_RE)]
   .map((m) => m[1].toLowerCase())
@@ -78,7 +82,7 @@ console.log(
 
 if (orphans.length > 0) {
   console.log(
-    `\nℹ️ variables.css 中零引用（建议按「零消费即删」复核，非阻断）：\n  ${orphans.join('\n  ')}`,
+    `\nℹ️ theme.css 中零引用（建议按「零消费即删」复核，非阻断）：\n  ${orphans.join('\n  ')}`,
   )
 }
 

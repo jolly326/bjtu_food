@@ -1,86 +1,55 @@
-/* =========================================================================
- * generated-colors.css —— 色值唯一真源导出
- * 真源：src/theme/tokens.ts 的 CSS_VARS（值引用 COLOR_MAP 同键同值）
- *
- * 生成脚本 `scripts/gen-css-vars.ts` 与 `npm run gen:tokens` 不在本工作区，本文件**手工维护**（含本注释头）。
- *    维护规则不变：内容 SHALL 与 tokens.ts 的 CSS_VARS 逐键一致；
- *    改色值只改 tokens.ts，随后同步本文件；禁止在本文件引入 tokens.ts 没有的键。
- *    恢复脚本化生成须重新登记。
- * ======================================================================== */
-
+/* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。 */
 page {
-  /* ===== 主色（暖橙黄）===== */
+  /* ===== 主色 ===== */
   --color-primary: #B4531A;
   --color-primary-fill: #B4531A;
   --color-primary-text: #B4531A;
   --color-primary-bright: #B4531A;
-  --color-primary-amber: #B4531A;
   --color-primary-orange: #E67E22;
   --color-primary-yellow: #FFD166;
   --color-orange-deep: #D35400;
-  --color-brown-deep: #7B4F2A;
+  --brown-deep: #7B4F2A;
   --color-on-primary: #FFFFFF;
   --color-primary-soft: #FFF3D6;
-  /* ===== 强调 / 功能色 ===== */
+
+  /* ===== 强调 ===== */
   --color-accent: #B4531A;
   --color-accent-soft: #FAE0CE;
+
+  /* ===== 功能色 ===== */
   --color-error: #C62828;
   --color-error-soft: #FFECEB;
   --color-warning: #E67E22;
   --color-warning-soft: #FFF8E1;
   --color-success: #2E7D32;
   --color-info: #1565C0;
+
+  /* ===== 价格 ===== */
   --color-price: #B4531A;
-  /* 星级：独立语义色，不随主色换肤 */
-  --color-star: #FBBF24;
-  --color-star-empty: #E5E5EA;
-  /* ===== 文字四档（均 ≥4.5:1；placeholder 2.39:1 仅作输入框占位）===== */
-  --text-white: #FFFFFF;
-  --text-primary: #2D1F14;
-  --text-title: #2D1F14;
-  --text-body: #44382E;
-  --text-secondary: #44382E;
-  --text-subtitle: #7F6A55;
+
+  /* ===== 文字四档 ===== */
+  --text-title: #7B4F2A;
+  --text-body: #7F6A55;
   --text-tertiary: #7F6A55;
   --text-placeholder: #B5A594;
-  /* ===== 背景 ===== */
-  --bg-page: #FFF8EF;
-  /* 无独立页面顶部渐变键（装饰色走 --bg-soft-* 档） */
-  --bg-soft-orange: #FFE8D1;
-  --bg-soft-yellow: #FFF3D6;
-  /* 无 --bg-warm（页面底统一 --bg-page，手工同步保持一致） */
+  --text-white: #FFFFFF;
+
+  /* ===== 背景 / 边框 ===== */
+  --bg-page: #FFFDFE;
+  --module-bg: #FFFFFF;
   --bg-card: #FFFFFF;
-  /* ===== 极简无卡片 · 模块表面（`.module-wrap`）=====
-     暖奶米半透底 + 极淡暖棕阴影；α 是唯一旋钮（0.65），发糊机型用 `--module-bg-strong`（0.75）兜底。 */
-  --module-bg: rgba(255, 250, 243, 0.65);
-  --module-bg-strong: rgba(255, 250, 243, 0.75);
-  --module-input-bg: rgba(255, 255, 255, 0.5);
-  --module-shadow: 0 2rpx 8rpx rgba(180, 155, 125, 0.08);
-  /* 模态浮层底色（弹窗保留卡片形态，与页面模块区分） */
-  --overlay-panel-bg: rgba(248, 244, 238, 0.92);
-  /* 无 --card-bg（与 --bg-card 同值的重复键，手工同步保持一致） */
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
   --bg-placeholder: #F2EBE1;
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
-  /* ===== 阴影 ===== */
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.04);
-  --shadow-warm: 0 4rpx 12rpx rgba(180, 140, 120, 0.08);
-  --shadow-modal: 0 18rpx 54rpx rgba(0,0,0,0.18);
-  --shadow-bar: 0 -4rpx 20rpx rgba(56, 42, 34, 0.08);
-  --shadow-bar-soft: 0 -4rpx 12rpx rgba(0, 0, 0, 0.06);
-  --shadow-bar-primary: 0 12rpx 28rpx rgba(180, 83, 26, 0.28);
+
+  /* ===== 阴影 / 遮罩 ===== */
+  --module-shadow: 0 2rpx 8rpx rgba(180, 155, 125, 0.08);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
+  --shadow-bar: 0 6rpx 24rpx rgba(56, 42, 34, 0.12);
   --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
-  /* ===== 遮罩 / 原生兜底 ===== */
-  --text-white-edge: rgba(255,255,255,0.24);
-  --overlay-dark-strong: rgba(0,0,0,0.6);
-  --overlay-dark-soft: rgba(0,0,0,0.15);
-  --overlay-scrim: rgba(0,0,0,0.4);
-  --bg-nav-back-chip: rgba(0, 0, 0, 0.08);
-  --border-nav-back-chip: rgba(0, 0, 0, 0.1);
-  --nav-back-icon: #1A1A1A;
-  --badge-dark-bg: rgba(0, 0, 0, 0.5);
-  /* ===== 页底纱层（PageWallpaper 以 background-color 消费；色值 = --bg-page #FFF8EF + α0.7）===== */
-  --page-wash: rgba(255, 248, 239, 0.7);
+  --overlay-scrim: rgba(0, 0, 0, 0.4);
+  --overlay-panel-bg: #FFFFFF;
 }
