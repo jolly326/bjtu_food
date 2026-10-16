@@ -50,14 +50,14 @@ page {
   --z-actionsheet: 4000;
 
   /* ===== 高度 ===== */
-  --tabbar-height: 88rpx;
+  --tabbar-height: 112rpx;
   --tabbar-gap: 24rpx;
   --tap-target-size: 88rpx;
   --reaction-item-min-width: 120rpx;
 
   /* ===== 本设计新增（结构尺寸）===== */
   --poster-peek: 48rpx;
-  --dish-photo-size: 360rpx;
+  --dish-photo-size: 440rpx;
   --record-photo-size: 240rpx;
   --record-card-width: 420rpx;
   --empty-action-size: 152rpx;

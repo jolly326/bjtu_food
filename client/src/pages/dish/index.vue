@@ -5,9 +5,9 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import EmptyState from '@/components/base/EmptyState.vue'
-import RetryBlock from '@/components/base/RetryBlock.vue'
 import TabBar from '@/components/base/TabBar.vue'
 import CanteenFilter from '@/components/business/CanteenFilter.vue'
+import DishCardPlaceholder from '@/components/business/DishCardPlaceholder.vue'
 import DishSwipeCard from '@/components/business/DishSwipeCard.vue'
 import { canteenApi, dishApi, recordApi } from '@/api'
 import { navMetrics } from '@/utils/safeArea'
@@ -78,6 +78,20 @@ function onFilterChange(id?: number) {
   load()
 }
 
+/** 空态动作（见 docs/ui/client/推荐菜品.md §4）：换一批 = 重新请求重掷序列；重看 = 重置本会话划走记录 */
+const emptyActions = [
+  { key: 'reshuffle', icon: 'refresh-cw', label: '换一批' },
+  { key: 'replay', icon: 'eye', label: '重看' },
+]
+
+function onEmptyAction(key: string) {
+  if (key === 'reshuffle') {
+    load()
+    return
+  }
+  swiped.value = new Set()
+}
+
 onMounted(load)
 </script>
 
@@ -91,7 +105,7 @@ onMounted(load)
       <CanteenFilter :options="canteens" :model-value="canteenId" @pick="onFilterChange" />
     </view>
 
-    <RetryBlock v-if="failed" @retry="load" />
+    <DishCardPlaceholder v-if="loading || failed" />
 
     <swiper
       v-else-if="visible.length"
@@ -105,7 +119,13 @@ onMounted(load)
       </swiper-item>
     </swiper>
 
-    <EmptyState v-else-if="!loading" title="今天就刷到这儿了" subtitle="明天再来看看吧" />
+    <EmptyState
+      v-else-if="!loading"
+      title="今天就这些了"
+      subtitle="明天再来看看吧"
+      :actions="emptyActions"
+      @action="onEmptyAction"
+    />
 
     <TabBar active="dish" />
   </view>
@@ -118,7 +138,9 @@ onMounted(load)
   box-sizing: border-box;
   height: 100vh;
   overflow: hidden;
-  padding-bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + env(safe-area-inset-bottom));
+  padding-bottom: calc(
+    var(--tabbar-height) + var(--tabbar-gap) + var(--spacing-md) + env(safe-area-inset-bottom)
+  );
 }
 
 .topbar {

@@ -54,8 +54,8 @@ function yuan(fen: number): string {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-lg);
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl);
   background: var(--module-bg);
   border-radius: var(--radius-card);
   box-shadow: var(--module-shadow);
@@ -78,7 +78,7 @@ function yuan(fen: number): string {
 }
 
 .card__name {
-  font-size: var(--font-h3);
+  font-size: var(--font-h2);
   font-weight: var(--weight-semibold);
   color: var(--text-title);
   text-align: center;
