@@ -11,21 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AccountSecurityDialog: typeof import('./components/AccountSecurityDialog.vue')['default']
-    ActiveFilters: typeof import('./components/ActiveFilters.vue')['default']
-    AppIcon: typeof import('./components/AppIcon.vue')['default']
-    BaseDrawer: typeof import('./components/BaseDrawer.vue')['default']
-    BaseModal: typeof import('./components/BaseModal.vue')['default']
-    ClampText: typeof import('./components/ClampText.vue')['default']
-    DetailMetaRow: typeof import('./components/DetailMetaRow.vue')['default']
-    DragHandle: typeof import('./components/DragHandle.vue')['default']
-    ImagePreview: typeof import('./components/ImagePreview.vue')['default']
-    ImageUpload: typeof import('./components/ImageUpload.vue')['default']
-    ListState: typeof import('./components/ListState.vue')['default']
-    Pager: typeof import('./components/Pager.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    StateBox: typeof import('./components/StateBox.vue')['default']
-    StatusTag: typeof import('./components/StatusTag.vue')['default']
   }
 }

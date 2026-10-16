@@ -1,0 +1,23 @@
+/* 运营端主题：只在**这一处**覆盖 Element Plus 变量（口径见 docs/ui/web/设计变量.md）。
+   主色与学生端逐字同值：#B4531A。 */
+
+:root {
+  --el-color-primary: #b4531a;
+  --el-color-primary-light-3: #c9753f;
+  --el-color-primary-light-5: #d99768;
+  --el-color-primary-light-7: #e9bb9c;
+  --el-color-primary-light-8: #f0cdb4;
+  --el-color-primary-light-9: #f7e2d4;
+  --el-color-primary-dark-2: #8f4014;
+
+  --el-border-radius-base: 8px;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+}
+
+#app {
+  min-height: 100vh;
+}

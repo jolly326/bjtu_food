@@ -1,198 +1,135 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { login } from '@/api/auth'
-import { setSession } from '@/api/session'
-
 /**
- * 管理员登录页（TD-23）。
- *
- * <p><b>口径真源</b>：[ui/web/登录页.md](../../../docs/ui/web/登录页.md)（页面构成 / 交互与状态）、
- * [api/web/auth.md](../../../docs/api/web/auth.md)（端点与字段）、
- * [UI 基线 §1.7](../../../docs/ui/web/公共组件与形态基线.md)（表单校验与提交中去重）。
- *
- * <p>🔴 **前端不持有口令**：口令只存在于本组件的内存态，仅在 `submit()` 那一次请求体中出现，
- * 成功后只留 token（写入 `sessionStorage`），口令不落任何存储、不进构建产物。
- *
- * <p><b>两步登录</b>：账号绑定动态口令时，第一步只拿回短时票据（不签发 token），
- * 本页切换为第二步输入动态口令（或一枚恢复码），校验通过才落盘 token。
+ * 登录页（设计稿 docs/ui/web/登录页.md；业务规则 docs/func/web/C1）。
+ * 无注册 / 无找回密码 / 无验证码；token 存 sessionStorage。
  */
+import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
+
 const router = useRouter()
+const session = useSessionStore()
 
-/** 账号（内存态） */
-const username = ref('')
-/** 密码（内存态，🔴 不得写入任何 storage / 日志） */
-const password = ref('')
-/** 字段级校验错误 —— 提交时校验、改动即清除（UI 基线 §1.7：SHALL NOT 边输边报错） */
-const usernameError = ref('')
-const passwordError = ref('')
-/** 提交中 —— 主按钮 `:disabled`，防重复提交（§1.7「提交中去重」） */
-const submitting = ref(false)
+const form = reactive({ username: '', password: '' })
+const loading = ref(false)
+const error = ref('')
 
-const usernameInput = ref<HTMLInputElement>()
-
-onMounted(async () => {
-  // 初始：账号字段自动聚焦（两字段空）
-  await nextTick()
-  usernameInput.value?.focus()
-})
-
-/** 回车等同提交（`<form @submit.prevent>` 承接各输入框的 Enter） */
-async function submit(): Promise<void> {
-  usernameError.value = ''
-  passwordError.value = ''
-  if (!username.value.trim()) usernameError.value = '请输入账号'
-  if (!password.value) passwordError.value = '请输入密码'
-  if (usernameError.value || passwordError.value) return
-
-  submitting.value = true
+async function onSubmit() {
+  if (!form.username.trim() || !form.password) {
+    error.value = '请输入账号和密码'
+    return
+  }
+  loading.value = true
+  error.value = ''
   try {
-    const res = await login(username.value.trim(), password.value)
-    if (!res.token) {
-      ElMessage.error('登录响应异常，请重试')
-      return
-    }
-    // 成功：token 存 sessionStorage → 跳 /dashboard
-    setSession(res.token, res.username ?? '')
-    await router.replace('/dashboard')
+    await session.login(form.username.trim(), form.password)
+    router.push({ name: 'canteens' })
   } catch (e) {
-    // 失败：`ElMessage.error(message)` —— 服务端统一为「账号或密码错误」，
-    // 不区分账号不存在 / 密码错误（防用户名枚举，见 api/web/auth.md）。
-    ElMessage.error(e instanceof Error ? e.message : '登录失败')
-    password.value = ''
+    error.value = (e as Error).message
   } finally {
-    submitting.value = false
+    loading.value = false
   }
 }
 </script>
 
 <template>
-  <!-- 登录页在管理骨架（侧栏 + 内容区）之外：全屏居中，不含侧栏、页头与导航 -->
-  <div class="login-page">
-    <form class="card login-card" novalidate @submit.prevent="submit">
-      <div class="brand">
-        <div class="brand-logo">食</div>
-        <div class="brand-text">
-          <div class="brand-name">知行食记</div>
-          <div class="brand-sub">管理后台</div>
-        </div>
-      </div>
+  <div class="login">
+    <form class="login__card" @submit.prevent="onSubmit">
+      <h2 class="login__title">知行食记 · 运营端</h2>
 
-      <div class="form">
-        <div class="field">
-          <label for="login-username">账号</label>
-          <input
-            id="login-username"
-            ref="usernameInput"
-            v-model="username"
-            class="form-input"
-            type="text"
-            autocomplete="username"
-            :aria-invalid="usernameError ? 'true' : undefined"
-            :aria-describedby="usernameError ? 'login-username-error' : undefined"
-            @input="usernameError = ''"
-          />
-          <p v-if="usernameError" id="login-username-error" class="field-error">
-            {{ usernameError }}
-          </p>
-        </div>
+      <label class="login__label" for="username">账号</label>
+      <input
+        id="username"
+        v-model="form.username"
+        class="login__input"
+        type="text"
+        placeholder="账号"
+        autocomplete="username"
+      />
 
-        <div class="field">
-          <label for="login-password">密码</label>
-          <input
-            id="login-password"
-            v-model="password"
-            class="form-input"
-            type="password"
-            autocomplete="current-password"
-            :aria-invalid="passwordError ? 'true' : undefined"
-            :aria-describedby="passwordError ? 'login-password-error' : undefined"
-            @input="passwordError = ''"
-          />
-          <p v-if="passwordError" id="login-password-error" class="field-error">
-            {{ passwordError }}
-          </p>
-        </div>
+      <label class="login__label" for="password">密码</label>
+      <input
+        id="password"
+        v-model="form.password"
+        class="login__input"
+        type="password"
+        placeholder="密码"
+        autocomplete="current-password"
+      />
 
-        <button class="btn-primary submit" type="submit" :disabled="submitting">
-          {{ submitting ? '登录中…' : '登录' }}
-        </button>
-      </div>
+      <p v-if="error" class="login__error">{{ error }}</p>
+
+      <button class="login__submit" type="submit" :disabled="loading">
+        {{ loading ? '登录中…' : '登录' }}
+      </button>
     </form>
   </div>
 </template>
 
 <style scoped>
-.login-page {
+.login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-  box-sizing: border-box;
-  background: var(--bg-page);
 }
 
-.login-card {
-  width: 360px;
-  padding: var(--space-6);
-  box-sizing: border-box;
-}
-
-/* 品牌区 —— 与侧栏品牌区同语汇（见 AdminLayout.vue / 登录页 §页面构成） */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-6);
-}
-.brand-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-lg);
-  font-weight: var(--weight-semibold);
-}
-.brand-name {
-  font-size: var(--font-lg);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
-}
-.brand-sub {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-}
-
-/* 字段间距纵向 --space-4（由表单容器 gap 承担，不写进公共类） */
-.form {
+.login__card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  width: 400px;
+  padding: 32px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
 }
 
-/* 唯一主操作：登录 */
-.submit {
-  width: 100%;
-  margin-top: var(--space-2);
+.login__title {
+  margin: 0 0 24px;
+  font-size: 18px;
+  text-align: center;
+  color: var(--el-text-color-primary);
 }
 
-/* 第二步的辅助说明（口径：提示但不喧宾夺主，与字段错误同位置同节奏） */
-.field-hint {
-  margin: var(--space-1) 0 0;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-  line-height: 1.5;
+.login__label {
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
 }
 
-/* 返回上一步：次级操作，不与主按钮争夺视觉重心 */
-.back {
-  width: 100%;
-  margin-top: var(--space-1);
+.login__input {
+  height: 36px;
+  margin-bottom: 16px;
+  padding: 0 12px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  outline: none;
+}
+
+.login__input:focus {
+  border-color: var(--el-color-primary);
+}
+
+.login__error {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--el-color-danger);
+}
+
+.login__submit {
+  height: 36px;
+  border: none;
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-color-primary);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.login__submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 </style>

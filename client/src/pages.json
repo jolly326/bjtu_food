@@ -1,142 +1,43 @@
 {
-	"pages": [
-		{
-			"path": "pages/home/index",
-			"style": {
-				"navigationBarTitleText": "首页",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/find/index",
-			"style": {
-				"navigationBarTitleText": "搜索",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/mine/index",
-			"style": {
-				"navigationBarTitleText": "我的",
-				"navigationStyle": "custom"
-			}
-		}
-	],
-	"subPackages": [
-		{
-			"root": "pages/detail/",
-			"pages": [
-				{
-					"path": "dish/index",
-					"style": {
-						"navigationBarTitleText": "菜品详情",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/profile/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "个人信息",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/auth/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "身份认证",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/notifications/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "系统通知",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/feedback/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "意见反馈",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/correction/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "菜品问题反馈",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/my-reviews/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "我的主页",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		},
-		{
-			"root": "pages/privacy/",
-			"pages": [
-				{
-					"path": "index",
-					"style": {
-						"navigationBarTitleText": "隐私政策",
-						"navigationStyle": "custom"
-					}
-				},
-				{
-					"path": "agreement",
-					"style": {
-						"navigationBarTitleText": "用户协议",
-						"navigationStyle": "custom"
-					}
-				}
-			]
-		}
-	],
-	"preloadRule": {
-		"pages/home/index": {
-			"network": "wifi",
-			"packages": ["pages/detail/"]
-		}
-	},
-	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "知行食记",
-		"navigationBarBackgroundColor": "#F5F5F7",
-		"backgroundColor": "#F5F5F7"
-	}
+  "pages": [
+    {
+      "path": "pages/poster/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/dish/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/records/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    }
+  ],
+  "tabBar": {
+    "custom": true,
+    "color": "#7F6A55",
+    "selectedColor": "#B4531A",
+    "backgroundColor": "#FFFDFE",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/poster/index", "text": "橱窗" },
+      { "pagePath": "pages/dish/index", "text": "美食" },
+      { "pagePath": "pages/records/index", "text": "回味" }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "知行食记",
+    "navigationBarBackgroundColor": "#FFFDFE",
+    "backgroundColor": "#FFFDFE"
+  }
 }

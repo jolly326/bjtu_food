@@ -7,36 +7,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Java / Maven
-target/
-**/target/
-*.class
-*.jar
-*.war
-*.ear
-*.iml
-
-# Spring / local runtime
-# 上传目录一律不进库（运行时由 upload.path 自动创建）。
-uploads/
-**/uploads/
-# ---------- 应用运行配置（server/src/main/resources/application*.yml）----------
-# ⚠️ 历史事故（2026-10-01 起线上全站 401，2026-10-02 定位修复）：
-#    这些文件曾被 `git rm` 移出跟踪并被下面的规则忽略。本地工作树里文件仍在
-#    （故编译、单测、全链路手测全部正常），但**云构建是从 GitHub 克隆的**，
-#    构建上下文里根本没有 application.yml ⇒ jar 不含任何配置 ⇒ Spring Boot 全用默认值
-#    ⇒ `server.servlet.context-path: /api/v1` 未生效（Tomcat 跑在根上下文 `/`）
-#    ⇒ 小程序 GET /api/v1/dishes 前缀不被剥离，命中不到 `/dishes/**` 白名单
-#    ⇒ 落入 anyRequest().authenticated() ⇒ 401「请先登录或重新登录」。
-#    该故障对「本地是否正常」完全不可见，只有部署后才暴露，故以本段显式反选规则钉死。
-# ✅ 可以入库的原因：这三个文件内**没有任何真实凭据**，敏感值一律是 `${ENV_VAR:默认值}`
-#    占位符（数据源口令 / JWT / SMTP / 微信 / COS 全部如此），真实值由环境变量或
-#    server/.env（已忽略、不入库）注入。入库的是「键名 + 占位符」，不是密钥。
-application.yml
-application-*.yml
-!server/src/main/resources/application.yml
-!server/src/main/resources/application-dev.yml
-!server/src/main/resources/application-prod.yml
+# ---------- Python（后端 server/） ----------
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.venv/
+**/.venv/
+.venv*/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.import_linter_cache/
 
 # Node / uni-app / Vite
 node_modules/
@@ -54,12 +35,8 @@ project.private.config.json
 **/project.private.config.json
 
 # Environment files
-# 规则：仓库只提交**占位模板**（*.example）与**不含凭据的公开基址**，真实环境文件一律不入库。
-# 使用前复制模板为真实文件：client/.env.example → client/.env.development|production，
-# server/.env.example → server/.env，web/.env.example → web/.env.local。
-# ⚠️ 同上条 server/application*.yml 的事故：client/.env.production 曾被移出跟踪，
-#    云构建克隆不到 ⇒ 端上 VITE_API_BASE_URL 缺失 ⇒ 静默回落到 127.0.0.1 默认值。
-#    两个 client env 只含公开的云托管 API 地址（无任何密钥），必须入库。
+# 仓库只提交占位模板（*.example）与不含凭据的公开基址；真实环境文件一律不入库。
+# client/.env.development 与 client/.env.production 只含公开的云托管 API 地址（无密钥），必须入库。
 .env
 .env.*
 !.env.example
@@ -67,7 +44,6 @@ project.private.config.json
 !client/.env.production
 
 # ---------- 凭据 / 密钥类文件（兜底防误提交） ----------
-# 本节是「万一」防线：当前仓库不存在这些文件，新增证书/令牌时无需再改本文件。
 *.pem
 *.key
 *.p12
@@ -94,11 +70,8 @@ desktop.ini
 .codex/
 
 # ---------- 文档与过程性材料 ----------
-# `docs/` 是项目**设计真源**（schema / api / func / ui / secur / perf）⇒ **必须入库跟踪**
-# （2026-10-09 拍板）。理由：真源需可 diff、可回滚 —— 未受版本控制时，一次批量替换把多篇
-# 真源文本写坏却无从 `git checkout`，只能逐字手工复原（已发生）。入库后随时可追溯与回滚。
-# ⚠️ 入库即公开：**文档内不得出现任何凭据**（口令 / token / Webhook 地址 / 密钥），
-#    一律经环境变量与 `server/.env`（已忽略）流转。
+# docs/ 是项目设计真源（schema / api / func / ui / secur）⇒ 必须入库跟踪。
+# 入库即公开：文档内不得出现任何凭据，一律经环境变量与 server/.env（已忽略）流转。
 openspec/
 
 # Editor directories and files
@@ -110,15 +83,10 @@ openspec/
 *.sln
 *.sw?
 
+# ---------- 构建期生成的图标着色变体（client/scripts/gen-icons.mjs 产出） ----------
+client/src/assets/icon-variants/
+
 # ---------- 构建 / 校验的临时产物 ----------
-# 本节原有 15 条形如 dbcheck_out*.txt / build_r*.txt / dev_err*.txt / mp_build_check.txt 的
-# 单次会话产物名规则——每一条都对应某次调试时手起的文件名，用完即弃却留在规则里，
-# 既无防再犯价值（下次也不会用同名），又让新人以为仓库真有这些产物。
-# 现改为「构建 / 校验类临时文件」的通用模式，规则数从 15 条降到 11 条。
-# ⚠️ 通用化后**必须确认未误伤**已入库文件：`**/r*.txt` 这类宽前缀理论上会误伤
-#   以 r 开头的 .txt。已实测：全仓已入库的 .txt/.err 文件中被本节命中的为 **0 个**
-#   （已入库的 .txt 只有 server/src/main/resources/sensitive_words.txt，不匹配任何模式）。
-#   新增模式时须重做该验证（`git ls-files | git check-ignore --stdin` 批量核对）。
 *.err
 *.log.err
 **/build_log*.txt
@@ -130,28 +98,17 @@ openspec/
 **/dev_*.txt
 **/r*.txt
 
-# 性能度量临时产物（client/scripts/measure-perf.mjs 与 probe-request-layer.mjs）
-# .probe-tmp 是探针为「在 Node 里跑 uni 代码」而生成的中间副本，跑完即弃，绝不可入库
-client/.probe-tmp/
-client/.probe-out.txt
-
-# ---------- OpenAPI 契约（2026-09-29 契约单一真源方案 A） ----------
-# ⚠️ 以下两个文件**必须入库**（与上方 env 规则同理，.gitignore 只约束未跟踪文件）：
-#   client/openapi.json               —— 后端 VO 契约的镜像（由 scripts/fetch-openapi.mjs 抓取）
-#   client/src/types/generated/api.d.ts —— 由 openapi.json 生成的 TS 类型
-# 缺席时新成员 clone 后 `npm run type-check` 拿不到任何接口类型保障，
-# api 层会退回 Record<string, any> 弱类型，契约漂移重新无感知发生。
-# **只含接口路径与字段结构，不含任何凭据**，可安全入库。
+# ---------- OpenAPI 契约 ----------
+# client/openapi.json 与 client/src/types/generated/api.d.ts 必须入库（.gitignore 只约束未跟踪文件）：
+# 缺席时新成员 clone 后 type-check 拿不到接口类型保障。仅含接口路径与字段结构，不含凭据。
 # 刷新方式：启动后端后执行 `cd client && npm run gen:api:fresh`。
 
-# 根目录的 openapi.json 是抓取过程的临时副本（脚本产物在 client/ 下），不入库
+# 抓取过程的根目录临时副本不入库
 /openapi.json
 
-# 本会话脚本与日志（临时产物）
+# 根目录的一次性会话脚本与日志（临时产物）
 /*.ps1
+/*.sh
 /boot.log
 /boot-err.log
-/gen_types.ps1
-/fetch_openapi.ps1
-/mvn.txt
-/tc*.txt
+/temp

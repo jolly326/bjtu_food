@@ -1,0 +1,28 @@
+/* 全局样式：只放跨页复用的基础样式，页面私有样式留在各页面内。
+   主题（色值 / 非颜色 token）在 App.vue 顶层引入，本文件不重复 import。 */
+
+page {
+  background: var(--bg-page);
+  color: var(--text-body);
+  font-size: var(--font-body);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+}
+
+/* 统一按压反馈：卡片 / 行 / 图片 用 .7，主色实底 CTA 用 .85，小件用 .6 */
+.pressable {
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.pressable:active {
+  opacity: 0.7;
+}
+
+/* 禁用态由全局 .is-disabled 承担 */
+.is-disabled {
+  pointer-events: none;
+}
+
+/* 长文本断行唯一写法 */
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,55 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+# E501 交给 line-length 统一控制；RUF001/002/003 放行中文全角标点（本项目注释与文案为中文）
+# B008 放行 FastAPI 依赖注入的标准写法 Depends(...)
+ignore = ["E501", "RUF001", "RUF002", "RUF003", "B008"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_redundant_casts = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# 分层护栏：禁跨层调用
+# core 为横切层（配置 / 信封 / 安全 / 限频），被所有层消费，故不列入 layers
+[tool.importlinter]
+root_package = "app"
+include_external_packages = false
+
+# 分层红线（禁跨层调用）：
+#   router -> service -> repo -> model
+# core 为横切层，被所有层消费，故不参与上面的单向链。
+[[tool.importlinter.contracts]]
+name = "router 不得绕过 service 直连 repo / model"
+type = "forbidden"
+source_modules = ["app.student.*.router", "app.admin.*.router"]
+forbidden_modules = ["app.student.*.repo", "app.admin.*.repo", "app.models"]
+# 只禁「直连」：router 经 service 间接到达 repo / model 是正常分层链路
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "service 不得反向依赖 router"
+type = "forbidden"
+source_modules = ["app.student.*.service", "app.admin.*.service"]
+forbidden_modules = ["app.student.*.router", "app.admin.*.router"]
+
+[[tool.importlinter.contracts]]
+name = "repo 不得依赖 service / router"
+type = "forbidden"
+source_modules = ["app.student.*.repo", "app.admin.*.repo"]
+forbidden_modules = ["app.student.*.service", "app.admin.*.service", "app.student.*.router", "app.admin.*.router"]
+
+[[tool.importlinter.contracts]]
+name = "core 不得反向依赖 domains / models"
+type = "forbidden"
+source_modules = ["app.core"]
+forbidden_modules = ["app.student", "app.admin", "app.models"]
