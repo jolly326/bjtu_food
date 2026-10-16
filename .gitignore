@@ -96,7 +96,6 @@ client/src/assets/icon-variants/
 **/*_out*.txt
 **/build_*.txt
 **/dev_*.txt
-**/r*.txt
 
 # ---------- OpenAPI 契约 ----------
 # client/openapi.json 与 client/src/types/generated/api.d.ts 必须入库（.gitignore 只约束未跟踪文件）：
