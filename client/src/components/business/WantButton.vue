@@ -39,7 +39,7 @@ function onTap() {
   width: 100%;
   height: var(--tap-target-size);
   background: var(--color-primary);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-pill);
 }
 
 .want--pressed {

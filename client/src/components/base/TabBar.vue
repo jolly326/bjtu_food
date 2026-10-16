@@ -3,7 +3,7 @@
  * 底部**胶囊 Tab**（自绘；口径见 docs/ui/client/公共组件与形态基线.md §2.1.1）。
  * 三项：橱窗 / 美食 / 回味 —— 悬浮胶囊（不占满宽、**非沉底固定菜单栏**）；
  * `pages.json` 的 `tabBar.custom = true` 隐藏原生栏，本组件顶替。
- * 每项：图标 + 文字**横向排布、垂直居中对齐**；选中 = `primary` 色调 + 主色文字 + 柔光底。
+ * 每项：图标**在上**、文字**在下**（图标大于文字），两者水平居中对齐；选中 = `primary` 色调 + 主色文字 + 柔光底。
  */
 import AppIcon from './AppIcon.vue'
 
@@ -31,7 +31,7 @@ function go(path: string) {
         hover-class="tabbar__item--pressed"
         @tap="go(item.path)"
       >
-        <AppIcon :name="item.icon" :size="44" :tone="item.key === active ? 'primary' : 'default'" />
+        <AppIcon :name="item.icon" :size="48" :tone="item.key === active ? 'primary' : 'default'" />
         <text class="tabbar__label" :class="{ 'tabbar__label--on': item.key === active }">{{ item.label }}</text>
       </view>
     </view>
@@ -51,12 +51,12 @@ function go(path: string) {
   pointer-events: none;
 }
 
-/* 胶囊本体 */
+/* 胶囊本体：左右留白更宽，避免项与项相互挤压 */
 .tabbar__capsule {
   display: flex;
   align-items: center;
   height: var(--tabbar-height);
-  padding: 0 var(--spacing-xs);
+  padding: 0 var(--spacing-sm);
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-pill);
   background: var(--module-bg);
@@ -64,14 +64,15 @@ function go(path: string) {
   pointer-events: auto;
 }
 
-/* 单项：图标 + 文字同一行，两者**垂直居中对齐** */
+/* 单项：图标在上、文字在下，整体水平居中 */
 .tabbar__item {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
+  gap: var(--spacing-2xs);
   height: 100%;
-  padding: 0 var(--spacing-sm);
+  padding: 0 var(--spacing-md);
   border-radius: var(--radius-pill);
 }
 
@@ -84,7 +85,7 @@ function go(path: string) {
 }
 
 .tabbar__label {
-  font-size: var(--font-small);
+  font-size: var(--font-tiny);
   line-height: 1;
   color: var(--text-tertiary);
 }

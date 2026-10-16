@@ -14,8 +14,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY app ./app
 
-EXPOSE 8000
+EXPOSE 8080
 
 # 🔴 单 worker 启动：限频计数在进程内，多 worker 会让实际阈值 × worker 数（见 docs/secur/S-03）
-# 端口取平台注入的 $PORT（微信云托管按服务配置注入），未注入时回退 8000
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# 端口取平台注入的 $PORT；未注入时回退 8080 —— 与云托管服务的探活端口一致
+# （不一致时探针会 connect: connection refused，容器虽已启动却判为部署失败）
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
