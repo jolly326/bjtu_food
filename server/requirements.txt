@@ -1,0 +1,25 @@
+# 运行依赖 —— 用法：pip install -r server/requirements.txt
+# 注意：本文件由 pip 读取，不要直接粘贴进 shell 执行。
+
+# ===== Web 框架 =====
+fastapi>=0.115,<1.0            # Web 框架（OpenAPI 自动生成 => 端上类型真源）
+uvicorn[standard]>=0.32,<1.0   # ASGI 服务器（单 worker 启动，见 docs/secur/S-03）
+
+# ===== 校验 / 配置 =====
+pydantic>=2.9,<3.0             # 出参模型（字段一律 camelCase alias）
+pydantic-settings>=2.6,<3.0    # 环境变量 / .env 加载
+
+# ===== 数据库 =====
+SQLAlchemy>=2.0.36,<3.0        # ORM（2.0 风格）
+PyMySQL>=1.1,<2.0              # MySQL 驱动（纯 Python，无需编译）
+
+# ===== 安全 =====
+PyJWT>=2.9,<3.0                # 学生端 / 运营端 JWT（两套独立 secret）
+bcrypt>=4.2,<5.0               # 管理端口令哈希
+
+# ===== 外部调用 =====
+httpx>=0.27,<1.0               # 微信 code2Session
+python-multipart>=0.0.12       # 图片上传（multipart/form-data）
+cos-python-sdk-v5>=1.9,<2.0    # 图片转存腾讯云 COS
+
+# 刻意不装：alembic（手工建表）/ redis（限频进程内）/ python-dotenv（pydantic-settings 已含）

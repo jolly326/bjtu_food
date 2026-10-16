@@ -1,6 +1,6 @@
 # .dockerignore（server/）——当云托管「构建上下文 = server 目录」时生效。
 #
-# Dockerfile 位于本目录且 COPY 的是 pom.xml / settings.xml / src，
+# Dockerfile 位于本目录且 COPY 的是 requirements.txt / app，
 # 故上下文应为 server/；本文件用于挡掉无需进构建缓存的产物与凭据。
 
 # 构建与运行产物
