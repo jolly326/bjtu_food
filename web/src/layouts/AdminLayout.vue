@@ -123,7 +123,7 @@ const groups: NavGroup[] = [
     </aside>
 
     <main class="content" id="main-content">
-      <!-- 口令超期：提示改密，不阻断操作（真源 secur/web/防爆破与限流.md §3） -->
+      <!-- 口令超期：提示改密，不阻断操作（真源 docs/secur/B-01-口令策略与超期.md §1） -->
       <div v-if="passwordAging" class="aging-notice" role="status">
         当前口令已使用超过 180 天，建议尽快在「账号安全」中修改。
       </div>

@@ -41,8 +41,8 @@ public class JacksonConfig {
                 // JSR-310（LocalDateTime）：按契约格式出参 / 入参，不落 ISO-8601 的 'T' 分隔形态
                 .serializerByType(LocalDateTime.class, new LocalDateTimeSerializer(DATE_TIME_FORMATTER))
                 .deserializerByType(LocalDateTime.class, new LocalDateTimeDeserializer(DATE_TIME_FORMATTER))
-                // null 字段不下发（P1）。收益已被基线量化（docs/perf/perf-00 §3）：详情 −2.8%、
-                // 列表页 −4.2%——**收益不大，所以这里的理由是「小程序按量计费，出参体积就是成本」，
+                // null 字段不下发（P1）。实测收益仅详情 −2.8%、列表页 −4.2%——
+                // **收益不大，所以这里的理由是「小程序按量计费，出参体积就是成本」，
                 // 而不是「序列化性能优化」**。成立前提：端上对可空字段一律走兜底
                 // （|| ''、!= null、Array.isArray），不依赖「字段存在但为 null」与「字段缺失」的区分；
                 // 契约镜像里这些字段本就标 nullable，省略它们仍是 schema 合法出参。

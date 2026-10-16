@@ -15,7 +15,7 @@ package com.bjtufood.common.alert;
  * </ul>
  *
  * <p>告警正文由 {@link SecurityAlertNotifier} 组装为「级别标签 + 类型标签 + 标题 + 明细」推送到
- * webhook，级别与标签因此仍在推送内容里可见。口径真源见 {@code docs/secur/web/告警.md}。
+ * webhook，级别与标签因此仍在推送内容里可见。口径真源见 {@code docs/secur/A-05-告警与破坏性操作防护.md}。
  */
 public enum AlertType {
 

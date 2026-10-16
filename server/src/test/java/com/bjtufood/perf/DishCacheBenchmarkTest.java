@@ -62,7 +62,7 @@ import static org.mockito.Mockito.when;
  * 不是报错，而是<b>不报错但没生效</b>（自调用不过代理、注解打错位置、缓存名拼错退化成默认缓存），
  * 只看业务单测永远发现不了，只有对着 Mapper 调用次数断言才能抓住。
  * <p>
- * 数值与基线的对应关系见 docs/perf/perf-00-度量口径与基线.md §6。
+ * 数值对照以本次运行为准（同口径自比：缓存化前后各跑一次，比较 Mapper 调用次数）。
  */
 @DisplayName("P1 缓存化复测（同口径对照基线 + 缓存真实生效的回归护栏）")
 class DishCacheBenchmarkTest {

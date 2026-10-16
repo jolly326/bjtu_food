@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -107,8 +108,21 @@ public class CanteenAdminController {
         return Result.success(stallService.createStall(req));
     }
 
-    @Operation(summary = "删除档口", description = "用途：删除档口。其下仍有菜品 → 400（由本层编排跨域计数）；不存在 → 4001。")
+    /**
+     * 删除档口 —— **B 拍板：「判据 + 删除」收进同一事务入口**
+     * （口径见 docs/func/web/A-主数据维护/A2-档口管理.md「删除档口判据」）。
+     * <p>
+     * 判据（{@code countByStallId > 0 ⇒ 400}）由本层跨域编排（避免 canteen → dish 反向依赖）；
+     * 标 {@code @Transactional} 后「校验为 0」与「删除」处于同一事务，消除两段各自提交的编排缝隙，
+     * {@code StallServiceImpl#deleteStall} 的事务（REQUIRED）并入本边界。
+     * <p>
+     * ⚠️ <b>如实登记的残余窗口</b>：RR 隔离级下本事务的计数为<b>快照读</b>——与本事务并发提交的
+     * 插入可能既未被计数看见、又在删除之后落库，仍会产出孤儿菜品；彻底封闭须改走 C 方案
+     * （{@code dish.stall_id → stall.id} RESTRICT 外键），该方案本拍板未采用。
+     */
+    @Operation(summary = "删除档口", description = "用途：删除档口。其下仍有菜品 → 400（判据与删除在同一事务内编排）；不存在 → 4001。")
     @DeleteMapping("/stalls/{id}")
+    @Transactional(rollbackFor = Exception.class)
     public Result<Void> deleteStall(
             @Parameter(description = "档口ID", example = "1")
             @PathVariable Long id) {

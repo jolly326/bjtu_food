@@ -3,7 +3,7 @@ package com.bjtufood.auth.support;
 import com.bjtufood.common.exception.BusinessException;
 
 /**
- * 管理员口令强度策略（真源 {@code docs/secur/web/防爆破与限流.md} §3）。
+ * 管理员口令强度策略（真源 {@code docs/secur/B-01-口令策略与超期.md} §1）。
  *
  * <p><b>口径</b>：长度 ≥{@value #MIN_LENGTH} 位，且「大写 / 小写 / 数字 / 符号」四类中
  * <b>至少 {@value #REQUIRED_CHARACTER_CLASSES} 类</b>。

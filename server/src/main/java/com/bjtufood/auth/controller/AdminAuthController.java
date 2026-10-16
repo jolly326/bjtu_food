@@ -35,7 +35,7 @@ import java.time.format.DateTimeFormatter;
  * 管理端鉴权端点（TD-19 / TD-21 · P0-4）。
  *
  * <p>口令不下发到前端，由服务端验证后签发**短期可吊销**的 JWT（设计见
- * {@code docs/secur/web/登录与凭证.md}）。
+ * {@code docs/secur/S-01-身份与凭证.md} · {@code docs/secur/S-03-管理端登录与防爆破.md}）。
  *
  * <p>🔴 <b>{@code POST /admin/auth/login} 必须在鉴权白名单内</b>
  * （见 {@code SecurityConfig#PUBLIC_ANY_METHOD} 与 {@code AdminAuthFilter}）——
