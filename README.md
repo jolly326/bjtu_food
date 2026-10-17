@@ -12,30 +12,28 @@
 
 学生看海报了解档口、刷卡片决定吃什么、吃完顺手点一个反馈；运营在后台录入菜品与档口。数据在「**浏览 → 决策 → 体验 → 反馈 → 影响下一次推荐**」的闭环里持续更新。
 
-> 🔴 **当前仓库状态**：`docs/` 设计文档**已定稿**；**代码待按新设计落地**（旧实现与设计不符，保留在 `develop` / `main` 分支）。
-> 本次重构在新分支 **`rebuild-minimal`** 上进行。
-
 ## 产品形态（三个 tab）
 
 | Tab | 做什么 |
 |---|---|
-| **橱窗** | 一屏一张档口**竖版海报**，左右滑动看更多；纯展示、不跳转、图上零文本 |
+| **发现** | 一屏一张档口**竖版海报**，左右滑动看更多；纯展示、不跳转、图上零文本 |
 | **美食** | **扑克式单卡**，一次一道；左滑右滑划走，点「去品尝」记下要吃的 |
-| **回味** | 按月回看吃过的菜（月内按日期分组），顺手点 **好吃 / 一般 / 踩** |
+| **记忆** | 按月回看吃过的菜（月内按日期分组），顺手点 **喜欢 / 一般 / 不喜欢** |
 
 - **无搜索、无「我的」、无菜品详情页** —— 信息全在卡片上，用户只需滑动和点按钮。
 - **全匿名**：微信 `openid` 静默识别，身份**不在任何界面展示**；不做注册 / 登录 / 认证 / 注销。
-- **零自由输入**：学生侧只有「去品尝」按钮、三态评分、纠错选项 —— 没有文字与图片 UGC。
+- **零自由输入**：学生侧只有「去品尝」按钮、三态评分（喜欢 / 一般 / 不喜欢）、纠错选项 —— 没有文字与图片 UGC。
+- **群体风味评级**：卡片左上字母 + 右上「风味评级 / 档位词」（S 臻荐 · A 极荐 · B 推荐 · C 尚可 · D 平实），评分条数不足 3 条为「待评」。
 
 ## 闭环
 
 ```
-运营录入菜品 → 学生刷「美食」 → 点「去品尝」 → 线下体验 → 回「回味」评分 → 评分影响推荐权重 → 帮下一个学生决策
+运营录入菜品 → 学生刷「美食」 → 点「去品尝」 → 线下体验 → 回「记忆」评分 → 评分影响推荐权重 → 帮下一个学生决策
 ```
 
 ## 管理后台（运营端）
 
-- **食堂 / 档口（含竖版海报）/ 菜品** 的录入与维护
+- **食堂 / 档口 / 菜品 / 海报** 的录入与维护
 - **评分数据**查看（只读）、**菜品纠错**的处置与**纠错选项字典**维护
 
 ## 技术栈
@@ -62,7 +60,7 @@ bjtu_food/
 
 ### 环境要求
 
-Python **3.12**（conda）· Node.js 18+ · pnpm · 微信开发者工具 · MySQL **5.7+**
+Python **3.12**（conda）· Node.js 18+ · npm · 微信开发者工具 · MySQL **5.7+**
 
 ### 1. 后端环境
 
@@ -98,11 +96,11 @@ pip install -r server/requirements.txt -r server/requirements-dev.txt
 ### 4. 启动
 
 ```bash
-# 后端（🔴 单 worker 启动；接口文档 http://localhost:8000/docs）
-uvicorn server.app.main:app --reload --port 8000
+# 后端（🔴 单 worker 启动；接口文档 http://localhost:8080/docs）
+cd server && uvicorn app.main:app --reload --port 8080
 
 # 管理后台（http://localhost:5173）
-cd web && pnpm install && pnpm dev
+cd web && npm install && npm run dev
 
 # 小程序（用微信开发者工具导入 client/dist/dev/mp-weixin）
 cd client && npm install && npm run dev:mp-weixin
@@ -119,7 +117,7 @@ cd client && npm install && npm run dev:mp-weixin
 | [功能设计（学生端）](docs/func/client/README.md) | 三个 tab 的业务规则 + 项目约定与红线 |
 | [功能设计（运营端）](docs/func/web/README.md) | 食堂 / 档口 / 菜品 / 反馈 / 纠错 / 登录 |
 | [接口契约](docs/api/README.md) | 端点 / 入参 / 出参 / 错误码（通用约定在最前） |
-| [数据库设计](docs/schema/README.md) | 8 张表的列 / 索引 / 约束（**库结构唯一真源**） |
+| [数据库设计](docs/schema/README.md) | 9 张表的列 / 索引 / 约束（**库结构唯一真源**） |
 | [UI 设计（学生端）](docs/ui/client/README.md) | 三页设计稿 + 公共组件与形态基线 + 设计变量 |
 | [UI 设计（运营端）](docs/ui/web/README.md) | 列表 + 弹窗范式 + 公共组件基线 |
 | [安全设计](docs/secur/README.md) | 身份凭证 · 鉴权与归属 · 限频 · 凭据与部署边界 |
@@ -137,7 +135,7 @@ cd client && npm install && npm run dev:mp-weixin
    ```bash
    pytest                          # 后端：pytest + 分层护栏
    cd client && npm run verify     # 小程序：契约门禁 + 类型检查
-   cd web && pnpm type-check       # 管理后台：类型检查
+   cd web && npm run type-check    # 管理后台：类型检查
    ```
 
 4. 使用 [Conventional Commits](https://www.conventionalcommits.org/) 风格提交（如 `feat(client): ...`、`fix(server): ...`、`docs: ...`）

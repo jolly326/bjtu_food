@@ -26,10 +26,18 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 
 def get_session() -> Iterator[Session]:
-    """FastAPI 依赖：请求级会话（只读查询场景）。"""
+    """FastAPI 依赖：请求级会话——正常结束提交，异常回滚。
+
+    写端点（新建 / 修改 / 删除）依赖本语义落库；只读端点 commit 空事务无副作用。
+    若不在这里提交，``session.close()`` 会回滚未提交事务 ⇒ 写操作假成功。
+    """
     session = SessionLocal()
     try:
         yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
     finally:
         session.close()
 

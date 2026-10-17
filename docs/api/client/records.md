@@ -24,7 +24,8 @@
 | `name` | string | 否 | 菜品名称 |
 | `imageUrl` | string | 否 | 菜品图绝对 URL |
 | `wantedAt` | string | 否 | 点「去品尝」的时间 |
-| `reaction` | number | **是** | `5` = 好吃 ｜ `3` = 一般 ｜ `1` = 踩；**`null` = 尚未评分** |
+| `reaction` | number | **是** | `5` = 喜欢 ｜ `3` = 一般 ｜ `1` = 不喜欢；**`null` = 尚未评分** |
+| `flavorLevel` | string | **是** | 该菜品的**群体风味评级**字母：`S` / `A` / `B` / `C` / `D`；**`null` = 待评**（评分条数 < 3）—— 口径见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-评分反馈.md) |
 
 ## `POST /my/records`
 

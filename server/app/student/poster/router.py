@@ -1,7 +1,7 @@
-"""学生端「橱窗」tab：档口竖版海报列表。
+"""学生端「发现」tab（橱窗）：竖版海报列表。
 
 端点（docs/api/client/posters.md）：
-    GET /posters   🔑 需登录，随机顺序（每次请求重掷）
+    GET /posters   🔑 需登录，固定顺序（poster.sort 升序，仅 status='on'）
 """
 
 from __future__ import annotations
@@ -29,6 +29,6 @@ def list_posters(
     student_id: int = Depends(current_student_id),
     session: Session = Depends(get_session),
 ) -> Envelope[list[PosterOut]]:
-    """只返回**已上传海报**的档口；顺序随机。"""
+    """只返回**上架**海报；顺序 = 运营排定的固定序（不随机）。"""
     rows = service.list_posters(session)
-    return ok([PosterOut(id=row.id, image_url=to_absolute(row.poster) or "") for row in rows])
+    return ok([PosterOut(id=row.id, image_url=to_absolute(row.image) or "") for row in rows])

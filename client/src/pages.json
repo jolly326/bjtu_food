@@ -15,27 +15,6 @@
       }
     },
     {
-      "path": "pages/add/index",
-      "style": {
-        "navigationStyle": "custom",
-        "enablePullDownRefresh": false
-      }
-    },
-    {
-      "path": "pages/ask/index",
-      "style": {
-        "navigationStyle": "custom",
-        "enablePullDownRefresh": false
-      }
-    },
-    {
-      "path": "pages/settings/index",
-      "style": {
-        "navigationStyle": "custom",
-        "enablePullDownRefresh": false
-      }
-    },
-    {
       "path": "pages/records/index",
       "style": {
         "navigationStyle": "custom",
@@ -45,16 +24,14 @@
   ],
   "tabBar": {
     "custom": true,
-    "color": "#7F6A55",
+    "color": "#9A948C",
     "selectedColor": "#B4531A",
     "backgroundColor": "#FFFDFE",
     "borderStyle": "white",
     "list": [
       { "pagePath": "pages/discover/index", "text": "发现" },
-      { "pagePath": "pages/recipes/index", "text": "菜谱" },
-      { "pagePath": "pages/add/index", "text": "添加" },
-      { "pagePath": "pages/ask/index", "text": "提问" },
-      { "pagePath": "pages/settings/index", "text": "设置" }
+      { "pagePath": "pages/recipes/index", "text": "美食" },
+      { "pagePath": "pages/records/index", "text": "记忆" }
     ]
   },
   "globalStyle": {

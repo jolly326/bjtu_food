@@ -10,7 +10,8 @@
 |---|---|
 | [auth.md](./auth.md) | 登录与 `/admin/**` 的 `Authorization: Bearer` 鉴权 |
 | [canteens.md](./canteens.md) | `/admin/canteens*` |
-| [stalls.md](./stalls.md) | `/admin/stalls*`（含海报） |
+| [stalls.md](./stalls.md) | `/admin/stalls*` |
+| [posters.md](./posters.md) | `/admin/posters*` |
 | [dishes.md](./dishes.md) | `/admin/dishes*` |
 | [records.md](./records.md) | `/admin/dish-records*`（评分数据，仅读） |
 | [issues.md](./issues.md) | `/admin/dish-issues*` · `/admin/dish-issue-options*` |

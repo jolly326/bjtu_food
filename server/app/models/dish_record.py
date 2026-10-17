@@ -25,6 +25,6 @@ class DishRecord(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("user.id"), nullable=False)
     dish_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("dish.id", ondelete="CASCADE"), nullable=False)
     wanted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
-    # 5 = 好吃 ｜ 3 = 一般 ｜ 1 = 踩 ｜ NULL = 尚未评分
+    # 5 = 喜欢 ｜ 3 = 一般 ｜ 1 = 不喜欢 ｜ NULL = 尚未评分
     reaction: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     reacted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

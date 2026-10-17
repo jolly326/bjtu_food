@@ -24,7 +24,8 @@
 |---|---|
 | [web/auth.md](./web/auth.md) | 登录与 `/admin/**` 的 `Authorization: Bearer` 鉴权 |
 | [web/canteens.md](./web/canteens.md) | `/admin/canteens*` |
-| [web/stalls.md](./web/stalls.md) | `/admin/stalls*`（含海报） |
+| [web/stalls.md](./web/stalls.md) | `/admin/stalls*` |
+| [web/posters.md](./web/posters.md) | `/admin/posters*` |
 | [web/dishes.md](./web/dishes.md) | `/admin/dishes*` |
 | [web/records.md](./web/records.md) | `/admin/dish-records*`（评分数据） |
 | [web/issues.md](./web/issues.md) | `/admin/dish-issues*` · `/admin/dish-issue-options*` |
@@ -99,7 +100,7 @@
 
 - 🔴 **学生端所有业务端点统一要求凭证** —— 端上冷启动 `wx.login` → `POST /auth/wechat-login` 换取 token（**端上缓存 7 天**），此后每个请求都携带它。**不再有「公开读端点」这一态**。
 - 学生端**无权限分级**（无认证态）：凭证据 openid 静默识别签发，端上**不持有、不传递 openid**。
-- 运营端采用**独立管理员账号 + 账密登录**：`POST /admin/auth/login` 换取**运营端 JWT**（独立 secret 签名），随后请求带 `Authorization: Bearer <jwt>`；缺失 / 失效 → `401`。前端**不持有口令**。
+- 运营端采用**独立管理员账号 + 账密登录**：`POST /admin/sessions` 换取**运营端 JWT**（独立 secret 签名），随后请求带 `Authorization: Bearer <jwt>`；缺失 / 失效 → `401`。前端**不持有口令**。
 
 ### 金额
 
@@ -117,7 +118,7 @@
 | 数组字段**恒为数组** | 无数据时返回 `[]`，**不为 null** |
 | 有意可空的字段 | 逐字段在资源文档中标「可空 = 是」并说明 `null` 的语义 |
 
-**有意可空字段（逐条登记）**：`avgReaction`（`null` = **零评分**，与「评分为 0」语义不同，端上显示「暂无评价」）。
+**有意可空字段（逐条登记）**：`avgReaction`（`null` = **零评分**，与「评分为 0」语义不同；服务端推荐权重用）、`flavorLevel`（`null` = **待评**：评分条数 < 3）。
 
 ---
 

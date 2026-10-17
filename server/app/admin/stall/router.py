@@ -2,9 +2,9 @@
 
 端点：
     GET    /admin/stalls?canteenId=   分页
-    POST   /admin/stalls               新建（含海报 URL）
-    PUT    /admin/stalls/{id}          修改（posterUrl 传 null = 清除）
-    DELETE /admin/stalls/{id}          删除（有下属菜品时拒绝）
+    POST   /admin/stalls               新建
+    PUT    /admin/stalls/{id}          修改
+    DELETE /admin/stalls/{id}          删除（有下属菜品时拒绝；海报级联清理）
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ router = APIRouter(prefix="/admin/stalls", tags=["admin-stall"])
 class StallSaveIn(InModel):
     canteen_id: int
     name: str
-    poster_url: str | None = None
     floor: str | None = None
     window_no: str | None = None
 
@@ -35,10 +34,10 @@ class StallOut(OutModel):
     canteen_id: int
     canteen_name: str
     name: str
-    poster_url: str | None = None
     floor: str | None = None
     window_no: str | None = None
     dish_count: int
+    poster_count: int
     updated_at: str
 
 
@@ -48,17 +47,17 @@ def _to_out(row) -> StallOut:
         canteen_id=row.canteen_id,
         canteen_name=row.canteen_name,
         name=row.name,
-        poster_url=row.poster,
         floor=row.floor,
         window_no=row.window_no,
         dish_count=row.dish_count,
+        poster_count=row.poster_count,
         updated_at=row.updated_at,
     )
 
 
 @router.get("", response_model=Envelope[AdminPageResult[StallOut]], summary="档口列表")
 def list_stalls(
-    canteen_id: int | None = Query(default=None),
+    canteen_id: int | None = Query(default=None, alias="canteenId"),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),
     admin_id: int = Depends(current_admin_id),

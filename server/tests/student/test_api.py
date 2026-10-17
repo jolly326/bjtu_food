@@ -48,8 +48,9 @@ def test_malformed_token_returns_401(client: TestClient) -> None:
 
 def test_invalid_reaction_returns_400(client: TestClient) -> None:
     """三态取值 5/3/1；其它值 400（校验先于数据访问）。"""
-    resp = client.patch("/my/records/1", json={"reaction": 9}, headers=_auth())
-    assert resp.json()["code"] == CODE_BAD_REQUEST
+    for value in (0, 2, 4, 9):
+        resp = client.patch("/my/records/1", json={"reaction": value}, headers=_auth())
+        assert resp.json()["code"] == CODE_BAD_REQUEST
 
 
 def test_missing_option_id_returns_400(client: TestClient) -> None:
@@ -71,6 +72,7 @@ def test_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPa
         image_url=None,
         wanted_at="2026-01-01 00:00:00",
         reaction=5,
+        flavor_level="S",
     )
     monkeypatch.setattr(record_service, "react", lambda *_args, **_kwargs: fake_record)
 

@@ -28,6 +28,15 @@ function readStatusBarHeight(): number {
   }
 }
 
+/** 窗口宽度（px）：优先新 API，旧基础库回退；统一由本模块兜底 */
+export function windowWidth(): number {
+  try {
+    return uni.getWindowInfo().windowWidth || 375
+  } catch {
+    return uni.getSystemInfoSync().windowWidth || 375
+  }
+}
+
 export function navMetrics(): NavMetrics {
   const statusBarHeight = readStatusBarHeight()
   let navBarHeight = FALLBACK_NAV_BAR_HEIGHT

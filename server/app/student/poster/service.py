@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-import random
-
 from sqlalchemy.orm import Session
 
+from app.models import Poster
 from app.student.poster import repo
 
 
-def list_posters(session: Session) -> list:
-    """已上传海报的档口，按 id 取出后**随机重掷**。
-
-    随机在应用层做（而非 SQL RAND()）—— 候选集受 status 无关约束（档口无状态列），
-    仅过滤 poster 非空；量级小，打散代价可忽略。
-    """
-    rows = repo.list_with_poster(session)
-    random.shuffle(rows)
-    return rows
+def list_posters(session: Session) -> list[Poster]:
+    """上架海报，按运营手排的**固定序**下发（sort 升序；不随机、不重掷）。"""
+    return repo.list_on_shelf(session)

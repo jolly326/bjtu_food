@@ -7,6 +7,7 @@ from typing import TypeVar
 
 from sqlalchemy.orm import Session
 
+from app.core.rating import flavor_level
 from app.core.schemas import OutModel
 from app.core.storage import to_absolute
 from app.student.dish import repo
@@ -24,7 +25,9 @@ class DishCardOut(OutModel):
     name: str
     price: int
     image_url: str | None = None
+    # 服务端推荐权重用；端上不展示（显示用 flavor_level）
     avg_reaction: float | None = None
+    flavor_level: str | None = None
     wanted: bool = False
     canteen_name: str
     stall_name: str
@@ -68,6 +71,7 @@ def sample_cards(
             price=row.price,
             image_url=to_absolute(row.image),
             avg_reaction=row.avg_reaction,
+            flavor_level=flavor_level(row.avg_reaction, row.reaction_count),
             wanted=row.id in wanted_ids,
             canteen_name=row.canteen_name,
             stall_name=row.stall_name,

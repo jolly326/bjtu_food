@@ -3,2012 +3,1635 @@
  * Do not make direct changes to the file.
  */
 
+
 export interface paths {
-    "/auth/wechat-login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 微信静默登录 */
-        post: operations["wechat_login_auth_wechat_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/canteens": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 食堂字典 */
-        get: operations["list_canteens_canteens_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dishes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 推荐菜品卡片 */
-        get: operations["list_dishes_dishes_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/posters": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * 档口海报列表
-         * @description 只返回**已上传海报**的档口；顺序随机。
-         */
-        get: operations["list_posters_posters_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/my/records": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 我的食谱 */
-        get: operations["list_records_my_records_get"];
-        put?: never;
-        /** 去品尝 */
-        post: operations["create_record_my_records_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/my/records/{record_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** 取消品尝 */
-        delete: operations["cancel_record_my_records__record_id__delete"];
-        options?: never;
-        head?: never;
-        /** 三态评分 */
-        patch: operations["react_record_my_records__record_id__patch"];
-        trace?: never;
-    };
-    "/dish-issue-options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 纠错选项字典 */
-        get: operations["list_options_dish_issue_options_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/dishes/{dish_id}/issues": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 提交菜品纠错 */
-        post: operations["submit_issue_dishes__dish_id__issues_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 运营端登录 */
-        post: operations["login_admin_sessions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/canteens": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 食堂列表 */
-        get: operations["list_canteens_admin_canteens_get"];
-        put?: never;
-        /** 新建食堂 */
-        post: operations["create_canteen_admin_canteens_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/canteens/{canteen_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** 修改食堂 */
-        put: operations["update_canteen_admin_canteens__canteen_id__put"];
-        post?: never;
-        /** 删除食堂 */
-        delete: operations["delete_canteen_admin_canteens__canteen_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/dishes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 菜品列表 */
-        get: operations["list_dishes_admin_dishes_get"];
-        put?: never;
-        /** 新建菜品 */
-        post: operations["create_dish_admin_dishes_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/dishes/{dish_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** 修改菜品 */
-        put: operations["update_dish_admin_dishes__dish_id__put"];
-        post?: never;
-        /** 删除菜品 */
-        delete: operations["delete_dish_admin_dishes__dish_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/images": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 上传图片 */
-        post: operations["upload_image_admin_images_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/dish-issues": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 纠错列表 */
-        get: operations["list_issues_admin_dish_issues_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/dish-issues/{issue_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** 标记已处理 */
-        patch: operations["handle_issue_admin_dish_issues__issue_id__patch"];
-        trace?: never;
-    };
-    "/admin/dish-issue-options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 纠错选项字典 */
-        get: operations["list_options_admin_dish_issue_options_get"];
-        put?: never;
-        /** 新建选项 */
-        post: operations["create_option_admin_dish_issue_options_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/dish-issue-options/{option_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** 改选项文案 */
-        put: operations["update_option_admin_dish_issue_options__option_id__put"];
-        post?: never;
-        /** 删除选项 */
-        delete: operations["delete_option_admin_dish_issue_options__option_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/dish-records": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 评分数据 */
-        get: operations["list_records_admin_dish_records_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/stalls": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 档口列表 */
-        get: operations["list_stalls_admin_stalls_get"];
-        put?: never;
-        /** 新建档口 */
-        post: operations["create_stall_admin_stalls_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/stalls/{stall_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** 修改档口 */
-        put: operations["update_stall_admin_stalls__stall_id__put"];
-        post?: never;
-        /** 删除档口 */
-        delete: operations["delete_stall_admin_stalls__stall_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/healthz": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 探活 */
-        get: operations["healthz_healthz_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  "/auth/wechat-login": {
+    /** 微信静默登录 */
+    post: operations["wechat_login_auth_wechat_login_post"];
+  };
+  "/canteens": {
+    /** 食堂字典 */
+    get: operations["list_canteens_canteens_get"];
+  };
+  "/dishes": {
+    /** 推荐菜品卡片 */
+    get: operations["list_dishes_dishes_get"];
+  };
+  "/posters": {
+    /**
+     * 档口海报列表
+     * @description 只返回**上架**海报；顺序 = 运营排定的固定序（不随机）。
+     */
+    get: operations["list_posters_posters_get"];
+  };
+  "/my/records": {
+    /** 我的食谱 */
+    get: operations["list_records_my_records_get"];
+    /** 去品尝 */
+    post: operations["create_record_my_records_post"];
+  };
+  "/my/records/{record_id}": {
+    /** 取消品尝 */
+    delete: operations["cancel_record_my_records__record_id__delete"];
+    /** 三态评分 */
+    patch: operations["react_record_my_records__record_id__patch"];
+  };
+  "/dish-issue-options": {
+    /** 纠错选项字典 */
+    get: operations["list_options_dish_issue_options_get"];
+  };
+  "/dishes/{dish_id}/issues": {
+    /** 提交菜品纠错 */
+    post: operations["submit_issue_dishes__dish_id__issues_post"];
+  };
+  "/admin/sessions": {
+    /** 运营端登录 */
+    post: operations["login_admin_sessions_post"];
+  };
+  "/admin/canteens": {
+    /** 食堂列表 */
+    get: operations["list_canteens_admin_canteens_get"];
+    /** 新建食堂 */
+    post: operations["create_canteen_admin_canteens_post"];
+  };
+  "/admin/canteens/{canteen_id}": {
+    /** 修改食堂 */
+    put: operations["update_canteen_admin_canteens__canteen_id__put"];
+    /** 删除食堂 */
+    delete: operations["delete_canteen_admin_canteens__canteen_id__delete"];
+  };
+  "/admin/dishes": {
+    /** 菜品列表 */
+    get: operations["list_dishes_admin_dishes_get"];
+    /** 新建菜品 */
+    post: operations["create_dish_admin_dishes_post"];
+  };
+  "/admin/dishes/{dish_id}": {
+    /** 修改菜品 */
+    put: operations["update_dish_admin_dishes__dish_id__put"];
+    /** 删除菜品 */
+    delete: operations["delete_dish_admin_dishes__dish_id__delete"];
+  };
+  "/admin/images": {
+    /** 上传图片 */
+    post: operations["upload_image_admin_images_post"];
+  };
+  "/admin/dish-issues": {
+    /** 纠错列表 */
+    get: operations["list_issues_admin_dish_issues_get"];
+  };
+  "/admin/dish-issues/{issue_id}": {
+    /** 标记已处理 */
+    patch: operations["handle_issue_admin_dish_issues__issue_id__patch"];
+  };
+  "/admin/dish-issue-options": {
+    /** 纠错选项字典 */
+    get: operations["list_options_admin_dish_issue_options_get"];
+    /** 新建选项 */
+    post: operations["create_option_admin_dish_issue_options_post"];
+  };
+  "/admin/dish-issue-options/{option_id}": {
+    /** 改选项文案 */
+    put: operations["update_option_admin_dish_issue_options__option_id__put"];
+    /** 删除选项 */
+    delete: operations["delete_option_admin_dish_issue_options__option_id__delete"];
+  };
+  "/admin/posters": {
+    /**
+     * 海报列表
+     * @description 按 ``sort`` 升序（同值按 ``id``）—— 与学生端橱窗同序。
+     */
+    get: operations["list_posters_admin_posters_get"];
+    /** 新建海报 */
+    post: operations["create_poster_admin_posters_post"];
+  };
+  "/admin/posters/{poster_id}": {
+    /** 修改海报 */
+    put: operations["update_poster_admin_posters__poster_id__put"];
+    /** 删除海报 */
+    delete: operations["delete_poster_admin_posters__poster_id__delete"];
+  };
+  "/admin/dish-records": {
+    /** 评分数据 */
+    get: operations["list_records_admin_dish_records_get"];
+  };
+  "/admin/stalls": {
+    /** 档口列表 */
+    get: operations["list_stalls_admin_stalls_get"];
+    /** 新建档口 */
+    post: operations["create_stall_admin_stalls_post"];
+  };
+  "/admin/stalls/{stall_id}": {
+    /** 修改档口 */
+    put: operations["update_stall_admin_stalls__stall_id__put"];
+    /** 删除档口 */
+    delete: operations["delete_stall_admin_stalls__stall_id__delete"];
+  };
+  "/healthz": {
+    /** 探活 */
+    get: operations["healthz_healthz_get"];
+  };
 }
+
 export type webhooks = Record<string, never>;
+
 export interface components {
-    schemas: {
-        /** AdminLoginIn */
-        AdminLoginIn: {
-            /** Username */
-            username: string;
-            /** Password */
-            password: string;
-        };
-        /** AdminPageResult[CanteenOut] */
-        AdminPageResult_CanteenOut_: {
-            /** Records */
-            records: components["schemas"]["app__domains__admin_canteen__router__CanteenOut"][];
-            /** Total */
-            total: number;
-        };
-        /** AdminPageResult[DishIssueOut] */
-        AdminPageResult_DishIssueOut_: {
-            /** Records */
-            records: components["schemas"]["DishIssueOut"][];
-            /** Total */
-            total: number;
-        };
-        /** AdminPageResult[DishOut] */
-        AdminPageResult_DishOut_: {
-            /** Records */
-            records: components["schemas"]["DishOut"][];
-            /** Total */
-            total: number;
-        };
-        /** AdminPageResult[DishRecordOut] */
-        AdminPageResult_DishRecordOut_: {
-            /** Records */
-            records: components["schemas"]["DishRecordOut"][];
-            /** Total */
-            total: number;
-        };
-        /** AdminPageResult[StallOut] */
-        AdminPageResult_StallOut_: {
-            /** Records */
-            records: components["schemas"]["StallOut"][];
-            /** Total */
-            total: number;
-        };
-        /** AdminSessionOut */
-        AdminSessionOut: {
-            /** Token */
-            token: string;
-            /** Username */
-            username: string;
-        };
-        /** Body_upload_image_admin_images_post */
-        Body_upload_image_admin_images_post: {
-            /** File */
-            file: string;
-        };
-        /** CanteenSaveIn */
-        CanteenSaveIn: {
-            /** Name */
-            name: string;
-        };
-        /**
-         * DishCardOut
-         * @description 推荐卡片出参（docs/api/client/dishes.md 的 DishCardVO）。
-         */
-        DishCardOut: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Price */
-            price: number;
-            /** Imageurl */
-            imageUrl?: string | null;
-            /** Avgreaction */
-            avgReaction?: number | null;
-            /**
-             * Wanted
-             * @default false
-             */
-            wanted: boolean;
-            /** Canteenname */
-            canteenName: string;
-            /** Stallname */
-            stallName: string;
-        };
-        /** DishIssueOut */
-        DishIssueOut: {
-            /** Id */
-            id: number;
-            /** Dishid */
-            dishId: number;
-            /** Dishname */
-            dishName: string;
-            /** Canteenname */
-            canteenName: string;
-            /** Stallname */
-            stallName: string;
-            /** Optionid */
-            optionId: number;
-            /** Optionname */
-            optionName: string;
-            /** Createdat */
-            createdAt: string;
-            /** Handledat */
-            handledAt?: string | null;
-        };
-        /** DishOut */
-        DishOut: {
-            /** Id */
-            id: number;
-            /** Stallid */
-            stallId: number;
-            /** Stallname */
-            stallName: string;
-            /** Canteenname */
-            canteenName: string;
-            /** Name */
-            name: string;
-            /** Price */
-            price: number;
-            /** Imageurl */
-            imageUrl?: string | null;
-            /** Status */
-            status: string;
-            /** Avgreaction */
-            avgReaction?: number | null;
-            /** Reactioncount */
-            reactionCount: number;
-            /** Updatedat */
-            updatedAt: string;
-        };
-        /** DishRecordOut */
-        DishRecordOut: {
-            /** Id */
-            id: number;
-            /** Dishid */
-            dishId: number;
-            /** Dishname */
-            dishName: string;
-            /** Canteenname */
-            canteenName: string;
-            /** Stallname */
-            stallName: string;
-            /** Reaction */
-            reaction?: number | null;
-            /** Wantedat */
-            wantedAt: string;
-            /** Reactedat */
-            reactedAt?: string | null;
-        };
-        /** DishSaveIn */
-        DishSaveIn: {
-            /** Stallid */
-            stallId: number;
-            /** Name */
-            name: string;
-            /** Price */
-            price: number;
-            /** Imageurl */
-            imageUrl?: string | null;
-            /**
-             * Status
-             * @default on
-             */
-            status: string;
-        };
-        /** Envelope[AdminPageResult[CanteenOut]] */
-        Envelope_AdminPageResult_CanteenOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["AdminPageResult_CanteenOut_"] | null;
-        };
-        /** Envelope[AdminPageResult[DishIssueOut]] */
-        Envelope_AdminPageResult_DishIssueOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["AdminPageResult_DishIssueOut_"] | null;
-        };
-        /** Envelope[AdminPageResult[DishOut]] */
-        Envelope_AdminPageResult_DishOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["AdminPageResult_DishOut_"] | null;
-        };
-        /** Envelope[AdminPageResult[DishRecordOut]] */
-        Envelope_AdminPageResult_DishRecordOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["AdminPageResult_DishRecordOut_"] | null;
-        };
-        /** Envelope[AdminPageResult[StallOut]] */
-        Envelope_AdminPageResult_StallOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["AdminPageResult_StallOut_"] | null;
-        };
-        /** Envelope[AdminSessionOut] */
-        Envelope_AdminSessionOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["AdminSessionOut"] | null;
-        };
-        /** Envelope[CanteenOut] */
-        Envelope_CanteenOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["app__domains__admin_canteen__router__CanteenOut"] | null;
-        };
-        /** Envelope[DishIssueOut] */
-        Envelope_DishIssueOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["DishIssueOut"] | null;
-        };
-        /** Envelope[DishOut] */
-        Envelope_DishOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["DishOut"] | null;
-        };
-        /** Envelope[ImageOut] */
-        Envelope_ImageOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["ImageOut"] | null;
-        };
-        /** Envelope[NoneType] */
-        Envelope_NoneType_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            /** Data */
-            data?: null;
-        };
-        /** Envelope[OptionOut] */
-        Envelope_OptionOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["OptionOut"] | null;
-        };
-        /** Envelope[PageResult[DishCardOut]] */
-        Envelope_PageResult_DishCardOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["PageResult_DishCardOut_"] | null;
-        };
-        /** Envelope[RecordOut] */
-        Envelope_RecordOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["RecordOut"] | null;
-        };
-        /** Envelope[StallOut] */
-        Envelope_StallOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["StallOut"] | null;
-        };
-        /** Envelope[TokenOut] */
-        Envelope_TokenOut_: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            data?: components["schemas"]["TokenOut"] | null;
-        };
-        /** Envelope[list[CanteenOut]] */
-        Envelope_list_CanteenOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            /** Data */
-            data?: components["schemas"]["app__domains__canteen__router__CanteenOut"][] | null;
-        };
-        /** Envelope[list[IssueOptionOut]] */
-        Envelope_list_IssueOptionOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            /** Data */
-            data?: components["schemas"]["IssueOptionOut"][] | null;
-        };
-        /** Envelope[list[OptionOut]] */
-        Envelope_list_OptionOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            /** Data */
-            data?: components["schemas"]["OptionOut"][] | null;
-        };
-        /** Envelope[list[PosterOut]] */
-        Envelope_list_PosterOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            /** Data */
-            data?: components["schemas"]["PosterOut"][] | null;
-        };
-        /** Envelope[list[RecordOut]] */
-        Envelope_list_RecordOut__: {
-            /**
-             * Code
-             * @default 200
-             */
-            code: number;
-            /**
-             * Message
-             * @default 操作成功
-             */
-            message: string;
-            /** Data */
-            data?: components["schemas"]["RecordOut"][] | null;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** HandleIn */
-        HandleIn: {
-            /** Handled */
-            handled: boolean;
-        };
-        /** ImageOut */
-        ImageOut: {
-            /** Url */
-            url: string;
-        };
-        /** IssueIn */
-        IssueIn: {
-            /** Optionid */
-            optionId: number;
-        };
-        /** IssueOptionOut */
-        IssueOptionOut: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-        };
-        /** OptionOut */
-        OptionOut: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Refcount */
-            refCount: number;
-            /** Updatedat */
-            updatedAt: string;
-        };
-        /** OptionSaveIn */
-        OptionSaveIn: {
-            /** Name */
-            name: string;
-        };
-        /** PageResult[DishCardOut] */
-        PageResult_DishCardOut_: {
-            /** Records */
-            records: components["schemas"]["DishCardOut"][];
-        };
-        /** PosterOut */
-        PosterOut: {
-            /** Id */
-            id: number;
-            /** Imageurl */
-            imageUrl: string;
-        };
-        /** ReactIn */
-        ReactIn: {
-            /** Reaction */
-            reaction: number;
-        };
-        /** RecordOut */
-        RecordOut: {
-            /** Id */
-            id: number;
-            /** Dishid */
-            dishId: number;
-            /** Name */
-            name: string;
-            /** Imageurl */
-            imageUrl?: string | null;
-            /** Wantedat */
-            wantedAt: string;
-            /** Reaction */
-            reaction?: number | null;
-        };
-        /** StallOut */
-        StallOut: {
-            /** Id */
-            id: number;
-            /** Canteenid */
-            canteenId: number;
-            /** Canteenname */
-            canteenName: string;
-            /** Name */
-            name: string;
-            /** Posterurl */
-            posterUrl?: string | null;
-            /** Floor */
-            floor?: string | null;
-            /** Windowno */
-            windowNo?: string | null;
-            /** Dishcount */
-            dishCount: number;
-            /** Updatedat */
-            updatedAt: string;
-        };
-        /** StallSaveIn */
-        StallSaveIn: {
-            /** Canteenid */
-            canteenId: number;
-            /** Name */
-            name: string;
-            /** Posterurl */
-            posterUrl?: string | null;
-            /** Floor */
-            floor?: string | null;
-            /** Windowno */
-            windowNo?: string | null;
-        };
-        /** TokenOut */
-        TokenOut: {
-            /** Token */
-            token: string;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
-        /** WantIn */
-        WantIn: {
-            /** Dishid */
-            dishId: number;
-        };
-        /** WechatLoginIn */
-        WechatLoginIn: {
-            /** Code */
-            code: string;
-        };
-        /** CanteenOut */
-        app__domains__admin_canteen__router__CanteenOut: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-            /** Stallcount */
-            stallCount: number;
-            /** Updatedat */
-            updatedAt: string;
-        };
-        /** CanteenOut */
-        app__domains__canteen__router__CanteenOut: {
-            /** Id */
-            id: number;
-            /** Name */
-            name: string;
-        };
+  schemas: {
+    /** AdminCanteenOut */
+    AdminCanteenOut: {
+      /** Id */
+      id: number;
+      /** Name */
+      name: string;
+      /** Stallcount */
+      stallCount: number;
+      /** Updatedat */
+      updatedAt: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AdminLoginIn */
+    AdminLoginIn: {
+      /** Username */
+      username: string;
+      /** Password */
+      password: string;
+    };
+    /** AdminPageResult[AdminCanteenOut] */
+    AdminPageResult_AdminCanteenOut_: {
+      /** Records */
+      records: components["schemas"]["AdminCanteenOut"][];
+      /** Total */
+      total: number;
+    };
+    /** AdminPageResult[AdminPosterOut] */
+    AdminPageResult_AdminPosterOut_: {
+      /** Records */
+      records: components["schemas"]["AdminPosterOut"][];
+      /** Total */
+      total: number;
+    };
+    /** AdminPageResult[DishIssueOut] */
+    AdminPageResult_DishIssueOut_: {
+      /** Records */
+      records: components["schemas"]["DishIssueOut"][];
+      /** Total */
+      total: number;
+    };
+    /** AdminPageResult[DishOut] */
+    AdminPageResult_DishOut_: {
+      /** Records */
+      records: components["schemas"]["DishOut"][];
+      /** Total */
+      total: number;
+    };
+    /** AdminPageResult[DishRecordOut] */
+    AdminPageResult_DishRecordOut_: {
+      /** Records */
+      records: components["schemas"]["DishRecordOut"][];
+      /** Total */
+      total: number;
+    };
+    /** AdminPageResult[StallOut] */
+    AdminPageResult_StallOut_: {
+      /** Records */
+      records: components["schemas"]["StallOut"][];
+      /** Total */
+      total: number;
+    };
+    /** AdminPosterOut */
+    AdminPosterOut: {
+      /** Id */
+      id: number;
+      /** Stallid */
+      stallId: number;
+      /** Stallname */
+      stallName: string;
+      /** Canteenname */
+      canteenName: string;
+      /** Imageurl */
+      imageUrl: string;
+      /** Sort */
+      sort: number;
+      /** Status */
+      status: string;
+      /** Updatedat */
+      updatedAt: string;
+    };
+    /** AdminSessionOut */
+    AdminSessionOut: {
+      /** Token */
+      token: string;
+      /** Username */
+      username: string;
+    };
+    /** Body_upload_image_admin_images_post */
+    Body_upload_image_admin_images_post: {
+      /** File */
+      file: string;
+    };
+    /** CanteenOut */
+    CanteenOut: {
+      /** Id */
+      id: number;
+      /** Name */
+      name: string;
+    };
+    /** CanteenSaveIn */
+    CanteenSaveIn: {
+      /** Name */
+      name: string;
+    };
+    /**
+     * DishCardOut
+     * @description 推荐卡片出参（docs/api/client/dishes.md 的 DishCardVO）。
+     */
+    DishCardOut: {
+      /** Id */
+      id: number;
+      /** Name */
+      name: string;
+      /** Price */
+      price: number;
+      /** Imageurl */
+      imageUrl?: string | null;
+      /** Avgreaction */
+      avgReaction?: number | null;
+      /** Flavorlevel */
+      flavorLevel?: string | null;
+      /**
+       * Wanted
+       * @default false
+       */
+      wanted?: boolean;
+      /** Canteenname */
+      canteenName: string;
+      /** Stallname */
+      stallName: string;
+    };
+    /** DishIssueOut */
+    DishIssueOut: {
+      /** Id */
+      id: number;
+      /** Dishid */
+      dishId: number;
+      /** Dishname */
+      dishName: string;
+      /** Canteenname */
+      canteenName: string;
+      /** Stallname */
+      stallName: string;
+      /** Optionid */
+      optionId: number;
+      /** Optionname */
+      optionName: string;
+      /** Createdat */
+      createdAt: string;
+      /** Handledat */
+      handledAt?: string | null;
+    };
+    /** DishOut */
+    DishOut: {
+      /** Id */
+      id: number;
+      /** Stallid */
+      stallId: number;
+      /** Stallname */
+      stallName: string;
+      /** Canteenname */
+      canteenName: string;
+      /** Name */
+      name: string;
+      /** Price */
+      price: number;
+      /** Imageurl */
+      imageUrl?: string | null;
+      /** Status */
+      status: string;
+      /** Avgreaction */
+      avgReaction?: number | null;
+      /** Reactioncount */
+      reactionCount: number;
+      /** Updatedat */
+      updatedAt: string;
+    };
+    /** DishRecordOut */
+    DishRecordOut: {
+      /** Id */
+      id: number;
+      /** Dishid */
+      dishId: number;
+      /** Dishname */
+      dishName: string;
+      /** Canteenname */
+      canteenName: string;
+      /** Stallname */
+      stallName: string;
+      /** Reaction */
+      reaction?: number | null;
+      /** Wantedat */
+      wantedAt: string;
+      /** Reactedat */
+      reactedAt?: string | null;
+    };
+    /** DishSaveIn */
+    DishSaveIn: {
+      /** Stallid */
+      stallId: number;
+      /** Name */
+      name: string;
+      /** Price */
+      price: number;
+      /** Imageurl */
+      imageUrl?: string | null;
+      /**
+       * Status
+       * @default on
+       */
+      status?: string;
+    };
+    /** Envelope[AdminCanteenOut] */
+    Envelope_AdminCanteenOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminCanteenOut"] | null;
+    };
+    /** Envelope[AdminPageResult[AdminCanteenOut]] */
+    Envelope_AdminPageResult_AdminCanteenOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResult_AdminCanteenOut_"] | null;
+    };
+    /** Envelope[AdminPageResult[AdminPosterOut]] */
+    Envelope_AdminPageResult_AdminPosterOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResult_AdminPosterOut_"] | null;
+    };
+    /** Envelope[AdminPageResult[DishIssueOut]] */
+    Envelope_AdminPageResult_DishIssueOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResult_DishIssueOut_"] | null;
+    };
+    /** Envelope[AdminPageResult[DishOut]] */
+    Envelope_AdminPageResult_DishOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResult_DishOut_"] | null;
+    };
+    /** Envelope[AdminPageResult[DishRecordOut]] */
+    Envelope_AdminPageResult_DishRecordOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResult_DishRecordOut_"] | null;
+    };
+    /** Envelope[AdminPageResult[StallOut]] */
+    Envelope_AdminPageResult_StallOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPageResult_StallOut_"] | null;
+    };
+    /** Envelope[AdminPosterOut] */
+    Envelope_AdminPosterOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminPosterOut"] | null;
+    };
+    /** Envelope[AdminSessionOut] */
+    Envelope_AdminSessionOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["AdminSessionOut"] | null;
+    };
+    /** Envelope[DishIssueOut] */
+    Envelope_DishIssueOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishIssueOut"] | null;
+    };
+    /** Envelope[DishOut] */
+    Envelope_DishOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["DishOut"] | null;
+    };
+    /** Envelope[ImageOut] */
+    Envelope_ImageOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["ImageOut"] | null;
+    };
+    /** Envelope[NoneType] */
+    Envelope_NoneType_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      /** Data */
+      data?: null;
+    };
+    /** Envelope[OptionOut] */
+    Envelope_OptionOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["OptionOut"] | null;
+    };
+    /** Envelope[PageResult[DishCardOut]] */
+    Envelope_PageResult_DishCardOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["PageResult_DishCardOut_"] | null;
+    };
+    /** Envelope[RecordOut] */
+    Envelope_RecordOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["RecordOut"] | null;
+    };
+    /** Envelope[StallOut] */
+    Envelope_StallOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["StallOut"] | null;
+    };
+    /** Envelope[TokenOut] */
+    Envelope_TokenOut_: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      data?: components["schemas"]["TokenOut"] | null;
+    };
+    /** Envelope[list[CanteenOut]] */
+    Envelope_list_CanteenOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      /** Data */
+      data?: components["schemas"]["CanteenOut"][] | null;
+    };
+    /** Envelope[list[IssueOptionOut]] */
+    Envelope_list_IssueOptionOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      /** Data */
+      data?: components["schemas"]["IssueOptionOut"][] | null;
+    };
+    /** Envelope[list[OptionOut]] */
+    Envelope_list_OptionOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      /** Data */
+      data?: components["schemas"]["OptionOut"][] | null;
+    };
+    /** Envelope[list[PosterOut]] */
+    Envelope_list_PosterOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      /** Data */
+      data?: components["schemas"]["PosterOut"][] | null;
+    };
+    /** Envelope[list[RecordOut]] */
+    Envelope_list_RecordOut__: {
+      /**
+       * Code
+       * @default 200
+       */
+      code?: number;
+      /**
+       * Message
+       * @default 操作成功
+       */
+      message?: string;
+      /** Data */
+      data?: components["schemas"]["RecordOut"][] | null;
+    };
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components["schemas"]["ValidationError"][];
+    };
+    /** HandleIn */
+    HandleIn: {
+      /** Handled */
+      handled: boolean;
+    };
+    /** ImageOut */
+    ImageOut: {
+      /** Url */
+      url: string;
+    };
+    /** IssueIn */
+    IssueIn: {
+      /** Optionid */
+      optionId: number;
+    };
+    /** IssueOptionOut */
+    IssueOptionOut: {
+      /** Id */
+      id: number;
+      /** Name */
+      name: string;
+    };
+    /** OptionOut */
+    OptionOut: {
+      /** Id */
+      id: number;
+      /** Name */
+      name: string;
+      /** Refcount */
+      refCount: number;
+      /** Updatedat */
+      updatedAt: string;
+    };
+    /** OptionSaveIn */
+    OptionSaveIn: {
+      /** Name */
+      name: string;
+    };
+    /** PageResult[DishCardOut] */
+    PageResult_DishCardOut_: {
+      /** Records */
+      records: components["schemas"]["DishCardOut"][];
+    };
+    /** PosterOut */
+    PosterOut: {
+      /** Id */
+      id: number;
+      /** Imageurl */
+      imageUrl: string;
+    };
+    /** PosterSaveIn */
+    PosterSaveIn: {
+      /** Stallid */
+      stallId: number;
+      /** Imageurl */
+      imageUrl: string;
+      /** Sort */
+      sort?: number | null;
+      /**
+       * Status
+       * @default on
+       */
+      status?: string;
+    };
+    /** ReactIn */
+    ReactIn: {
+      /** Reaction */
+      reaction: number;
+    };
+    /** RecordOut */
+    RecordOut: {
+      /** Id */
+      id: number;
+      /** Dishid */
+      dishId: number;
+      /** Name */
+      name: string;
+      /** Imageurl */
+      imageUrl?: string | null;
+      /** Wantedat */
+      wantedAt: string;
+      /** Reaction */
+      reaction?: number | null;
+      /** Flavorlevel */
+      flavorLevel?: string | null;
+    };
+    /** StallOut */
+    StallOut: {
+      /** Id */
+      id: number;
+      /** Canteenid */
+      canteenId: number;
+      /** Canteenname */
+      canteenName: string;
+      /** Name */
+      name: string;
+      /** Floor */
+      floor?: string | null;
+      /** Windowno */
+      windowNo?: string | null;
+      /** Dishcount */
+      dishCount: number;
+      /** Postercount */
+      posterCount: number;
+      /** Updatedat */
+      updatedAt: string;
+    };
+    /** StallSaveIn */
+    StallSaveIn: {
+      /** Canteenid */
+      canteenId: number;
+      /** Name */
+      name: string;
+      /** Floor */
+      floor?: string | null;
+      /** Windowno */
+      windowNo?: string | null;
+    };
+    /** TokenOut */
+    TokenOut: {
+      /** Token */
+      token: string;
+    };
+    /** ValidationError */
+    ValidationError: {
+      /** Location */
+      loc: (string | number)[];
+      /** Message */
+      msg: string;
+      /** Error Type */
+      type: string;
+      /** Input */
+      input?: unknown;
+      /** Context */
+      ctx?: Record<string, never>;
+    };
+    /** WantIn */
+    WantIn: {
+      /** Dishid */
+      dishId: number;
+    };
+    /** WechatLoginIn */
+    WechatLoginIn: {
+      /** Code */
+      code: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
+
 export type $defs = Record<string, never>;
+
+export type external = Record<string, never>;
+
 export interface operations {
-    wechat_login_auth_wechat_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WechatLoginIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_TokenOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+
+  /** 微信静默登录 */
+  wechat_login_auth_wechat_login_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WechatLoginIn"];
+      };
     };
-    list_canteens_canteens_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_TokenOut_"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_list_CanteenOut__"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
     };
-    list_dishes_dishes_get: {
-        parameters: {
-            query?: {
-                canteen_id?: number | null;
-                page?: number | null;
-                pageSize?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+  };
+  /** 食堂字典 */
+  list_canteens_canteens_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_list_CanteenOut__"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_PageResult_DishCardOut__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    list_posters_posters_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_list_PosterOut__"];
-                };
-            };
-        };
+  };
+  /** 推荐菜品卡片 */
+  list_dishes_dishes_get: {
+    parameters: {
+      query?: {
+        canteenId?: number | null;
+        page?: number | null;
+        pageSize?: number | null;
+      };
     };
-    list_records_my_records_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_PageResult_DishCardOut__"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_list_RecordOut__"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
     };
-    create_record_my_records_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+  };
+  /**
+   * 档口海报列表
+   * @description 只返回**上架**海报；顺序 = 运营排定的固定序（不随机）。
+   */
+  list_posters_posters_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_list_PosterOut__"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WantIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_RecordOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    cancel_record_my_records__record_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                record_id: number;
-            };
-            cookie?: never;
+  };
+  /** 我的食谱 */
+  list_records_my_records_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_list_RecordOut__"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_NoneType_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    react_record_my_records__record_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                record_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReactIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_RecordOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 去品尝 */
+  create_record_my_records_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WantIn"];
+      };
     };
-    list_options_dish_issue_options_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_RecordOut_"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_list_IssueOptionOut__"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
     };
-    submit_issue_dishes__dish_id__issues_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dish_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IssueIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_NoneType_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 取消品尝 */
+  cancel_record_my_records__record_id__delete: {
+    parameters: {
+      path: {
+        record_id: number;
+      };
     };
-    login_admin_sessions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_NoneType_"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminLoginIn"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_AdminSessionOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    list_canteens_admin_canteens_get: {
-        parameters: {
-            query?: {
-                page?: number | null;
-                pageSize?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_AdminPageResult_CanteenOut__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 三态评分 */
+  react_record_my_records__record_id__patch: {
+    parameters: {
+      path: {
+        record_id: number;
+      };
     };
-    create_canteen_admin_canteens_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CanteenSaveIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_CanteenOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReactIn"];
+      };
     };
-    update_canteen_admin_canteens__canteen_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                canteen_id: number;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_RecordOut_"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CanteenSaveIn"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_CanteenOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    delete_canteen_admin_canteens__canteen_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                canteen_id: number;
-            };
-            cookie?: never;
+  };
+  /** 纠错选项字典 */
+  list_options_dish_issue_options_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_list_IssueOptionOut__"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_NoneType_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    list_dishes_admin_dishes_get: {
-        parameters: {
-            query?: {
-                stall_id?: number | null;
-                canteen_id?: number | null;
-                status?: string | null;
-                page?: number | null;
-                pageSize?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_AdminPageResult_DishOut__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 提交菜品纠错 */
+  submit_issue_dishes__dish_id__issues_post: {
+    parameters: {
+      path: {
+        dish_id: number;
+      };
     };
-    create_dish_admin_dishes_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DishSaveIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_DishOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["IssueIn"];
+      };
     };
-    update_dish_admin_dishes__dish_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dish_id: number;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_NoneType_"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DishSaveIn"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_DishOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    delete_dish_admin_dishes__dish_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                dish_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_NoneType_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 运营端登录 */
+  login_admin_sessions_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminLoginIn"];
+      };
     };
-    upload_image_admin_images_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminSessionOut_"];
         };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_image_admin_images_post"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_ImageOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    list_issues_admin_dish_issues_get: {
-        parameters: {
-            query?: {
-                handled?: boolean | null;
-                dish_id?: number | null;
-                page?: number | null;
-                pageSize?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_AdminPageResult_DishIssueOut__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 食堂列表 */
+  list_canteens_admin_canteens_get: {
+    parameters: {
+      query?: {
+        page?: number | null;
+        pageSize?: number | null;
+      };
     };
-    handle_issue_admin_dish_issues__issue_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                issue_id: number;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPageResult_AdminCanteenOut__"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HandleIn"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_DishIssueOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    list_options_admin_dish_issue_options_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_list_OptionOut__"];
-                };
-            };
-        };
+  };
+  /** 新建食堂 */
+  create_canteen_admin_canteens_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanteenSaveIn"];
+      };
     };
-    create_option_admin_dish_issue_options_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminCanteenOut_"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OptionSaveIn"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_OptionOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    update_option_admin_dish_issue_options__option_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                option_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["OptionSaveIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_OptionOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 修改食堂 */
+  update_canteen_admin_canteens__canteen_id__put: {
+    parameters: {
+      path: {
+        canteen_id: number;
+      };
     };
-    delete_option_admin_dish_issue_options__option_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                option_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_NoneType_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CanteenSaveIn"];
+      };
     };
-    list_records_admin_dish_records_get: {
-        parameters: {
-            query?: {
-                dish_id?: number | null;
-                reaction?: string | null;
-                page?: number | null;
-                pageSize?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminCanteenOut_"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_AdminPageResult_DishRecordOut__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
     };
-    list_stalls_admin_stalls_get: {
-        parameters: {
-            query?: {
-                canteen_id?: number | null;
-                page?: number | null;
-                pageSize?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_AdminPageResult_StallOut__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 删除食堂 */
+  delete_canteen_admin_canteens__canteen_id__delete: {
+    parameters: {
+      path: {
+        canteen_id: number;
+      };
     };
-    create_stall_admin_stalls_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_NoneType_"];
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StallSaveIn"];
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_StallOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+      };
     };
-    update_stall_admin_stalls__stall_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                stall_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StallSaveIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_StallOut_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+  };
+  /** 菜品列表 */
+  list_dishes_admin_dishes_get: {
+    parameters: {
+      query?: {
+        stallId?: number | null;
+        canteenId?: number | null;
+        status?: string | null;
+        page?: number | null;
+        pageSize?: number | null;
+      };
     };
-    delete_stall_admin_stalls__stall_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                stall_id: number;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPageResult_DishOut__"];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_NoneType_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
     };
-    healthz_healthz_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
+  };
+  /** 新建菜品 */
+  create_dish_admin_dishes_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishSaveIn"];
+      };
     };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_DishOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 修改菜品 */
+  update_dish_admin_dishes__dish_id__put: {
+    parameters: {
+      path: {
+        dish_id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DishSaveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_DishOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 删除菜品 */
+  delete_dish_admin_dishes__dish_id__delete: {
+    parameters: {
+      path: {
+        dish_id: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_NoneType_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 上传图片 */
+  upload_image_admin_images_post: {
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_upload_image_admin_images_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_ImageOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 纠错列表 */
+  list_issues_admin_dish_issues_get: {
+    parameters: {
+      query?: {
+        handled?: boolean | null;
+        dishId?: number | null;
+        page?: number | null;
+        pageSize?: number | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPageResult_DishIssueOut__"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 标记已处理 */
+  handle_issue_admin_dish_issues__issue_id__patch: {
+    parameters: {
+      path: {
+        issue_id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["HandleIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_DishIssueOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 纠错选项字典 */
+  list_options_admin_dish_issue_options_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_list_OptionOut__"];
+        };
+      };
+    };
+  };
+  /** 新建选项 */
+  create_option_admin_dish_issue_options_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OptionSaveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_OptionOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 改选项文案 */
+  update_option_admin_dish_issue_options__option_id__put: {
+    parameters: {
+      path: {
+        option_id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OptionSaveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_OptionOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 删除选项 */
+  delete_option_admin_dish_issue_options__option_id__delete: {
+    parameters: {
+      path: {
+        option_id: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_NoneType_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /**
+   * 海报列表
+   * @description 按 ``sort`` 升序（同值按 ``id``）—— 与学生端橱窗同序。
+   */
+  list_posters_admin_posters_get: {
+    parameters: {
+      query?: {
+        stallId?: number | null;
+        canteenId?: number | null;
+        status?: string | null;
+        page?: number | null;
+        pageSize?: number | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPageResult_AdminPosterOut__"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 新建海报 */
+  create_poster_admin_posters_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PosterSaveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPosterOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 修改海报 */
+  update_poster_admin_posters__poster_id__put: {
+    parameters: {
+      path: {
+        poster_id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PosterSaveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPosterOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 删除海报 */
+  delete_poster_admin_posters__poster_id__delete: {
+    parameters: {
+      path: {
+        poster_id: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_NoneType_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 评分数据 */
+  list_records_admin_dish_records_get: {
+    parameters: {
+      query?: {
+        dishId?: number | null;
+        reaction?: string | null;
+        page?: number | null;
+        pageSize?: number | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPageResult_DishRecordOut__"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 档口列表 */
+  list_stalls_admin_stalls_get: {
+    parameters: {
+      query?: {
+        canteenId?: number | null;
+        page?: number | null;
+        pageSize?: number | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_AdminPageResult_StallOut__"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 新建档口 */
+  create_stall_admin_stalls_post: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StallSaveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_StallOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 修改档口 */
+  update_stall_admin_stalls__stall_id__put: {
+    parameters: {
+      path: {
+        stall_id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StallSaveIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_StallOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 删除档口 */
+  delete_stall_admin_stalls__stall_id__delete: {
+    parameters: {
+      path: {
+        stall_id: number;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Envelope_NoneType_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  /** 探活 */
+  healthz_healthz_get: {
+    responses: {
+      /** @description Successful Response */
+      200: {
+        content: {
+          "application/json": {
+            [key: string]: string;
+          };
+        };
+      };
+    };
+  };
 }

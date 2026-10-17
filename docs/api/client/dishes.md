@@ -22,7 +22,8 @@
 | `name` | string | 否 | 菜品名称 |
 | `price` | number | 否 | 现价，**单位「分」** |
 | `imageUrl` | string | 否 | 菜品大图绝对 URL |
-| `avgReaction` | number | **是** | 平均评价度（1 位小数）；**`null` = 零评分**，端上显示「暂无评价」 |
+| `avgReaction` | number | **是** | **已废弃（契约保留、前端禁用）**：`5`/`3`/`1` 三态均值（1 位小数），仅供服务端推荐权重与评级判定；**前端不得读取 / 渲染**，展示一律用 `flavorLevel`；`null` = 零评分 |
+| `flavorLevel` | string | **是** | **群体风味评级**字母：`S` / `A` / `B` / `C` / `D`；**`null` = 待评**（评分条数 < 3）—— 卡片左上字母 + 右上风味评级据此渲染 |
 | `wanted` | boolean | 否 | 当前用户对该菜**是否已有未评分记录**（决定「去品尝」按钮是否为已标记态） |
 | `canteenName` | string | 否 | 食堂名（位置） |
 | `stallName` | string | 否 | 档口名（位置） |

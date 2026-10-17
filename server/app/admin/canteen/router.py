@@ -26,47 +26,47 @@ class CanteenSaveIn(InModel):
     name: str
 
 
-class CanteenOut(OutModel):
+class AdminCanteenOut(OutModel):
     id: int
     name: str
     stall_count: int
     updated_at: str
 
 
-@router.get("", response_model=Envelope[AdminPageResult[CanteenOut]], summary="食堂列表")
+@router.get("", response_model=Envelope[AdminPageResult[AdminCanteenOut]], summary="食堂列表")
 def list_canteens(
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),
     admin_id: int = Depends(current_admin_id),
     session: Session = Depends(get_session),
-) -> Envelope[AdminPageResult[CanteenOut]]:
+) -> Envelope[AdminPageResult[AdminCanteenOut]]:
     paging = normalize_page(page, page_size)
     rows, total = service.list_page(session, page=paging.page, size=paging.size)
     return page_ok(
         [
-            CanteenOut(id=r.id, name=r.name, stall_count=r.stall_count, updated_at=r.updated_at)
+            AdminCanteenOut(id=r.id, name=r.name, stall_count=r.stall_count, updated_at=r.updated_at)
             for r in rows
         ],
         total=total,
     )
 
 
-@router.post("", response_model=Envelope[CanteenOut], summary="新建食堂")
+@router.post("", response_model=Envelope[AdminCanteenOut], summary="新建食堂")
 def create_canteen(
     payload: CanteenSaveIn,
     admin_id: int = Depends(current_admin_id),
     session: Session = Depends(get_session),
-) -> Envelope[CanteenOut]:
+) -> Envelope[AdminCanteenOut]:
     return ok(service.create(session, name=payload.name))
 
 
-@router.put("/{canteen_id}", response_model=Envelope[CanteenOut], summary="修改食堂")
+@router.put("/{canteen_id}", response_model=Envelope[AdminCanteenOut], summary="修改食堂")
 def update_canteen(
     canteen_id: int,
     payload: CanteenSaveIn,
     admin_id: int = Depends(current_admin_id),
     session: Session = Depends(get_session),
-) -> Envelope[CanteenOut]:
+) -> Envelope[AdminCanteenOut]:
     return ok(service.update(session, canteen_id=canteen_id, name=payload.name))
 
 

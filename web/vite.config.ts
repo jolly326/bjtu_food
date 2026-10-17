@@ -12,21 +12,24 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
-    // WEB-116：Element Plus 按需引入（模板组件 + 样式 + ElMessage 等函数式 API）
-    // ElementPlusResolver 对 ElMessage/ElMessageBox 等函数式 API 会同时注入对应样式，
-    // 故 router/index.ts 等处不再手写 `import { ElMessage } from 'element-plus'`（手写不带样式）。
+    // WEB-116：Element Plus 组件与函数式 API 自动导入。
+    // 基础样式与主题变量统一由 main.ts 引入 `element-plus/dist/index.css`
+    // （原生 HTML + var(--el-*) 的页面依赖它拿到完整变量，否则弹窗/输入框会透明）。
+    // 🔴 importStyle: false —— 禁止按需注入组件样式：按需样式链（base）自带
+    // `:root { --el-color-primary: #409eff }` 默认变量，会在懒加载时晚于 theme.css
+    // 注入 <head>，把暖橙主题覆盖回 Element Plus 默认蓝（主题变蓝根因）。
     AutoImport({
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver({ importStyle: false })],
       dts: 'src/auto-imports.d.ts',
     }),
     Components({
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver({ importStyle: false })],
       dts: 'src/components.d.ts',
     }),
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
 })

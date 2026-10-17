@@ -7,12 +7,13 @@
 > 本目录是**库结构的唯一真源** —— 表 / 列 / 类型 / 约束 / 索引 / 表间关系均以各表文档为准。
 > **变更流程**：先改对应表文档 → 再在数据库执行 `ALTER` / `CREATE` → 两者必须一致。
 
-## 表清单（8 张）
+## 表清单（9 张）
 
 | 表 | 用途 | 文档 |
 |---|---|---|
 | `canteen` | 食堂（推荐页筛选项） | [canteen.md](./canteen.md) |
-| `stall` | 档口（含竖版海报） | [stall.md](./stall.md) |
+| `stall` | 档口（菜品位置归属） | [stall.md](./stall.md) |
+| `poster` | 档口海报（一档口多张，独立上下架与固定序） | [poster.md](./poster.md) |
 | `dish` | 菜品（含评价分缓存列） | [dish.md](./dish.md) |
 | `dish_record` | 饮食记录（「去品尝」标记 + 三态评分） | [dish_record.md](./dish_record.md) |
 | `dish_issue` | 菜品纠错提交（只含选项） | [dish_issue.md](./dish_issue.md) |
@@ -23,9 +24,10 @@
 ## 实体关系
 
 ```
-canteen 1 ── n stall 1 ── n dish ── n dish_record ── n 1 user
-                              └──── n dish_issue ───── n 1 user
-                                       └── n 1 dish_issue_option
+canteen 1 ── n stall ─┬─ n poster（删档口即级联删除）
+                      ├─ n dish ── n dish_record ── n 1 user
+                      │         └──── n dish_issue ───── n 1 user
+                      │                  └── n 1 dish_issue_option
 admin（独立账号体系，与 user 无关）
 ```
 
@@ -66,7 +68,7 @@ admin（独立账号体系，与 user 无关）
 | **无外键的引用关系** | `dish.stall_id` | 档口是管理端维护的实体，有独立的合并 / 清理语义 |
 | **由应用层保证的唯一性** | 同一用户对同一菜品的**未评分记录**至多一条（`dish_record`）；同一用户 + 同一菜品 + 同一选项的**未处理记录**至多一条（`dish_issue`）；`canteen.name`；`stall.name`（同食堂下）；`dish.name`（同档口下） | 条件唯一（MySQL 5.7 无部分索引）/ 字典类命名去重 |
 | **可空列不作哨兵** | `dish_record.reaction = NULL` = 未评分；`dish_issue.handled_at = NULL` = 未处理 | 用 `NULL` 表达「尚未发生」 |
-| **枚举值域** | `dish.status`（`on` / `off`） | 存可读字符串是既定口径；脏值由应用层拦截 |
+| **枚举值域** | `dish.status` · `poster.status`（`on` / `off`） | 存可读字符串是既定口径；脏值由应用层拦截 |
 | **受控字典不在库内** | `stall.floor`（值即汉字：`负一层`…`四层`） | 低频封闭枚举；新增 / 改名需「先迁移数据、再改两端」 |
 
 ## 变更流程

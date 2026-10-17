@@ -15,13 +15,8 @@ import vue from "@vitejs/plugin-vue";
  * <p>测试统一放 `tests/`（与 `src/` 分离，对齐后端 `src/main` vs `src/test` 范式）；
  * `@` → `src` 的alias 让用例只按模块身份引用被测对象，不依赖与源码的相对位置。
  *
- * <p>**两档环境**（用 `// @vitest-environment` 逐文件切换，默认 node）：
- * <ul>
- *   <li><b>node</b>（默认）：纯逻辑（utils / composables / stores / 纯 TS 模块），零 DOM 成本；</li>
- *   <li><b>happy-dom</b>：组件渲染测试。**仅在文件顶部标注切换**，避免把全部单测拖进
- *       DOM 环境（实测慢一个数量级）。小程序标签（`view` / `text` / `image`）在 happy-dom 下
- *       会被当作未知自定义元素正常渲染与挂载，无需额外 polyfill。</li>
- * </ul>
+ * <p>**测试环境**：统一 `node`（纯逻辑：utils / composables / stores / 纯 TS 模块），零 DOM 成本。
+ * 如需组件渲染测试，再按需引入 DOM 环境依赖并在文件顶部标注 `// @vitest-environment`。
  */
 export default defineConfig({
   plugins: [vue()],
@@ -31,7 +26,6 @@ export default defineConfig({
     },
   },
   test: {
-    // 默认 node：组件测试文件自行用 `// @vitest-environment happy-dom` 覆盖
     environment: "node",
     include: ["tests/**/*.test.ts"],
   },

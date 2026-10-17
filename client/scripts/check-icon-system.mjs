@@ -6,14 +6,14 @@
  *     图标字体（`@font-face` / `iconfont`）、emoji 图标、以 `content:'+'` 充当图标的写法。
  *  2. **图标键已登记**：`<AppIcon name="…">` 的**静态字面量**名必须在 `ICONS` 键表内
  *     （否则运行时会静默回退到 `empty` 兜底图标，肉眼难发现）。
- *  3. **尺寸档位合规**：`size` 数值必须落在 `docs/ui/client/公共组件与形态基线.md` §1.14
+ *  3. **尺寸档位合规**：`size` 数值必须落在 `docs/ui/client/公共组件与形态基线.md` §1.8
  *     登记的档位表内，或落在「按宿主盒对齐」的例外档（`HOST_BOX_SIZES`）。
  *  4. **颜色为实色**：`color` 不得为 `currentColor` / `var(...)` —— SVG data-uri 是独立文档，
  *     两者都会被回退成兜底近黑。
  *
  * 动态名（`:name="expr"`）无法静态判定，只做提示不失败；其合法性由对应数据源单测覆盖。
  *
- * 口径真源：docs/ui/client/公共组件与形态基线.md §1.14（图标）+ §1.15（图片占位）
+ * 口径真源：docs/ui/client/公共组件与形态基线.md §1.8（图标）+ §1.9（图片占位）
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SRC = join(ROOT, 'src')
 
-/** §1.14 尺寸档位表（与文档逐行对应；改档位须同批改文档 + 本清单） */
+/** §1.8 尺寸档位表（与文档逐行对应；改档位须同批改文档 + 本清单） */
 const ALLOWED_SIZES = new Set([22, 24, 28, 32, 36, 40, 44, 48, 64, 96])
 
 /**

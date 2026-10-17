@@ -34,7 +34,7 @@ class DishRecordOut(OutModel):
 
 @router.get("/dish-records", response_model=Envelope[AdminPageResult[DishRecordOut]], summary="评分数据")
 def list_records(
-    dish_id: int | None = Query(default=None),
+    dish_id: int | None = Query(default=None, alias="dishId"),
     reaction: str | None = Query(default=None),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),

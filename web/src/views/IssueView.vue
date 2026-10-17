@@ -22,7 +22,7 @@ const filter = reactive({
 })
 
 async function loadDishes() {
-  const res = await dishApi.list({ page: 1, size: 50 })
+  const res = await dishApi.list({ page: 1, pageSize: 50 })
   dishes.value = res.records.map((d) => ({ id: d.id, name: d.name }))
 }
 
@@ -112,7 +112,7 @@ onMounted(async () => {
         <option :value="undefined">全部菜品</option>
         <option v-for="d in dishes" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
-      <button class="btn" @click="resetFilter">重置</button>
+      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <table class="table">

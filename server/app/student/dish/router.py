@@ -24,7 +24,7 @@ router = APIRouter(tags=["dish"])
 
 @router.get("/dishes", response_model=Envelope[PageResult[DishCardOut]], summary="推荐菜品卡片")
 def list_dishes(
-    canteen_id: int | None = Query(default=None),
+    canteen_id: int | None = Query(default=None, alias="canteenId"),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),
     student_id: int = Depends(current_student_id),

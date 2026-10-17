@@ -1,4 +1,4 @@
-"""ORM 声明式基类（8 张表共用）。"""
+"""ORM 声明式基类（9 张表共用）。"""
 
 from __future__ import annotations
 

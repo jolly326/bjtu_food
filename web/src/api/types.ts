@@ -7,7 +7,6 @@ export type CanteenOut = { id: number; name: string; stallCount: number; updated
 export type StallBody = {
   canteenId: number
   name: string
-  posterUrl?: string | null
   floor?: string | null
   windowNo?: string | null
 }
@@ -15,6 +14,7 @@ export type StallOut = StallBody & {
   id: number
   canteenName: string
   dishCount: number
+  posterCount: number
   updatedAt: string
 }
 
@@ -31,6 +31,23 @@ export type DishOut = DishBody & {
   canteenName: string
   avgReaction: number | null
   reactionCount: number
+  updatedAt: string
+}
+
+export type PosterBody = {
+  stallId: number
+  imageUrl: string
+  sort?: number | null
+  status: string
+}
+export type PosterOut = {
+  id: number
+  stallId: number
+  stallName: string
+  canteenName: string
+  imageUrl: string
+  sort: number
+  status: string
   updatedAt: string
 }
 

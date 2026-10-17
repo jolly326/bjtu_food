@@ -9,13 +9,17 @@ import { dishApi, recordApi, type RecordOut } from '@/api'
 
 const REACTIONS = [
   { value: '', label: '全部' },
-  { value: '5', label: '好吃' },
+  { value: '5', label: '喜欢' },
   { value: '3', label: '一般' },
-  { value: '1', label: '踩' },
+  { value: '1', label: '不喜欢' },
   { value: 'none', label: '未评分' },
 ]
 
-const REACTION_LABEL: Record<string, string> = { '5': '好吃', '3': '一般', '1': '踩' }
+const REACTION_LABEL: Record<string, string> = {
+  '5': '喜欢',
+  '3': '一般',
+  '1': '不喜欢',
+}
 
 const rows = ref<RecordOut[]>([])
 const total = ref(0)
@@ -25,7 +29,7 @@ const dishes = ref<{ id: number; name: string }[]>([])
 const filter = reactive({ dishId: undefined as number | undefined, reaction: '' })
 
 async function loadDishes() {
-  const res = await dishApi.list({ page: 1, size: 50 })
+  const res = await dishApi.list({ page: 1, pageSize: 50 })
   dishes.value = res.records.map((d) => ({ id: d.id, name: d.name }))
 }
 
@@ -88,7 +92,7 @@ onMounted(async () => {
       <select v-model="filter.reaction" class="filters__select" @change="applyFilter">
         <option v-for="r in REACTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
       </select>
-      <button class="btn" @click="resetFilter">重置</button>
+      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <table class="table">

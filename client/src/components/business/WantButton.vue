@@ -2,10 +2,10 @@
 /**
  * 「去品尝 / 保存 / 提问」**按钮（规格见 docs/ui/client/公共组件与形态基线.md §2.2）。
  *
- * - **形态**：**描边式** —— 仅「图标 + 文案 + 外围边框」，**无背景、无装饰**（底透明）；
- *   圆角 `--radius-pill`（全圆 pill）；图标在文案左侧。
+ * - **形态**：**胶囊描边式** —— 仅「图标 + 文案 + 外围边框」，**无装饰**；圆角 `--radius-pill`（全圆）、
+ *   高度 `--tap-target-size + --spacing-xs`（96rpx，加高）、左右留白 `--spacing-xl`；图标在文案左侧。
  * - **三种变体**（由 `variant` 控制）：
- *   - `make`：描边/图标/文案恒为 `--color-primary`（暖橙 `#B4531A`），**默认态与交互态均不变化**（无按压变色、无"已品尝"灰态） —— 主 CTA；
+ *   - `make`：**暖橙描边**（`--color-primary`）+ 内部**深色文字**（`--text-title`）；不随按压/选中变色；
  *   - `save` / `ask`：描边/图标/文案恒为 `--border-color` + `--text-tertiary`（灰），次要 CTA。
  * - **文案**：`tasted ? '取消品尝' : '去品尝'`（仅 `make` 变体随 `tasted` 切换文案）；`save`/`ask` 文案固定。
  * - 在途（请求中）仅**禁止点击**，视觉不变。
@@ -47,7 +47,7 @@ const label = computed(() => {
   return BUTTON_LABELS[props.variant]
 })
 
-/** 当前变体的描边/图标/文案色调 */
+/** 当前变体的描边/图标/文案色调：make 恒为暖橙描边 */
 const tone = computed(() => {
   if (props.variant === 'make') return 'primary'
   return 'default'
@@ -57,10 +57,7 @@ const tone = computed(() => {
 <template>
   <view
     class="want"
-    :class="[
-      'want--variant-' + props.variant,
-      { 'is-disabled': props.loading || props.disabled },
-    ]"
+    :class="['want--variant-' + props.variant, { 'is-disabled': props.loading || props.disabled }]"
     @tap="onTap"
   >
     <!-- 图标在文案左侧 -->
@@ -75,20 +72,23 @@ const tone = computed(() => {
   align-items: center;
   justify-content: center;
   gap: var(--spacing-xs);
+  box-sizing: border-box;
   width: 100%;
-  height: var(--tap-target-size);
-  /* 描边式：只有边框，无背景、无装饰；全圆 pill */
+  height: calc(var(--tap-target-size) + var(--spacing-xs));
+  padding: 0 var(--spacing-xl);
+  /* 胶囊描边：只有边框 + 充足内留白 */
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-pill);
   background: transparent;
 }
 
-/* make：暖橙主 CTA —— 恒为 --color-primary，不随 tasted/pressed 变色 */
+/* make：暖橙描边 + 内部深色文字；不随按压/选中变色 */
 .want--variant-make {
   border-color: var(--color-primary);
+  background: var(--bg-page);
 }
 .want--variant-make .want__label {
-  color: var(--color-primary);
+  color: var(--text-title);
 }
 
 /* save / ask：次要 CTA —— 恒为灰描边 + 灰文字 */

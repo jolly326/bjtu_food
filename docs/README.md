@@ -21,11 +21,11 @@
 
 **校园菜品展示与轻量评分平台** —— 帮学生解决「今天吃什么」。菜品与档口信息由运营录入；学生只做三件事：**看海报、刷菜、点反馈**。
 
-- **学生端五个 tab**（TabBar 显示名）：**发现**（看档口海报）｜ **菜谱**（卡片式一次一道，可点「去品尝」）｜ **添加**（建设中）｜ **提问**（建设中）｜ **设置**（内含「我的食谱」二级页）
-- **运营端**：食堂 / 档口（含海报）/ 菜品录入 + 反馈数据查看
+- **学生端三个 tab**（TabBar 显示名）：**发现**（看档口海报）｜ **美食**（卡片式一次一道，可点「去品尝」）｜ **记忆**（按月回看饮食记录、就地评分与纠错）
+- **运营端**：食堂 / 档口 / 菜品 / 海报 录入 + 反馈数据查看
 - **无搜索**；**无「我的」页面**
 - **全匿名**：不做注册 / 登录 / 认证 / 注销；用户身份由微信 openid 静默识别，不在任何界面展示
-- **无分享与文字 UGC**：学生侧仅「想吃」与基础评分两类动作
+- **无分享与文字 UGC**：学生侧仅「去品尝」「三态评分」「菜品纠错选项」三类动作
 
 ## 技术栈
 
@@ -40,11 +40,11 @@
 |---|---|
 | `docs/` | [`README.md`](./README.md) |
 | [`func/client/`](./func/client/README.md) | `README` · `A1-档口海报` · `A2-推荐菜品` · `A3-食堂筛选` · `B1-品尝标记` · `B2-评分反馈` · `B3-菜品纠错` · `B4-我的食谱` · `C1-openid 静默识别` |
-| [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-反馈查看` · `B2-纠错查看` · `B3-纠错选项管理` · `C1-管理员登录` |
+| [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `A4-海报管理` · `B1-反馈查看` · `B2-纠错查看` · `B3-纠错选项管理` · `C1-管理员登录` |
 | [`ui/client/`](./ui/client/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `图标资源` · `档口海报` · `推荐菜品` · `我的食谱` |
-| [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `评分数据` · `纠错处理` · `纠错选项` |
-| [`api/`](./api/README.md) | `README` · `client/`（`auth` · `posters` · `dishes` · `canteens` · `records` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `dishes` · `records` · `issues` · `images`） |
-| [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `dish` · `dish_record` · `dish_issue` · `dish_issue_option` · `user` · `admin` |
+| [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `海报管理` · `评分数据` · `纠错处理` · `纠错选项` |
+| [`api/`](./api/README.md) | `README` · `client/`（`auth` · `posters` · `dishes` · `canteens` · `records` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `posters` · `dishes` · `records` · `issues` · `images`） |
+| [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `poster` · `dish` · `dish_record` · `dish_issue` · `dish_issue_option` · `user` · `admin` |
 | [`secur/`](./secur/README.md) | `README` · `S-01-身份与凭证` · `S-02-鉴权与归属校验` · `S-03-限频与接口防护` · `S-04-凭据与部署边界` |
 
 > 本目录即现行设计的唯一真源。
@@ -64,3 +64,13 @@
 - 本目录**入库 git 跟踪**（真源须可 diff、可回滚）；**文档内不得出现任何凭据**（口令 / token / Webhook 地址 / 密钥），一律经环境变量与 `server/.env` 流转。
 - 范围外的能力不建文档。
 - 命名：目录内用 `<板块前缀>-<主题>.md`。
+
+## 已知取舍
+
+| 项 | 取舍 | 理由 |
+|---|---|---|
+| 好评度分数 / 评价明细 | **学生端不展示**（无详情页）；运营端保留 `avgReaction`、评分条数与记录明细 | 守住「无二级页面」红线 |
+| `DishCardVO.avgReaction` | 契约保留并标注**废弃**，前端禁用；展示只用 `flavorLevel` | 服务端推荐权重与评级判定仍需均值 |
+| 记忆卡字段 | 不加价格 / 食堂（维持时间承载） | 最小改动；扩展需改 `RecordVO` |
+| 运营「菜品管理」风味评级列 | 运营端仅展示 `avgReaction` 与评分条数（无评级列） | 评级是学生端展示口径，由同一缓存列实时判定、不落库 |
+| 发现页卡片内文案 / 主按钮 | **不做** —— 海报卡只承载海报图（无叠字、无 CTA） | 档口信息已画入海报；避免与图上文案重复，且无目标动作 |

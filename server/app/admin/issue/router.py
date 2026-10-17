@@ -41,7 +41,7 @@ class DishIssueOut(OutModel):
 @router.get("/dish-issues", response_model=Envelope[AdminPageResult[DishIssueOut]], summary="纠错列表")
 def list_issues(
     handled: bool | None = Query(default=False),
-    dish_id: int | None = Query(default=None),
+    dish_id: int | None = Query(default=None, alias="dishId"),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),
     admin_id: int = Depends(current_admin_id),

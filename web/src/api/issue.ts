@@ -5,7 +5,7 @@ import { toQuery } from './query'
 import type { IssueOut, Page } from './types'
 
 export const issueApi = {
-  list: (params?: { handled?: boolean; dishId?: number; page?: number; size?: number }) =>
+  list: (params?: { handled?: boolean; dishId?: number; page?: number; pageSize?: number }) =>
     http.get<Page<IssueOut>>(`/admin/dish-issues${toQuery({ ...params })}`),
   setHandled: (id: number, handled: boolean) =>
     http.patch<IssueOut>(`/admin/dish-issues/${id}`, { handled }),

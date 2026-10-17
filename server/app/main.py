@@ -17,6 +17,7 @@ from app.admin.dish.router import router as admin_dish_router
 from app.admin.image.router import router as admin_image_router
 from app.admin.issue.router import router as admin_issue_router
 from app.admin.option.router import router as admin_option_router
+from app.admin.poster.router import router as admin_poster_router
 from app.admin.record.router import router as admin_record_router
 from app.admin.stall.router import router as admin_stall_router
 from app.core.config import settings
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_image_router)
     app.include_router(admin_issue_router)
     app.include_router(admin_option_router)
+    app.include_router(admin_poster_router)
     app.include_router(admin_record_router)
     app.include_router(admin_stall_router)
 

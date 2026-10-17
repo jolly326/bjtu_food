@@ -5,6 +5,7 @@
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AppIcon from '@/components/AppIcon.vue'
 import { canteenApi, type CanteenOut } from '@/api'
 
 const rows = ref<CanteenOut[]>([])
@@ -95,7 +96,9 @@ onMounted(load)
   <section class="page">
     <header class="page__bar">
       <h2 class="page__title">食堂管理</h2>
-      <button class="btn btn--primary" @click="onCreate">新建</button>
+      <button class="btn btn--primary" @click="onCreate">
+        <AppIcon name="plus" :size="16" />新建
+      </button>
     </header>
 
     <table class="table">

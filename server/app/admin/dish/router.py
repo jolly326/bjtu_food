@@ -64,8 +64,8 @@ def _to_out(row) -> DishOut:
 
 @router.get("", response_model=Envelope[AdminPageResult[DishOut]], summary="菜品列表")
 def list_dishes(
-    stall_id: int | None = Query(default=None),
-    canteen_id: int | None = Query(default=None),
+    stall_id: int | None = Query(default=None, alias="stallId"),
+    canteen_id: int | None = Query(default=None, alias="canteenId"),
     status: str | None = Query(default=None),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),

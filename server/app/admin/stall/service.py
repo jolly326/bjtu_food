@@ -2,8 +2,7 @@
 
 * **同一食堂下** ``name`` 唯一（应用层保证，无 DB 唯一索引）
 * ``floor`` 是**两端常量**受控字典（值即汉字），服务端按同一清单校验
-* 🔴 有下属菜品时**拒绝删除**
-* ``posterUrl`` 入库前转**相对路径**，出参由 repo 转绝对 URL
+* 🔴 有下属菜品时**拒绝删除**；海报已独立成 ``poster`` 表（A4），删档口时由外键级联清理
 """
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.admin.stall import repo
 from app.admin.stall.repo import StallRow
 from app.core.errors import BadRequest, NotFound
-from app.core.storage import to_relative
 from app.models import Canteen, Dish, Stall
 
 # 与前端常量、库内取值逐字一致（docs/schema/stall.md）
@@ -42,7 +40,6 @@ def create(session: Session, *, payload) -> StallRow:
     stall = Stall(
         canteen_id=payload.canteen_id,
         name=payload.name.strip(),
-        poster=to_relative(payload.poster_url),
         floor=payload.floor,
         window_no=payload.window_no,
     )
@@ -61,7 +58,6 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
 
     stall.canteen_id = payload.canteen_id
     stall.name = payload.name.strip()
-    stall.poster = to_relative(payload.poster_url)
     stall.floor = payload.floor
     stall.window_no = payload.window_no
     session.flush()
@@ -79,6 +75,7 @@ def delete(session: Session, *, stall_id: int) -> None:
     if dish_count:
         raise BadRequest("该档口下仍有菜品，请先清空菜品")
 
+    # 海报随外键 ON DELETE CASCADE 连带清理（海报不构成删除阻力）
     session.delete(stall)
     session.flush()
 

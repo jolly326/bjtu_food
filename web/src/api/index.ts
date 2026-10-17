@@ -4,6 +4,7 @@ export { sessionApi } from './session'
 export { canteenApi } from './canteen'
 export { stallApi } from './stall'
 export { dishApi } from './dish'
+export { posterApi } from './poster'
 export { recordApi } from './record'
 export { issueApi } from './issue'
 export { optionApi } from './option'
@@ -15,6 +16,8 @@ export type {
   IssueOut,
   OptionOut,
   Page,
+  PosterBody,
+  PosterOut,
   RecordOut,
   StallBody,
   StallOut,

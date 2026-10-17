@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * 档口管理（设计稿 docs/ui/web/档口管理.md；业务规则 docs/func/web/A2）。
- * 含海报上传（POST /admin/images）与楼层受控字典（两端常量）。
+ * 楼层受控字典（两端常量）；海报独立维护见「海报管理」（A4，/posters）。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { canteenApi, stallApi, upload, type StallBody, type StallOut } from '@/api'
+import AppIcon from '@/components/AppIcon.vue'
+import { canteenApi, stallApi, type StallBody, type StallOut } from '@/api'
 
 const FLOORS = ['负一层', '一层', '二层', '三层', '四层']
 
@@ -21,10 +22,8 @@ const dialog = reactive({
   id: 0,
   canteenId: undefined as number | undefined,
   name: '',
-  posterUrl: '' as string,
   floor: '',
   windowNo: '',
-  uploading: false,
 })
 
 async function loadCanteens() {
@@ -70,7 +69,6 @@ function onCreate() {
   dialog.id = 0
   dialog.canteenId = undefined
   dialog.name = ''
-  dialog.posterUrl = ''
   dialog.floor = ''
   dialog.windowNo = ''
   dialog.visible = true
@@ -80,26 +78,9 @@ function onEdit(row: StallOut) {
   dialog.id = row.id
   dialog.canteenId = row.canteenId
   dialog.name = row.name
-  dialog.posterUrl = row.posterUrl ?? ''
   dialog.floor = row.floor ?? ''
   dialog.windowNo = row.windowNo ?? ''
   dialog.visible = true
-}
-
-async function onPickPoster(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-  dialog.uploading = true
-  try {
-    dialog.posterUrl = await upload(file)
-    ElMessage.success('海报已上传')
-  } catch (e) {
-    ElMessage.error((e as Error).message)
-  } finally {
-    dialog.uploading = false
-  }
 }
 
 async function onSave() {
@@ -119,7 +100,6 @@ async function onSave() {
   const body: StallBody = {
     canteenId: dialog.canteenId,
     name: dialog.name.trim(),
-    posterUrl: dialog.posterUrl || null,
     floor: dialog.floor || null,
     windowNo: dialog.windowNo.trim() || null,
   }
@@ -164,7 +144,9 @@ onMounted(async () => {
   <section class="page">
     <header class="page__bar">
       <h2 class="page__title">档口管理</h2>
-      <button class="btn btn--primary" @click="onCreate">新建</button>
+      <button class="btn btn--primary" @click="onCreate">
+        <AppIcon name="plus" :size="16" />新建
+      </button>
     </header>
 
     <div class="filters">
@@ -172,7 +154,7 @@ onMounted(async () => {
         <option :value="undefined">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
-      <button class="btn" @click="resetFilter">重置</button>
+      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <table class="table">
@@ -182,7 +164,7 @@ onMounted(async () => {
           <th>所属食堂</th>
           <th class="table__muted">楼层</th>
           <th class="table__muted">窗口号</th>
-          <th class="table__muted">海报</th>
+          <th class="table__muted">海报数</th>
           <th class="table__muted">菜品数</th>
           <th class="table__muted">更新时间</th>
           <th class="table__ops">操作</th>
@@ -194,10 +176,7 @@ onMounted(async () => {
           <td>{{ row.canteenName }}</td>
           <td class="table__muted">{{ row.floor ?? '—' }}</td>
           <td class="table__muted">{{ row.windowNo ?? '—' }}</td>
-          <td class="table__muted">
-            <img v-if="row.posterUrl" :src="row.posterUrl" class="table__thumb" alt="海报" />
-            <span v-else>—</span>
-          </td>
+          <td class="table__muted">{{ row.posterCount }}</td>
           <td class="table__muted">{{ row.dishCount }}</td>
           <td class="table__muted">{{ row.updatedAt }}</td>
           <td class="table__ops">
@@ -232,19 +211,6 @@ onMounted(async () => {
 
         <label class="dialog__label">名称</label>
         <input v-model="dialog.name" class="dialog__input" type="text" />
-
-        <label class="dialog__label">竖版海报（3:4，需画进门名 / 食堂 / 位置）</label>
-        <div class="poster">
-          <img v-if="dialog.posterUrl" :src="dialog.posterUrl" class="poster__thumb" alt="海报" />
-          <span v-else class="poster__empty">未上传</span>
-          <div class="poster__ops">
-            <label class="btn">
-              {{ dialog.uploading ? '上传中…' : '上传海报' }}
-              <input type="file" accept="image/*" hidden @change="onPickPoster" />
-            </label>
-            <button v-if="dialog.posterUrl" class="btn" @click="dialog.posterUrl = ''">移除</button>
-          </div>
-        </div>
 
         <label class="dialog__label">楼层</label>
         <select v-model="dialog.floor" class="dialog__input">
@@ -360,11 +326,6 @@ onMounted(async () => {
   text-align: center;
   color: var(--el-text-color-placeholder);
 }
-.table__thumb {
-  height: 40px;
-  border-radius: 4px;
-  vertical-align: middle;
-}
 
 .link {
   border: none;
@@ -421,24 +382,5 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 24px;
-}
-
-.poster {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.poster__thumb {
-  height: 80px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-}
-.poster__empty {
-  font-size: 13px;
-  color: var(--el-text-color-placeholder);
-}
-.poster__ops {
-  display: flex;
-  gap: 8px;
 }
 </style>

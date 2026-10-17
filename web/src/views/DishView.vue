@@ -7,6 +7,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AppIcon from '@/components/AppIcon.vue'
 import { canteenApi, dishApi, stallApi, upload, type DishBody, type DishOut } from '@/api'
 
 const route = useRoute()
@@ -215,7 +216,9 @@ onMounted(async () => {
   <section class="page">
     <header class="page__bar">
       <h2 class="page__title">菜品管理</h2>
-      <button class="btn btn--primary" @click="onCreate">新建</button>
+      <button class="btn btn--primary" @click="onCreate">
+        <AppIcon name="plus" :size="16" />新建
+      </button>
     </header>
 
     <div class="filters">
@@ -232,7 +235,7 @@ onMounted(async () => {
         <option value="on">在售</option>
         <option value="off">已下架</option>
       </select>
-      <button class="btn" @click="resetFilter">重置</button>
+      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <table class="table">
@@ -258,7 +261,7 @@ onMounted(async () => {
               {{ row.status === 'on' ? '在售' : '已下架' }}
             </span>
           </td>
-          <td class="table__muted table__num">{{ row.avgReaction ?? '暂无评价' }}</td>
+          <td class="table__muted table__num">{{ row.avgReaction ?? '暂无评分' }}</td>
           <td class="table__muted table__num">{{ row.reactionCount }}</td>
           <td class="table__muted">{{ row.updatedAt }}</td>
           <td class="table__ops">
@@ -301,7 +304,12 @@ onMounted(async () => {
 
         <label class="dialog__label">菜品大图</label>
         <div class="poster">
-          <img v-if="dialog.imageUrl" :src="dialog.imageUrl" class="poster__thumb" alt="菜品图" />
+          <img
+            v-if="dialog.imageUrl"
+            :src="dialog.imageUrl"
+            class="poster__thumb img--round"
+            alt="菜品图"
+          />
           <span v-else class="poster__empty">未上传</span>
           <div class="poster__ops">
             <label class="btn">
@@ -504,9 +512,11 @@ onMounted(async () => {
   gap: 12px;
 }
 .poster__thumb {
+  width: 80px;
   height: 80px;
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 .poster__empty {
   font-size: 13px;
