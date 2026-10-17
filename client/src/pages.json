@@ -1,14 +1,35 @@
 {
   "pages": [
     {
-      "path": "pages/poster/index",
+      "path": "pages/discover/index",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false
       }
     },
     {
-      "path": "pages/dish/index",
+      "path": "pages/recipes/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/add/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/ask/index",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/settings/index",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false
@@ -29,9 +50,11 @@
     "backgroundColor": "#FFFDFE",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/poster/index", "text": "橱窗" },
-      { "pagePath": "pages/dish/index", "text": "美食" },
-      { "pagePath": "pages/records/index", "text": "回味" }
+      { "pagePath": "pages/discover/index", "text": "发现" },
+      { "pagePath": "pages/recipes/index", "text": "菜谱" },
+      { "pagePath": "pages/add/index", "text": "添加" },
+      { "pagePath": "pages/ask/index", "text": "提问" },
+      { "pagePath": "pages/settings/index", "text": "设置" }
     ]
   },
   "globalStyle": {

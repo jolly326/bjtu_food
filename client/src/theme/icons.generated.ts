@@ -38,6 +38,9 @@ import circle_x__muted from '@/assets/icon-variants/circle-x--muted.svg'
 import clock__default from '@/assets/icon-variants/clock--default.svg'
 import clock__primary from '@/assets/icon-variants/clock--primary.svg'
 import clock__muted from '@/assets/icon-variants/clock--muted.svg'
+import compass__default from '@/assets/icon-variants/compass--default.svg'
+import compass__primary from '@/assets/icon-variants/compass--primary.svg'
+import compass__muted from '@/assets/icon-variants/compass--muted.svg'
 import dish__default from '@/assets/icon-variants/dish--default.svg'
 import dish__primary from '@/assets/icon-variants/dish--primary.svg'
 import dish__muted from '@/assets/icon-variants/dish--muted.svg'
@@ -74,6 +77,9 @@ import log_out__muted from '@/assets/icon-variants/log-out--muted.svg'
 import map_pin__default from '@/assets/icon-variants/map-pin--default.svg'
 import map_pin__primary from '@/assets/icon-variants/map-pin--primary.svg'
 import map_pin__muted from '@/assets/icon-variants/map-pin--muted.svg'
+import message_circle__default from '@/assets/icon-variants/message-circle--default.svg'
+import message_circle__primary from '@/assets/icon-variants/message-circle--primary.svg'
+import message_circle__muted from '@/assets/icon-variants/message-circle--muted.svg'
 import minus__default from '@/assets/icon-variants/minus--default.svg'
 import minus__primary from '@/assets/icon-variants/minus--primary.svg'
 import minus__muted from '@/assets/icon-variants/minus--muted.svg'
@@ -160,6 +166,9 @@ export const ICON_SRC: Record<string, string> = {
   "clock--default": clock__default,
   "clock--primary": clock__primary,
   "clock--muted": clock__muted,
+  "compass--default": compass__default,
+  "compass--primary": compass__primary,
+  "compass--muted": compass__muted,
   "dish--default": dish__default,
   "dish--primary": dish__primary,
   "dish--muted": dish__muted,
@@ -196,6 +205,9 @@ export const ICON_SRC: Record<string, string> = {
   "map-pin--default": map_pin__default,
   "map-pin--primary": map_pin__primary,
   "map-pin--muted": map_pin__muted,
+  "message-circle--default": message_circle__default,
+  "message-circle--primary": message_circle__primary,
+  "message-circle--muted": message_circle__muted,
   "minus--default": minus__default,
   "minus--primary": minus__primary,
   "minus--muted": minus__muted,
@@ -251,6 +263,7 @@ export const ICON_KEYS = [
   "circle-check",
   "circle-x",
   "clock",
+  "compass",
   "dish",
   "empty",
   "eye",
@@ -263,6 +276,7 @@ export const ICON_KEYS = [
   "info",
   "log-out",
   "map-pin",
+  "message-circle",
   "minus",
   "pencil",
   "plus",

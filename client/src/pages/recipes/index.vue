@@ -1,14 +1,14 @@
 <script setup lang="ts">
 /**
- * 美食 tab（设计稿 docs/ui/client/推荐菜品.md；功能规则 docs/func/client/A2、A3、B1）。
- * 扑克式单卡：左滑或右滑划走（本会话不再出现），右上角食堂筛选，卡片下方「去品尝」。
+ * 菜谱 tab（由「美食」重构更名；设计稿 docs/ui/client/推荐菜品.md；功能规则 docs/func/client/A2、A3、B1）。
+ * 扑克式**堆叠卡片**：左右拖拽翻卡（划走的卡片本会话不再出现），右上角食堂筛选，卡片下方「去品尝」。
  */
 import { computed, onMounted, ref } from 'vue'
 import EmptyState from '@/components/base/EmptyState.vue'
 import TabBar from '@/components/base/TabBar.vue'
 import CanteenFilter from '@/components/business/CanteenFilter.vue'
 import DishCardPlaceholder from '@/components/business/DishCardPlaceholder.vue'
-import DishSwipeCard from '@/components/business/DishSwipeCard.vue'
+import DishCardStack from '@/components/business/DishCardStack.vue'
 import { canteenApi, dishApi, recordApi } from '@/api'
 import { navMetrics } from '@/utils/safeArea'
 
@@ -32,6 +32,8 @@ const failed = ref(false)
 const loading = ref(true)
 /** 顶部安全区：避开状态栏 / 刘海与右上角胶囊 */
 const topInset = navMetrics().topInset
+/** 页头日期：固定值，避免每次渲染重复格式化 */
+const today = new Date().toLocaleDateString('zh-CN')
 
 /** 本会话未划走、未耗尽的卡片（划走的卡片不再出现） */
 const visible = computed(() => cards.value.filter((c) => !swiped.value.has(c.id)))
@@ -54,23 +56,47 @@ async function load() {
   }
 }
 
+/** 本会话内「去品尝」返回的记录 id（用于取消）—— 服务端只给 `wanted` 布尔，不带 id */
+const recordIdByDish = ref<Map<number, number>>(new Map())
+
+/** 优先用本会话缓存的记录 id；否则回查清单按 dishId 找（记录量级小） */
+async function findRecordId(dishId: number): Promise<number | null> {
+  const cached = recordIdByDish.value.get(dishId)
+  if (cached != null) return cached
+  const list = await recordApi.list()
+  return list.find((r) => r.dishId === dishId)?.id ?? null
+}
+
+/** 「去品尝 / 取消品尝」切换：未品尝 ⇒ POST；已品尝 ⇒ DELETE（仅未评分可撤销） */
 async function onWant(dish: Card) {
+  if (submitting.value) return
   submitting.value = true
   try {
-    await recordApi.want(dish.id)
+    if (dish.wanted) {
+      const id = await findRecordId(dish.id)
+      if (id == null) {
+        uni.showToast({ title: '找不到可取消的记录', icon: 'none' })
+        return
+      }
+      await recordApi.cancel(id)
+      dish.wanted = false
+      recordIdByDish.value.delete(dish.id)
+      return
+    }
+    const record = await recordApi.want(dish.id)
     dish.wanted = true
-  } catch {
-    uni.showToast({ title: '提交失败，请重试', icon: 'none' })
+    recordIdByDish.value.set(dish.id, record.id)
+  } catch (error) {
+    // 含边界：已评分的记录不可撤销（后端 400），此时保持已品尝态
+    uni.showToast({ title: (error as Error).message || '操作失败，请重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
 }
 
-/** 划到下一张即视为上一张被划走（本会话不再出现） */
-function onSwipe(event: { detail: { current: number } }) {
-  const gone = cards.value.filter((c) => !swiped.value.has(c.id))
-  const target = gone[event.detail.current - 1]
-  if (target) swiped.value.add(target.id)
+/** 卡片被拖拽滑出 ⇒ 本会话不再出现，下一张上浮补位 */
+function onSwipe(id: number) {
+  swiped.value.add(id)
 }
 
 function onFilterChange(id?: number) {
@@ -99,25 +125,21 @@ onMounted(load)
   <view class="page" :style="{ paddingTop: topInset + 'px' }">
     <view class="topbar">
       <view class="topbar__left">
-        <text class="topbar__title">美食</text>
-        <text class="topbar__date">{{ new Date().toLocaleDateString('zh-CN') }}</text>
+        <text class="topbar__title">菜谱</text>
+        <text class="topbar__date">{{ today }}</text>
       </view>
       <CanteenFilter :options="canteens" :model-value="canteenId" @pick="onFilterChange" />
     </view>
 
     <DishCardPlaceholder v-if="loading || failed" />
 
-    <swiper
+    <DishCardStack
       v-else-if="visible.length"
-      class="stack"
-      :circular="false"
-      :duration="220"
-      @change="onSwipe"
-    >
-      <swiper-item v-for="card in visible" :key="card.id" class="stack__item">
-        <DishSwipeCard :dish="card" :submitting="submitting" @want="onWant(card)" />
-      </swiper-item>
-    </swiper>
+      :cards="visible"
+      :submitting="submitting"
+      @swipe="onSwipe"
+      @want="onWant"
+    />
 
     <EmptyState
       v-else-if="!loading"
@@ -127,7 +149,7 @@ onMounted(load)
       @action="onEmptyAction"
     />
 
-    <TabBar active="dish" />
+    <TabBar active="recipes" />
   </view>
 </template>
 
@@ -166,17 +188,5 @@ onMounted(load)
 .topbar__date {
   font-size: var(--font-small);
   color: var(--text-tertiary);
-}
-
-.stack {
-  flex: 1;
-  min-height: 0;
-  padding: 0 var(--page-gutter) var(--spacing-xl);
-}
-
-.stack__item {
-  display: flex;
-  box-sizing: border-box;
-  padding-bottom: var(--spacing-sm);
 }
 </style>
