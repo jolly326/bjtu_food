@@ -1,33 +1,71 @@
 <script setup lang="ts">
 /**
- * 「去品尝」主操作（规格见 docs/ui/client/公共组件与形态基线.md §2.2）。
- * 未标记 = 主色实底；已品尝态 = 不可重复触发（全局 .is-disabled 承担禁点）。
+ * 「去品尝 / 保存 / 提问」**按钮（规格见 docs/ui/client/公共组件与形态基线.md §2.2）。
+ *
+ * - **形态**：**描边式** —— 仅「图标 + 文案 + 外围边框」，**无背景、无装饰**（底透明）；
+ *   圆角 `--radius-pill`（全圆 pill）；图标在文案左侧。
+ * - **三种变体**（由 `variant` 控制）：
+ *   - `make`：描边/图标/文案恒为 `--color-primary`（暖橙 `#B4531A`），**默认态与交互态均不变化**（无按压变色、无"已品尝"灰态） —— 主 CTA；
+ *   - `save` / `ask`：描边/图标/文案恒为 `--border-color` + `--text-tertiary`（灰），次要 CTA。
+ * - **文案**：`tasted ? '取消品尝' : '去品尝'`（仅 `make` 变体随 `tasted` 切换文案）；`save`/`ask` 文案固定。
+ * - 在途（请求中）仅**禁止点击**，视觉不变。
+ * - `disabled`（占位卡用）：只影响可点性，视觉与默认态一致 —— 保证图片未加载时按钮与文案照常可见。
  */
+import { computed } from 'vue'
+import AppIcon from '../base/AppIcon.vue'
+
+const BUTTON_LABELS = {
+  make: { off: '去品尝', on: '取消品尝' },
+  save: '保存',
+  ask: '提问',
+} as const
+
 const props = withDefaults(
   defineProps<{
+    /** 变体：make（主 CTA 暖橙）/ save（灰）/ ask（灰） */
+    variant?: 'make' | 'save' | 'ask'
     tasted?: boolean
     loading?: boolean
+    disabled?: boolean
   }>(),
-  { tasted: false, loading: false },
+  { variant: 'make', tasted: false, loading: false, disabled: false },
 )
 
 const emit = defineEmits<{ (e: 'press'): void }>()
 
 function onTap() {
-  if (!props.tasted && !props.loading) {
+  if (!props.loading && !props.disabled) {
     emit('press')
   }
 }
+
+/** 当前按钮应显示的文案 */
+const label = computed(() => {
+  if (props.variant === 'make') {
+    return props.tasted ? BUTTON_LABELS.make.on : BUTTON_LABELS.make.off
+  }
+  return BUTTON_LABELS[props.variant]
+})
+
+/** 当前变体的描边/图标/文案色调 */
+const tone = computed(() => {
+  if (props.variant === 'make') return 'primary'
+  return 'default'
+})
 </script>
 
 <template>
   <view
     class="want"
-    :class="{ 'want--tasted': props.tasted, 'is-disabled': props.tasted || props.loading }"
-    hover-class="want--pressed"
+    :class="[
+      'want--variant-' + props.variant,
+      { 'is-disabled': props.loading || props.disabled },
+    ]"
     @tap="onTap"
   >
-    <text class="want__label">{{ props.tasted ? '已品尝' : props.loading ? '提交中…' : '去品尝' }}</text>
+    <!-- 图标在文案左侧 -->
+    <AppIcon name="check" :size="28" :tone="tone" />
+    <text class="want__label">{{ label }}</text>
   </view>
 </template>
 
@@ -36,27 +74,40 @@ function onTap() {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: var(--spacing-xs);
   width: 100%;
   height: var(--tap-target-size);
-  background: var(--color-primary);
+  /* 描边式：只有边框，无背景、无装饰；全圆 pill */
+  border: 1rpx solid var(--border-color);
   border-radius: var(--radius-pill);
+  background: transparent;
 }
 
-.want--pressed {
-  opacity: 0.85;
+/* make：暖橙主 CTA —— 恒为 --color-primary，不随 tasted/pressed 变色 */
+.want--variant-make {
+  border-color: var(--color-primary);
+}
+.want--variant-make .want__label {
+  color: var(--color-primary);
 }
 
-.want--tasted {
-  background: var(--bg-input);
+/* save / ask：次要 CTA —— 恒为灰描边 + 灰文字 */
+.want--variant-save,
+.want--variant-ask {
+  border-color: var(--border-color);
+}
+.want--variant-save .want__label,
+.want--variant-ask .want__label {
+  color: var(--text-tertiary);
+}
+
+/* 按压反馈：仅透明度微降，不改色、不缩放 */
+.want:not(.is-disabled):active {
+  opacity: 0.6;
 }
 
 .want__label {
   font-size: var(--font-subtitle);
   font-weight: var(--weight-medium);
-  color: var(--color-on-primary);
-}
-
-.want--tasted .want__label {
-  color: var(--text-tertiary);
 }
 </style>

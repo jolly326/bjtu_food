@@ -43,8 +43,6 @@ export const COLOR_MAP = {
   'text-white': '#FFFFFF',
 
   /* ===== 背景 / 边框 ===== */
-  'bg-page': '#FFFDFE',
-  'module-bg': '#FFFFFF',
   'bg-card': '#FFFFFF',
   'bg-input': '#F7F5F2',
   'bg-soft': '#EDE9E5',
@@ -53,11 +51,9 @@ export const COLOR_MAP = {
   'border-bold': '#CBC5BE',
 
   /* ===== 阴影 / 遮罩 ===== */
-  'module-shadow': '0 2rpx 8rpx rgba(180, 155, 125, 0.08)',
-  'shadow-card': '0 2px 12px rgba(0, 0, 0, 0.04)',
+  /* 卡片阴影：微弱暖棕，仅靠阴影 + 描边呈现层次 */
+  'module-shadow': '0 1rpx 3rpx rgba(180, 155, 125, 0.10)',
   'shadow-modal': '0 18rpx 54rpx rgba(0, 0, 0, 0.18)',
-  'shadow-bar': '0 6rpx 24rpx rgba(56, 42, 34, 0.12)',
-  'shadow-float': '0 6rpx 16rpx rgba(0, 0, 0, 0.12)',
   'overlay-scrim': 'rgba(0, 0, 0, 0.4)',
   'overlay-panel-bg': '#FFFFFF',
 } as const

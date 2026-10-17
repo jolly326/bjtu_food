@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 橱窗 tab（设计稿 docs/ui/client/档口海报.md；功能规则 docs/func/client/A1）。
+ * 发现 tab（由「橱窗」重构更名；设计稿 docs/ui/client/档口海报.md；功能规则 docs/func/client/A1）。
  * 问候语（无姓名，随时间三态）+ 板块标题 + 一屏一张竖版海报，左右滑动。
  * 问候语、板块标题与页面骨架是本地内容、不依赖网络；海报区**失败 / 为空时渲染 3 张占位卡**（见 PosterSwiper），页内不提供重试入口。
  */
@@ -45,7 +45,7 @@ onMounted(load)
       <PosterSwiper :posters="posters" />
     </view>
 
-    <TabBar active="poster" />
+    <TabBar active="discover" />
   </view>
 </template>
 

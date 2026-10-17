@@ -1,12 +1,12 @@
-/* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
+﻿/* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
    口径见 docs/ui/client/设计变量.md；改值只改这里，再同步文档。 */
 
 page {
   /* ===== 圆角 ===== */
-  --radius-xs: 8rpx;
+  --radius-xs: 10rpx;
   --radius-btn: 32rpx;
-  --radius-card: 40rpx;
-  --radius-modal: 48rpx;
+  --radius-card: 36rpx;
+  --radius-modal: 40rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
 
@@ -17,19 +17,23 @@ page {
   --spacing-sm: 16rpx;
   --spacing-md: 24rpx;
   --spacing-lg: 32rpx;
-  --spacing-xl: 48rpx;
-  --spacing-2xl: 64rpx;
-  --page-gutter: 32rpx;
+  --spacing-xl: 40rpx;
+  --spacing-2xl: 48rpx;
+  --page-gutter: 36rpx;
+
+  /* ===== 字体族 ===== */
+  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', serif;
+  --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
 
   /* ===== 字号 ===== */
-  --font-display: 56rpx;
+  --font-display: 48rpx;
+  --font-title: 40rpx;
+  --font-h2: 36rpx;
+  --font-h3: 32rpx;
+  --font-body: 26rpx;
+  --font-subtitle: 24rpx;
+  --font-small: 22rpx;
   --font-tiny: 20rpx;
-  --font-small: 24rpx;
-  --font-body: 28rpx;
-  --font-subtitle: 32rpx;
-  --font-h3: 36rpx;
-  --font-h2: 40rpx;
-  --font-title: 44rpx;
 
   /* ===== 字重 ===== */
   --weight-regular: 400;
@@ -41,7 +45,7 @@ page {
   /* ===== 动效 ===== */
   --duration-fast: 120ms;
   --duration-base: 200ms;
-  --duration-slow: 300ms;
+  --duration-slow: 360ms;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   /* ===== 层级 ===== */
@@ -50,15 +54,16 @@ page {
   --z-actionsheet: 4000;
 
   /* ===== 高度 ===== */
-  --tabbar-height: 112rpx;
-  --tabbar-gap: 24rpx;
+  --tabbar-height: 116rpx;
+  --tabbar-gap: 20rpx;
   --tap-target-size: 88rpx;
   --reaction-item-min-width: 120rpx;
 
-  /* ===== 本设计新增（结构尺寸）===== */
-  --poster-peek: 48rpx;
-  --dish-photo-size: 440rpx;
-  --record-photo-size: 240rpx;
-  --record-card-width: 420rpx;
-  --empty-action-size: 152rpx;
+  /* ===== 结构尺寸 ===== */
+  --dish-photo-size: 380rpx;
+  --record-photo-size: 220rpx;
+  --record-card-width: 380rpx;
+  --poster-peek: 40rpx;
+  --dish-punch-size: 14rpx;
+  --empty-action-size: 140rpx;
 }

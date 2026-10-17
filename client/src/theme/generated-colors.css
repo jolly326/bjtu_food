@@ -1,4 +1,4 @@
-/* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。 */
+﻿/* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。 */
 page {
   /* ===== 主色 ===== */
   --color-primary: #B4531A;
@@ -35,8 +35,6 @@ page {
   --text-white: #FFFFFF;
 
   /* ===== 背景 / 边框 ===== */
-  --bg-page: #FFFDFE;
-  --module-bg: #FFFFFF;
   --bg-card: #FFFFFF;
   --bg-input: #F7F5F2;
   --bg-soft: #EDE9E5;
@@ -45,11 +43,8 @@ page {
   --border-bold: #CBC5BE;
 
   /* ===== 阴影 / 遮罩 ===== */
-  --module-shadow: 0 2rpx 8rpx rgba(180, 155, 125, 0.08);
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
+  --module-shadow: 0 1rpx 3rpx rgba(180, 155, 125, 0.10);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
-  --shadow-bar: 0 6rpx 24rpx rgba(56, 42, 34, 0.12);
-  --shadow-float: 0 6rpx 16rpx rgba(0, 0, 0, 0.12);
   --overlay-scrim: rgba(0, 0, 0, 0.4);
   --overlay-panel-bg: #FFFFFF;
 }

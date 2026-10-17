@@ -7,7 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import BaseSheet from '@/components/base/BaseSheet.vue'
 import EmptyState from '@/components/base/EmptyState.vue'
 import RetryBlock from '@/components/base/RetryBlock.vue'
-import TabBar from '@/components/base/TabBar.vue'
+import AppIcon from '@/components/base/AppIcon.vue'
 import MonthTimeline from '@/components/business/MonthTimeline.vue'
 import ReactionPicker from '@/components/business/ReactionPicker.vue'
 import { issueApi, recordApi } from '@/api'
@@ -33,6 +33,11 @@ const topInset = navMetrics().topInset
 const sheetOpen = ref(false)
 const sheetTarget = ref<Record | null>(null)
 const options = ref<{ id: number; name: string }[]>([])
+
+/** 子页返回：从「设置」进入，按系统返回退出本页 */
+function goBack() {
+  uni.navigateBack()
+}
 
 const months = computed(() => {
   const set = new Set(records.value.map((r) => r.wantedAt.slice(0, 7)))
@@ -112,7 +117,12 @@ onMounted(load)
 <template>
   <view class="page" :style="{ paddingTop: topInset + 'px' }">
     <view class="topbar">
-      <text class="topbar__title">回味</text>
+      <view class="topbar__left">
+        <view class="topbar__back" hover-class="topbar__back--pressed" @tap="goBack">
+          <AppIcon name="chevron-left" :size="28" tone="default" />
+        </view>
+        <text class="topbar__title">回味</text>
+      </view>
       <text class="topbar__date">{{ new Date().toLocaleDateString('zh-CN') }}</text>
     </view>
 
@@ -158,8 +168,6 @@ onMounted(load)
         <text class="sheet__optLabel">{{ opt.name }}</text>
       </view>
     </BaseSheet>
-
-    <TabBar active="records" />
   </view>
 </template>
 
@@ -174,9 +182,25 @@ onMounted(load)
 
 .topbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   padding: var(--spacing-md) var(--page-gutter) var(--spacing-xs);
+}
+
+.topbar__left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.topbar__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topbar__back--pressed {
+  opacity: 0.7;
 }
 
 .topbar__title {
@@ -194,7 +218,7 @@ onMounted(load)
 .body {
   flex: 1;
   min-height: 0;
-  padding-bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + env(safe-area-inset-bottom) + var(--spacing-lg));
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--spacing-lg));
 }
 
 .group {
@@ -222,7 +246,7 @@ onMounted(load)
   width: var(--record-card-width);
   margin-left: var(--page-gutter);
   padding: var(--spacing-md);
-  background: var(--module-bg);
+  background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--module-shadow);
   vertical-align: top;
