@@ -3345,7 +3345,14 @@
       "ReactIn": {
         "properties": {
           "reaction": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Reaction"
           }
         },
@@ -3405,6 +3412,18 @@
               }
             ],
             "title": "Flavorlevel"
+          },
+          "canteenName": {
+            "type": "string",
+            "title": "Canteenname"
+          },
+          "stallName": {
+            "type": "string",
+            "title": "Stallname"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price"
           }
         },
         "type": "object",
@@ -3412,7 +3431,10 @@
           "id",
           "dishId",
           "name",
-          "wantedAt"
+          "wantedAt",
+          "canteenName",
+          "stallName",
+          "price"
         ],
         "title": "RecordOut"
       },

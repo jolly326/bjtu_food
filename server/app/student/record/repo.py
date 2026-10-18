@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Dish, DishRecord
+from app.models import Canteen, Dish, DishRecord, Stall
 
 
 def get_on_sale_dish(session: Session, *, dish_id: int) -> Dish | None:
@@ -39,10 +39,27 @@ def get_owned(session: Session, *, student_id: int, record_id: int) -> DishRecor
     )
 
 
-def list_mine_with_dish(session: Session, *, student_id: int) -> list[tuple[DishRecord, Dish]]:
+def place_of(session: Session, *, stall_id: int) -> tuple[str, str]:
+    """菜品所属**档口名 + 食堂名**（档口缺失时回退空串，不阻断出参）。"""
+    row = session.execute(
+        select(Stall.name, Canteen.name)
+        .outerjoin(Canteen, Canteen.id == Stall.canteen_id)
+        .where(Stall.id == stall_id)
+    ).first()
+    if row is None:
+        return "", ""
+    return (row[0] or "", row[1] or "")
+
+
+def list_mine_with_dish(
+    session: Session, *, student_id: int
+) -> list[tuple[DishRecord, Dish, str, str]]:
+    """记录 + 菜品 + 档口名 + 食堂名（一次查询，避免 N+1）。"""
     stmt = (
-        select(DishRecord, Dish)
+        select(DishRecord, Dish, Stall.name, Canteen.name)
         .join(Dish, Dish.id == DishRecord.dish_id)
+        .outerjoin(Stall, Stall.id == Dish.stall_id)
+        .outerjoin(Canteen, Canteen.id == Stall.canteen_id)
         .where(DishRecord.user_id == student_id)
         .order_by(DishRecord.wanted_at.desc())
     )

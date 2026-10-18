@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 美味页栈内骨架卡（加载态；与 DishSwipeCard 同构）。
+ * 食单页栈内骨架卡（加载态；与 DishSwipeCard 同构）。
  * 卡面 / 三层堆叠副本 / 吊孔由 PaperCard 承载；同内距、同圆形图位；无旋转 loading。
  */
 import PaperCard from './PaperCard.vue'

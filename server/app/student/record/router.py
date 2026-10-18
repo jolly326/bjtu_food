@@ -2,9 +2,9 @@
 
 端点（docs/api/client/records.md）：
     POST   /my/records          去品尝（幂等）
-    PATCH  /my/records/{id}     三态评分（一次性）
+    PATCH  /my/records/{id}     三态评分（循环可改；null = 清除评价）
     DELETE /my/records/{id}     取消品尝（仅未评分）
-    GET    /my/records          我的食谱（全量，按 wantedAt 降序）
+    GET    /my/records          记忆清单（全量，按 wantedAt 降序）
 
 🔴 全部要求登录 + **归属校验**：非本人记录与「不存在」同一响应 4001。
 """
@@ -29,7 +29,9 @@ class WantIn(InModel):
 
 
 class ReactIn(InModel):
-    reaction: int
+    """三态评分：5 喜欢 ｜ 3 一般 ｜ 1 不喜欢 ｜ **null = 清除评价**。"""
+
+    reaction: int | None
 
 
 class RecordOut(OutModel):
@@ -40,6 +42,9 @@ class RecordOut(OutModel):
     wanted_at: str
     reaction: int | None
     flavor_level: str | None
+    canteen_name: str
+    stall_name: str
+    price: int
 
 
 def _out(record) -> RecordOut:
@@ -51,6 +56,9 @@ def _out(record) -> RecordOut:
         wanted_at=record.wanted_at,
         reaction=record.reaction,
         flavor_level=record.flavor_level,
+        canteen_name=record.canteen_name,
+        stall_name=record.stall_name,
+        price=record.price,
     )
 
 

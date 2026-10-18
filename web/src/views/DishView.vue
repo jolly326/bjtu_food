@@ -250,37 +250,35 @@ onMounted(async () => {
       <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
-    <div class="table-wrap">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>名称</th>
-            <th>所属档口</th>
-            <th class="table__num">价格</th>
-            <th>状态</th>
-            <th class="table__ops">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id">
-            <td>{{ row.name }}</td>
-            <td>{{ row.stallName }}</td>
-            <td class="table__num">¥{{ fenToYuan(row.price) }}</td>
-            <td>
-              <span class="tag" :class="row.status === 'on' ? 'tag--on' : 'tag--off'">
-                {{ row.status === 'on' ? '在售' : '已下架' }}
-              </span>
-            </td>
-            <td class="table__ops">
-              <button class="link" @click="onEdit(row)">编辑</button>
-              <button class="link link--danger" @click="onRemove(row)">删除</button>
-            </td>
-          </tr>
-          <tr v-if="!rows.length && !loading">
-            <td colspan="5" class="table__empty">暂无数据</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="list-card-wrap">
+      <div
+        class="list-card"
+        v-for="row in rows"
+        :key="row.id"
+      >
+        <div class="list-card__main">
+          <div class="list-card__title">
+            <span class="list-card__titleText">{{ row.name }}</span>
+            <span
+              class="tag"
+              :class="row.status === 'on' ? 'tag--on' : 'tag--off'"
+            >
+              {{ row.status === 'on' ? '在售' : '已下架' }}
+            </span>
+          </div>
+          <div class="list-card__meta">
+            <span class="list-card__metaText">所属档口：{{ row.stallName }}</span>
+            <span class="list-card__metaText list-card__metaText--num">¥{{ fenToYuan(row.price) }}</span>
+          </div>
+        </div>
+        <div class="list-card__actions">
+          <button class="link" @click="onEdit(row)">编辑</button>
+          <button class="link link--danger" @click="onRemove(row)">删除</button>
+        </div>
+      </div>
+      <div class="list-card" v-if="!rows.length && !loading">
+        <span class="list-card__empty">暂无数据</span>
+      </div>
     </div>
 
     <footer class="page__foot">
@@ -401,17 +399,13 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.table__muted {
   color: var(--el-text-color-secondary);
 }
-.table__num {
   text-align: right;
 }
-.table__ops {
   text-align: right;
   white-space: nowrap;
 }
-.table__empty {
   padding: 40px 0;
   text-align: center;
   color: var(--el-text-color-placeholder);
@@ -494,11 +488,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
-.table-wrap {
-  overflow-x: auto;
-  margin-bottom: 4px;
-}
 
 /* 弹窗窄屏近全宽，避免在手机上超出屏幕 */
 @media (max-width: 640px) {
@@ -508,3 +497,4 @@ onMounted(async () => {
   }
 }
 </style>
+`n

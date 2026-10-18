@@ -1,4 +1,4 @@
-﻿/* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。
+/* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。
    双主题：浅色组挂 page（默认）；深色组挂页面根视图 view[data-theme="dark"]，
    变量定义在该元素上 ⇒ 作用于其自身与整棵子树（机制见 docs/ui/client/设计变量.md §1.2）。 */
 page {
@@ -19,16 +19,23 @@ page {
   --text-body: #3D3A35;
   --text-tertiary: #9A948C;
   --text-placeholder: #C4BEB5;
+  /* 次要辅助文字（Julienne 弱化档） */
+  --text-secondary: #888888;
+  /* 装饰文字（卡面底层大字符 / 大数字水印） */
+  --text-decor: #E9E5E0;
 
   /* ===== 背景 / 边框 ===== */
-  --bg-page: #FFFDFE;
+  /* 奶米白底：Julienne 柔和底色（规格 rgba(255,250,243,.65) 叠白等效实色） */
+  --bg-page: #FFFAF3;
+  /* 餐盘圆盘（菜品图外圈白色留白环） */
+  --bg-plate: #ffffff;
   --bg-placeholder: #F2EBE1;
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
 
   /* ===== 阴影 / 遮罩 ===== */
-  /* 海报卡阴影（纸片卡面无阴影，层次由细描边承担） */
-  --shadow-card-stack: 0 8rpx 24rpx rgba(68, 56, 46, 0.08);
+  /* 卡片族统一：弥散软阴影 */
+  --shadow-card-stack: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
   --overlay-scrim: rgba(0, 0, 0, 0.4);
   --overlay-panel-bg: #FFFFFF;
@@ -53,9 +60,12 @@ view[data-theme='dark'] {
   --text-body: #D8CEC0;
   --text-tertiary: #93887A;
   --text-placeholder: #5E564B;
+  --text-secondary: #8C8375;
+  --text-decor: #3A3229;
 
   /* ===== 背景 / 边框 ===== */
   --bg-page: #1A1410;
+  --bg-plate: #241d18;
   --bg-placeholder: #332B22;
   --border-color: #3D3429;
   --border-bold: #4E4536;

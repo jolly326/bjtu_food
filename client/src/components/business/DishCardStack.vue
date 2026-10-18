@@ -2,14 +2,16 @@
 /**
  * 美味页 Z 轴堆叠卡片栈（规格见 docs/ui/client/公共组件与形态基线.md §2.2 DishCardStack）。
  *
- * 三层纸片堆叠（恒定 3 层视觉，对标 Julienne 卡片栈）：
- * - Idle：顶层完整展示（最宽）；第二 / 三层依次**收窄**（scale 0.96 / 0.92）并**向上错位**
- *   10 / 20rpx —— 从顶层卡上方露出层叠纸边；🔴 **不透明、无边缘虚化**，立体感仅由
- *   **宽度差异 + 上移位移 + 卡面柔和浅阴影**承担。
- * - Drag：仅顶层响应水平拖拽（垂直滑动忽略），跟手带轻微阻尼，旋转 ≤ ±3°；下层同步放大归位。
+ * 纸片堆叠：**层线在卡片下部**，每条线 = **下一张卡片的底边**（不是虚影补位）。
+ * - Idle：顶层完整展示（最宽）；第二 / 三层是**真实的后续卡片**，依次**收窄 3%**
+ *   （scale 0.97 / 0.94）并**向下错位 24rpx / 48rpx** —— 从顶层卡底缘下方露出层叠纸边。
+ *   🔴 **不透明、无边缘虚化**；层线数量 = min(剩余卡数, 3) − 1 ⇒ 卡越划越少、线逐根消失，
+ *   **不做虚影补位**（没有卡片就不该有线）。
+ * - Drag：仅顶层响应水平拖拽（垂直滑动忽略），跟手带轻微阻尼，旋转 ≤ ±3°；
+ *   下层随进度**向上收拢并放大**（offset → 0、scale → 1），预告「它即将变成第一张」。
  * - Release：拖拽 < 卡宽 22% ⇒ 回弹（--duration-base）；≥ 22% ⇒ 沿方向飞出（--duration-slow），
- *   下一张晋升顶层；剩余两层向上小幅上移，尾部补入新卡（队列有货）或纸片虚影（恒定 3 层）。
- * - 加载 / 空态：顶层渲染骨架卡 / 空态占位卡；流末尾：`finished` 时渲染 `end` 插槽。
+ *   派发 `swipe(id)`；**下一张上移放大成为新的顶层**，层线随之少一根。
+ * - 加载 / 空态：无卡片时顶层渲染骨架卡 / 空态占位卡；流末尾：`finished` 时渲染 `end` 插槽。
  */
 import { computed, ref } from 'vue'
 import DishCardPlaceholder from './DishCardPlaceholder.vue'
@@ -38,7 +40,7 @@ const emit = defineEmits<{
   (e: 'want', card: DishCardOut): void
 }>()
 
-/** 堆叠槽位：顶层 + 2 层后方（恒定 3 层）；队列有货用真实卡，不足用纸片虚影补位 */
+/** 堆叠槽位：顶层 + 至多 2 层后方真实卡；**层数 = 实际剩余卡数**（不做虚影补位） */
 interface StackSlot {
   level: number
   card?: DishCardOut
@@ -47,12 +49,12 @@ interface StackSlot {
 }
 
 const stackSlots = computed<StackSlot[]>(() => {
-  const real = props.cards.slice(0, 3)
-  return [0, 1, 2].map((level) => ({
-    level,
-    card: real[level],
-    key: real[level] ? `card-${real[level].id}` : `ghost-${level}`,
-  }))
+  const slots: StackSlot[] = props.cards
+    .slice(0, 3)
+    .map((card, level) => ({ level, card, key: `card-${card.id}` }))
+  // 无卡片时（首屏加载 / 空态 / 流末尾结束态）仍需顶层槽位承载内容
+  if (!slots.length) slots.push({ level: 0, card: undefined, key: 'top-solo' })
+  return slots
 })
 
 const winWidth = windowWidth()
@@ -64,10 +66,10 @@ const cardWidth = Math.max(1, winWidth - GUTTER_RPX * 2 * rpxToPx)
 const threshold = cardWidth * 0.22
 /** 飞出时长：与样式里的 --duration-slow 同值（360ms），保证派发 swipe 时动画刚好走完 */
 const FLY_MS = 360
-/** 后方卡缩放：第二 / 三层依次收窄（顶层最宽）—— 宽度差异体现纸片堆叠 */
-const GHOST_SCALE = [1, 0.96, 0.92]
-/** 后方卡单层上移量：10rpx（层叠错落，从顶层卡上方露出纸边） */
-const GHOST_LIFT = 10 * rpxToPx
+/** 后方卡缩放：第二 / 三层依次收窄 3%（顶层最宽）—— 幅度克制，让「层线」而非宽度差主导观感 */
+const GHOST_SCALE = [1, 0.97, 0.94]
+/** 后方卡单层下移量：24rpx（--spacing-md）—— 层线间距，线即下一张卡的底边 */
+const GHOST_LIFT = 24 * rpxToPx
 
 const dragging = ref(false)
 const animating = ref(false)
@@ -86,15 +88,16 @@ const topStyle = computed(() => ({
   zIndex: 20,
 }))
 
-/** 第 level 层（1 = 第二层）的纸片层样式：收窄 + 向上错位、**不透明无虚化**；
-   拖拽进度下向顶层终态靠拢（放大回 1、上移归零），保证晋升连续 */
+/** 第 level 层（1 = 第二层）的层样式：**向下错位**露出底边（层线）+ 轻微收窄，
+   **不透明无虚化**；拖拽进度下向上收拢并放大（offset → 0、scale → 1），预告它即将成为顶层。
+   🔴 缩放围绕**底边**（见 `.stack__slot--back` 的 `transform-origin`）⇒ offset 即真实露出量。 */
 function ghostStyle(level: number) {
   const p = progress.value
   const baseScale = GHOST_SCALE[level]
   // 层级越深跟随越弱（第二层全跟随、第三层七成），保持层间差异
   const ease = Math.max(0, 1 - (level - 1) * 0.3) * p
   const scale = baseScale + (1 - baseScale) * ease
-  const offset = -GHOST_LIFT * level * (1 - ease)
+  const offset = GHOST_LIFT * level * (1 - ease)
   return {
     transform: `translateY(${offset}px) scale(${scale})`,
     zIndex: 20 - level,
@@ -155,6 +158,7 @@ function onEnd(e: TouchEvent) {
   }
   // 回弹（--duration-base）
   dragging.value = false
+  vertical.value = false
   dx.value = 0
   rot.value = 0
 }
@@ -187,7 +191,7 @@ function flyOut(direction: 'left' | 'right') {
       :class="
         slot.level === 0
           ? ['stack__slot--top', { 'stack__slot--dragging': dragging, 'stack__slot--fly': animating }]
-          : 'stack__slot--ghost'
+          : 'stack__slot--back'
       "
       :style="slot.level === 0 ? topStyle : ghostStyle(slot.level)"
       @touchstart="slot.level === 0 ? onStart($event) : undefined"
@@ -214,9 +218,8 @@ function flyOut(direction: 'left' | 'right') {
             @want="emit('want', slot.card)"
           />
         </template>
-        <!-- 后方层：真实下一张卡（队列有货）或纸片虚影（补位，恒定 3 层） -->
+        <!-- 后方层：真实后续卡片（底边即层线），无虚影补位 -->
         <DishSwipeCard v-else-if="slot.card" :dish="slot.card" />
-        <view v-else class="stack__ghost" />
       </view>
     </view>
   </view>
@@ -230,12 +233,13 @@ function flyOut(direction: 'left' | 'right') {
   width: 100%;
 }
 
-/* 卡片槽位：整页主容器 —— 上下留白均衡（三层堆叠在信息区块与 TabBar 容器间垂直居中） */
+/* 卡片槽位：整页主容器 —— 上留白 48rpx；下留白 96rpx，为最深层线（顶层下方 48rpx）
+   预留同量呼吸位，使「顶层卡上缘 ↔ 页面信息区块」与「最深层线 ↔ TabBar 容器」上下等距 */
 .stack__slot {
   position: absolute;
   top: var(--spacing-2xl);
   right: var(--page-gutter);
-  bottom: var(--spacing-2xl);
+  bottom: calc(var(--spacing-2xl) * 2);
   left: var(--page-gutter);
   display: flex;
   flex-direction: column;
@@ -250,7 +254,11 @@ function flyOut(direction: 'left' | 'right') {
   z-index: 20;
 }
 
-.stack__slot--ghost {
+/* 后方层：触摸穿透、不可点（层线仅作视觉预告）
+   🔴 transform-origin: bottom —— 收窄围绕**底边**进行，底边不会被缩放上抬，
+   于是 translateY 的下探量 = 实际露出量（层线间距 24rpx 才真实可见） */
+.stack__slot--back {
+  transform-origin: bottom center;
   pointer-events: none;
 }
 
@@ -266,11 +274,14 @@ function flyOut(direction: 'left' | 'right') {
     opacity var(--duration-slow) var(--ease-out);
 }
 
-/* 卡片入场：轻微上浮淡入 */
+/* 卡片入场：轻微上浮淡入
+   🔴 min-height: 0 —— 否则 flex 子项不会低于内容高度，卡片会撑出槽位底部，
+   把「卡片下部层线」整片盖住（层线不可见的根因） */
 .stack__cardWrap {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-height: 0;
   width: 100%;
   will-change: transform;
   backface-visibility: hidden;
@@ -286,18 +297,6 @@ function flyOut(direction: 'left' | 'right') {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* 纸片虚影（队列尾部不足 3 张时的补位层）：同卡面轮廓 + 柔和浅阴影，无内容 */
-.stack__ghost {
-  display: flex;
-  flex: 1;
-  box-sizing: border-box;
-  width: 100%;
-  background: var(--bg-page);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card-stack);
 }
 
 /* 空态占位卡：与栈卡同卡面（表面由 PaperCard 承担），内容居中纵向排布 */

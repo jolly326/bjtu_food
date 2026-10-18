@@ -87,34 +87,29 @@ onMounted(load)
       </button>
     </header>
 
-    <div class="table-wrap">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>选项文案</th>
-            <th class="table__ops">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id">
-            <td>{{ row.name }}</td>
-            <td class="table__ops">
-              <button class="link" @click="onEdit(row)">编辑</button>
-              <button
-                class="link link--danger"
-                :class="{ 'is-disabled': row.refCount > 0 }"
-                :title="row.refCount > 0 ? `已被 ${row.refCount} 条纠错提交引用，无法删除` : ''"
-                @click="onRemove(row)"
-              >
-                删除
-              </button>
-            </td>
-          </tr>
-          <tr v-if="!rows.length && !loading">
-            <td colspan="2" class="table__empty">暂无选项</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="list-card-wrap">
+      <div
+        class="list-card"
+        v-for="row in rows"
+        :key="row.id"
+      >
+        <div class="list-card__main">
+          <h3 class="list-card__title">
+            <span class="list-card__titleText">{{ row.name }}</span>
+          </h3>
+        </div>
+        <div class="list-card__actions">
+          <button class="link" @click="onEdit(row)">编辑</button>
+          <button
+            class="link link--danger is-disabled"
+            :title="row.refCount > 0 ? `已被 ${row.refCount} 条纠错提交引用，无法删除` : ''"
+            @click="onRemove(row)"
+          >
+            删除
+          </button>
+        </div>
+      </div>
+      <span v-if="!rows.length && !loading" class="list-card__empty">暂无选项</span>
     </div>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
@@ -151,22 +146,6 @@ onMounted(load)
   color: var(--el-text-color-primary);
 }
 
-.table__muted {
-  color: var(--el-text-color-secondary);
-}
-.table__num {
-  text-align: right;
-}
-.table__ops {
-  text-align: right;
-  white-space: nowrap;
-}
-.table__empty {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--el-text-color-placeholder);
-}
-
 .link {
   border: none;
   background: none;
@@ -175,26 +154,26 @@ onMounted(load)
   cursor: pointer;
   padding: 0 6px;
 }
+
 .link--danger {
   color: var(--el-color-danger);
 }
-.is-disabled {
-  pointer-events: none;
-  opacity: 0.4;
-}
 
 /* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
+
 .dialog__title {
   margin: 0 0 20px;
   font-size: 16px;
   color: var(--el-text-color-primary);
 }
+
 .dialog__label {
   display: block;
   margin-bottom: 6px;
   font-size: 13px;
   color: var(--el-text-color-regular);
 }
+
 .dialog__input {
   width: 100%;
   height: 34px;
@@ -206,22 +185,18 @@ onMounted(load)
   outline: none;
   box-sizing: border-box;
 }
+
 .dialog__hint {
   margin: 10px 0 0;
   font-size: 12px;
   color: var(--el-text-color-placeholder);
 }
+
 .dialog__foot {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 24px;
-}
-
-/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
-.table-wrap {
-  overflow-x: auto;
-  margin-bottom: 4px;
 }
 
 /* 弹窗窄屏近全宽，避免在手机上超出屏幕 */

@@ -10,6 +10,9 @@ import { computed } from 'vue'
 import { iconSrc, type IconTone } from '@/theme/icons.generated'
 import { useTheme } from '@/utils/theme'
 
+/** 宿主节点虚拟化：组件根（image）直接参与宿主 flex 布局 */
+defineOptions({ options: { virtualHost: true } })
+
 const props = withDefaults(
   defineProps<{
     name: string

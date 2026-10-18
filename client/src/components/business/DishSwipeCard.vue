@@ -84,6 +84,8 @@ function yuan(fen: number): string {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* 🔴 min-height: 0 —— 允许内容区在槽位不足时收缩，避免把卡片顶高溢出槽底 */
+  min-height: 0;
   width: 100%;
   margin-top: calc(var(--spacing-2xl) * 2 + var(--font-hero));
 }
@@ -127,10 +129,11 @@ function yuan(fen: number): string {
   text-align: center;
 }
 
-/* 按钮：与信息行间距 + 底部留白由 PaperCard 卡面内距承担（不贴底） */
+/* 按钮：与信息行间距 + 底部留白由 PaperCard 卡面内距承担（不贴底）；高度不参与压缩 */
 .card__btn {
   position: relative;
   z-index: 1;
+  flex: none;
   width: 100%;
   margin-top: var(--spacing-xl);
 }

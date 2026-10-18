@@ -41,7 +41,7 @@
 | `docs/` | [`README.md`](./README.md) |
 | [`func/client/`](./func/client/README.md) | `README` · `A1-风物` · `A2-美味` · `A3-食堂筛选` · `B1-品尝标记` · `B2-评分反馈` · `B3-菜品纠错` · `B4-记忆` · `C1-openid 静默识别` |
 | [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `A4-海报管理` · `B1-反馈查看` · `B2-纠错查看` · `B3-纠错选项管理` · `C1-管理员登录` |
-| [`ui/client/`](./ui/client/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `图标资源` · `风物` · `美味` · `记忆` |
+| [`ui/client/`](./ui/client/README.md) | `README` · `Julienne风格指南` · `公共组件与形态基线` · `设计变量` · `图标资源` · `风物` · `美味` · `记忆` |
 | [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `海报管理` · `评分数据` · `纠错处理` · `纠错选项` |
 | [`api/`](./api/README.md) | `README` · `client/`（`auth` · `posters` · `dishes` · `canteens` · `records` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `posters` · `dishes` · `records` · `issues` · `images`） |
 | [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `poster` · `dish` · `dish_record` · `dish_issue` · `dish_issue_option` · `user` · `admin` |

@@ -5,19 +5,22 @@
  * 胶囊在容器内**垂直居中**，**宽 = 海报卡宽、左缘与海报卡左缘对齐**（非沉底全宽菜单栏）。
  * `pages.json` 的 `tabBar.custom = true` 隐藏原生栏，本组件顶替。
  *
- * 图标与文案一一对应：风物=compass、美味=dish、记忆=clock。
+ * 图标与文案一一对应：风物=image、美味=dish、记忆=notebook（Julienne 语汇：图像 / 餐具 / 手账）。
  * 形态：**一个外环胶囊包裹三项**（仅 `1rpx` 浅灰描边，**无底色 / 无阴影**）；
  * 每项内层自带胶囊，选中项内层 `--color-primary-soft` 浅橙填充 + 主色图标 / 文字，未选无填充。
  * 图标与文字视觉尺寸配平（40rpx 线性图标 + 26rpx 衬线标签）；三项在胶囊内水平均分、垂直居中。
  */
 import AppIcon from './AppIcon.vue'
 
-defineProps<{ active: 'discover' | 'recipes' | 'records' }>()
+/** 宿主节点虚拟化：组件根直接参与页面布局（宿主不打断布局链路） */
+defineOptions({ options: { virtualHost: true } })
+
+defineProps<{ active: 'scenery' | 'cuisine' | 'memory' }>()
 
 const ITEMS = [
-  { key: 'discover', path: '/pages/discover/index', icon: 'compass', label: '风物' },
-  { key: 'recipes', path: '/pages/recipes/index', icon: 'dish', label: '美味' },
-  { key: 'records', path: '/pages/records/index', icon: 'clock', label: '记忆' },
+  { key: 'scenery', path: '/pages/scenery/index', icon: 'image', label: '风物' },
+  { key: 'cuisine', path: '/pages/cuisine/index', icon: 'dish', label: '美味' },
+  { key: 'memory', path: '/pages/memory/index', icon: 'notebook', label: '记忆' },
 ] as const
 
 function go(path: string) {

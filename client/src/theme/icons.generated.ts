@@ -8,24 +8,6 @@ import arrow_down__muted from '@/assets/icon-variants/arrow-down--muted.svg'
 import arrow_down__default__dark from '@/assets/icon-variants/arrow-down--default--dark.svg'
 import arrow_down__primary__dark from '@/assets/icon-variants/arrow-down--primary--dark.svg'
 import arrow_down__muted__dark from '@/assets/icon-variants/arrow-down--muted--dark.svg'
-import book__default from '@/assets/icon-variants/book--default.svg'
-import book__primary from '@/assets/icon-variants/book--primary.svg'
-import book__muted from '@/assets/icon-variants/book--muted.svg'
-import book__default__dark from '@/assets/icon-variants/book--default--dark.svg'
-import book__primary__dark from '@/assets/icon-variants/book--primary--dark.svg'
-import book__muted__dark from '@/assets/icon-variants/book--muted--dark.svg'
-import clock__default from '@/assets/icon-variants/clock--default.svg'
-import clock__primary from '@/assets/icon-variants/clock--primary.svg'
-import clock__muted from '@/assets/icon-variants/clock--muted.svg'
-import clock__default__dark from '@/assets/icon-variants/clock--default--dark.svg'
-import clock__primary__dark from '@/assets/icon-variants/clock--primary--dark.svg'
-import clock__muted__dark from '@/assets/icon-variants/clock--muted--dark.svg'
-import compass__default from '@/assets/icon-variants/compass--default.svg'
-import compass__primary from '@/assets/icon-variants/compass--primary.svg'
-import compass__muted from '@/assets/icon-variants/compass--muted.svg'
-import compass__default__dark from '@/assets/icon-variants/compass--default--dark.svg'
-import compass__primary__dark from '@/assets/icon-variants/compass--primary--dark.svg'
-import compass__muted__dark from '@/assets/icon-variants/compass--muted--dark.svg'
 import dish__default from '@/assets/icon-variants/dish--default.svg'
 import dish__primary from '@/assets/icon-variants/dish--primary.svg'
 import dish__muted from '@/assets/icon-variants/dish--muted.svg'
@@ -50,24 +32,30 @@ import image_broken__muted from '@/assets/icon-variants/image-broken--muted.svg'
 import image_broken__default__dark from '@/assets/icon-variants/image-broken--default--dark.svg'
 import image_broken__primary__dark from '@/assets/icon-variants/image-broken--primary--dark.svg'
 import image_broken__muted__dark from '@/assets/icon-variants/image-broken--muted--dark.svg'
+import image__default from '@/assets/icon-variants/image--default.svg'
+import image__primary from '@/assets/icon-variants/image--primary.svg'
+import image__muted from '@/assets/icon-variants/image--muted.svg'
+import image__default__dark from '@/assets/icon-variants/image--default--dark.svg'
+import image__primary__dark from '@/assets/icon-variants/image--primary--dark.svg'
+import image__muted__dark from '@/assets/icon-variants/image--muted--dark.svg'
 import meh__default from '@/assets/icon-variants/meh--default.svg'
 import meh__primary from '@/assets/icon-variants/meh--primary.svg'
 import meh__muted from '@/assets/icon-variants/meh--muted.svg'
 import meh__default__dark from '@/assets/icon-variants/meh--default--dark.svg'
 import meh__primary__dark from '@/assets/icon-variants/meh--primary--dark.svg'
 import meh__muted__dark from '@/assets/icon-variants/meh--muted--dark.svg'
-import message_circle__default from '@/assets/icon-variants/message-circle--default.svg'
-import message_circle__primary from '@/assets/icon-variants/message-circle--primary.svg'
-import message_circle__muted from '@/assets/icon-variants/message-circle--muted.svg'
-import message_circle__default__dark from '@/assets/icon-variants/message-circle--default--dark.svg'
-import message_circle__primary__dark from '@/assets/icon-variants/message-circle--primary--dark.svg'
-import message_circle__muted__dark from '@/assets/icon-variants/message-circle--muted--dark.svg'
 import moon__default from '@/assets/icon-variants/moon--default.svg'
 import moon__primary from '@/assets/icon-variants/moon--primary.svg'
 import moon__muted from '@/assets/icon-variants/moon--muted.svg'
 import moon__default__dark from '@/assets/icon-variants/moon--default--dark.svg'
 import moon__primary__dark from '@/assets/icon-variants/moon--primary--dark.svg'
 import moon__muted__dark from '@/assets/icon-variants/moon--muted--dark.svg'
+import notebook__default from '@/assets/icon-variants/notebook--default.svg'
+import notebook__primary from '@/assets/icon-variants/notebook--primary.svg'
+import notebook__muted from '@/assets/icon-variants/notebook--muted.svg'
+import notebook__default__dark from '@/assets/icon-variants/notebook--default--dark.svg'
+import notebook__primary__dark from '@/assets/icon-variants/notebook--primary--dark.svg'
+import notebook__muted__dark from '@/assets/icon-variants/notebook--muted--dark.svg'
 import refresh_cw__default from '@/assets/icon-variants/refresh-cw--default.svg'
 import refresh_cw__primary from '@/assets/icon-variants/refresh-cw--primary.svg'
 import refresh_cw__muted from '@/assets/icon-variants/refresh-cw--muted.svg'
@@ -86,6 +74,12 @@ import smile__muted from '@/assets/icon-variants/smile--muted.svg'
 import smile__default__dark from '@/assets/icon-variants/smile--default--dark.svg'
 import smile__primary__dark from '@/assets/icon-variants/smile--primary--dark.svg'
 import smile__muted__dark from '@/assets/icon-variants/smile--muted--dark.svg'
+import sparkles__default from '@/assets/icon-variants/sparkles--default.svg'
+import sparkles__primary from '@/assets/icon-variants/sparkles--primary.svg'
+import sparkles__muted from '@/assets/icon-variants/sparkles--muted.svg'
+import sparkles__default__dark from '@/assets/icon-variants/sparkles--default--dark.svg'
+import sparkles__primary__dark from '@/assets/icon-variants/sparkles--primary--dark.svg'
+import sparkles__muted__dark from '@/assets/icon-variants/sparkles--muted--dark.svg'
 import star__default from '@/assets/icon-variants/star--default.svg'
 import star__primary from '@/assets/icon-variants/star--primary.svg'
 import star__muted from '@/assets/icon-variants/star--muted.svg'
@@ -98,12 +92,6 @@ import sun__muted from '@/assets/icon-variants/sun--muted.svg'
 import sun__default__dark from '@/assets/icon-variants/sun--default--dark.svg'
 import sun__primary__dark from '@/assets/icon-variants/sun--primary--dark.svg'
 import sun__muted__dark from '@/assets/icon-variants/sun--muted--dark.svg'
-import trash_2__default from '@/assets/icon-variants/trash-2--default.svg'
-import trash_2__primary from '@/assets/icon-variants/trash-2--primary.svg'
-import trash_2__muted from '@/assets/icon-variants/trash-2--muted.svg'
-import trash_2__default__dark from '@/assets/icon-variants/trash-2--default--dark.svg'
-import trash_2__primary__dark from '@/assets/icon-variants/trash-2--primary--dark.svg'
-import trash_2__muted__dark from '@/assets/icon-variants/trash-2--muted--dark.svg'
 
 /** 浅色色调（默认主题） */
 export const ICON_TONES = {
@@ -126,15 +114,6 @@ export const ICON_SRC: Record<string, string> = {
   "arrow-down--default": arrow_down__default,
   "arrow-down--primary": arrow_down__primary,
   "arrow-down--muted": arrow_down__muted,
-  "book--default": book__default,
-  "book--primary": book__primary,
-  "book--muted": book__muted,
-  "clock--default": clock__default,
-  "clock--primary": clock__primary,
-  "clock--muted": clock__muted,
-  "compass--default": compass__default,
-  "compass--primary": compass__primary,
-  "compass--muted": compass__muted,
   "dish--default": dish__default,
   "dish--primary": dish__primary,
   "dish--muted": dish__muted,
@@ -147,15 +126,18 @@ export const ICON_SRC: Record<string, string> = {
   "image-broken--default": image_broken__default,
   "image-broken--primary": image_broken__primary,
   "image-broken--muted": image_broken__muted,
+  "image--default": image__default,
+  "image--primary": image__primary,
+  "image--muted": image__muted,
   "meh--default": meh__default,
   "meh--primary": meh__primary,
   "meh--muted": meh__muted,
-  "message-circle--default": message_circle__default,
-  "message-circle--primary": message_circle__primary,
-  "message-circle--muted": message_circle__muted,
   "moon--default": moon__default,
   "moon--primary": moon__primary,
   "moon--muted": moon__muted,
+  "notebook--default": notebook__default,
+  "notebook--primary": notebook__primary,
+  "notebook--muted": notebook__muted,
   "refresh-cw--default": refresh_cw__default,
   "refresh-cw--primary": refresh_cw__primary,
   "refresh-cw--muted": refresh_cw__muted,
@@ -165,15 +147,15 @@ export const ICON_SRC: Record<string, string> = {
   "smile--default": smile__default,
   "smile--primary": smile__primary,
   "smile--muted": smile__muted,
+  "sparkles--default": sparkles__default,
+  "sparkles--primary": sparkles__primary,
+  "sparkles--muted": sparkles__muted,
   "star--default": star__default,
   "star--primary": star__primary,
   "star--muted": star__muted,
   "sun--default": sun__default,
   "sun--primary": sun__primary,
   "sun--muted": sun__muted,
-  "trash-2--default": trash_2__default,
-  "trash-2--primary": trash_2__primary,
-  "trash-2--muted": trash_2__muted,
 }
 
 /** 深色组：着色变体 -> 打包器资产地址 */
@@ -181,15 +163,6 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "arrow-down--default--dark": arrow_down__default__dark,
   "arrow-down--primary--dark": arrow_down__primary__dark,
   "arrow-down--muted--dark": arrow_down__muted__dark,
-  "book--default--dark": book__default__dark,
-  "book--primary--dark": book__primary__dark,
-  "book--muted--dark": book__muted__dark,
-  "clock--default--dark": clock__default__dark,
-  "clock--primary--dark": clock__primary__dark,
-  "clock--muted--dark": clock__muted__dark,
-  "compass--default--dark": compass__default__dark,
-  "compass--primary--dark": compass__primary__dark,
-  "compass--muted--dark": compass__muted__dark,
   "dish--default--dark": dish__default__dark,
   "dish--primary--dark": dish__primary__dark,
   "dish--muted--dark": dish__muted__dark,
@@ -202,15 +175,18 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "image-broken--default--dark": image_broken__default__dark,
   "image-broken--primary--dark": image_broken__primary__dark,
   "image-broken--muted--dark": image_broken__muted__dark,
+  "image--default--dark": image__default__dark,
+  "image--primary--dark": image__primary__dark,
+  "image--muted--dark": image__muted__dark,
   "meh--default--dark": meh__default__dark,
   "meh--primary--dark": meh__primary__dark,
   "meh--muted--dark": meh__muted__dark,
-  "message-circle--default--dark": message_circle__default__dark,
-  "message-circle--primary--dark": message_circle__primary__dark,
-  "message-circle--muted--dark": message_circle__muted__dark,
   "moon--default--dark": moon__default__dark,
   "moon--primary--dark": moon__primary__dark,
   "moon--muted--dark": moon__muted__dark,
+  "notebook--default--dark": notebook__default__dark,
+  "notebook--primary--dark": notebook__primary__dark,
+  "notebook--muted--dark": notebook__muted__dark,
   "refresh-cw--default--dark": refresh_cw__default__dark,
   "refresh-cw--primary--dark": refresh_cw__primary__dark,
   "refresh-cw--muted--dark": refresh_cw__muted__dark,
@@ -220,36 +196,34 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "smile--default--dark": smile__default__dark,
   "smile--primary--dark": smile__primary__dark,
   "smile--muted--dark": smile__muted__dark,
+  "sparkles--default--dark": sparkles__default__dark,
+  "sparkles--primary--dark": sparkles__primary__dark,
+  "sparkles--muted--dark": sparkles__muted__dark,
   "star--default--dark": star__default__dark,
   "star--primary--dark": star__primary__dark,
   "star--muted--dark": star__muted__dark,
   "sun--default--dark": sun__default__dark,
   "sun--primary--dark": sun__primary__dark,
   "sun--muted--dark": sun__muted__dark,
-  "trash-2--default--dark": trash_2__default__dark,
-  "trash-2--primary--dark": trash_2__primary__dark,
-  "trash-2--muted--dark": trash_2__muted__dark,
 }
 
 /** 本次被源码引用并生成着色变体的图标键（+ empty 兜底） */
 export const ICON_KEYS = [
   "arrow-down",
-  "book",
-  "clock",
-  "compass",
   "dish",
   "empty",
   "frown",
   "image-broken",
+  "image",
   "meh",
-  "message-circle",
   "moon",
+  "notebook",
   "refresh-cw",
   "report",
   "smile",
+  "sparkles",
   "star",
   "sun",
-  "trash-2",
 ] as const
 
 export type IconKey = (typeof ICON_KEYS)[number]

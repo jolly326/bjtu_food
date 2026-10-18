@@ -28,6 +28,8 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  /* 🔴 min-height: 0 —— 让卡片高度服从宿主槽位（不被内容顶高、不溢出槽底） */
+  min-height: 0;
   box-sizing: border-box;
   width: 100%;
   /* 减少 webview 变换重绘抖动 */
@@ -45,6 +47,9 @@
   flex: 1;
   flex-direction: column;
   align-items: center;
+  /* 🔴 min-height: 0 + overflow: hidden —— 高度服从卡面，内容超出时裁在卡内（不溢出底边） */
+  min-height: 0;
+  overflow: hidden;
   box-sizing: border-box;
   width: 100%;
   padding: var(--spacing-2xl) var(--spacing-xl) var(--spacing-2xl);

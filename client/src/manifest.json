@@ -19,6 +19,7 @@
     },
     "usingComponents": true,
     "lazyCodeLoading": "requiredComponents",
+    "mergeVirtualHostAttributes": true,
     "optimization": {
       "subPackages": true
     }

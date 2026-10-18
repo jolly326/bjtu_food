@@ -240,38 +240,39 @@ onMounted(async () => {
       <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
-    <div class="table-wrap">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>海报</th>
-            <th>所属档口</th>
-            <th>状态</th>
-            <th class="table__ops">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id">
-            <td>
-              <img v-if="row.imageUrl" :src="row.imageUrl" class="table__thumb" alt="海报" />
-              <span v-else class="table__muted">—</span>
-            </td>
-            <td>{{ row.stallName }}</td>
-            <td>
-              <span class="tag" :class="row.status === 'on' ? 'tag--on' : 'tag--off'">
-                {{ row.status === 'on' ? '上橱窗' : '不展示' }}
-              </span>
-            </td>
-            <td class="table__ops">
-              <button class="link" @click="onEdit(row)">编辑</button>
-              <button class="link link--danger" @click="onRemove(row)">删除</button>
-            </td>
-          </tr>
-          <tr v-if="!rows.length && !loading">
-            <td colspan="4" class="table__empty">暂无数据</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="list-card-wrap">
+      <div
+        class="list-card"
+        v-for="row in rows"
+        :key="row.id"
+      >
+        <div class="list-card__main">
+          <img
+            v-if="row.imageUrl"
+            :src="row.imageUrl"
+            class="img--round"
+            :style="{ width: '80px', height: '80px' }"
+            alt="海报"
+          />
+          <span class="list-card__muted">—</span>
+          <div class="list-card__title">
+            <span class="list-card__titleText">{{ row.stallName }}</span>
+            <span
+              class="tag"
+              :class="row.status === 'on' ? 'tag--on' : 'tag--off'"
+            >
+              {{ row.status === 'on' ? '上橱窗' : '不展示' }}
+            </span>
+          </div>
+        </div>
+        <div class="list-card__actions">
+          <button class="link" @click="onEdit(row)">编辑</button>
+          <button class="link link--danger" @click="onRemove(row)">删除</button>
+        </div>
+      </div>
+      <div class="list-card" v-if="!rows.length && !loading">
+        <span class="list-card__empty">暂无数据</span>
+      </div>
     </div>
 
     <footer class="page__foot">
@@ -386,23 +387,18 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.table__muted {
   color: var(--el-text-color-secondary);
 }
-.table__num {
   text-align: right;
 }
-.table__ops {
   text-align: right;
   white-space: nowrap;
 }
-.table__empty {
   padding: 40px 0;
   text-align: center;
   color: var(--el-text-color-placeholder);
 }
 /* 海报列缩略图：高 40px、宽 30px（3:4 竖版裁切），见 docs/ui/web/海报管理.md §3 */
-.table__thumb {
   width: 30px;
   height: 40px;
   border-radius: 4px;
@@ -488,11 +484,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
-.table-wrap {
-  overflow-x: auto;
-  margin-bottom: 4px;
-}
 
 /* 弹窗窄屏近全宽，避免在手机上超出屏幕 */
 @media (max-width: 640px) {
@@ -502,3 +493,4 @@ onMounted(async () => {
   }
 }
 </style>
+`n

@@ -2,6 +2,8 @@
 
 > 本目录是**学生端（微信小程序）页面 UI 的唯一真源**（视觉 / 交互 / 间距 / 动效）。
 > 业务规则见 [`func/client/`](../../func/client/README.md)；接口与字段见 [`api/`](../../api/README.md)。
+>
+> 🔴 **风格宪法：[Julienne风格指南.md](./Julienne风格指南.md)** —— 新增 / 改动 UI 前先读它（风格内核、色比、字体、留白、图标、反例）。
 
 ## 页面清单
 
@@ -36,7 +38,7 @@
 | 顶部安全区 | `max(statusBarHeight, env(safe-area-inset-top))` |
 | 页头 | 左右内距 `--page-gutter`；页头**不承载业务操作**（除美味页的食堂筛选、风物页的明暗切换，见该页） |
 | 主内容区 | 记忆页滚动区 `.body`（`flex: 1` + `min-height: 0`）；底部留白 = `--tabbar-height + --tabbar-gap + --spacing-md + env(safe-area-inset-bottom)` |
-| 底部 TabBar | **全宽通栏容器**底置（`bottom: 0` + `env(safe-area-inset-bottom)` 内距）；胶囊高 `--tabbar-height`、宽 = 海报卡宽、左缘与海报卡左缘对齐、容器内垂直居中；完整样式见 §2.1.1 |
+| 底部 TabBar | **全宽通栏容器**底置（`bottom: 0` + `env(safe-area-inset-bottom)` 内距）；胶囊高 `--tabbar-height`、宽 = 海报卡宽、**容器内水平 + 垂直居中**；完整样式见 §2.1.1 |
 | 页面底色 | `--bg-page` = **`#FFFDFE`**（🔴 全站统一；三个 tab 页共用） |
 
 > 🔴 **视觉语言（Julienne 极简文艺轻拟物）见 [公共组件与形态基线.md](./公共组件与形态基线.md) §0** —— 所有页面 / 组件严格遵循；页面级视觉取值见 [设计变量.md](./设计变量.md)，跨页形态口径与组件规格见 [公共组件与形态基线.md](./公共组件与形态基线.md)。**页面稿只写「本页用法」，不复述基线规格。**

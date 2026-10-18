@@ -6,8 +6,10 @@ page {
   --radius-xs: 10rpx;
   --radius-btn: 32rpx;
   --radius-card: 36rpx;
-  /* 海报卡圆角（风物页专属卡形态） */
-  --radius-card-stack: 24rpx;
+  /* 海报卡圆角（风物页专属卡形态；与美味卡族同为 28rpx） */
+  --radius-card-stack: 28rpx;
+  /* 餐盘白环：菜品图外圈圆盘的白色留白环底色 */
+  --dish-photo-inner-size: 360rpx;
   --radius-modal: 40rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
@@ -64,10 +66,21 @@ page {
 
   /* ===== 结构尺寸 ===== */
   --dish-photo-size: 420rpx;
-  /* 记忆卡：宽扁纸片卡（圆形菜品图 + 菜名 + 三圆形图标） */
-  --record-photo-size: 240rpx;
+  /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton / FlavorRating） */
+  --dish-card-radius: 28rpx;
+  --dish-card-pad-y: 40rpx;
+  --dish-name-size: 56rpx;
+  --dish-decor-letter: 180rpx;
+  --want-btn-width: 320rpx;
+  --want-btn-border: 2rpx;
+  --want-btn-radius: 20rpx;
+  --want-btn-font: 30rpx;
+  /* 记忆卡：竖版圆角卡（顶部菜名 + 档口·价格 + 中部圆形大图 = 卡内宽 75% + 底部单行操作） */
+  --record-photo-size: 390rpx;
   --record-card-width: 600rpx;
-  --record-card-height: 500rpx;
+  --record-card-height: 750rpx;
+  /* 流末尾结束态：动作图标框边长（方框，图标居中；非卡片） */
+  --flowend-icon-box: 120rpx;
   /* 记忆页底层淡装饰月份数字字号 */
   --memory-motif-size: 280rpx;
 }

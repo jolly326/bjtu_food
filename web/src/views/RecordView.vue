@@ -105,30 +105,32 @@ onMounted(async () => {
       <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
-    <div class="table-wrap">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>菜品</th>
-            <th>反应</th>
-          </tr>
-        </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td>{{ row.dishName }}</td>
-          <td>
-            <span v-if="row.reaction == null" class="tag tag--none">未评分</span>
-            <span v-else class="tag" :class="'tag--r' + row.reaction">{{
-              REACTION_LABEL[String(row.reaction)]
-            }}</span>
-          </td>
-        </tr>
-        <tr v-if="!rows.length && !loading">
-          <td colspan="2" class="table__empty">暂无数据</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+    <div class="list-card-wrap">
+      <div
+        class="list-card"
+        v-for="row in rows"
+        :key="row.id"
+      >
+        <div class="list-card__main">
+          <h3 class="list-card__title">
+            <span class="list-card__titleText">{{ row.dishName }}</span>
+          </h3>
+          <div class="list-card__meta">
+            <span
+              class="list-card__metaText"
+              :class="'tag tag--r' + row.reaction"
+            >
+              {{
+                row.reaction == null
+                  ? '未评分'
+                  : REACTION_LABEL[String(row.reaction)]
+              }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <span v-if="!rows.length && !loading" class="list-card__empty">暂无数据</span>
+    </div>
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
@@ -189,14 +191,8 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.table__muted {
-  color: var(--el-text-color-secondary);
-}
-.table__empty {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--el-text-color-placeholder);
-}
+
+
 
 .tag {
   display: inline-block;
@@ -221,9 +217,7 @@ onMounted(async () => {
   color: var(--el-text-color-secondary);
 }
 
-/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
-.table-wrap {
-  overflow-x: auto;
-  margin-bottom: 4px;
-}
 </style>
+
+
+`n

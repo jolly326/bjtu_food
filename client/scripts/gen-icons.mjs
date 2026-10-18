@@ -56,8 +56,13 @@ for (const file of walk(SRC_ROOT)) {
   if (file === GENERATED_TS) continue
   const text = readFileSync(file, 'utf8')
   for (const key of keys) {
-    // 只认 AppIcon 静态名与数据源 icon 字段，避免把 class="filter" 之类的字符串误当图标
-    if (new RegExp(`name="\\s*${key}"|icon\\s*[:=]\\s*['"]${key}['"]`).test(text)) used.add(key)
+    // 只认 AppIcon 静态名、数据源 icon 字段，以及「动态图标名」所在行的字符串字面量
+    // （如 ReactionPicker 的三态图标表），避免把 class="filter" 之类的字符串误当图标
+    const re = new RegExp(
+      `name="\\s*${key}"|icon\\s*[:=]\\s*['"]${key}['"]|^.*icon.*['"]${key}['"]`,
+      'im',
+    )
+    if (re.test(text)) used.add(key)
   }
 }
 const generateFiles = files.filter((f) => used.has(f.slice(0, -4)))
@@ -73,7 +78,7 @@ function bake(key, raw, tone, color, isDark) {
   }
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ` +
+    `fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" ` +
     `preserveAspectRatio="none">${body}</svg>`
   const variant = `${key}--${tone}${isDark ? '--dark' : ''}`
   writeFileSync(join(OUT_DIR, `${variant}.svg`), svg, 'utf8')

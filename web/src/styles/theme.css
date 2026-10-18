@@ -206,3 +206,74 @@ h3 {
 #app .login__card {
   box-shadow: var(--el-box-shadow-light);
 }
+
+/* ===== 信息较多的行卡片（替代扁平表格） ===== */
+#app .list-card-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#app .list-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+}
+
+#app .list-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+#app .list-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#app .list-card__titleText {
+  font-size: 15px;
+  color: var(--el-text-color-primary);
+}
+
+#app .list-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+#app .list-card__metaText--num {
+  text-align: right;
+}
+
+#app .list-card__actions .link.is-disabled,
+#app .list-card__actions .link--danger.is-disabled {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+#app .list-card__metaText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  white-space: nowrap;
+}
+
+#app .list-card__empty {
+  padding: 40px 14px;
+  text-align: center;
+  color: var(--el-text-color-placeholder);
+}
+`n

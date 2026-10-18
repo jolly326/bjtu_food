@@ -3,7 +3,7 @@
  * 美味 tab（设计稿 docs/ui/client/美味.md；功能规则 docs/func/client/A2、A3、B1）。
  *
  * Julienne Z 轴堆叠卡片栈：顶部信息区块（衬线大标题 + 日期）→ 右上食堂筛选 →
- * 纸片卡片栈（Idle/Drag/Release；卡片含底部堆叠副本与顶部吊孔）。
+ * 纸片卡片栈（Idle/Drag/Release；卡片含顶部吊孔，层线由卡片栈承担）。
  * 点「去品尝」调用 B1 记录接口（自动写入记忆页当日记录），Toast 轻提示、无弹跳。
  * 本批卡片划完 ⇒ 流末尾空态（重新浏览 / 随机盲选，见 docs/func/client/A2）。
  */
@@ -11,14 +11,14 @@ import { computed, onMounted, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import RetryBlock from '@/components/base/RetryBlock.vue'
 import TabBar from '@/components/base/TabBar.vue'
-import CanteenFilter from '@/components/business/CanteenFilter.vue'
-import DishCardStack from '@/components/business/DishCardStack.vue'
-import DishFlowEnd from '@/components/business/DishFlowEnd.vue'
+import CanteenFilter from './components/CanteenFilter.vue'
+import DishCardStack from './components/DishCardStack.vue'
+import DishFlowEnd from './components/DishFlowEnd.vue'
 import { canteenApi, dishApi, recordApi } from '@/api'
 import type { CanteenOut, DishCardOut } from '@/api'
-import { todayLabelCN } from '@/utils/date'
+import { todayLabelWeekdayCN } from '@/utils/date'
 import { freshBatch } from '@/utils/dishBatch'
-import { navMetrics } from '@/utils/safeArea'
+import AppHeader from '@/components/base/AppHeader.vue'
 import { useTheme } from '@/utils/theme'
 import { cooldownFrom, useCooldown } from '@/utils/backoff'
 
@@ -42,10 +42,8 @@ const loading = ref(true)
 const finished = computed(
   () => !loading.value && !failed.value && batch.value.length > 0 && cards.value.length === 0,
 )
-/** 顶部安全区：避开状态栏 / 刘海与右上角胶囊 */
-const topInset = navMetrics().topInset
-/** 页头日期：固定值，避免每次渲染重复格式化（Julienne 风格：10月18日 星期六） */
-const today = todayLabelCN()
+/** 页头日期：固定值，避免每次渲染重复格式化（Julienne 风格：星期日，10月18日） */
+const today = todayLabelWeekdayCN()
 /** 全站主题（明暗切换作用于三个 tab 页） */
 const theme = useTheme()
 
@@ -57,8 +55,8 @@ async function load() {
       dishApi.list({ canteenId: canteenId.value, pageSize: 20 }),
       canteenApi.list(),
     ])
-    batch.value = dishList.records
-    cards.value = [...dishList.records]
+    batch.value = uniqueCards(dishList.records)
+    cards.value = [...batch.value]
     canteens.value = canteenList
   } catch {
     failed.value = true
@@ -121,8 +119,16 @@ async function onWant(dish: DishCardOut) {
 }
 
 /** 卡片飞出后移出栈，下一张晋升顶层（批次保留，供重新浏览） */
+/** 按菜品 id 去重（后端分页理论不重复，这里做防御：重复 id 会让卡片栈少渲染一层） */
+function uniqueCards(list: DishCardOut[]): DishCardOut[] {
+  const seen = new Set<number>()
+  return list.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)))
+}
+
 function onSwipe(id: number) {
-  cards.value = cards.value.filter((c) => c.id !== id)
+  // 只移除**第一张**匹配的卡（数据里若出现重复菜品，filter 会一次删掉多张）
+  const index = cards.value.findIndex((c) => c.id === id)
+  if (index >= 0) cards.value = cards.value.filter((_, i) => i !== index)
 }
 
 /** 重新浏览：本批原顺序再来一遍，不发请求 */
@@ -141,8 +147,8 @@ async function onSurprise() {
       uni.showToast({ title: '暂无更多菜品', icon: 'none' })
       return
     }
-    batch.value = next
-    cards.value = [...next]
+    batch.value = uniqueCards(next)
+    cards.value = [...batch.value]
   } catch (error) {
     uni.showToast({ title: (error as Error).message || '加载失败，请重试', icon: 'none' })
   } finally {
@@ -159,7 +165,10 @@ onMounted(load)
 </script>
 
 <template>
-  <view class="page" :data-theme="theme" :style="{ paddingTop: topInset + 'px' }">
+  <view class="page" :data-theme="theme">
+    <!-- 全局页头（品牌 + 明暗切换；与 TabBar 同级，三页统一） -->
+    <AppHeader />
+
     <view class="topbar">
       <view class="topbar__left">
         <text class="topbar__title">美味</text>
@@ -185,7 +194,7 @@ onMounted(load)
       </template>
     </DishCardStack>
 
-    <TabBar active="recipes" />
+    <TabBar active="cuisine" />
   </view>
 </template>
 
@@ -206,8 +215,8 @@ onMounted(load)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* 头部轻量化：上 40 / 左右 48 / 下 16 */
-  padding: var(--spacing-xl) var(--page-gutter) var(--spacing-sm);
+  /* 头部轻量化：上 8 / 左右 32 / 下 8（压缩头部高度，把纵向空间让给卡片栈） */
+  padding: var(--spacing-xs) var(--page-gutter) var(--spacing-xs);
 }
 
 .topbar__left {
@@ -220,7 +229,7 @@ onMounted(load)
 .topbar__title {
   font-family: var(--font-serif);
   font-size: var(--font-hero);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);
   line-height: 1.2;
   color: var(--text-title);
 }

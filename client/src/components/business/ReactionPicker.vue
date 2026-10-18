@@ -2,20 +2,24 @@
 /**
  * 三态评分控件（规格见 docs/ui/client/公共组件与形态基线.md §2.2 ReactionPicker）。
  *
- * 单个圆形表情图标按钮（Julienne 卡片角标形态）：
- * - 显示当前档位 —— 未评分 = `smile` 弱化态；已评分 = 主色描边 + 主色图标；
- * - tap 按 **喜欢 → 一般 → 不喜欢 → 喜欢** 循环切换并派发 `pick(下一档)`；
- * - 取值：喜欢 = 5 ｜ 一般 = 3 ｜ 不喜欢 = 1（口径见 func/client/B2）；
- * - `locked`（写入口限频退避中）时挂禁用态。
- * - 记忆卡三图标中视觉优先级最高：40rpx 大图标（气泡 32 / 垃圾桶 28）。
+ * 记忆卡右下角的**纯线性表情图标** —— 🔴 无圆形底、无描边外框、无填充色块；
+ * **仅线条颜色随状态变化**：
+ * - 未评价 ⇒ `meh` 平脸 + `tone="muted"`（浅灰）
+ * - 喜欢(5) ⇒ `smile` 笑脸 + `tone="primary"`（暖棕）
+ * - 一般(3) ⇒ `meh` 平脸 + `tone="default"`（浅棕）
+ * - 不喜欢(1) ⇒ `frown` 皱眉 + `tone="muted"`（浅灰）
+ * - tap 按 **喜欢 → 一般 → 不喜欢 → 喜欢** 循环切换并派发 `pick(下一档)`
+ * - 取值：喜欢 = 5 ｜ 一般 = 3 ｜ 不喜欢 = 1（口径见 func/client/B2）
+ * - `locked`（写入口限频退避中）时挂禁用态
  */
 import { computed } from 'vue'
 import AppIcon from '../base/AppIcon.vue'
 
 const props = withDefaults(
   defineProps<{
+    /** 当前评分档位：5 喜欢 ｜ 3 一般 ｜ 1 不喜欢 ｜ null 未评价 */
     modelValue?: number | null
-    /** 限频退避中：不可点 */
+    /** 写入口限频退避中：禁用（docs/secur/S-03） */
     locked?: boolean
   }>(),
   { modelValue: null, locked: false },
@@ -23,47 +27,47 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: 'pick', value: number): void }>()
 
-/** 循环顺序：喜欢 → 一般 → 不喜欢 → 喜欢 */
-const CYCLE = [5, 3, 1] as const
+/** 三档循环：未评价 → 喜欢 → 一般 → 不喜欢 → 喜欢… */
+const nextValue = computed(() => {
+  if (props.modelValue === 5) return 3
+  if (props.modelValue === 3) return 1
+  return 5
+})
 
-/** 已评分（选中态） */
-const rated = computed(() => props.modelValue != null)
+/** 表情：喜欢笑脸 / 不喜欢皱眉 / 未评价与一般同为平脸 */
+const iconName = computed(() => {
+  if (props.modelValue === 5) return 'smile'
+  if (props.modelValue === 1) return 'frown'
+  return 'meh'
+})
 
-/** 下一档（循环）；未评分从第一档（喜欢）起 */
-function next(): number {
-  const idx = props.modelValue == null ? -1 : CYCLE.indexOf(props.modelValue as 5 | 3 | 1)
-  return CYCLE[(idx + 1) % CYCLE.length]
-}
+/** 色调：喜欢暖棕；一般浅棕（default）；未评价与不喜欢浅灰（muted） */
+const iconTone = computed(() => {
+  if (props.modelValue === 5) return 'primary'
+  if (props.modelValue === 3) return 'default'
+  return 'muted'
+})
 
 function onTap() {
   if (props.locked) return
-  emit('pick', next())
+  emit('pick', nextValue.value)
 }
 </script>
 
 <template>
   <view
-    class="picker"
-    :class="{ 'picker--on': rated, 'is-disabled': locked }"
-    hover-class="picker--pressed"
+    class="reaction"
+    :class="{ 'is-disabled': locked }"
+    hover-class="reaction--pressed"
     @tap="onTap"
   >
-    <view class="picker__circle">
-      <AppIcon v-if="modelValue === 3" name="meh" :size="40" :tone="rated ? 'primary' : 'default'" />
-      <AppIcon
-        v-else-if="modelValue === 1"
-        name="frown"
-        :size="40"
-        :tone="rated ? 'primary' : 'default'"
-      />
-      <AppIcon v-else name="smile" :size="40" :tone="rated ? 'primary' : 'default'" />
-    </view>
+    <AppIcon :name="iconName" :size="40" :tone="iconTone" />
   </view>
 </template>
 
 <style lang="scss" scoped>
-/* 命中区 ≥ --tap-target-size；视觉圆小于命中区（触达下限口径见基线 §1.6） */
-.picker {
+/* 纯线性图标按钮：无圆形底、无描边、无填充（命中区仍满足触达下限） */
+.reaction {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,29 +75,7 @@ function onTap() {
   height: var(--tap-target-size);
 }
 
-/* 视觉圆：细描边圆环，Julienne 角标形态 */
-.picker__circle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(var(--tap-target-size) - var(--spacing-md));
-  height: calc(var(--tap-target-size) - var(--spacing-md));
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-circle);
-  transition: border-color var(--duration-fast) var(--ease-out);
-}
-
-/* 已评分：主色描边（不实底填充） */
-.picker--on .picker__circle {
-  border-color: var(--color-primary);
-}
-
-/* 禁用（限频退避）：非主色可点件 ⇒ opacity .5，禁点由全局 .is-disabled 承担 */
-.picker.is-disabled {
-  opacity: 0.5;
-}
-
-.picker--pressed {
+.reaction--pressed {
   opacity: 0.6;
 }
 </style>

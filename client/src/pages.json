@@ -1,21 +1,21 @@
 {
   "pages": [
     {
-      "path": "pages/discover/index",
+      "path": "pages/scenery/index",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false
       }
     },
     {
-      "path": "pages/recipes/index",
+      "path": "pages/cuisine/index",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false
       }
     },
     {
-      "path": "pages/records/index",
+      "path": "pages/memory/index",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false
@@ -29,9 +29,9 @@
     "backgroundColor": "#FFFDFE",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/discover/index", "text": "风物" },
-      { "pagePath": "pages/recipes/index", "text": "美味" },
-      { "pagePath": "pages/records/index", "text": "记忆" }
+      { "pagePath": "pages/scenery/index", "text": "风物" },
+      { "pagePath": "pages/cuisine/index", "text": "美味" },
+      { "pagePath": "pages/memory/index", "text": "记忆" }
     ]
   },
   "globalStyle": {
