@@ -49,6 +49,8 @@ admin（独立账号体系，与 user 无关）
 
 `created_at` / `updated_at` 一律由 MySQL 写入 —— INSERT 走 `DEFAULT CURRENT_TIMESTAMP`，UPDATE 走 `ON UPDATE CURRENT_TIMESTAMP`。**应用层不写这两列**，也不用 ORM 自动填充。
 
+**无库默认值的两列**同样取 **DB 时钟**：`dish_record.reacted_at`、`dish_issue.handled_at` 由服务端在同事务内写 `NOW()`（不用应用本地时间 —— 否则容器时区与库时区不一致时，同一行会出现两种时区的时间）。
+
 > 语义边界：`ON UPDATE` 只在**行确实变化**时刷新 ⇒ 幂等写不刷新 `updated_at`。
 
 ## 派生数据与反范式清单

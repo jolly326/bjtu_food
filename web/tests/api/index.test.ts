@@ -20,7 +20,7 @@ import { http } from '@/api/request'
 describe('运营端 API 封装', () => {
   it('canteen list 带分页参数', async () => {
     await canteenApi.list(2, 20)
-    expect(http.get).toHaveBeenCalledWith('/admin/canteens?page=2&size=20')
+    expect(http.get).toHaveBeenCalledWith('/admin/canteens?page=2&pageSize=20')
   })
 
   it('stall list 带食堂筛选', async () => {

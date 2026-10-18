@@ -12,43 +12,24 @@ export const COLOR_MAP = {
   primary: '#B4531A',
   'primary-fill': '#B4531A',
   'primary-text': '#B4531A',
-  'primary-bright': '#B4531A',
-  'primary-orange': '#E67E22',
-  'primary-yellow': '#FFD166',
-  'orange-deep': '#D35400',
   'brown-deep': '#7B4F2A',
-  'on-primary': '#FFFFFF',
   'primary-soft': '#FFF3D6',
-
-  /* ===== 强调 ===== */
-  accent: '#B4531A',
-  'accent-soft': '#FAE0CE',
 
   /* ===== 功能色 ===== */
   error: '#C62828',
-  'error-soft': '#FFECEB',
   warning: '#E67E22',
   'warning-soft': '#FFF8E1',
-  success: '#2E7D32',
-  info: '#1565C0',
-
-  /* ===== 价格 ===== */
-  price: '#B4531A',
 
   /* ===== 文字四档（深棕标题 + 深炭灰正文 + 浅灰次要）===== */
   'text-title': '#44382e',
   'text-body': '#3D3A35',
   'text-tertiary': '#9A948C',
   'text-placeholder': '#C4BEB5',
-  'text-white': '#FFFFFF',
 
   /* ===== 背景 / 边框 ===== */
   'bg-page': '#FFF9ED',
   'bg-card': '#FFFFFF',
   'bg-card-milky': 'rgba(255, 250, 243, 0.65)',
-  'bg-card-solid': '#FFFEF9',
-  'bg-input': '#F7F5F2',
-  'bg-soft': '#EDE9E5',
   'bg-placeholder': '#F2EBE1',
   'border-color': '#E8E3DE',
   'border-bold': '#CBC5BE',

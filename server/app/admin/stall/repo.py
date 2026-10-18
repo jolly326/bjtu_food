@@ -58,6 +58,16 @@ def find_row(session: Session, *, stall_id: int) -> StallRow | None:
     return _to_row(stall, canteen_name, int(dish_count or 0), int(poster_count or 0))
 
 
+def has_same_name(
+    session: Session, *, canteen_id: int, name: str, exclude_id: int | None = None
+) -> bool:
+    """同食堂同名是否已存在（``exclude_id`` 用于修改时排除自身）。"""
+    stmt = select(Stall.id).where(Stall.canteen_id == canteen_id, Stall.name == name)
+    if exclude_id is not None:
+        stmt = stmt.where(Stall.id != exclude_id)
+    return session.scalar(stmt) is not None
+
+
 def list_page(
     session: Session, *, canteen_id: int | None, page: int, size: int
 ) -> tuple[list[StallRow], int]:

@@ -11,7 +11,7 @@
 | `dish_id` | BIGINT | NO | 无 | KEY, FK→dish | 所评菜品；**必填、无默认值** |
 | `wanted_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | | 点「去品尝」的时间 —— **决定该记录在「我的食谱」中的日期 / 月份归属** |
 | `reaction` | TINYINT | YES | NULL | | **三态反应**：`5` = 喜欢 ｜ `3` = 一般 ｜ `1` = 不喜欢；**`NULL` = 尚未评分**（列注释同此口径） |
-| `reacted_at` | DATETIME | YES | NULL | | 评分时间；`reaction` 为 NULL 时恒 NULL |
+| `reacted_at` | DATETIME | YES | NULL | | 评分时间；`reaction` 为 NULL 时恒 NULL；**服务端取 DB 时钟写入**（与 `wanted_at` 同一基准） |
 
 ## 索引
 

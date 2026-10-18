@@ -2,14 +2,19 @@
 
 统一异常处理：把业务异常 / 参数校验异常 / 未捕获异常都翻译成
 ``{code, message, data}`` 信封（HTTP 状态恒 200，业务码在 body 里）。
+
+横切防护：全局 IP 限频兜底（docs/secur/S-03）；接口文档只在非生产模式暴露
+（docs/secur/S-04 §二）。
 """
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from app.admin.auth.router import router as admin_auth_router
 from app.admin.canteen.router import router as admin_canteen_router
@@ -20,9 +25,10 @@ from app.admin.option.router import router as admin_option_router
 from app.admin.poster.router import router as admin_poster_router
 from app.admin.record.router import router as admin_record_router
 from app.admin.stall.router import router as admin_stall_router
-from app.core.config import settings
+from app.core.config import is_production, require_cos_domain, settings
 from app.core.envelope import Envelope
-from app.core.errors import CODE_BAD_REQUEST, CODE_INTERNAL, ApiError
+from app.core.errors import CODE_BAD_REQUEST, CODE_INTERNAL, CODE_RATE_LIMITED, ApiError
+from app.core.ratelimit import RULE_READ_IP, client_ip, retry_after
 from app.student.auth.router import router as auth_router
 from app.student.canteen.router import router as canteen_router
 from app.student.dish.router import router as dish_router
@@ -40,13 +46,41 @@ def _cors_origins() -> list[str]:
 
 
 def create_app() -> FastAPI:
+    # 启动校验：图片出参恒绝对 URL，缺 COS_DOMAIN 直接拒绝启动
+    require_cos_domain()
+
+    # 生产不暴露接口文档与契约（docs/secur/S-04 §二）
+    docs_enabled = not is_production()
+
     app = FastAPI(
         title="知行食记",
         version="1.0.0",
-        docs_url="/docs",
+        docs_url="/docs" if docs_enabled else None,
         # 契约快照路径与 docs/api/README.md「契约同步」一致
-        openapi_url="/openapi.json",
+        openapi_url="/openapi.json" if docs_enabled else None,
     )
+
+    # 先注册 IP 限频、后注册跨域：跨域预检（OPTIONS）在最外层即返回，不计入限频
+    @app.middleware("http")
+    async def _ip_rate_limit(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        """全局 IP 限频兜底（docs/secur/S-03）：探活端点不计数。
+
+        中间件不经过异常处理器，命中时直接返回统一信封。
+        """
+        if request.url.path != "/healthz":
+            wait = retry_after(f"global:ip:{client_ip(request)}", RULE_READ_IP)
+            if wait:
+                return JSONResponse(
+                    status_code=200,
+                    content=Envelope[None](
+                        code=CODE_RATE_LIMITED,
+                        message=f"操作过于频繁，请 {wait} 秒后再试",
+                    ).model_dump(),
+                )
+        return await call_next(request)
 
     # 跨域：运营端在浏览器直连本服务时需要（口径见 docs/secur/S-04 §二）
     app.add_middleware(

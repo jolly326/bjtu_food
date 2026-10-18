@@ -85,11 +85,21 @@ onMounted(async () => {
     </header>
 
     <div class="filters">
-      <select v-model="filter.dishId" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.dishId"
+        class="filters__select"
+        aria-label="按菜品筛选"
+        @change="applyFilter"
+      >
         <option :value="undefined">全部菜品</option>
         <option v-for="d in dishes" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
-      <select v-model="filter.reaction" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.reaction"
+        class="filters__select"
+        aria-label="按反应筛选"
+        @change="applyFilter"
+      >
         <option v-for="r in REACTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
       </select>
       <button class="btn btn--outline" @click="resetFilter">重置</button>
@@ -185,36 +195,6 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
 .table__muted {
   color: var(--el-text-color-secondary);
 }

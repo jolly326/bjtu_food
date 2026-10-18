@@ -3,6 +3,8 @@
  * 底部弹层（口径见 docs/ui/client/公共组件与形态基线.md §2.1.4）。
  * 本设计唯一用法：我的食谱页的「纠错选项」弹层（单选、无图标）。
  */
+import { ref } from 'vue'
+
 withDefaults(
   defineProps<{
     modelValue: boolean
@@ -16,6 +18,18 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
+/** 下拉关闭：位移超过 120rpx（= 60px）即关闭 */
+const CLOSE_DRAG_PX = 60
+const dragStartY = ref(0)
+
+function onDragStart(event: TouchEvent) {
+  dragStartY.value = event.touches[0].clientY
+}
+
+function onDragEnd(event: TouchEvent) {
+  if (event.changedTouches[0].clientY - dragStartY.value > CLOSE_DRAG_PX) close()
+}
+
 function close() {
   emit('update:modelValue', false)
   emit('close')
@@ -25,7 +39,11 @@ function close() {
 <template>
   <view v-if="modelValue" class="sheet">
     <view class="sheet__scrim" @tap="close" />
-    <view class="sheet__panel">
+    <view
+      class="sheet__panel"
+      @touchstart="onDragStart"
+      @touchend="onDragEnd"
+    >
       <view class="sheet__grabber" />
       <view v-if="title" class="sheet__title">{{ title }}</view>
       <view class="sheet__body">

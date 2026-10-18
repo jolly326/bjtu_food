@@ -53,7 +53,6 @@ export type PosterOut = {
 
 export type RecordOut = {
   id: number
-  dishId: number
   dishName: string
   canteenName: string
   stallName: string
@@ -68,7 +67,6 @@ export type IssueOut = {
   dishName: string
   canteenName: string
   stallName: string
-  optionId: number
   optionName: string
   createdAt: string
   handledAt: string | null

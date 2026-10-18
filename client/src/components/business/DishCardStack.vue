@@ -4,7 +4,7 @@
  *
  * - Idle：顶层完整展示；第二层 scale 0.88 / opacity 0.45 / 轻微下偏移，更深层继续缩小降透明。
  * - Drag：仅顶层响应水平拖拽（垂直滑动忽略），跟手带轻微阻尼，旋转 ≤ ±3°；下层同步放大提亮。
- * - Release：拖拽 < 卡宽 22% ⇒ 回弹 260ms；≥ 22% ⇒ 沿方向飞出 320ms，下一张晋升顶层。
+ * - Release：拖拽 < 卡宽 22% ⇒ 回弹（--duration-base）；≥ 22% ⇒ 沿方向飞出（--duration-slow），下一张晋升顶层。
  * - 加载/空态：栈位渲染骨架卡 / 空态占位卡。
  * - 流末尾：`finished` 时在同一卡位渲染 `end` 插槽（页面提供「重新浏览 / 随机盲选」卡片）。
  */
@@ -23,8 +23,10 @@ const props = withDefaults(
     finished?: boolean
     /** 正在提交的菜品 id（仅该卡按钮 loading） */
     submitting?: number | null
+    /** 限频退避中：顶层卡的「去品尝」不可点（docs/secur/S-03） */
+    wantLocked?: boolean
   }>(),
-  { loading: false, finished: false, submitting: null },
+  { loading: false, finished: false, submitting: null, wantLocked: false },
 )
 
 const emit = defineEmits<{
@@ -41,6 +43,8 @@ const rpxToPx = winWidth / 750
 const cardWidth = Math.max(1, winWidth - 48 * 2 * rpxToPx)
 /** 翻页阈值：卡宽 22% */
 const threshold = cardWidth * 0.22
+/** 飞出时长：与样式里的 --duration-slow 同值（360ms），保证派发 swipe 时动画刚好走完 */
+const FLY_MS = 360
 
 const dragging = ref(false)
 const animating = ref(false)
@@ -128,7 +132,7 @@ function onEnd(e: TouchEvent) {
     flyOut(dx.value > 0 ? 'right' : 'left')
     return
   }
-  // 回弹（260ms）
+  // 回弹（--duration-base）
   dragging.value = false
   dx.value = 0
   rot.value = 0
@@ -148,7 +152,7 @@ function flyOut(direction: 'left' | 'right') {
     dx.value = 0
     rot.value = 0
     animating.value = false
-  }, 320)
+  }, FLY_MS)
 }
 
 </script>
@@ -205,6 +209,7 @@ function flyOut(direction: 'left' | 'right') {
             :dish="card"
             :submitting="index === 0 && submitting === card.id"
             :dragging="index === 0 && dragging"
+            :locked="index === 0 && wantLocked"
             @want="index === 0 ? emit('want', card) : undefined"
           />
         </view>
@@ -233,8 +238,8 @@ function flyOut(direction: 'left' | 'right') {
   will-change: transform, opacity;
   backface-visibility: hidden;
   transition:
-    transform 260ms var(--ease-out),
-    opacity 260ms var(--ease-out);
+    transform var(--duration-base) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out);
 }
 
 .stack__slot--top {
@@ -250,11 +255,11 @@ function flyOut(direction: 'left' | 'right') {
   transition: none;
 }
 
-/* 飞出 320ms */
+/* 飞出：--duration-slow */
 .stack__slot--fly {
   transition:
-    transform 320ms var(--ease-out),
-    opacity 320ms var(--ease-out);
+    transform var(--duration-slow) var(--ease-out),
+    opacity var(--duration-slow) var(--ease-out);
 }
 
 /* 卡片入场：轻微上浮淡入 */

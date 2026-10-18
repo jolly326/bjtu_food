@@ -56,7 +56,6 @@ page {
   /* ===== 层级 ===== */
   --z-tabbar: 100;
   --z-sheet: 2000;
-  --z-actionsheet: 4000;
 
   /* ===== 高度 ===== */
   --tabbar-height: 116rpx;

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_session
 from app.core.deps import current_student_id
 from app.core.envelope import Envelope, ok
+from app.core.ratelimit import RULE_READ_ACCOUNT, check
 from app.core.schemas import OutModel
 from app.core.storage import to_absolute
 from app.student.poster import service
@@ -30,5 +31,6 @@ def list_posters(
     session: Session = Depends(get_session),
 ) -> Envelope[list[PosterOut]]:
     """只返回**上架**海报；顺序 = 运营排定的固定序（不随机）。"""
+    check(f"read:u:{student_id}", RULE_READ_ACCOUNT)
     rows = service.list_posters(session)
     return ok([PosterOut(id=row.id, image_url=to_absolute(row.image) or "") for row in rows])

@@ -36,10 +36,10 @@ class RecordOut(OutModel):
     id: int
     dish_id: int
     name: str
-    image_url: str | None = None
+    image_url: str | None
     wanted_at: str
-    reaction: int | None = None
-    flavor_level: str | None = None
+    reaction: int | None
+    flavor_level: str | None
 
 
 def _out(record) -> RecordOut:

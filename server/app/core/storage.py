@@ -5,28 +5,25 @@
 
 from __future__ import annotations
 
-from app.core.config import settings
+from app.core.config import require_cos_domain
 
 _HTTP_PREFIXES = ("http://", "https://")
 
 
 def to_absolute(relative: str | None) -> str | None:
-    """相对路径 -> 绝对 URL；未配置域名时原样返回（仅开发期）。"""
+    """相对路径 -> 绝对 URL；出参恒为绝对 URL（域名缺失在启动时即拒绝）。"""
     if not relative:
         return None
     if relative.startswith(_HTTP_PREFIXES):
         return relative
-    domain = settings.cos_domain.strip().rstrip("/")
-    if not domain:
-        return relative
-    return f"{domain}/{relative.lstrip('/')}"
+    return f"{require_cos_domain()}/{relative.lstrip('/')}"
 
 
 def to_relative(url: str | None) -> str | None:
     """绝对 URL -> 入库相对路径（运营端上传后入库用）。"""
     if not url:
         return None
-    domain = settings.cos_domain.strip().rstrip("/")
-    if domain and url.startswith(f"{domain}/"):
+    domain = require_cos_domain()
+    if url.startswith(f"{domain}/"):
         return url[len(domain) + 1 :]
     return url

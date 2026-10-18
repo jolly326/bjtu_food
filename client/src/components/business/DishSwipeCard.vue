@@ -19,8 +19,10 @@ withDefaults(
     submitting?: boolean
     /** 拖拽中：禁用底部按钮，防止误触 */
     dragging?: boolean
+    /** 限频退避中：禁用底部按钮直到倒计时结束（docs/secur/S-03） */
+    locked?: boolean
   }>(),
-  { submitting: false, dragging: false },
+  { submitting: false, dragging: false, locked: false },
 )
 
 const emit = defineEmits<{ (e: 'want'): void }>()
@@ -56,7 +58,7 @@ function yuan(fen: number): string {
         <WantButton
           :tasted="dish.wanted"
           :loading="submitting"
-          :disabled="dragging"
+          :disabled="dragging || locked"
           @press="emit('want')"
         />
       </view>

@@ -6,14 +6,14 @@ import pytest
 
 from app.core.errors import (
     CODE_BAD_REQUEST,
-    CODE_FORBIDDEN,
     CODE_INTERNAL,
     CODE_NOT_FOUND,
+    CODE_OK,
     CODE_RATE_LIMITED,
     CODE_UNAUTHORIZED,
     ApiError,
     BadRequest,
-    Forbidden,
+    InternalError,
     NotFound,
     RateLimited,
     Unauthorized,
@@ -25,7 +25,7 @@ from app.core.errors import (
     [
         (BadRequest(), CODE_BAD_REQUEST),
         (Unauthorized(), CODE_UNAUTHORIZED),
-        (Forbidden(), CODE_FORBIDDEN),
+        (InternalError(), CODE_INTERNAL),
         (RateLimited(), CODE_RATE_LIMITED),
         (NotFound(), CODE_NOT_FOUND),
     ],
@@ -36,10 +36,11 @@ def test_error_code_mapping(exc: ApiError, code: int) -> None:
 
 
 def test_error_codes_are_the_documented_set() -> None:
-    """口径：200/400/401/403/429/4001/500，且**没有** 4031。"""
-    documented = {200, 400, 401, 403, 429, 4001, 500}
-    actual = {CODE_BAD_REQUEST, CODE_UNAUTHORIZED, CODE_FORBIDDEN, CODE_RATE_LIMITED, CODE_NOT_FOUND, CODE_INTERNAL}
-    assert actual <= documented
+    """口径：200/400/401/429/4001/500，且**没有** 403（无权限分级）与 4031。"""
+    documented = {200, 400, 401, 429, 4001, 500}
+    actual = {CODE_OK, CODE_BAD_REQUEST, CODE_UNAUTHORIZED, CODE_RATE_LIMITED, CODE_NOT_FOUND, CODE_INTERNAL}
+    assert actual == documented
+    assert 403 not in documented
     assert 4031 not in documented
 
 

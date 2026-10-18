@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import BadRequest, NotFound
@@ -75,12 +75,14 @@ def react(session: Session, *, student_id: int, record_id: int, reaction: int) -
     if record.reaction is not None:
         raise BadRequest("该记录已评分，不能修改；想重新评分请再次去品尝")
 
-    dish = repo.get_dish(session, dish_id=record.dish_id)
+    dish = repo.get_on_sale_dish(session, dish_id=record.dish_id)
     if dish is None:
-        raise NotFound("菜品不存在")
+        raise NotFound("菜品不存在或已下架")
 
     record.reaction = reaction
-    record.reacted_at = datetime.now()
+    # 时间戳来源 = DB 时钟（与 wanted_at / created_at 同一基准）：不用应用本地时间，
+    # 否则容器时区与库时区不一致时，同一行会出现两种时区的时间
+    record.reacted_at = session.scalar(select(func.now()))
     recalc(session, record.dish_id)  # 🔴 同事务重算缓存列
     session.flush()
     return _to_view(record, dish)

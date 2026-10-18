@@ -26,6 +26,8 @@ const dialog = reactive({
   windowNo: '',
 })
 
+const saving = ref(false)
+
 async function loadCanteens() {
   const res = await canteenApi.list(1, 50)
   canteens.value = res.records
@@ -104,6 +106,7 @@ async function onSave() {
     windowNo: dialog.windowNo.trim() || null,
   }
 
+  saving.value = true
   try {
     if (dialog.id) await stallApi.update(dialog.id, body)
     else await stallApi.create(body)
@@ -112,6 +115,8 @@ async function onSave() {
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -150,7 +155,12 @@ onMounted(async () => {
     </header>
 
     <div class="filters">
-      <select v-model="filter.canteenId" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.canteenId"
+        class="filters__select"
+        aria-label="按食堂筛选"
+        @change="applyFilter"
+      >
         <option :value="undefined">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
@@ -203,27 +213,29 @@ onMounted(async () => {
       <div class="dialog">
         <h3 class="dialog__title">{{ dialog.id ? '编辑档口' : '新建档口' }}</h3>
 
-        <label class="dialog__label">所属食堂</label>
-        <select v-model="dialog.canteenId" class="dialog__input">
+        <label class="dialog__label" for="stall-canteen">所属食堂</label>
+        <select id="stall-canteen" v-model="dialog.canteenId" class="dialog__input">
           <option :value="undefined">请选择</option>
           <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
 
-        <label class="dialog__label">名称</label>
-        <input v-model="dialog.name" class="dialog__input" type="text" />
+        <label class="dialog__label" for="stall-name">名称</label>
+        <input id="stall-name" v-model="dialog.name" class="dialog__input" type="text" />
 
-        <label class="dialog__label">楼层</label>
-        <select v-model="dialog.floor" class="dialog__input">
+        <label class="dialog__label" for="stall-floor">楼层</label>
+        <select id="stall-floor" v-model="dialog.floor" class="dialog__input">
           <option value="">不填</option>
           <option v-for="f in FLOORS" :key="f" :value="f">{{ f }}</option>
         </select>
 
-        <label class="dialog__label">窗口号</label>
-        <input v-model="dialog.windowNo" class="dialog__input" type="text" />
+        <label class="dialog__label" for="stall-window">窗口号</label>
+        <input id="stall-window" v-model="dialog.windowNo" class="dialog__input" type="text" />
 
         <footer class="dialog__foot">
-          <button class="btn" @click="dialog.visible = false">取消</button>
-          <button class="btn btn--primary" @click="onSave">保存</button>
+          <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
+          <button class="btn btn--primary" :disabled="saving" @click="onSave">
+            {{ saving ? '保存中…' : '保存' }}
+          </button>
         </footer>
       </div>
     </div>
@@ -279,41 +291,6 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.btn--primary {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  color: #fff;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
 .table__muted {
   color: var(--el-text-color-secondary);
 }
@@ -339,22 +316,7 @@ onMounted(async () => {
   color: var(--el-color-danger);
 }
 
-.mask {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-}
-.dialog {
-  width: 520px;
-  max-height: 86vh;
-  overflow: auto;
-  padding: 24px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-}
+/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
 .dialog__title {
   margin: 0 0 20px;
   font-size: 16px;

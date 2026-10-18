@@ -32,6 +32,8 @@ const dialog = reactive({
   uploading: false,
 })
 
+const saving = ref(false)
+
 /** 筛选用的档口：随食堂联动，未选食堂时列全部 */
 const filterStalls = reactive({ items: [] as typeof stalls.value })
 
@@ -40,8 +42,9 @@ async function loadCanteens() {
   canteens.value = res.records
 }
 
+/** 选择器一次性取全量档口（接口 pageSize 上限 50） */
 async function loadStalls(canteenId?: number) {
-  const res = await stallApi.list({ canteenId })
+  const res = await stallApi.list({ canteenId, pageSize: 50 })
   stalls.value = res.records as typeof stalls.value
   filterStalls.items = res.records as typeof stalls.value
 }
@@ -149,6 +152,7 @@ async function onSave() {
     status: dialog.status,
   }
 
+  saving.value = true
   try {
     if (dialog.id) await posterApi.update(dialog.id, body)
     else await posterApi.create(body)
@@ -157,6 +161,8 @@ async function onSave() {
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -203,15 +209,30 @@ onMounted(async () => {
     </header>
 
     <div class="filters">
-      <select v-model="filter.canteenId" class="filters__select" @change="onFilterCanteenChange">
+      <select
+        v-model="filter.canteenId"
+        class="filters__select"
+        aria-label="按食堂筛选"
+        @change="onFilterCanteenChange"
+      >
         <option :value="undefined">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
-      <select v-model="filter.stallId" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.stallId"
+        class="filters__select"
+        aria-label="按档口筛选"
+        @change="applyFilter"
+      >
         <option :value="undefined">全部档口</option>
         <option v-for="s in filterStalls.items" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
-      <select v-model="filter.status" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.status"
+        class="filters__select"
+        aria-label="按状态筛选"
+        @change="applyFilter"
+      >
         <option value="">全部状态</option>
         <option value="on">上橱窗</option>
         <option value="off">不展示</option>
@@ -270,38 +291,50 @@ onMounted(async () => {
       <div class="dialog">
         <h3 class="dialog__title">{{ dialog.id ? '编辑海报' : '新建海报' }}</h3>
 
-        <label class="dialog__label">所属档口</label>
-        <select v-model="dialog.stallId" class="dialog__input">
+        <label class="dialog__label" for="poster-stall">所属档口</label>
+        <select id="poster-stall" v-model="dialog.stallId" class="dialog__input">
           <option :value="undefined">请选择</option>
           <option v-for="s in stalls" :key="s.id" :value="s.id">
             {{ s.canteenName }} · {{ s.name }}
           </option>
         </select>
 
-        <label class="dialog__label">竖版海报（3:4，需画进门名 / 食堂 / 位置）</label>
+        <label class="dialog__label" for="poster-image">
+          竖版海报（3:4，需画进档口名称 / 所属食堂 / 楼层窗口）
+        </label>
         <div class="poster">
           <img v-if="dialog.imageUrl" :src="dialog.imageUrl" class="poster__thumb" alt="海报" />
           <span v-else class="poster__empty">未上传</span>
           <div class="poster__ops">
-            <label class="btn">
+            <label class="btn btn--sm">
               {{ dialog.uploading ? '上传中…' : '上传海报' }}
-              <input type="file" accept="image/*" hidden @change="onPickImage" />
+              <input id="poster-image" type="file" accept="image/*" hidden @change="onPickImage" />
             </label>
           </div>
         </div>
 
-        <label class="dialog__label">排序（值小靠前；留空 = 新建排最后 / 编辑保持原值）</label>
-        <input v-model="dialog.sortText" class="dialog__input" type="number" step="1" />
+        <label class="dialog__label" for="poster-sort">
+          排序（值小靠前；留空 = 新建排最后 / 编辑保持原值）
+        </label>
+        <input
+          id="poster-sort"
+          v-model="dialog.sortText"
+          class="dialog__input"
+          type="number"
+          step="1"
+        />
 
-        <label class="dialog__label">状态</label>
-        <select v-model="dialog.status" class="dialog__input">
+        <label class="dialog__label" for="poster-status">状态</label>
+        <select id="poster-status" v-model="dialog.status" class="dialog__input">
           <option value="on">上橱窗</option>
           <option value="off">不展示</option>
         </select>
 
         <footer class="dialog__foot">
-          <button class="btn" @click="dialog.visible = false">取消</button>
-          <button class="btn btn--primary" @click="onSave">保存</button>
+          <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
+          <button class="btn btn--primary" :disabled="saving" @click="onSave">
+            {{ saving ? '保存中…' : '保存' }}
+          </button>
         </footer>
       </div>
     </div>
@@ -357,41 +390,6 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.btn--primary {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  color: #fff;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
 .table__muted {
   color: var(--el-text-color-secondary);
 }
@@ -443,22 +441,7 @@ onMounted(async () => {
   color: var(--el-color-danger);
 }
 
-.mask {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-}
-.dialog {
-  width: 520px;
-  max-height: 86vh;
-  overflow: auto;
-  padding: 24px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-}
+/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
 .dialog__title {
   margin: 0 0 20px;
   font-size: 16px;

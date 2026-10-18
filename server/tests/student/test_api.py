@@ -6,12 +6,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core import config
 from app.core.errors import CODE_BAD_REQUEST, CODE_RATE_LIMITED, CODE_UNAUTHORIZED
-from app.core.ratelimit import RULE_REACT
+from app.core.ratelimit import RULE_REACT, limiter
 from app.core.security import STUDENT, create_token
 from app.main import app
 
@@ -23,6 +25,14 @@ ADMIN_SECRET = "admin-secret-9876543210fedcba-9876543210fedcba"
 def _secrets(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config.settings, "jwt_secret", STUDENT_SECRET)
     monkeypatch.setattr(config.settings, "admin_jwt_secret", ADMIN_SECRET)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_limiter() -> Iterator[None]:
+    """清空限频计数：全局 IP 兜底是进程内计数，用例之间需互不干扰。"""
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 @pytest.fixture
@@ -55,6 +65,12 @@ def test_invalid_reaction_returns_400(client: TestClient) -> None:
 
 def test_missing_option_id_returns_400(client: TestClient) -> None:
     resp = client.post("/dishes/1/issues", json={}, headers=_auth())
+    assert resp.json()["code"] == CODE_BAD_REQUEST
+
+
+def test_extra_identity_field_returns_400(client: TestClient) -> None:
+    """请求体带 userId 一类身份字段 ⇒ 参数非法（docs/secur/S-02）。"""
+    resp = client.post("/my/records", json={"dishId": 1, "userId": 2}, headers=_auth())
     assert resp.json()["code"] == CODE_BAD_REQUEST
 
 

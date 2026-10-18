@@ -7,8 +7,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.admin.issue import repo
@@ -33,7 +32,8 @@ def set_handled(session: Session, *, issue_id: int, handled: bool) -> IssueRow:
     if issue is None:
         raise NotFound("纠错记录不存在")
 
-    issue.handled_at = datetime.now() if handled else None
+    # 时间戳来源 = DB 时钟（与 created_at 同一基准），不用应用本地时间
+    issue.handled_at = session.scalar(select(func.now())) if handled else None
     session.flush()
 
     row = repo.find_row(session, issue_id=issue_id)

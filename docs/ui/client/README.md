@@ -35,8 +35,8 @@
 |---|---|
 | 顶部安全区 | `max(statusBarHeight, env(safe-area-inset-top))` |
 | 页头 | 左右内距 `--page-gutter`；页头**不承载业务操作**（除推荐页的食堂筛选，见该页） |
-| 主内容区 | `.scroll-wrap`（`min-height: 0`）；底部留白 = `--tabbar-height + --tabbar-gap + --spacing-md + env(safe-area-inset-bottom)` |
+| 主内容区 | 记忆页滚动区 `.body`（`flex: 1` + `min-height: 0`）；底部留白 = `--tabbar-height + --tabbar-gap + --spacing-md + env(safe-area-inset-bottom)` |
 | 底部 TabBar | **悬浮胶囊**（非沉底 bar）：底距 `--tabbar-gap + env(safe-area-inset-bottom)`、左右各留 `--spacing-md`、高 `--tabbar-height`；完整样式见 §2.1.1 |
-| 页面底色 | `--bg-page` = **`#FFFDFE`**（🔴 全站统一；三个 tab 页共用） |
+| 页面底色 | `--bg-page` = **`#FFF9ED`**（🔴 全站统一；三个 tab 页共用） |
 
 > 🔴 **视觉语言（Julienne 极简文艺轻拟物）见 [公共组件与形态基线.md](./公共组件与形态基线.md) §0** —— 所有页面 / 组件严格遵循；页面级视觉取值见 [设计变量.md](./设计变量.md)，跨页形态口径与组件规格见 [公共组件与形态基线.md](./公共组件与形态基线.md)。**页面稿只写「本页用法」，不复述基线规格。**

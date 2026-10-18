@@ -26,6 +26,16 @@ def _validate(payload) -> None:
         raise BadRequest("楼层取值不合法")
 
 
+def _ensure_name_unique(
+    session: Session, *, canteen_id: int, name: str, exclude_stall_id: int | None = None
+) -> None:
+    """同一食堂下档口名唯一（应用层保证，无 DB 唯一索引）。"""
+    if repo.has_same_name(
+        session, canteen_id=canteen_id, name=name.strip(), exclude_id=exclude_stall_id
+    ):
+        raise BadRequest("同一食堂下档口名称已存在")
+
+
 def list_page(
     session: Session, *, canteen_id: int | None, page: int, size: int
 ) -> tuple[list[StallRow], int]:
@@ -36,6 +46,7 @@ def create(session: Session, *, payload) -> StallRow:
     _validate(payload)
     if session.get(Canteen, payload.canteen_id) is None:
         raise NotFound("食堂不存在")
+    _ensure_name_unique(session, canteen_id=payload.canteen_id, name=payload.name)
 
     stall = Stall(
         canteen_id=payload.canteen_id,
@@ -55,6 +66,9 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
         raise NotFound("档口不存在")
     if session.get(Canteen, payload.canteen_id) is None:
         raise NotFound("食堂不存在")
+    _ensure_name_unique(
+        session, canteen_id=payload.canteen_id, name=payload.name, exclude_stall_id=stall_id
+    )
 
     stall.canteen_id = payload.canteen_id
     stall.name = payload.name.strip()

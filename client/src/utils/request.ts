@@ -5,9 +5,12 @@
  * - 所有业务端点都要求凭证；token 存本地 storage，缓存 7 天
  * - 业务码 401 => 静默重登（wx.login -> /auth/wechat-login）并**自动重试原请求一次**
  *   （按 `code` 判定，**不做文案匹配** —— 避免「服务端未配置微信小程序凭证」等文案误触发重登）
- * - 429 => 直接抛给页面做退避倒计时
+ * - 429 => 抛带 `retryAfter`（等待秒数）的错误；**不自动重试**，由页面按秒数禁用入口
+ *   （退避见 utils/backoff）
  * - 信封 {code,message,data}：code !== 200 视为业务失败
  */
+
+import { CODE_RATE_LIMITED, parseRetrySeconds } from './backoff'
 
 const TOKEN_KEY = 'student_token'
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string
@@ -18,11 +21,12 @@ if (!BASE_URL) {
 
 type Envelope<T> = { code: number; message: string; data: T | null }
 
-/** 业务失败：携带后端 `code`，供上层做差异化处置（如 `401` 静默重登）。 */
-type BizError = Error & { code: number }
+/** 业务失败：携带后端 `code`，供上层做差异化处置（如 `401` 静默重登、`429` 退避）。 */
+type BizError = Error & { code: number; retryAfter?: number }
 
 function bizError(code: number, message: string): BizError {
-  return Object.assign(new Error(message), { code })
+  const retryAfter = code === CODE_RATE_LIMITED ? parseRetrySeconds(message) : undefined
+  return Object.assign(new Error(message), { code, retryAfter })
 }
 
 /** uni.request 的方法类型不含 PATCH（小程序运行时支持），此处做一次收敛 */

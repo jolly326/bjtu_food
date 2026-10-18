@@ -27,7 +27,6 @@
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 记录 ID |
-| `dishId` | number | 否 | 菜品 ID |
 | `dishName` | string | 否 | 菜品名称 |
 | `canteenName` | string | 否 | 食堂名 |
 | `stallName` | string | 否 | 档口名 |

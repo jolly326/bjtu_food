@@ -7,6 +7,7 @@
  * 本批卡片划完 ⇒ 流末尾空态（重新浏览 / 随机盲选，见 docs/func/client/A2）。
  */
 import { computed, onMounted, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import RetryBlock from '@/components/base/RetryBlock.vue'
 import TabBar from '@/components/base/TabBar.vue'
 import CanteenFilter from '@/components/business/CanteenFilter.vue'
@@ -17,6 +18,11 @@ import type { CanteenOut, DishCardOut } from '@/api'
 import { todayLabel } from '@/utils/date'
 import { freshBatch } from '@/utils/dishBatch'
 import { navMetrics } from '@/utils/safeArea'
+import { cooldownFrom, useCooldown } from '@/utils/backoff'
+
+/** 「去品尝」入口的限频退避键（docs/secur/S-03） */
+const WANT_KEY = 'recipes:want'
+const { locked: wantLocked } = useCooldown(WANT_KEY)
 
 /** 当前批次（原顺序，供「重新浏览」复用） */
 const batch = ref<DishCardOut[]>([])
@@ -57,6 +63,18 @@ async function load() {
   }
 }
 
+/** 切回本 tab 时同步「去品尝」态 —— 记忆页的评分 / 取消会让本页缓存的 `wanted` 失效 */
+onShow(async () => {
+  if (!batch.value.length) return
+  try {
+    const list = await recordApi.list()
+    const wantedIds = new Set(list.filter((r) => r.reaction == null).map((r) => r.dishId))
+    for (const card of batch.value) card.wanted = wantedIds.has(card.id)
+  } catch {
+    // 同步失败不影响浏览，下次切回本 tab 再试
+  }
+})
+
 /** 本会话内「去品尝」返回的记录 id（用于取消）—— 服务端只给 `wanted` 布尔，不带 id */
 const recordIdByDish = ref<Map<number, number>>(new Map())
 
@@ -70,7 +88,7 @@ async function findRecordId(dishId: number): Promise<number | null> {
 
 /** 「去品尝 / 取消品尝」切换：未品尝 ⇒ POST（写入当日记忆）；已品尝 ⇒ DELETE（仅未评分可撤销） */
 async function onWant(dish: DishCardOut) {
-  if (submittingId.value != null) return
+  if (submittingId.value != null || wantLocked.value) return
   submittingId.value = dish.id
   try {
     if (dish.wanted) {
@@ -89,6 +107,8 @@ async function onWant(dish: DishCardOut) {
     recordIdByDish.value.set(dish.id, record.id)
     uni.showToast({ title: '已记录到记忆', icon: 'none', duration: 3000 })
   } catch (error) {
+    // 429：按服务端给的秒数禁用本入口，倒计时结束自动恢复
+    cooldownFrom(WANT_KEY, error)
     // 含边界：已评分的记录不可撤销（后端 400），此时保持已品尝态
     uni.showToast({ title: (error as Error).message || '操作失败，请重试', icon: 'none' })
   } finally {
@@ -152,6 +172,7 @@ onMounted(load)
       :loading="loading"
       :finished="finished"
       :submitting="submittingId"
+      :want-locked="wantLocked"
       @swipe="onSwipe"
       @want="onWant"
     >

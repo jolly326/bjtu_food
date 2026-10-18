@@ -1,5 +1,5 @@
 /* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md）。
-   知行食记 网页端：纯白页面基底、轻拟物纸片卡片、衬线标题+无衬线正文、
+   知行食记 运营端：纯白页面基底、轻拟物纸片卡片、衬线标题+无衬线正文、
    低饱和暖橙主色 #B4531A（与学生端逐字一致）、大面积留白。 */
 
 /* 🔴 html:root（特异性 0-1-1）而非 :root（0-1-0）：即使按需引入的组件样式
@@ -18,10 +18,11 @@ html:root {
   /* 功能色：保持 Element Plus 默认语义，仅饱和度微调避免与主色冲突 */
   --el-color-success: #2e7d32;
   --el-color-warning: #e67e22;
-  --el-color-error: #c62828;
+  --el-color-danger: #c62828;
+  --el-color-error: var(--el-color-danger);
   --el-color-info: #1565c0;
 
-  /* ===== 页面基底：纯白（新规范：纯白页面基底，装饰由半透明日历文字承担）===== */
+  /* ===== 页面基底：纯白 ===== */
   --el-bg-color-page: #ffffff;
   --el-bg-color: #ffffff;
   --el-bg-color-overlay: #ffffff;
@@ -74,18 +75,6 @@ h3 {
   letter-spacing: 0.01em;
 }
 
-/* ===== 全局 Element Plus 主色兜底：防止 el-button/el-select/el-pagination 等
-   组件回退到 Element Plus 默认蓝色 #409EFF（主题色变蓝根因修复）===== */
-#app .el-button--primary,
-#app .el-button--primary.is-disabled,
-#app .el-button--primary:hover,
-#app .el-button--primary:active,
-#app .el-button--primary:focus {
-  border-color: var(--el-color-primary) !important;
-  background: var(--el-color-primary) !important;
-  color: #fff !important;
-}
-
 /* ===== 内容区 = 悬浮纸片卡片 ===== */
 #app .page {
   padding: 24px;
@@ -95,33 +84,74 @@ h3 {
   box-shadow: var(--el-box-shadow-light);
 }
 
-/* ===== 弹窗：纸片卡片 + 柔和阴影 + 暖色遮罩 ===== */
-#app .mask {
-  background: rgba(46, 42, 36, 0.35);
-}
-
-#app .dialog {
-  border: 1px solid var(--el-border-color-lighter);
-  box-shadow: var(--el-box-shadow-light);
-}
-
-/* ===== 表格头暖底、行分隔柔和 ===== */
-#app .table th {
-  background: var(--el-fill-color-lighter);
-}
-
-/* ===== 主按钮：暖橙实底 ===== */
-#app .btn--primary {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-}
-
-/* ===== 带图标的按钮：横向对齐，图标在左 ===== */
+/* ===== 基础控件形态（唯一收口）：按钮 / 表格 / 弹窗 / 遮罩 =====
+   🔴 各视图**不得**再写同名基础块（`.btn` / `.table` / `.dialog` / `.mask` 的
+   尺寸与盒模型一律在此维护），视图 scoped 只放页面私有差异（如 `.table__ops`）。 */
 #app .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#app .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+#app .btn--primary {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary);
+  color: #fff;
+}
+
+#app .table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+#app .table th,
+#app .table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  text-align: left;
+}
+
+/* ===== 表格头暖底、行分隔柔和 ===== */
+#app .table th {
+  background: var(--el-fill-color-lighter);
+  color: var(--el-text-color-secondary);
+  font-weight: 600;
+}
+
+/* ===== 弹窗：纸片卡片 + 柔和阴影 + 暖色遮罩 ===== */
+#app .mask {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(46, 42, 36, 0.35);
+}
+
+#app .dialog {
+  width: 520px;
+  max-height: 86vh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 /* ===== 次要按钮：暖橙描边式，透明底（知行食记 标志性）===== */
@@ -175,12 +205,4 @@ h3 {
 
 #app .login__card {
   box-shadow: var(--el-box-shadow-light);
-}
-
-/* ===== 知行食记 纸片卡片（悬浮感，供卡片式内容区复用）===== */
-#app .card--elevated {
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-large);
-  box-shadow: var(--el-box-shadow-elevated);
 }

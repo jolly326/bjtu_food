@@ -14,6 +14,7 @@ const page = ref(1)
 const loading = ref(false)
 
 const dialog = reactive({ visible: false, id: 0 as number, name: '' })
+const saving = ref(false)
 
 async function load() {
   loading.value = true
@@ -55,6 +56,7 @@ async function onSave() {
     ElMessage.warning('食堂名称不能为空')
     return
   }
+  saving.value = true
   try {
     if (dialog.id) {
       await canteenApi.update(dialog.id, dialog.name.trim())
@@ -66,6 +68,8 @@ async function onSave() {
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -141,8 +145,10 @@ onMounted(load)
         <label class="dialog__label" for="canteen-name">名称</label>
         <input id="canteen-name" v-model="dialog.name" class="dialog__input" type="text" />
         <footer class="dialog__foot">
-          <button class="btn" @click="dialog.visible = false">取消</button>
-          <button class="btn btn--primary" @click="onSave">保存</button>
+          <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
+          <button class="btn btn--primary" :disabled="saving" @click="onSave">
+            {{ saving ? '保存中…' : '保存' }}
+          </button>
         </footer>
       </div>
     </div>
@@ -190,46 +196,6 @@ onMounted(load)
   color: var(--el-text-color-regular);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.btn--primary {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  color: #fff;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
-
 .table__muted {
   color: var(--el-text-color-secondary);
 }
@@ -258,21 +224,7 @@ onMounted(load)
   color: var(--el-color-danger);
 }
 
-.mask {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.dialog {
-  width: 520px;
-  padding: 24px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-}
+/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
 
 .dialog__title {
   margin: 0 0 20px;

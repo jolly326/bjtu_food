@@ -4,43 +4,24 @@ page {
   --color-primary: #B4531A;
   --color-primary-fill: #B4531A;
   --color-primary-text: #B4531A;
-  --color-primary-bright: #B4531A;
-  --color-primary-orange: #E67E22;
-  --color-primary-yellow: #FFD166;
-  --color-orange-deep: #D35400;
-  --brown-deep: #7B4F2A;
-  --color-on-primary: #FFFFFF;
+  --color-brown-deep: #7B4F2A;
   --color-primary-soft: #FFF3D6;
-
-  /* ===== 强调 ===== */
-  --color-accent: #B4531A;
-  --color-accent-soft: #FAE0CE;
 
   /* ===== 功能色 ===== */
   --color-error: #C62828;
-  --color-error-soft: #FFECEB;
   --color-warning: #E67E22;
   --color-warning-soft: #FFF8E1;
-  --color-success: #2E7D32;
-  --color-info: #1565C0;
-
-  /* ===== 价格 ===== */
-  --color-price: #B4531A;
 
   /* ===== 文字四档（深棕标题 + 深炭灰正文 + 浅灰次要）===== */
   --text-title: #44382e;
   --text-body: #3D3A35;
   --text-tertiary: #9A948C;
   --text-placeholder: #C4BEB5;
-  --text-white: #FFFFFF;
 
   /* ===== 背景 / 边框 ===== */
   --bg-page: #FFF9ED;
   --bg-card: #FFFFFF;
   --bg-card-milky: rgba(255, 250, 243, 0.65);
-  --bg-card-solid: #FFFEF9;
-  --bg-input: #F7F5F2;
-  --bg-soft: #EDE9E5;
   --bg-placeholder: #F2EBE1;
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;

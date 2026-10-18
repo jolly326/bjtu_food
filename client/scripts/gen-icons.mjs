@@ -7,7 +7,7 @@
  *
  * 为何按色调预生成：微信 `<image>` 支持 SVG **文件**，但**不支持运行时换色**（`currentColor` 落到黑色）。
  * 为何走 `assets/` 而非 `static/`：`src/static/` 只在 uni-app **构建启动时拷贝一次**，
- * 偶发漏拷会让图标整批 404；改为模块图引用的资产后，由打包器在 dev / build 两种模式下都产出。
+ * 偶发漏拷会让图标整批 404；`assets/` 由模块图引用，打包器在 dev / build 两种模式下都产出。
  */
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

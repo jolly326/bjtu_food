@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_session
 from app.core.deps import current_student_id
 from app.core.envelope import Envelope, ok
+from app.core.ratelimit import RULE_READ_ACCOUNT, check
 from app.core.schemas import OutModel
 from app.student.canteen import service
 
@@ -28,5 +29,6 @@ def list_canteens(
     student_id: int = Depends(current_student_id),
     session: Session = Depends(get_session),
 ) -> Envelope[list[CanteenOut]]:
+    check(f"read:u:{student_id}", RULE_READ_ACCOUNT)
     rows = service.list_all(session)
     return ok([CanteenOut(id=row.id, name=row.name) for row in rows])

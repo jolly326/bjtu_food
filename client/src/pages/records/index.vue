@@ -8,6 +8,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import BaseSheet from '@/components/base/BaseSheet.vue'
+import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
 import RetryBlock from '@/components/base/RetryBlock.vue'
 import TabBar from '@/components/base/TabBar.vue'
 import AppIcon from '@/components/base/AppIcon.vue'
@@ -18,6 +19,15 @@ import { issueApi, recordApi } from '@/api'
 import type { IssueOptionOut, RecordOut } from '@/api'
 import { formatClock, formatDayLabel, todayLabel } from '@/utils/date'
 import { navMetrics } from '@/utils/safeArea'
+import { cooldownFrom, useCooldown } from '@/utils/backoff'
+
+/** 写入口的限频退避键（docs/secur/S-03）—— 评分 / 取消 / 纠错各自独立计数 */
+const REACT_KEY = 'records:react'
+const CANCEL_KEY = 'records:cancel'
+const ISSUE_KEY = 'records:issue'
+const { locked: reactLocked } = useCooldown(REACT_KEY)
+const { locked: cancelLocked } = useCooldown(CANCEL_KEY)
+const { locked: issueLocked } = useCooldown(ISSUE_KEY)
 
 const records = ref<RecordOut[]>([])
 const loading = ref(true)
@@ -91,19 +101,23 @@ async function load() {
 }
 
 async function onReact(record: RecordOut, value: number) {
+  if (reactLocked.value) return
   try {
     await recordApi.react(record.id, value)
     record.reaction = value
   } catch (error) {
+    cooldownFrom(REACT_KEY, error)
     uni.showToast({ title: (error as Error).message, icon: 'none' })
   }
 }
 
 async function onCancel(record: RecordOut) {
+  if (cancelLocked.value) return
   try {
     await recordApi.cancel(record.id)
     records.value = records.value.filter((r) => r.id !== record.id)
   } catch (error) {
+    cooldownFrom(CANCEL_KEY, error)
     uni.showToast({ title: (error as Error).message, icon: 'none' })
   }
 }
@@ -122,12 +136,13 @@ async function onOpenIssue(record: RecordOut) {
 
 async function onPickOption(optionId: number) {
   const target = sheetTarget.value
-  if (!target) return
+  if (!target || issueLocked.value) return
   try {
     await issueApi.submit(target.dishId, optionId)
     sheetOpen.value = false
     uni.showToast({ title: '已收到反馈', icon: 'none' })
   } catch (error) {
+    cooldownFrom(ISSUE_KEY, error)
     uni.showToast({ title: (error as Error).message, icon: 'none' })
   }
 }
@@ -195,20 +210,35 @@ onMounted(load)
                 class="record__img"
                 mode="aspectFill"
               />
-              <view v-else class="record__ph" />
+              <ImagePlaceholder v-else :size="48" bare />
             </view>
 
             <text class="record__name wrap-anywhere">{{ record.name }}</text>
             <text class="record__meta">{{ formatClock(record.wantedAt) }}</text>
 
-            <ReactionPicker :model-value="record.reaction" @pick="onReact(record, $event)" />
+            <ReactionPicker
+              :model-value="record.reaction"
+              :readonly="reactLocked"
+              @pick="onReact(record, $event)"
+            />
 
             <view class="record__footer">
               <view class="record__ops">
-                <text v-if="record.reaction == null" class="record__op" @tap="onCancel(record)">
+                <text
+                  v-if="record.reaction == null"
+                  class="record__op"
+                  :class="{ 'record__op--locked': cancelLocked }"
+                  @tap="onCancel(record)"
+                >
                   取消
                 </text>
-                <text class="record__op" @tap="onOpenIssue(record)">信息有误</text>
+                <text
+                  class="record__op"
+                  :class="{ 'record__op--locked': issueLocked }"
+                  @tap="onOpenIssue(record)"
+                >
+                  信息有误
+                </text>
               </view>
               <AppIcon name="check" :size="24" tone="primary" />
             </view>
@@ -222,6 +252,7 @@ onMounted(load)
         v-for="opt in options"
         :key="opt.id"
         class="sheet__opt"
+        :class="{ 'sheet__opt--locked': issueLocked }"
         hover-class="sheet__opt--pressed"
         @tap="onPickOption(opt.id)"
       >
@@ -357,11 +388,6 @@ onMounted(load)
   height: 100%;
 }
 
-.record__ph {
-  width: 100%;
-  height: 100%;
-}
-
 .record__name {
   font-family: var(--font-serif);
   font-size: var(--font-h3);
@@ -390,6 +416,12 @@ onMounted(load)
 .record__op {
   font-size: var(--font-small);
   color: var(--text-tertiary);
+}
+
+/* 限频退避中：入口不可点，视觉减淡（倒计时结束自动恢复） */
+.record__op--locked,
+.sheet__opt--locked {
+  opacity: 0.4;
 }
 
 /* 加载骨架：淡占位块，圆形图位，无旋转 loading */

@@ -32,10 +32,9 @@ class DishIssueOut(OutModel):
     dish_name: str
     canteen_name: str
     stall_name: str
-    option_id: int
     option_name: str
     created_at: str
-    handled_at: str | None = None
+    handled_at: str | None
 
 
 @router.get("/dish-issues", response_model=Envelope[AdminPageResult[DishIssueOut]], summary="纠错列表")
@@ -59,7 +58,6 @@ def list_issues(
                 dish_name=r.dish_name,
                 canteen_name=r.canteen_name,
                 stall_name=r.stall_name,
-                option_id=r.option_id,
                 option_name=r.option_name,
                 created_at=r.created_at,
                 handled_at=r.handled_at,
