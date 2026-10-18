@@ -11,7 +11,7 @@
 
 | 表 | 用途 | 文档 |
 |---|---|---|
-| `canteen` | 食堂（推荐页筛选项） | [canteen.md](./canteen.md) |
+| `canteen` | 食堂（美味页筛选项） | [canteen.md](./canteen.md) |
 | `stall` | 档口（菜品位置归属） | [stall.md](./stall.md) |
 | `poster` | 档口海报（一档口多张，独立上下架与固定序） | [poster.md](./poster.md) |
 | `dish` | 菜品（含评价分缓存列） | [dish.md](./dish.md) |

@@ -2,17 +2,17 @@
 /**
  * 「去品尝 / 保存 / 提问」**按钮（规格见 docs/ui/client/公共组件与形态基线.md §2.2）。
  *
- * - **形态**：**胶囊描边式** —— 仅「图标 + 文案 + 外围边框」，**无装饰**；圆角 `--radius-pill`（全圆）、
- *   高度 `--tap-target-size + --spacing-xs`（96rpx，加高）、左右留白 `--spacing-xl`；图标在文案左侧。
+ * - **形态**：**胶囊描边式** —— 仅「文案 + 外围边框」，**无图标、无装饰**；圆角 `--radius-btn`
+ *   （小幅度柔和圆角，Julienne 纸片风，不用全圆）、高度 `--tap-target-size + --spacing-xs`
+ *   （96rpx，加高）、左右留白 `--spacing-xl`；文案居中。
  * - **三种变体**（由 `variant` 控制）：
  *   - `make`：**暖橙描边**（`--color-primary`）+ 内部**深色文字**（`--text-title`）；不随按压/选中变色；
- *   - `save` / `ask`：描边/图标/文案恒为 `--border-color` + `--text-tertiary`（灰），次要 CTA。
+ *   - `save` / `ask`：描边 / 文案恒为 `--border-color` + `--text-tertiary`（灰），次要 CTA。
  * - **文案**：`tasted ? '取消品尝' : '去品尝'`（仅 `make` 变体随 `tasted` 切换文案）；`save`/`ask` 文案固定。
  * - 在途（请求中）仅**禁止点击**，视觉不变。
  * - `disabled`（占位卡用）：只影响可点性，视觉与默认态一致 —— 保证图片未加载时按钮与文案照常可见。
  */
 import { computed } from 'vue'
-import AppIcon from '../base/AppIcon.vue'
 
 const BUTTON_LABELS = {
   make: { off: '去品尝', on: '取消品尝' },
@@ -46,12 +46,6 @@ const label = computed(() => {
   }
   return BUTTON_LABELS[props.variant]
 })
-
-/** 当前变体的描边/图标/文案色调：make 恒为暖橙描边 */
-const tone = computed(() => {
-  if (props.variant === 'make') return 'primary'
-  return 'default'
-})
 </script>
 
 <template>
@@ -60,8 +54,6 @@ const tone = computed(() => {
     :class="['want--variant-' + props.variant, { 'is-disabled': props.loading || props.disabled }]"
     @tap="onTap"
   >
-    <!-- 图标在文案左侧 -->
-    <AppIcon name="check" :size="28" :tone="tone" />
     <text class="want__label">{{ label }}</text>
   </view>
 </template>
@@ -71,14 +63,13 @@ const tone = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
   box-sizing: border-box;
   width: 100%;
   height: calc(var(--tap-target-size) + var(--spacing-xs));
   padding: 0 var(--spacing-xl);
-  /* 胶囊描边：只有边框 + 充足内留白 */
+  /* 胶囊描边：只有边框 + 充足内留白；小幅度柔和圆角（非全圆） */
   border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
   background: transparent;
 }
 

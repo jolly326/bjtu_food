@@ -1,4 +1,4 @@
-"""dish 域业务规则（docs/func/client/A2-推荐菜品.md、docs/schema/dish.md）。"""
+"""dish 域业务规则（docs/func/client/A2-美味.md、docs/schema/dish.md）。"""
 
 from __future__ import annotations
 

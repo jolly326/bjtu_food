@@ -1,4 +1,6 @@
-﻿/* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。 */
+﻿/* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。
+   双主题：浅色组挂 page（默认）；深色组挂页面根视图 view[data-theme="dark"]，
+   变量定义在该元素上 ⇒ 作用于其自身与整棵子树（机制见 docs/ui/client/设计变量.md §1.2）。 */
 page {
   /* ===== 主色 ===== */
   --color-primary: #B4531A;
@@ -19,17 +21,48 @@ page {
   --text-placeholder: #C4BEB5;
 
   /* ===== 背景 / 边框 ===== */
-  --bg-page: #FFF9ED;
-  --bg-card: #FFFFFF;
-  --bg-card-milky: rgba(255, 250, 243, 0.65);
+  --bg-page: #FFFDFE;
   --bg-placeholder: #F2EBE1;
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
 
   /* ===== 阴影 / 遮罩 ===== */
-  --module-shadow: 0 1rpx 3rpx rgba(180, 155, 125, 0.10);
+  /* 海报卡阴影（纸片卡面无阴影，层次由细描边承担） */
   --shadow-card-stack: 0 8rpx 24rpx rgba(68, 56, 46, 0.08);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
   --overlay-scrim: rgba(0, 0, 0, 0.4);
   --overlay-panel-bg: #FFFFFF;
+}
+
+/* ===== 深色组：与浅色组同键换值（页面根视图挂 data-theme="dark"）===== */
+view[data-theme='dark'] {
+  /* ===== 主色 ===== */
+  --color-primary: #E07E38;
+  --color-primary-fill: #B4531A;
+  --color-primary-text: #F0995A;
+  --color-brown-deep: #BFAE93;
+  --color-primary-soft: #3B2A1B;
+
+  /* ===== 功能色 ===== */
+  --color-error: #E0685F;
+  --color-warning: #EFA24E;
+  --color-warning-soft: #3D2E1A;
+
+  /* ===== 文字四档 ===== */
+  --text-title: #F0E7DA;
+  --text-body: #D8CEC0;
+  --text-tertiary: #93887A;
+  --text-placeholder: #5E564B;
+
+  /* ===== 背景 / 边框 ===== */
+  --bg-page: #1A1410;
+  --bg-placeholder: #332B22;
+  --border-color: #3D3429;
+  --border-bold: #4E4536;
+
+  /* ===== 阴影 / 遮罩（压深语义）===== */
+  --shadow-card-stack: 0 8rpx 24rpx rgba(0, 0, 0, 0.38);
+  --shadow-modal: 0 -8rpx 32rpx rgba(0, 0, 0, 0.45);
+  --overlay-scrim: rgba(0, 0, 0, 0.6);
+  --overlay-panel-bg: #28211A;
 }

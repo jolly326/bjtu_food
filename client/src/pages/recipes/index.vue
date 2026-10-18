@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * 美食 tab（设计稿 docs/ui/client/推荐菜品.md；功能规则 docs/func/client/A2、A3、B1）。
+ * 美味 tab（设计稿 docs/ui/client/美味.md；功能规则 docs/func/client/A2、A3、B1）。
  *
- * Julienne Z 轴堆叠卡片栈：页头（衬线标题 + 日期）→ 右上食堂筛选 → 卡片栈（Idle/Drag/Release）。
+ * Julienne Z 轴堆叠卡片栈：顶部信息区块（衬线大标题 + 日期）→ 右上食堂筛选 →
+ * 纸片卡片栈（Idle/Drag/Release；卡片含底部堆叠副本与顶部吊孔）。
  * 点「去品尝」调用 B1 记录接口（自动写入记忆页当日记录），Toast 轻提示、无弹跳。
  * 本批卡片划完 ⇒ 流末尾空态（重新浏览 / 随机盲选，见 docs/func/client/A2）。
  */
@@ -15,9 +16,10 @@ import DishCardStack from '@/components/business/DishCardStack.vue'
 import DishFlowEnd from '@/components/business/DishFlowEnd.vue'
 import { canteenApi, dishApi, recordApi } from '@/api'
 import type { CanteenOut, DishCardOut } from '@/api'
-import { todayLabel } from '@/utils/date'
+import { todayLabelCN } from '@/utils/date'
 import { freshBatch } from '@/utils/dishBatch'
 import { navMetrics } from '@/utils/safeArea'
+import { useTheme } from '@/utils/theme'
 import { cooldownFrom, useCooldown } from '@/utils/backoff'
 
 /** 「去品尝」入口的限频退避键（docs/secur/S-03） */
@@ -42,8 +44,10 @@ const finished = computed(
 )
 /** 顶部安全区：避开状态栏 / 刘海与右上角胶囊 */
 const topInset = navMetrics().topInset
-/** 页头日期：固定值，避免每次渲染重复格式化 */
-const today = todayLabel()
+/** 页头日期：固定值，避免每次渲染重复格式化（Julienne 风格：10月18日 星期六） */
+const today = todayLabelCN()
+/** 全站主题（明暗切换作用于三个 tab 页） */
+const theme = useTheme()
 
 async function load() {
   loading.value = true
@@ -155,10 +159,10 @@ onMounted(load)
 </script>
 
 <template>
-  <view class="page" :style="{ paddingTop: topInset + 'px' }">
+  <view class="page" :data-theme="theme" :style="{ paddingTop: topInset + 'px' }">
     <view class="topbar">
       <view class="topbar__left">
-        <text class="topbar__title">美食</text>
+        <text class="topbar__title">美味</text>
         <text class="topbar__date">{{ today }}</text>
       </view>
       <CanteenFilter :options="canteens" :model-value="canteenId" @pick="onFilterChange" />
@@ -197,6 +201,7 @@ onMounted(load)
   );
 }
 
+/* 顶部信息区块（通栏矩形）：承载标题日期 + 筛选器，与下方卡片区域留白统一 */
 .topbar {
   display: flex;
   align-items: center;
@@ -211,10 +216,11 @@ onMounted(load)
   gap: var(--spacing-2xs);
 }
 
+/* 大标题：hero 档衬线 + 中黑字重（与风物页标题字重规范统一） */
 .topbar__title {
   font-family: var(--font-serif);
-  font-size: var(--font-display);
-  font-weight: var(--weight-bold);
+  font-size: var(--font-hero);
+  font-weight: var(--weight-medium);
   line-height: 1.2;
   color: var(--text-title);
 }

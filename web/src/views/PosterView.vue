@@ -240,43 +240,39 @@ onMounted(async () => {
       <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>海报</th>
-          <th>所属档口</th>
-          <th class="table__muted">所属食堂</th>
-          <th class="table__muted table__num">排序</th>
-          <th>状态</th>
-          <th class="table__muted">更新时间</th>
-          <th class="table__ops">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td>
-            <img v-if="row.imageUrl" :src="row.imageUrl" class="table__thumb" alt="海报" />
-            <span v-else class="table__muted">—</span>
-          </td>
-          <td>{{ row.stallName }}</td>
-          <td class="table__muted">{{ row.canteenName }}</td>
-          <td class="table__muted table__num">{{ row.sort }}</td>
-          <td>
-            <span class="tag" :class="row.status === 'on' ? 'tag--on' : 'tag--off'">
-              {{ row.status === 'on' ? '上橱窗' : '不展示' }}
-            </span>
-          </td>
-          <td class="table__muted">{{ row.updatedAt }}</td>
-          <td class="table__ops">
-            <button class="link" @click="onEdit(row)">编辑</button>
-            <button class="link link--danger" @click="onRemove(row)">删除</button>
-          </td>
-        </tr>
-        <tr v-if="!rows.length && !loading">
-          <td colspan="7" class="table__empty">暂无数据</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>海报</th>
+            <th>所属档口</th>
+            <th>状态</th>
+            <th class="table__ops">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.id">
+            <td>
+              <img v-if="row.imageUrl" :src="row.imageUrl" class="table__thumb" alt="海报" />
+              <span v-else class="table__muted">—</span>
+            </td>
+            <td>{{ row.stallName }}</td>
+            <td>
+              <span class="tag" :class="row.status === 'on' ? 'tag--on' : 'tag--off'">
+                {{ row.status === 'on' ? '上橱窗' : '不展示' }}
+              </span>
+            </td>
+            <td class="table__ops">
+              <button class="link" @click="onEdit(row)">编辑</button>
+              <button class="link link--danger" @click="onRemove(row)">删除</button>
+            </td>
+          </tr>
+          <tr v-if="!rows.length && !loading">
+            <td colspan="4" class="table__empty">暂无数据</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
@@ -490,5 +486,19 @@ onMounted(async () => {
 .poster__ops {
   display: flex;
   gap: 8px;
+}
+
+/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 4px;
+}
+
+/* 弹窗窄屏近全宽，避免在手机上超出屏幕 */
+@media (max-width: 640px) {
+  .dialog {
+    width: min(520px, 92vw);
+    margin: 0 4px;
+  }
 }
 </style>

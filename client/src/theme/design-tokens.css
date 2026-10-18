@@ -1,4 +1,4 @@
-﻿/* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
+/* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
    口径见 docs/ui/client/设计变量.md；改值只改这里，再同步文档。 */
 
 page {
@@ -6,10 +6,8 @@ page {
   --radius-xs: 10rpx;
   --radius-btn: 32rpx;
   --radius-card: 36rpx;
-  /* 卡片栈单卡圆角（24rpx） */
+  /* 海报卡圆角（风物页专属卡形态） */
   --radius-card-stack: 24rpx;
-  /* 食谱卡大圆角（Julienne 柔和纸片） */
-  --radius-card-lg: 48rpx;
   --radius-modal: 40rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
@@ -23,14 +21,16 @@ page {
   --spacing-lg: 32rpx;
   --spacing-xl: 40rpx;
   --spacing-2xl: 48rpx;
-  /* 全站页面左右统一边距（发现 / 美食 / 记忆共用） */
-  --page-gutter: 48rpx;
+  /* 全站页面左右统一边距（风物 / 美味 / 记忆共用；各模块左侧基准线均以此为齐） */
+  --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
   --font-serif: 'Noto Serif SC', 'Source Han Serif SC', serif;
   --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
 
   /* ===== 字号 ===== */
+  /* 页头大标题 / 卡片装饰大字专用档（美味页标题、FlavorRating decor 档字母） */
+  --font-hero: 64rpx;
   --font-display: 48rpx;
   --font-title: 40rpx;
   --font-h2: 36rpx;
@@ -61,12 +61,13 @@ page {
   --tabbar-height: 116rpx;
   --tabbar-gap: 20rpx;
   --tap-target-size: 88rpx;
-  --reaction-item-min-width: 120rpx;
 
   /* ===== 结构尺寸 ===== */
   --dish-photo-size: 420rpx;
-  --record-photo-size: 220rpx;
-  --record-card-width: 480rpx;
+  /* 记忆卡：宽扁纸片卡（圆形菜品图 + 菜名 + 三圆形图标） */
+  --record-photo-size: 240rpx;
+  --record-card-width: 600rpx;
+  --record-card-height: 500rpx;
   /* 记忆页底层淡装饰月份数字字号 */
   --memory-motif-size: 280rpx;
 }

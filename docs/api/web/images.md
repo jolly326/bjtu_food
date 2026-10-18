@@ -15,4 +15,4 @@
 | 错误码 | `400` 类型 / 大小不合规 ｜ `401` 未登录 |
 
 > **学生端无上传端点** —— 学生侧无文字与图片 UGC（见 [`func/client/README.md`](../../func/client/README.md) 的「合规与不做的事」）。
-> 海报是**竖版 3:4**（见 [`ui/client/档口海报.md`](../../ui/client/档口海报.md)）。
+> 海报是**竖版 3:4**（见 [`ui/client/风物.md`](../../ui/client/风物.md)）。

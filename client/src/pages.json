@@ -26,18 +26,18 @@
     "custom": true,
     "color": "#9A948C",
     "selectedColor": "#B4531A",
-    "backgroundColor": "#FFF9ED",
+    "backgroundColor": "#FFFDFE",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/discover/index", "text": "发现" },
-      { "pagePath": "pages/recipes/index", "text": "美食" },
+      { "pagePath": "pages/discover/index", "text": "风物" },
+      { "pagePath": "pages/recipes/index", "text": "美味" },
       { "pagePath": "pages/records/index", "text": "记忆" }
     ]
   },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "知行食记",
-    "navigationBarBackgroundColor": "#FFF9ED",
-    "backgroundColor": "#FFF9ED"
+    "navigationBarBackgroundColor": "#FFFDFE",
+    "backgroundColor": "#FFFDFE"
   }
 }

@@ -1,16 +1,20 @@
 <script setup lang="ts">
 /**
- * 美食页 Z 轴堆叠卡片栈（规格见 docs/ui/client/公共组件与形态基线.md §2.2 DishCardStack）。
+ * 美味页 Z 轴堆叠卡片栈（规格见 docs/ui/client/公共组件与形态基线.md §2.2 DishCardStack）。
  *
- * - Idle：顶层完整展示；第二层 scale 0.88 / opacity 0.45 / 轻微下偏移，更深层继续缩小降透明。
- * - Drag：仅顶层响应水平拖拽（垂直滑动忽略），跟手带轻微阻尼，旋转 ≤ ±3°；下层同步放大提亮。
- * - Release：拖拽 < 卡宽 22% ⇒ 回弹（--duration-base）；≥ 22% ⇒ 沿方向飞出（--duration-slow），下一张晋升顶层。
- * - 加载/空态：栈位渲染骨架卡 / 空态占位卡。
- * - 流末尾：`finished` 时在同一卡位渲染 `end` 插槽（页面提供「重新浏览 / 随机盲选」卡片）。
+ * 三层纸片堆叠（恒定 3 层视觉，对标 Julienne 卡片栈）：
+ * - Idle：顶层完整展示（最宽）；第二 / 三层依次**收窄**（scale 0.96 / 0.92）并**向上错位**
+ *   10 / 20rpx —— 从顶层卡上方露出层叠纸边；🔴 **不透明、无边缘虚化**，立体感仅由
+ *   **宽度差异 + 上移位移 + 卡面柔和浅阴影**承担。
+ * - Drag：仅顶层响应水平拖拽（垂直滑动忽略），跟手带轻微阻尼，旋转 ≤ ±3°；下层同步放大归位。
+ * - Release：拖拽 < 卡宽 22% ⇒ 回弹（--duration-base）；≥ 22% ⇒ 沿方向飞出（--duration-slow），
+ *   下一张晋升顶层；剩余两层向上小幅上移，尾部补入新卡（队列有货）或纸片虚影（恒定 3 层）。
+ * - 加载 / 空态：顶层渲染骨架卡 / 空态占位卡；流末尾：`finished` 时渲染 `end` 插槽。
  */
 import { computed, ref } from 'vue'
 import DishCardPlaceholder from './DishCardPlaceholder.vue'
 import DishSwipeCard from './DishSwipeCard.vue'
+import PaperCard from './PaperCard.vue'
 import { windowWidth } from '@/utils/safeArea'
 
 import type { DishCardOut } from '@/api'
@@ -34,17 +38,36 @@ const emit = defineEmits<{
   (e: 'want', card: DishCardOut): void
 }>()
 
-/** 顶层 + 3 层预览 */
-const layers = computed(() => props.cards.slice(0, 4))
+/** 堆叠槽位：顶层 + 2 层后方（恒定 3 层）；队列有货用真实卡，不足用纸片虚影补位 */
+interface StackSlot {
+  level: number
+  card?: DishCardOut
+  /** 卡片 id 作 key ⇒ 划走顶层后剩余卡的 DOM 节点被复用上移，堆叠动画连续 */
+  key: string
+}
+
+const stackSlots = computed<StackSlot[]>(() => {
+  const real = props.cards.slice(0, 3)
+  return [0, 1, 2].map((level) => ({
+    level,
+    card: real[level],
+    key: real[level] ? `card-${real[level].id}` : `ghost-${level}`,
+  }))
+})
 
 const winWidth = windowWidth()
-/** 栈槽左右各留 48rpx（--spacing-2xl），换算为 px */
+/** 栈槽左右各留一页 gutter（与 CSS `--page-gutter` 同步，改 token 须同步此值） */
+const GUTTER_RPX = 32
 const rpxToPx = winWidth / 750
-const cardWidth = Math.max(1, winWidth - 48 * 2 * rpxToPx)
+const cardWidth = Math.max(1, winWidth - GUTTER_RPX * 2 * rpxToPx)
 /** 翻页阈值：卡宽 22% */
 const threshold = cardWidth * 0.22
 /** 飞出时长：与样式里的 --duration-slow 同值（360ms），保证派发 swipe 时动画刚好走完 */
 const FLY_MS = 360
+/** 后方卡缩放：第二 / 三层依次收窄（顶层最宽）—— 宽度差异体现纸片堆叠 */
+const GHOST_SCALE = [1, 0.96, 0.92]
+/** 后方卡单层上移量：10rpx（层叠错落，从顶层卡上方露出纸边） */
+const GHOST_LIFT = 10 * rpxToPx
 
 const dragging = ref(false)
 const animating = ref(false)
@@ -63,19 +86,17 @@ const topStyle = computed(() => ({
   zIndex: 20,
 }))
 
-/** 第 level 层（1 = 第二层）的景深样式；拖拽进度下同步上浮 */
+/** 第 level 层（1 = 第二层）的纸片层样式：收窄 + 向上错位、**不透明无虚化**；
+   拖拽进度下向顶层终态靠拢（放大回 1、上移归零），保证晋升连续 */
 function ghostStyle(level: number) {
   const p = progress.value
-  const baseScale = 0.88 - 0.05 * (level - 1)
-  const baseOpacity = 0.45 - 0.15 * (level - 1)
-  const baseOffset = 8 * level
-  const lift = Math.max(0, 1 - (level - 1) * 0.3) * p
-  const scale = baseScale + (1 - baseScale) * lift
-  const opacity = baseOpacity + (1 - baseOpacity) * lift
-  const offset = baseOffset * (1 - lift)
+  const baseScale = GHOST_SCALE[level]
+  // 层级越深跟随越弱（第二层全跟随、第三层七成），保持层间差异
+  const ease = Math.max(0, 1 - (level - 1) * 0.3) * p
+  const scale = baseScale + (1 - baseScale) * ease
+  const offset = -GHOST_LIFT * level * (1 - ease)
   return {
-    transform: `scale(${scale}) translateY(${offset}px)`,
-    opacity,
+    transform: `translateY(${offset}px) scale(${scale})`,
     zIndex: 20 - level,
   }
 }
@@ -159,62 +180,45 @@ function flyOut(direction: 'left' | 'right') {
 
 <template>
   <view class="stack">
-    <template v-if="loading">
-      <view class="stack__slot stack__slot--top" :style="{ zIndex: 20 }">
-        <view class="stack__cardWrap">
-          <DishCardPlaceholder />
-        </view>
-      </view>
-    </template>
-
-    <template v-else-if="finished">
-      <view class="stack__slot stack__slot--top" :style="{ zIndex: 20 }">
-        <view class="stack__cardWrap">
-          <slot name="end" />
-        </view>
-      </view>
-    </template>
-
-    <template v-else-if="!layers.length">
-      <view class="stack__slot stack__slot--top" :style="{ zIndex: 20 }">
-        <view class="stack__cardWrap">
-          <view class="stack__empty">
-            <text class="stack__emptyTitle">暂无菜品推荐</text>
-            <text class="stack__emptyHint">等待食堂上新美食</text>
-          </view>
-        </view>
-      </view>
-    </template>
-
-    <template v-else>
-      <view
-        v-for="(card, index) in layers"
-        :key="card.id"
-        class="stack__slot"
-        :class="
-          index === 0
-            ? [
-                'stack__slot--top',
-                { 'stack__slot--dragging': dragging, 'stack__slot--fly': animating },
-              ]
-            : 'stack__slot--ghost'
-        "
-        :style="index === 0 ? topStyle : ghostStyle(index)"
-        @touchstart="index === 0 ? onStart($event) : undefined"
-        @touchmove.stop.prevent="index === 0 ? onMove($event) : undefined"
-        @touchend="index === 0 ? onEnd($event) : undefined"
-      >
-        <view class="stack__cardWrap">
+    <view
+      v-for="slot in stackSlots"
+      :key="slot.key"
+      class="stack__slot"
+      :class="
+        slot.level === 0
+          ? ['stack__slot--top', { 'stack__slot--dragging': dragging, 'stack__slot--fly': animating }]
+          : 'stack__slot--ghost'
+      "
+      :style="slot.level === 0 ? topStyle : ghostStyle(slot.level)"
+      @touchstart="slot.level === 0 ? onStart($event) : undefined"
+      @touchmove.stop.prevent="slot.level === 0 ? onMove($event) : undefined"
+      @touchend="slot.level === 0 ? onEnd($event) : undefined"
+    >
+      <view class="stack__cardWrap">
+        <!-- 顶层：骨架 / 流末尾 / 空态 / 真实卡（唯一可拖拽） -->
+        <template v-if="slot.level === 0">
+          <DishCardPlaceholder v-if="loading" />
+          <slot v-else-if="finished" name="end" />
+          <PaperCard v-else-if="!slot.card">
+            <view class="stack__empty">
+              <text class="stack__emptyTitle">暂无菜品推荐</text>
+              <text class="stack__emptyHint">等待食堂上新美食</text>
+            </view>
+          </PaperCard>
           <DishSwipeCard
-            :dish="card"
-            :submitting="index === 0 && submitting === card.id"
-            :dragging="index === 0 && dragging"
-            :locked="index === 0 && wantLocked"
-            @want="index === 0 ? emit('want', card) : undefined"
+            v-else
+            :dish="slot.card"
+            :submitting="submitting === slot.card.id"
+            :dragging="dragging"
+            :locked="wantLocked"
+            @want="emit('want', slot.card)"
           />
-        </view>
+        </template>
+        <!-- 后方层：真实下一张卡（队列有货）或纸片虚影（补位，恒定 3 层） -->
+        <DishSwipeCard v-else-if="slot.card" :dish="slot.card" />
+        <view v-else class="stack__ghost" />
       </view>
-    </template>
+    </view>
   </view>
 </template>
 
@@ -226,12 +230,12 @@ function flyOut(direction: 'left' | 'right') {
   width: 100%;
 }
 
-/* 卡片槽位：整页主容器 —— 上 48 / 下 40 / 左右 48，整体下移、底部与发现海报一致 */
+/* 卡片槽位：整页主容器 —— 上下留白均衡（三层堆叠在信息区块与 TabBar 容器间垂直居中） */
 .stack__slot {
   position: absolute;
   top: var(--spacing-2xl);
   right: var(--page-gutter);
-  bottom: var(--spacing-xl);
+  bottom: var(--spacing-2xl);
   left: var(--page-gutter);
   display: flex;
   flex-direction: column;
@@ -284,7 +288,19 @@ function flyOut(direction: 'left' | 'right') {
   }
 }
 
-/* 空态占位卡：与栈卡同卡面 */
+/* 纸片虚影（队列尾部不足 3 张时的补位层）：同卡面轮廓 + 柔和浅阴影，无内容 */
+.stack__ghost {
+  display: flex;
+  flex: 1;
+  box-sizing: border-box;
+  width: 100%;
+  background: var(--bg-page);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card-stack);
+}
+
+/* 空态占位卡：与栈卡同卡面（表面由 PaperCard 承担），内容居中纵向排布 */
 .stack__empty {
   display: flex;
   flex: 1;
@@ -294,25 +310,5 @@ function flyOut(direction: 'left' | 'right') {
   gap: var(--spacing-sm);
   box-sizing: border-box;
   width: 100%;
-  background: var(--bg-card);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--module-shadow);
 }
-
-.stack__emptyTitle {
-  font-family: var(--font-serif);
-  font-size: var(--font-h2);
-  font-weight: var(--weight-semibold);
-  color: var(--text-title);
-  text-align: center;
-}
-
-.stack__emptyHint {
-  font-size: var(--font-small);
-  color: var(--text-tertiary);
-  text-align: center;
-}
-
-
 </style>

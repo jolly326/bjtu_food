@@ -1,12 +1,14 @@
 <script setup lang="ts">
 /**
- * 美食页「卡片流末尾」空态卡（规格见 docs/ui/client/推荐菜品.md §1）。
+ * 美味页「卡片流末尾」空态卡（规格见 docs/ui/client/美味.md §1）。
  *
  * - 本批卡片全部划完后出现，占据同一卡位（由 `DishCardStack` 的 `end` 插槽承载）。
  * - 两个等宽线性按钮：**重新浏览**（复用本批、原顺序）/ **随机盲选**（新一批、排除本批）。
+ * - 表面与栈卡同卡面（PaperCard：同色卡面 + 三层堆叠副本 + 吊孔）。
  * - 纯展示 + 两个动作事件；流水线（请求 / 批次切换）由页面负责。
  */
 import AppIcon from '../base/AppIcon.vue'
+import PaperCard from './PaperCard.vue'
 
 withDefaults(
   defineProps<{
@@ -23,30 +25,32 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <view class="flowEnd">
-    <text class="flowEnd__title">今天的推荐就到这里</text>
-    <text class="flowEnd__hint">都看完啦，换种方式再来一轮</text>
+  <PaperCard>
+    <view class="flowEnd">
+      <text class="flowEnd__title">今天的推荐就到这里</text>
+      <text class="flowEnd__hint">都看完啦，换种方式再来一轮</text>
 
-    <view class="flowEnd__actions">
-      <view class="flowEnd__btn" hover-class="flowEnd__btn--pressed" @tap="emit('replay')">
-        <AppIcon name="refresh-cw" :size="28" tone="default" />
-        <text class="flowEnd__btnText">重新浏览</text>
-      </view>
-      <view
-        class="flowEnd__btn flowEnd__btn--primary"
-        :class="{ 'is-disabled': busy }"
-        hover-class="flowEnd__btn--pressed"
-        @tap="emit('surprise')"
-      >
-        <AppIcon name="shuffle" :size="28" tone="primary" />
-        <text class="flowEnd__btnText">随机盲选</text>
+      <view class="flowEnd__actions">
+        <view class="flowEnd__btn" hover-class="flowEnd__btn--pressed" @tap="emit('replay')">
+          <AppIcon name="refresh-cw" :size="28" tone="default" />
+          <text class="flowEnd__btnText">重新浏览</text>
+        </view>
+        <view
+          class="flowEnd__btn flowEnd__btn--primary"
+          :class="{ 'is-disabled': busy }"
+          hover-class="flowEnd__btn--pressed"
+          @tap="emit('surprise')"
+        >
+          <AppIcon name="shuffle" :size="28" tone="primary" />
+          <text class="flowEnd__btnText">随机盲选</text>
+        </view>
       </view>
     </view>
-  </view>
+  </PaperCard>
 </template>
 
 <style lang="scss" scoped>
-/* 与栈卡同卡面：实色奶白 + 卡片栈圆角 + 柔和阴影 */
+/* 与栈卡同卡面：居中纵向排布（表面由 PaperCard 承担） */
 .flowEnd {
   display: flex;
   flex: 1;
@@ -55,11 +59,7 @@ const emit = defineEmits<{
   justify-content: center;
   gap: var(--spacing-sm);
   box-sizing: border-box;
-  padding: var(--spacing-xl);
-  background: var(--bg-card);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--module-shadow);
+  width: 100%;
 }
 
 .flowEnd__title {

@@ -1,10 +1,13 @@
 <script setup lang="ts">
 /**
- * 记忆 tab（设计稿 docs/ui/client/我的食谱.md；功能规则 docs/func/client/B4、B2、B3）。
+ * 记忆 tab（设计稿 docs/ui/client/记忆.md；功能规则 docs/func/client/B4、B2、B3）。
  *
- * Julienne 时间流：页头（衬线标题 + 日期）→ 横向年月导航 → 倒序日期分组（衬线日期标题）
- * → 每日横向滚动卡片行；卡片为奶白纸片（左上评级字母 + 右上风味评级 + 圆图 + 衬线菜名 + 时间小字 + 右下√已品尝）。
- * 就地三态评分（喜欢 / 一般 / 不喜欢）；未评分可取消；纠错入口；空态/加载骨架同 Julienne 风格。
+ * Julienne 时间流：页头（hero 衬线加粗标题 + 正下方数字日期）→ 横向年月导航
+ * （当前月加深、其余浅灰弱化）→ 倒序日期分组（`MM.DD` 衬线日期标记）→
+ * 每日横向滚动纸片卡行；卡片表面 / 圆角 / 描边 / 阴影与美味页完全统一。
+ * 卡内自上而下：左上衬线菜名 → 居中圆形菜品图 → **右下角集中三图标**
+ * （笑脸三态评分 [最醒目] / 气泡反馈 [中] / 垃圾桶删除 [最弱]）。
+ * 每个日期组底层挂半透明大号日数字装饰（不遮挡卡片）。
  */
 import { computed, onMounted, ref } from 'vue'
 import BaseSheet from '@/components/base/BaseSheet.vue'
@@ -12,16 +15,16 @@ import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
 import RetryBlock from '@/components/base/RetryBlock.vue'
 import TabBar from '@/components/base/TabBar.vue'
 import AppIcon from '@/components/base/AppIcon.vue'
-import FlavorRating from '@/components/business/FlavorRating.vue'
 import MonthTimeline from '@/components/business/MonthTimeline.vue'
 import ReactionPicker from '@/components/business/ReactionPicker.vue'
 import { issueApi, recordApi } from '@/api'
 import type { IssueOptionOut, RecordOut } from '@/api'
-import { formatClock, formatDayLabel, todayLabel } from '@/utils/date'
+import { formatDayLabel, todayLabelNumeric } from '@/utils/date'
 import { navMetrics } from '@/utils/safeArea'
+import { useTheme } from '@/utils/theme'
 import { cooldownFrom, useCooldown } from '@/utils/backoff'
 
-/** 写入口的限频退避键（docs/secur/S-03）—— 评分 / 取消 / 纠错各自独立计数 */
+/** 写入口的限频退避键（docs/secur/S-03）—— 评分 / 删除 / 纠错各自独立计数 */
 const REACT_KEY = 'records:react'
 const CANCEL_KEY = 'records:cancel'
 const ISSUE_KEY = 'records:issue'
@@ -35,8 +38,10 @@ const failed = ref(false)
 const activeMonth = ref('')
 /** 顶部安全区：避开状态栏 / 刘海与右上角胶囊 */
 const topInset = navMetrics().topInset
-/** 页头日期：固定值，避免每次渲染重复格式化 */
-const today = todayLabel()
+/** 页头日期：固定值，避免每次渲染重复格式化（`2026/10/18` 数字斜线风格） */
+const today = todayLabelNumeric()
+/** 全站主题（明暗切换作用于三个 tab 页） */
+const theme = useTheme()
 
 /** 纠错弹层 */
 const sheetOpen = ref(false)
@@ -69,12 +74,6 @@ const effectiveMonth = computed(() =>
     : '',
 )
 
-/** 页面底层装饰：当前生效月份的数字（无记录时用兜底月份） */
-const motifMonth = computed(() => {
-  const month = effectiveMonth.value || barMonths.value[0] || ''
-  return month.slice(5, 7)
-})
-
 const grouped = computed(() => {
   const list = records.value.filter((r) => r.wantedAt.slice(0, 7) === effectiveMonth.value)
   const map = new Map<string, RecordOut[]>()
@@ -86,6 +85,11 @@ const grouped = computed(() => {
   }
   return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
 })
+
+/** 日期组底层装饰数字：日部分（`DD`，如 `18`），与 `MM.DD` 日期标记呼应 */
+function motifOfDay(day: string): string {
+  return day.slice(8, 10)
+}
 
 async function load() {
   loading.value = true
@@ -147,7 +151,7 @@ async function onPickOption(optionId: number) {
   }
 }
 
-/** 空态跳转：去美食 tab */
+/** 空态跳转：去美味 tab */
 function goRecipes() {
   uni.switchTab({ url: '/pages/recipes/index' })
 }
@@ -156,10 +160,8 @@ onMounted(load)
 </script>
 
 <template>
-  <view class="page" :style="{ paddingTop: topInset + 'px' }">
-    <!-- 极淡的页面底层装饰：当前月份数字 -->
-    <text v-if="motifMonth" class="page__motif">{{ motifMonth }}</text>
-
+  <view class="page" :data-theme="theme" :style="{ paddingTop: topInset + 'px' }">
+    <!-- 页头：hero 衬线加粗标题 + 正下方数字日期（对齐美味 Topbar） -->
     <view class="topbar">
       <text class="topbar__title">记忆</text>
       <text class="topbar__date">{{ today }}</text>
@@ -179,9 +181,15 @@ onMounted(load)
         <view class="group__day group__day--ph" />
         <scroll-view class="group__row" scroll-x enhanced :show-scrollbar="false">
           <view v-for="c in 3" :key="c" class="record record--ph">
-            <view class="record__phCircle" />
-            <view class="record__phLine" />
-            <view class="record__phLine record__phLine--meta" />
+            <view class="record__phLine record__phLine--name" />
+            <view class="record__photoWrap">
+              <view class="record__phCircle" />
+            </view>
+            <view class="record__ops">
+              <view class="record__phDot" />
+              <view class="record__phDot" />
+              <view class="record__phDot" />
+            </view>
           </view>
         </scroll-view>
       </view>
@@ -190,57 +198,60 @@ onMounted(load)
     <view v-else-if="!records.length" class="recordEmpty">
       <AppIcon class="recordEmpty__icon" name="book" :size="64" tone="muted" />
       <text class="recordEmpty__title">暂无美食记忆</text>
-      <text class="recordEmpty__desc">去美食页标记品尝过的餐食，收藏属于你的校园美食记忆</text>
+      <text class="recordEmpty__desc">去美味页标记品尝过的餐食，收藏属于你的校园美食记忆</text>
       <view class="recordEmpty__btn" hover-class="recordEmpty__btn--pressed" @tap="goRecipes">
-        去美食页
+        去美味页
       </view>
     </view>
 
     <scroll-view v-else class="body" scroll-y enhanced :show-scrollbar="false">
       <view v-for="[day, list] in grouped" :key="day" class="group">
+        <!-- 日期组底层装饰：半透明大号日数字（不遮挡卡片，卡片行层级在上） -->
+        <text class="group__motif">{{ motifOfDay(day) }}</text>
         <text class="group__day">{{ formatDayLabel(day) }}</text>
         <scroll-view class="group__row" scroll-x enhanced :show-scrollbar="false">
           <view v-for="record in list" :key="record.id" class="record">
-            <FlavorRating class="record__flavor" :level="record.flavorLevel ?? null" />
+            <!-- 菜名：卡片顶部左上，衬线一级主文字 -->
+            <text class="record__name wrap-anywhere">{{ record.name }}</text>
 
-            <view class="record__photo">
-              <image
-                v-if="record.imageUrl"
-                :src="record.imageUrl"
-                class="record__img"
-                mode="aspectFill"
-              />
-              <ImagePlaceholder v-else :size="48" bare />
+            <!-- 圆形菜品图：放大、垂直居中（卡片视觉主元素） -->
+            <view class="record__photoWrap">
+              <view class="record__photo">
+                <image
+                  v-if="record.imageUrl"
+                  :src="record.imageUrl"
+                  class="record__img"
+                  mode="aspectFill"
+                />
+                <ImagePlaceholder v-else :size="48" bare />
+              </view>
             </view>
 
-            <text class="record__name wrap-anywhere">{{ record.name }}</text>
-            <text class="record__meta">{{ formatClock(record.wantedAt) }}</text>
-
-            <ReactionPicker
-              :model-value="record.reaction"
-              :readonly="reactLocked"
-              @pick="onReact(record, $event)"
-            />
-
-            <view class="record__footer">
-              <view class="record__ops">
-                <text
-                  v-if="record.reaction == null"
-                  class="record__op"
-                  :class="{ 'record__op--locked': cancelLocked }"
-                  @tap="onCancel(record)"
-                >
-                  取消
-                </text>
-                <text
-                  class="record__op"
-                  :class="{ 'record__op--locked': issueLocked }"
-                  @tap="onOpenIssue(record)"
-                >
-                  信息有误
-                </text>
+            <!-- 右下角集中三图标：笑脸评分（最醒目）/ 气泡反馈（中）/ 垃圾桶删除（最弱） -->
+            <view class="record__ops">
+              <ReactionPicker
+                :model-value="record.reaction"
+                :locked="reactLocked"
+                @pick="onReact(record, $event)"
+              />
+              <view
+                class="record__icon"
+                :class="{ 'is-disabled': issueLocked }"
+                hover-class="record__icon--pressed"
+                @tap="onOpenIssue(record)"
+              >
+                <view class="record__iconCircle">
+                  <AppIcon name="message-circle" :size="32" tone="default" />
+                </view>
               </view>
-              <AppIcon name="check" :size="24" tone="primary" />
+              <view
+                class="record__icon record__icon--plain"
+                :class="{ 'is-disabled': cancelLocked }"
+                hover-class="record__icon--pressed"
+                @tap="onCancel(record)"
+              >
+                <AppIcon name="trash-2" :size="28" tone="muted" />
+              </view>
             </view>
           </view>
         </scroll-view>
@@ -274,11 +285,18 @@ onMounted(load)
   overflow: hidden;
 }
 
-/* 极淡底层装饰：当前月份数字，不参与交互、不遮挡内容 */
-.page__motif {
+/* 日期分组：装饰数字的定位祖先（组内底层背景） */
+.group {
+  position: relative;
+  margin-bottom: var(--spacing-2xl);
+}
+
+/* 日期组底层装饰：半透明大号日数字 —— 挂在对应日期组背景（非页面底部），
+   不参与交互、不遮挡卡片（日期标题与卡片行层级在上） */
+.group__motif {
   position: absolute;
   right: calc(var(--spacing-2xl) * -1);
-  bottom: 12%;
+  bottom: 0;
   z-index: 0;
   font-family: var(--font-serif);
   font-size: var(--memory-motif-size);
@@ -288,20 +306,21 @@ onMounted(load)
   opacity: 0.06;
   pointer-events: none;
 }
-
+/* 页头：垂直位置与左右边距对齐美味 Topbar（上 40 / 左右 32 / 下 16） */
 .topbar {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-md) var(--page-gutter) var(--spacing-xs);
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-xl) var(--page-gutter) var(--spacing-sm);
 }
 
+/* 主标题：与美味页「美味」完全一致（hero 档衬线 + 中黑字重） */
 .topbar__title {
   font-family: var(--font-serif);
-  font-size: var(--font-display);
-  font-weight: var(--weight-bold);
+  font-size: var(--font-hero);
+  font-weight: var(--weight-medium);
   line-height: 1.2;
   color: var(--text-title);
 }
@@ -321,55 +340,70 @@ onMounted(load)
   );
 }
 
-/* 日期分组：无分割线，仅靠留白分层 */
-.group {
-  margin-bottom: var(--spacing-2xl);
-}
-
+/* 日期标记：MM.DD 衬线放大，置于卡片组左上方作时间分割标记（层级在装饰数字之上） */
 .group__day {
+  position: relative;
+  z-index: 1;
   display: block;
   padding: 0 var(--page-gutter) var(--spacing-md);
   font-family: var(--font-serif);
-  font-size: var(--font-title);
+  font-size: var(--font-display);
   font-weight: var(--weight-semibold);
   color: var(--text-title);
 }
 
-/* 骨架：日期标题占位 */
+/* 骨架：日期标记占位 */
 .group__day--ph {
   width: 40%;
-  height: var(--font-title);
+  height: var(--font-display);
   margin: 0 var(--page-gutter) var(--spacing-md);
   padding: 0;
   background: var(--bg-placeholder);
   border-radius: var(--radius-xs);
 }
 
-/* 卡片行：横向滚动，右侧留出 gutter */
+/* 卡片行：横向滚动，右侧留出 gutter；层级在装饰数字之上 */
 .group__row {
+  position: relative;
+  z-index: 1;
   width: 100%;
   padding-right: var(--page-gutter);
   white-space: nowrap;
 }
 
-/* 记录卡：奶白纸片、无描边、大圆角、柔和投影 */
+/* 记录卡：宽扁纸片卡 —— 表面与美味卡片族完全统一（同色填充 + 细描边 + 大圆角 + 柔和浅阴影） */
 .record {
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-md);
+  box-sizing: border-box;
   width: var(--record-card-width);
+  height: var(--record-card-height);
   margin-left: var(--page-gutter);
-  padding: var(--spacing-md);
-  background: var(--bg-card-milky);
-  border-radius: var(--radius-card-lg);
-  box-shadow: var(--module-shadow);
+  padding: var(--spacing-lg);
+  background: var(--bg-page);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card-stack);
   vertical-align: top;
 }
 
-/* 风味评级：卡内首行，与圆形图保持安全间距（文字区不侵入圆图） */
-.record__flavor {
-  margin-bottom: var(--spacing-xs);
+/* 菜名：卡片顶部左上，衬线一级主文字 */
+.record__name {
+  font-family: var(--font-serif);
+  font-size: var(--font-h3);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  color: var(--text-title);
+  text-align: left;
+}
+
+/* 圆图：放大、垂直居中（卡片视觉主元素） */
+.record__photoWrap {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
 }
 
 .record__photo {
@@ -383,50 +417,68 @@ onMounted(load)
   border-radius: var(--radius-circle);
 }
 
+/* 圆角必须落在这里（原生 <image> 不吃父级 overflow 裁切） */
 .record__img {
   width: 100%;
   height: 100%;
+  border-radius: var(--radius-circle);
 }
 
-.record__name {
-  font-family: var(--font-serif);
-  font-size: var(--font-h3);
-  font-weight: var(--weight-semibold);
-  color: var(--text-title);
-  text-align: center;
-}
-
-.record__meta {
-  font-size: var(--font-small);
-  color: var(--text-tertiary);
-}
-
-.record__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
+/* 右下角集中三图标：笑脸评分（最醒目）/ 气泡反馈（中）/ 垃圾桶删除（最弱） */
 .record__ops {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: var(--spacing-md);
 }
 
-.record__op {
-  font-size: var(--font-small);
-  color: var(--text-tertiary);
+/* 圆形图标按钮：命中区 88rpx，视觉圆 64rpx 细描边（Julienne 角标形态） */
+.record__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
 }
 
-/* 限频退避中：入口不可点，视觉减淡（倒计时结束自动恢复） */
-.record__op--locked,
-.sheet__opt--locked {
-  opacity: 0.4;
+.record__iconCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--tap-target-size) - var(--spacing-md));
+  height: calc(var(--tap-target-size) - var(--spacing-md));
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-circle);
 }
 
-/* 加载骨架：淡占位块，圆形图位，无旋转 loading */
+/* 垃圾桶：无圆环的纯线性小图标（视觉最弱，降低误触概率；命中区仍满足触达下限） */
+.record__icon--plain {
+  width: var(--tap-target-size);
+  height: var(--tap-target-size);
+}
+
+/* 禁用（限频退避）：非主色可点件 ⇒ opacity .5，禁点由全局 .is-disabled 承担 */
+.record__icon.is-disabled {
+  opacity: 0.5;
+}
+
+.record__icon--pressed {
+  opacity: 0.6;
+}
+
+/* 加载骨架：淡占位块，同新卡结构（菜名 / 圆图 / 图标位） */
 .record--ph {
   pointer-events: none;
+}
+
+.record__phLine {
+  background: var(--bg-placeholder);
+  border-radius: var(--radius-xs);
+}
+
+.record__phLine--name {
+  width: 60%;
+  height: var(--font-h3);
 }
 
 .record__phCircle {
@@ -436,16 +488,11 @@ onMounted(load)
   border-radius: var(--radius-circle);
 }
 
-.record__phLine {
-  width: 60%;
-  height: var(--font-body);
+.record__phDot {
+  width: calc(var(--tap-target-size) - var(--spacing-md));
+  height: calc(var(--tap-target-size) - var(--spacing-md));
   background: var(--bg-placeholder);
-  border-radius: var(--radius-xs);
-}
-
-.record__phLine--meta {
-  width: 40%;
-  height: var(--font-small);
+  border-radius: var(--radius-circle);
 }
 
 /* 空态：整体略偏上（底部预留卡片空间），线性图标 + 衬线主文案 + 浅灰引导 + 描边按钮 */

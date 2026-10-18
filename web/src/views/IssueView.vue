@@ -125,41 +125,35 @@ onMounted(async () => {
       <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>菜品</th>
-          <th>食堂</th>
-          <th>档口</th>
-          <th>错误类型</th>
-          <th class="table__muted">提交时间</th>
-          <th class="table__muted">处理时间</th>
-          <th class="table__ops">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td>{{ row.dishName }}</td>
-          <td>{{ row.canteenName }}</td>
-          <td>{{ row.stallName }}</td>
-          <td>
-            <span class="tag">{{ row.optionName }}</span>
-          </td>
-          <td class="table__muted">{{ row.createdAt }}</td>
-          <td class="table__muted">{{ row.handledAt ?? '—' }}</td>
-          <td class="table__ops">
-            <template v-if="row.handledAt == null">
-              <button class="link" @click="onFix(row)">去改菜品</button>
-              <button class="link" @click="onHandle(row)">标记已处理</button>
-            </template>
-            <button v-else class="link" @click="onUndo(row)">撤销</button>
-          </td>
-        </tr>
-        <tr v-if="!rows.length && !loading">
-          <td colspan="7" class="table__empty">暂无待处理的纠错</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>菜品</th>
+            <th>错误类型</th>
+            <th class="table__ops">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.id">
+            <td>{{ row.dishName }}</td>
+            <td>
+              <span class="tag">{{ row.optionName }}</span>
+            </td>
+            <td class="table__ops">
+              <template v-if="row.handledAt == null">
+                <button class="link" @click="onFix(row)">去改菜品</button>
+                <button class="link" @click="onHandle(row)">标记已处理</button>
+              </template>
+              <button v-else class="link" @click="onUndo(row)">撤销</button>
+            </td>
+          </tr>
+          <tr v-if="!rows.length && !loading">
+            <td colspan="3" class="table__empty">暂无待处理的纠错</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
@@ -249,5 +243,11 @@ onMounted(async () => {
   font-size: 13px;
   cursor: pointer;
   padding: 0 6px;
+}
+
+/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 4px;
 }
 </style>

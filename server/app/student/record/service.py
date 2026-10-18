@@ -1,4 +1,4 @@
-"""record 域业务规则（docs/func/client/B1-品尝标记.md、B2-评分反馈.md、B4-我的食谱.md）。
+"""record 域业务规则（docs/func/client/B1-品尝标记.md、B2-评分反馈.md、B4-记忆.md）。
 
 关键口径：
 * 一行 = 一次品尝；**一人一菜可多行**

@@ -27,12 +27,12 @@ type DockItem = {
 
 const MENUS: DockItem[] = [
   { path: '/canteens', label: '食堂', icon: 'home', sep: false },
-  { path: '/stalls', label: '档口', icon: 'map-pin', sep: false },
+  { path: '/stalls', label: '档口', icon: 'compass', sep: false },
   { path: '/dishes', label: '菜品', icon: 'dish', sep: false },
   { path: '/posters', label: '海报', icon: 'image', sep: false },
   { path: '/records', label: '评分数据', icon: 'star', sep: true },
   { path: '/issues', label: '纠错处理', icon: 'report', sep: false },
-  { path: '/options', label: '纠错选项', icon: 'filter', sep: false },
+  { path: '/options', label: '纠错选项', icon: 'settings', sep: false },
 ]
 
 const now = computed(() => {
@@ -288,11 +288,41 @@ function onLogout() {
   background: var(--el-color-error-light-9);
 }
 
-/* 窄屏（≤400px）图标格收窄，保证七项一坞不溢出 */
-@media (max-width: 400px) {
+/* 窄屏（≤640px）：Dock 图标缩小并允许横向滚动，避免七项溢出；内容区收窄边距 */
+@media (max-width: 640px) {
+  .layout__main {
+    margin-top: 52px;
+    padding: 12px 12px 96px;
+  }
+  .layout__topbar {
+    height: 52px;
+    padding: 0 12px;
+  }
+  .layout__dock {
+    left: 0;
+    right: 0;
+    width: 100%;
+    transform: none;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .dock__wrap {
+    overflow-x: auto;
+    gap: 4px;
+    padding: 4px 8px;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+  .dock__wrap::-webkit-scrollbar {
+    display: none;
+  }
   .dock__item {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+  .dock__sep {
+    height: 20px;
+    margin: 0 2px;
   }
 }
 </style>

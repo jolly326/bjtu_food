@@ -2,6 +2,7 @@
 /**
  * 食堂筛选（规格见 docs/ui/client/公共组件与形态基线.md §2.2 CanteenFilter）。
  * 形态：右上角下拉，用原生 picker（零自绘）。默认「全部」。
+ * 轻量化：细描边 + 低饱和度（弱化文字 / 图标），不抢视觉重心；命中区保持触达下限。
  */
 import { computed } from 'vue'
 import AppIcon from '../base/AppIcon.vue'
@@ -40,12 +41,13 @@ function onChange(e: { detail: { value: number } }) {
   <picker :range="labels" :value="index" @change="onChange">
     <view class="filter">
       <text class="filter__label">{{ current }}</text>
-      <AppIcon name="arrow-down" :size="28" tone="default" />
+      <AppIcon name="arrow-down" :size="28" tone="muted" />
     </view>
   </picker>
 </template>
 
 <style lang="scss" scoped>
+/* 筛选胶囊：细描边 + 小幅度柔和圆角（非全圆），轻量化不抢视觉重心 */
 .filter {
   display: flex;
   align-items: center;
@@ -54,11 +56,11 @@ function onChange(e: { detail: { value: number } }) {
   height: var(--tap-target-size);
   padding: 0 var(--spacing-md);
   border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-btn);
 }
 
 .filter__label {
-  font-size: var(--font-body);
-  color: var(--text-body);
+  font-size: var(--font-small);
+  color: var(--text-tertiary);
 }
 </style>

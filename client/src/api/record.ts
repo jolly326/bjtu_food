@@ -1,11 +1,11 @@
-/** 我的食谱域（docs/api/client/records.md）。 */
+/** 记忆域（docs/api/client/records.md）。 */
 
 import { http } from '@/utils/request'
 
 import type { RecordOut } from './types'
 
 export const recordApi = {
-  /** 记忆：我的食谱（全量，按 wantedAt 降序） */
+  /** 记忆：记忆（全量，按 wantedAt 降序） */
   list: () => http.get<RecordOut[]>('/my/records'),
   /** 去品尝（幂等） */
   want: (dishId: number) => http.post<RecordOut>('/my/records', { dishId }),

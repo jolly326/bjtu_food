@@ -1,71 +1,45 @@
 <script setup lang="ts">
 /**
- * 美食页栈内骨架卡（加载态；与 DishSwipeCard 同构）。
- * 同内距（96/48/24）、同圆形图位、同内容居中、同底部按钮位；无旋转 loading。
+ * 美味页栈内骨架卡（加载态；与 DishSwipeCard 同构）。
+ * 卡面 / 三层堆叠副本 / 吊孔由 PaperCard 承载；同内距、同圆形图位；无旋转 loading。
  */
+import PaperCard from './PaperCard.vue'
 import WantButton from './WantButton.vue'
 </script>
 
 <template>
-  <view class="ph">
-    <view class="ph__inner">
-      <view class="ph__content">
-        <view class="ph__photo" />
-        <view class="ph__slot ph__slot--name" />
-        <view class="ph__slot ph__slot--meta" />
-        <view class="ph__slot ph__slot--rating" />
-      </view>
-
-      <view class="ph__btn">
-        <WantButton disabled />
-      </view>
+  <PaperCard>
+    <view class="ph__content">
+      <view class="ph__photo" />
+      <view class="ph__slot ph__slot--name" />
+      <view class="ph__slot ph__slot--meta" />
+      <view class="ph__slot ph__slot--rating" />
     </view>
-  </view>
+
+    <view class="ph__btn">
+      <WantButton disabled />
+    </view>
+  </PaperCard>
 </template>
 
 <style lang="scss" scoped>
-/* 与真实卡同构：外层描边悬浮层 + 内层白卡 */
-.ph {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  box-sizing: border-box;
-  width: 100%;
-  padding: var(--spacing-xs);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--module-shadow);
-}
-
-.ph__inner {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  box-sizing: border-box;
-  width: 100%;
-  padding: calc(var(--spacing-2xl) * 2) var(--spacing-xl) var(--spacing-md);
-  background: var(--bg-card);
-  border-radius: var(--radius-card-stack);
-}
-
-/* 与真实卡一致：内容居中偏上 */
+/* 与真实卡一致：内容居中排布 */
 .ph__content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-md);
   width: 100%;
-  margin-top: var(--spacing-md);
+  margin-top: calc(var(--spacing-2xl) + var(--font-hero));
 }
 
 .ph__photo {
   width: var(--dish-photo-size);
   height: var(--dish-photo-size);
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: var(--spacing-lg);
   background: var(--bg-placeholder);
   border-radius: var(--radius-circle);
 }
@@ -81,18 +55,22 @@ import WantButton from './WantButton.vue'
 }
 
 .ph__slot--meta {
+  margin-top: var(--spacing-md);
   width: 80%;
   height: var(--font-small);
 }
 
 .ph__slot--rating {
+  margin-top: var(--spacing-md);
   align-self: flex-end;
   width: 30%;
   height: var(--font-small);
 }
 
 .ph__btn {
+  position: relative;
+  z-index: 1;
   width: 100%;
-  margin-top: var(--spacing-md);
+  margin-top: var(--spacing-xl);
 }
 </style>

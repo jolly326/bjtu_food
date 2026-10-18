@@ -1,4 +1,4 @@
-"""学生端「发现」tab（橱窗）：竖版海报列表。
+"""学生端「风物」tab（橱窗）：竖版海报列表。
 
 端点（docs/api/client/posters.md）：
     GET /posters   🔑 需登录，固定顺序（poster.sort 升序，仅 status='on'）

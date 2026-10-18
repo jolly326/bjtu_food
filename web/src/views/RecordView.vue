@@ -105,36 +105,30 @@ onMounted(async () => {
       <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>菜品</th>
-          <th>食堂</th>
-          <th>档口</th>
-          <th>反应</th>
-          <th class="table__muted">去品尝时间</th>
-          <th class="table__muted">评分时间</th>
-        </tr>
-      </thead>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>菜品</th>
+            <th>反应</th>
+          </tr>
+        </thead>
       <tbody>
         <tr v-for="row in rows" :key="row.id">
           <td>{{ row.dishName }}</td>
-          <td>{{ row.canteenName }}</td>
-          <td>{{ row.stallName }}</td>
           <td>
             <span v-if="row.reaction == null" class="tag tag--none">未评分</span>
             <span v-else class="tag" :class="'tag--r' + row.reaction">{{
               REACTION_LABEL[String(row.reaction)]
             }}</span>
           </td>
-          <td class="table__muted">{{ row.wantedAt }}</td>
-          <td class="table__muted">{{ row.reactedAt ?? '—' }}</td>
         </tr>
         <tr v-if="!rows.length && !loading">
-          <td colspan="6" class="table__empty">暂无数据</td>
+          <td colspan="2" class="table__empty">暂无数据</td>
         </tr>
       </tbody>
     </table>
+  </div>
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
@@ -225,5 +219,11 @@ onMounted(async () => {
 .tag--none {
   background: var(--el-fill-color);
   color: var(--el-text-color-secondary);
+}
+
+/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 4px;
 }
 </style>

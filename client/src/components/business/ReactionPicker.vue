@@ -1,7 +1,13 @@
 <script setup lang="ts">
 /**
  * 三态评分控件（规格见 docs/ui/client/公共组件与形态基线.md §2.2 ReactionPicker）。
- * 喜欢 5（smile）/ 一般 3（meh）/ 不喜欢 1（frown）；已评分 => 只读展示，不可再点。
+ *
+ * 单个圆形表情图标按钮（Julienne 卡片角标形态）：
+ * - 显示当前档位 —— 未评分 = `smile` 弱化态；已评分 = 主色描边 + 主色图标；
+ * - tap 按 **喜欢 → 一般 → 不喜欢 → 喜欢** 循环切换并派发 `pick(下一档)`；
+ * - 取值：喜欢 = 5 ｜ 一般 = 3 ｜ 不喜欢 = 1（口径见 func/client/B2）；
+ * - `locked`（写入口限频退避中）时挂禁用态。
+ * - 记忆卡三图标中视觉优先级最高：40rpx 大图标（气泡 32 / 垃圾桶 28）。
  */
 import { computed } from 'vue'
 import AppIcon from '../base/AppIcon.vue'
@@ -9,92 +15,85 @@ import AppIcon from '../base/AppIcon.vue'
 const props = withDefaults(
   defineProps<{
     modelValue?: number | null
-    readonly?: boolean
+    /** 限频退避中：不可点 */
+    locked?: boolean
   }>(),
-  { modelValue: null, readonly: false },
+  { modelValue: null, locked: false },
 )
 
 const emit = defineEmits<{ (e: 'pick', value: number): void }>()
 
-const OPTIONS = [
-  { value: 5, label: '喜欢', icon: 'smile' },
-  { value: 3, label: '一般', icon: 'meh' },
-  { value: 1, label: '不喜欢', icon: 'frown' },
-] as const
+/** 循环顺序：喜欢 → 一般 → 不喜欢 → 喜欢 */
+const CYCLE = [5, 3, 1] as const
 
-/** 已评分只展示选中项；个人档位固定三态 */
-const visibleOptions = computed(() =>
-  props.modelValue == null ? OPTIONS : OPTIONS.filter((o) => o.value === props.modelValue),
-)
+/** 已评分（选中态） */
+const rated = computed(() => props.modelValue != null)
 
-function onTap(value: number) {
-  if (props.readonly || props.modelValue != null) return
-  emit('pick', value)
+/** 下一档（循环）；未评分从第一档（喜欢）起 */
+function next(): number {
+  const idx = props.modelValue == null ? -1 : CYCLE.indexOf(props.modelValue as 5 | 3 | 1)
+  return CYCLE[(idx + 1) % CYCLE.length]
+}
+
+function onTap() {
+  if (props.locked) return
+  emit('pick', next())
 }
 </script>
 
 <template>
-  <view class="picker" :class="{ 'picker--readonly': modelValue != null }">
-    <view
-      v-for="opt in visibleOptions"
-      :key="opt.value"
-      class="picker__item"
-      :class="{ 'picker__item--on': modelValue === opt.value }"
-      :hover-class="modelValue == null ? 'picker__item--pressed' : 'none'"
-      @tap="onTap(opt.value)"
-    >
+  <view
+    class="picker"
+    :class="{ 'picker--on': rated, 'is-disabled': locked }"
+    hover-class="picker--pressed"
+    @tap="onTap"
+  >
+    <view class="picker__circle">
+      <AppIcon v-if="modelValue === 3" name="meh" :size="40" :tone="rated ? 'primary' : 'default'" />
       <AppIcon
-        :name="opt.icon"
-        :size="28"
-        :tone="modelValue === opt.value ? 'primary' : 'muted'"
+        v-else-if="modelValue === 1"
+        name="frown"
+        :size="40"
+        :tone="rated ? 'primary' : 'default'"
       />
-      <text class="picker__label">{{ opt.label }}</text>
+      <AppIcon v-else name="smile" :size="40" :tone="rated ? 'primary' : 'default'" />
     </view>
   </view>
 </template>
 
 <style lang="scss" scoped>
+/* 命中区 ≥ --tap-target-size；视觉圆小于命中区（触达下限口径见基线 §1.6） */
 .picker {
   display: flex;
-  gap: var(--spacing-md);
-  width: 100%;
-}
-
-.picker__item {
-  display: flex;
-  flex: 1;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
-  min-width: var(--reaction-item-min-width);
+  width: var(--tap-target-size);
   height: var(--tap-target-size);
-  background: var(--bg-page);
+}
+
+/* 视觉圆：细描边圆环，Julienne 角标形态 */
+.picker__circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--tap-target-size) - var(--spacing-md));
+  height: calc(var(--tap-target-size) - var(--spacing-md));
   border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-circle);
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
 
-/* 已评分：只显示选中项，收成紧凑胶囊 */
-.picker--readonly .picker__item {
-  flex: 0 0 auto;
-  min-width: 0;
-  padding: 0 var(--spacing-lg);
-}
-
-.picker__item--pressed {
-  opacity: 0.7;
-}
-
-.picker__item--on {
+/* 已评分：主色描边（不实底填充） */
+.picker--on .picker__circle {
   border-color: var(--color-primary);
 }
 
-.picker__label {
-  font-size: var(--font-body);
-  color: var(--text-tertiary);
+/* 禁用（限频退避）：非主色可点件 ⇒ opacity .5，禁点由全局 .is-disabled 承担 */
+.picker.is-disabled {
+  opacity: 0.5;
 }
 
-.picker__item--on .picker__label {
-  font-weight: var(--weight-medium);
-  color: var(--text-title);
+.picker--pressed {
+  opacity: 0.6;
 }
 </style>

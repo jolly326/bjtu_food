@@ -1,12 +1,17 @@
 <script setup lang="ts">
 /**
  * 海报滑动容器（规格见 docs/ui/client/公共组件与形态基线.md §2.2 PosterSwiper）。
- * 一屏一张、左侧 `--page-gutter`(48rpx) / 右侧露下一张边缘（peek）、可回看上一张、无循环；
- * 卡片占满宿主高度（卡顶紧接板块标题、卡底靠近 TabBar）。
- * 为空 / 加载失败 ⇒ 渲染 3 张占位卡（同样可横向滑动，见 docs/ui/client/档口海报.md §2 / §4）。
+ * 一屏一张、左侧 `--page-gutter`(32rpx)；**默认态完整展示当前卡 + 露出第二张卡左缘一小截**
+ * （暗示可左右滑动）、可回看上一张、无循环。
+ * 卡片占满宿主高度（卡顶紧接「今日食单」、卡底靠近 TabBar 容器）。
+ * 为空 / 加载失败 ⇒ 渲染 3 张占位卡（同样可横向滑动，见 docs/ui/client/风物.md §2 / §4）。
+ *
+ * peek 实现：原生 swiper 的 `next-margin` 只认「当前项右缘到屏右的距离」；下一项的卡片
+ * 还要加上自身的左内距才可见 ⇒ next-margin = 左 gutter + 露出量，项内**不设右内距**
+ * （卡间呼吸位由下一项的左内距承担）。
  *
  * 高度实现：原生 `swiper` **不参与 flex 拉伸**（自带默认高度），故本组件绝对定位铺满**定位祖先**
- * （页面里的 `.posterArea` 已 `position: relative` 且由 `flex: 1` 分配高度）。
+ * （页面里的 `.posterArea__swiper` 已 `position: relative` 且由 `flex: 1` 分配高度）。
  */
 import { computed } from 'vue'
 import ImagePlaceholder from '../base/ImagePlaceholder.vue'
@@ -14,13 +19,15 @@ import { windowWidth } from '@/utils/safeArea'
 
 import type { PosterOut } from '@/api'
 
-/** 空 / 失败时铺开的占位卡张数（口径见 docs/ui/client/档口海报.md §2） */
+/** 空 / 失败时铺开的占位卡张数（口径见 docs/ui/client/风物.md §2） */
 const PLACEHOLDER_COUNT = 3
 
-/** 右侧 peek 宽度：48rpx 换算为 px（swiper `next-margin` 只接受带单位长度） */
-const PEEK_RPX = 48
+/** 右侧露出下一张卡左缘的量：24rpx（一小截，暗示可滑动） */
+const PEEK_RPX = 24
+/** 卡片左 gutter：32rpx（与 CSS --page-gutter 同步；下一张卡的左内距 ⇒ 卡间呼吸位同值） */
+const GUTTER_RPX = 32
 const rpxToPx = windowWidth() / 750
-const nextMargin = `${Math.round(PEEK_RPX * rpxToPx)}px`
+const nextMargin = `${Math.round((GUTTER_RPX + PEEK_RPX) * rpxToPx)}px`
 
 const props = defineProps<{
   posters: PosterOut[]
@@ -66,7 +73,7 @@ const items = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-/* 绝对定位铺满定位祖先（页面的 .posterArea）—— 原生 swiper 不接受 flex 拉伸 */
+/* 绝对定位铺满定位祖先（页面的 .posterArea__swiper）—— 原生 swiper 不接受 flex 拉伸 */
 .poster {
   position: absolute;
   top: 0;
@@ -75,17 +82,18 @@ const items = computed(() => {
   height: 100%;
 }
 
-/* 左 --page-gutter / 右 --spacing-md（与 peek 出的下一张之间留呼吸位） */
-/* 卡片占满轮播区（卡顶紧接「为你推荐」，卡底靠近 TabBar） */
+/* 左 --page-gutter（卡片左缘）；**无右内距** —— 卡间呼吸位由下一项的左内距承担，
+   当前卡右缘即露出区的起点，保证下一张卡的左缘真实可见 */
+/* 卡片占满轮播区（卡顶紧接「今日食单」，卡底靠近 TabBar 容器） */
 .poster__item {
   display: flex;
   align-items: stretch;
   box-sizing: border-box;
   height: 100%;
-  padding: 0 var(--spacing-md) 0 var(--page-gutter);
+  padding: 0 0 0 var(--page-gutter);
 }
 
-/* 卡片圆角 / 阴影与美食页单卡统一 */
+/* 海报卡：圆角 --radius-card-stack + 阴影 --shadow-card-stack（风物页专属卡形态） */
 .poster__card {
   width: 100%;
   height: 100%;

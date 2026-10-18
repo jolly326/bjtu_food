@@ -87,37 +87,35 @@ onMounted(load)
       </button>
     </header>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>选项文案</th>
-          <th class="table__muted table__num">引用次数</th>
-          <th class="table__muted">更新时间</th>
-          <th class="table__ops">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td>{{ row.name }}</td>
-          <td class="table__muted table__num">{{ row.refCount }}</td>
-          <td class="table__muted">{{ row.updatedAt }}</td>
-          <td class="table__ops">
-            <button class="link" @click="onEdit(row)">编辑</button>
-            <button
-              class="link link--danger"
-              :class="{ 'is-disabled': row.refCount > 0 }"
-              :title="row.refCount > 0 ? `已被 ${row.refCount} 条纠错提交引用，无法删除` : ''"
-              @click="onRemove(row)"
-            >
-              删除
-            </button>
-          </td>
-        </tr>
-        <tr v-if="!rows.length && !loading">
-          <td colspan="4" class="table__empty">暂无选项</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>选项文案</th>
+            <th class="table__ops">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.id">
+            <td>{{ row.name }}</td>
+            <td class="table__ops">
+              <button class="link" @click="onEdit(row)">编辑</button>
+              <button
+                class="link link--danger"
+                :class="{ 'is-disabled': row.refCount > 0 }"
+                :title="row.refCount > 0 ? `已被 ${row.refCount} 条纠错提交引用，无法删除` : ''"
+                @click="onRemove(row)"
+              >
+                删除
+              </button>
+            </td>
+          </tr>
+          <tr v-if="!rows.length && !loading">
+            <td colspan="2" class="table__empty">暂无选项</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
       <div class="dialog">
@@ -218,5 +216,19 @@ onMounted(load)
   justify-content: flex-end;
   gap: 8px;
   margin-top: 24px;
+}
+
+/* 表格横向滚动容器：窄屏（手机）下保持表格可读，不撑破布局 */
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 4px;
+}
+
+/* 弹窗窄屏近全宽，避免在手机上超出屏幕 */
+@media (max-width: 640px) {
+  .dialog {
+    width: min(520px, 92vw);
+    margin: 0 4px;
+  }
 }
 </style>

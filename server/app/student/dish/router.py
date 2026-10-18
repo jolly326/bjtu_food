@@ -1,4 +1,4 @@
-"""学生端「美食」tab：推荐菜品卡片。
+"""学生端「美味」tab：推荐菜品卡片。
 
 端点（docs/api/client/dishes.md）：
     GET /dishes?canteenId=&pageSize=   🔑 需登录
