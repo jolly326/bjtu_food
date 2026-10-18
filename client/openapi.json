@@ -86,7 +86,7 @@
         ],
         "parameters": [
           {
-            "name": "canteen_id",
+            "name": "canteenId",
             "in": "query",
             "required": false,
             "schema": {
@@ -98,7 +98,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Canteen Id"
+              "title": "Canteenid"
             }
           },
           {
@@ -164,7 +164,7 @@
           "poster"
         ],
         "summary": "档口海报列表",
-        "description": "只返回**已上传海报**的档口；顺序随机。",
+        "description": "只返回**上架**海报；顺序 = 运营排定的固定序（不随机）。",
         "operationId": "list_posters_posters_get",
         "responses": {
           "200": {
@@ -533,7 +533,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope_AdminPageResult_CanteenOut__"
+                  "$ref": "#/components/schemas/Envelope_AdminPageResult_AdminCanteenOut__"
                 }
               }
             }
@@ -577,7 +577,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope_CanteenOut_"
+                  "$ref": "#/components/schemas/Envelope_AdminCanteenOut_"
                 }
               }
             }
@@ -634,7 +634,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope_CanteenOut_"
+                  "$ref": "#/components/schemas/Envelope_AdminCanteenOut_"
                 }
               }
             }
@@ -711,7 +711,7 @@
         ],
         "parameters": [
           {
-            "name": "stall_id",
+            "name": "stallId",
             "in": "query",
             "required": false,
             "schema": {
@@ -723,11 +723,11 @@
                   "type": "null"
                 }
               ],
-              "title": "Stall Id"
+              "title": "Stallid"
             }
           },
           {
-            "name": "canteen_id",
+            "name": "canteenId",
             "in": "query",
             "required": false,
             "schema": {
@@ -739,7 +739,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Canteen Id"
+              "title": "Canteenid"
             }
           },
           {
@@ -1038,7 +1038,7 @@
             }
           },
           {
-            "name": "dish_id",
+            "name": "dishId",
             "in": "query",
             "required": false,
             "schema": {
@@ -1050,7 +1050,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Dish Id"
+              "title": "Dishid"
             }
           },
           {
@@ -1339,6 +1339,271 @@
         }
       }
     },
+    "/admin/posters": {
+      "get": {
+        "tags": [
+          "admin-poster"
+        ],
+        "summary": "海报列表",
+        "description": "按 ``sort`` 升序（同值按 ``id``）—— 与学生端橱窗同序。",
+        "operationId": "list_posters_admin_posters_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "stallId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Stallid"
+            }
+          },
+          {
+            "name": "canteenId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Canteenid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminPageResult_AdminPosterOut__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin-poster"
+        ],
+        "summary": "新建海报",
+        "operationId": "create_poster_admin_posters_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PosterSaveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminPosterOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/posters/{poster_id}": {
+      "put": {
+        "tags": [
+          "admin-poster"
+        ],
+        "summary": "修改海报",
+        "operationId": "update_poster_admin_posters__poster_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "poster_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Poster Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PosterSaveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminPosterOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin-poster"
+        ],
+        "summary": "删除海报",
+        "operationId": "delete_poster_admin_posters__poster_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "poster_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Poster Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_NoneType_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/dish-records": {
       "get": {
         "tags": [
@@ -1353,7 +1618,7 @@
         ],
         "parameters": [
           {
-            "name": "dish_id",
+            "name": "dishId",
             "in": "query",
             "required": false,
             "schema": {
@@ -1365,7 +1630,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Dish Id"
+              "title": "Dishid"
             }
           },
           {
@@ -1455,7 +1720,7 @@
         ],
         "parameters": [
           {
-            "name": "canteen_id",
+            "name": "canteenId",
             "in": "query",
             "required": false,
             "schema": {
@@ -1467,7 +1732,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Canteen Id"
+              "title": "Canteenid"
             }
           },
           {
@@ -1698,6 +1963,34 @@
   },
   "components": {
     "schemas": {
+      "AdminCanteenOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "stallCount": {
+            "type": "integer",
+            "title": "Stallcount"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "stallCount",
+          "updatedAt"
+        ],
+        "title": "AdminCanteenOut"
+      },
       "AdminLoginIn": {
         "properties": {
           "username": {
@@ -1716,11 +2009,11 @@
         ],
         "title": "AdminLoginIn"
       },
-      "AdminPageResult_CanteenOut_": {
+      "AdminPageResult_AdminCanteenOut_": {
         "properties": {
           "records": {
             "items": {
-              "$ref": "#/components/schemas/app__domains__admin_canteen__router__CanteenOut"
+              "$ref": "#/components/schemas/AdminCanteenOut"
             },
             "type": "array",
             "title": "Records"
@@ -1735,7 +2028,28 @@
           "records",
           "total"
         ],
-        "title": "AdminPageResult[CanteenOut]"
+        "title": "AdminPageResult[AdminCanteenOut]"
+      },
+      "AdminPageResult_AdminPosterOut_": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPosterOut"
+            },
+            "type": "array",
+            "title": "Records"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "records",
+          "total"
+        ],
+        "title": "AdminPageResult[AdminPosterOut]"
       },
       "AdminPageResult_DishIssueOut_": {
         "properties": {
@@ -1821,6 +2135,54 @@
         ],
         "title": "AdminPageResult[StallOut]"
       },
+      "AdminPosterOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "stallId": {
+            "type": "integer",
+            "title": "Stallid"
+          },
+          "stallName": {
+            "type": "string",
+            "title": "Stallname"
+          },
+          "canteenName": {
+            "type": "string",
+            "title": "Canteenname"
+          },
+          "imageUrl": {
+            "type": "string",
+            "title": "Imageurl"
+          },
+          "sort": {
+            "type": "integer",
+            "title": "Sort"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "stallId",
+          "stallName",
+          "canteenName",
+          "imageUrl",
+          "sort",
+          "status",
+          "updatedAt"
+        ],
+        "title": "AdminPosterOut"
+      },
       "AdminSessionOut": {
         "properties": {
           "token": {
@@ -1852,6 +2214,24 @@
           "file"
         ],
         "title": "Body_upload_image_admin_images_post"
+      },
+      "CanteenOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CanteenOut"
       },
       "CanteenSaveIn": {
         "properties": {
@@ -1901,6 +2281,17 @@
               }
             ],
             "title": "Avgreaction"
+          },
+          "flavorLevel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavorlevel"
           },
           "wanted": {
             "type": "boolean",
@@ -2160,7 +2551,7 @@
         ],
         "title": "DishSaveIn"
       },
-      "Envelope_AdminPageResult_CanteenOut__": {
+      "Envelope_AdminCanteenOut_": {
         "properties": {
           "code": {
             "type": "integer",
@@ -2175,7 +2566,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/AdminPageResult_CanteenOut_"
+                "$ref": "#/components/schemas/AdminCanteenOut"
               },
               {
                 "type": "null"
@@ -2184,7 +2575,59 @@
           }
         },
         "type": "object",
-        "title": "Envelope[AdminPageResult[CanteenOut]]"
+        "title": "Envelope[AdminCanteenOut]"
+      },
+      "Envelope_AdminPageResult_AdminCanteenOut__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "操作成功"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminPageResult_AdminCanteenOut_"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "Envelope[AdminPageResult[AdminCanteenOut]]"
+      },
+      "Envelope_AdminPageResult_AdminPosterOut__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "操作成功"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminPageResult_AdminPosterOut_"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "Envelope[AdminPageResult[AdminPosterOut]]"
       },
       "Envelope_AdminPageResult_DishIssueOut__": {
         "properties": {
@@ -2290,6 +2733,32 @@
         "type": "object",
         "title": "Envelope[AdminPageResult[StallOut]]"
       },
+      "Envelope_AdminPosterOut_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "操作成功"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminPosterOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "Envelope[AdminPosterOut]"
+      },
       "Envelope_AdminSessionOut_": {
         "properties": {
           "code": {
@@ -2315,32 +2784,6 @@
         },
         "type": "object",
         "title": "Envelope[AdminSessionOut]"
-      },
-      "Envelope_CanteenOut_": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code",
-            "default": 200
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "操作成功"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/app__domains__admin_canteen__router__CanteenOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "title": "Envelope[CanteenOut]"
       },
       "Envelope_DishIssueOut_": {
         "properties": {
@@ -2586,7 +3029,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/app__domains__canteen__router__CanteenOut"
+                  "$ref": "#/components/schemas/CanteenOut"
                 },
                 "type": "array"
               },
@@ -2865,6 +3308,40 @@
         ],
         "title": "PosterOut"
       },
+      "PosterSaveIn": {
+        "properties": {
+          "stallId": {
+            "type": "integer",
+            "title": "Stallid"
+          },
+          "imageUrl": {
+            "type": "string",
+            "title": "Imageurl"
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "on"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stallId",
+          "imageUrl"
+        ],
+        "title": "PosterSaveIn"
+      },
       "ReactIn": {
         "properties": {
           "reaction": {
@@ -2917,6 +3394,17 @@
               }
             ],
             "title": "Reaction"
+          },
+          "flavorLevel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavorlevel"
           }
         },
         "type": "object",
@@ -2946,17 +3434,6 @@
             "type": "string",
             "title": "Name"
           },
-          "posterUrl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Posterurl"
-          },
           "floor": {
             "anyOf": [
               {
@@ -2983,6 +3460,10 @@
             "type": "integer",
             "title": "Dishcount"
           },
+          "posterCount": {
+            "type": "integer",
+            "title": "Postercount"
+          },
           "updatedAt": {
             "type": "string",
             "title": "Updatedat"
@@ -2995,6 +3476,7 @@
           "canteenName",
           "name",
           "dishCount",
+          "posterCount",
           "updatedAt"
         ],
         "title": "StallOut"
@@ -3008,17 +3490,6 @@
           "name": {
             "type": "string",
             "title": "Name"
-          },
-          "posterUrl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Posterurl"
           },
           "floor": {
             "anyOf": [
@@ -3128,52 +3599,6 @@
           "code"
         ],
         "title": "WechatLoginIn"
-      },
-      "app__domains__admin_canteen__router__CanteenOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "stallCount": {
-            "type": "integer",
-            "title": "Stallcount"
-          },
-          "updatedAt": {
-            "type": "string",
-            "title": "Updatedat"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "stallCount",
-          "updatedAt"
-        ],
-        "title": "CanteenOut"
-      },
-      "app__domains__canteen__router__CanteenOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "CanteenOut"
       }
     },
     "securitySchemes": {

@@ -11,7 +11,7 @@
 | `user_id` | BIGINT | NO | 无 | KEY, FK→user | 提交人；**取自登录态，禁止信任前端传入** |
 | `option_id` | BIGINT | NO | 无 | KEY, FK→dish_issue_option | 错误类型；提交时校验其**存在性** |
 | `created_at` | DATETIME | NO | `CURRENT_TIMESTAMP` | KEY | 提交时间 |
-| `handled_at` | DATETIME | YES | NULL | | 运营**标记已处理**的时间；**NULL = 未处理**（运营待办判据） |
+| `handled_at` | DATETIME | YES | NULL | | 运营**标记已处理**的时间；**NULL = 未处理**（运营待办判据）；**服务端取 DB 时钟写入**（与 `created_at` 同一基准） |
 
 ## 索引
 

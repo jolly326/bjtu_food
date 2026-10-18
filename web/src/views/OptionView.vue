@@ -4,11 +4,13 @@
  * 改名全站生效；被引用（refCount > 0）的选项禁删。
  */
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import AppIcon from '@/components/AppIcon.vue'
 import { optionApi, type OptionOut } from '@/api'
 
 const rows = ref<OptionOut[]>([])
 const loading = ref(false)
+const saving = ref(false)
 const dialog = reactive({ visible: false, id: 0, name: '' })
 
 async function load() {
@@ -39,6 +41,7 @@ async function onSave() {
     ElMessage.warning('选项文案不能为空')
     return
   }
+  saving.value = true
   try {
     if (dialog.id) await optionApi.update(dialog.id, dialog.name.trim())
     else await optionApi.create(dialog.name.trim())
@@ -47,13 +50,19 @@ async function onSave() {
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
+  } finally {
+    saving.value = false
   }
 }
 
 async function onRemove(row: OptionOut) {
   if (row.refCount > 0) return
   try {
-    await ElMessageBoxConfirm(`删除后学生端将不再出现「${row.name}」。`)
+    await ElMessageBox.confirm(`删除后学生端将不再出现「${row.name}」。`, '确认删除', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
   } catch {
     return
   }
@@ -66,21 +75,6 @@ async function onRemove(row: OptionOut) {
   }
 }
 
-/** 删除确认（本页不使用 ElMessageBox 直接 import，保持与其它页一致的确认口径） */
-function ElMessageBoxConfirm(text: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    import('element-plus').then(({ ElMessageBox }) => {
-      ElMessageBox.confirm(text, '确认删除', {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      })
-        .then(() => resolve())
-        .catch(() => reject(new Error('cancelled')))
-    })
-  })
-}
-
 onMounted(load)
 </script>
 
@@ -88,7 +82,9 @@ onMounted(load)
   <section class="page">
     <header class="page__bar">
       <h2 class="page__title">纠错选项</h2>
-      <button class="btn btn--primary" @click="onCreate">新建选项</button>
+      <button class="btn btn--primary" @click="onCreate">
+        <AppIcon name="plus" :size="16" />新建选项
+      </button>
     </header>
 
     <table class="table">
@@ -130,8 +126,10 @@ onMounted(load)
         <input id="option-name" v-model="dialog.name" class="dialog__input" type="text" />
         <p class="dialog__hint">改名后全站生效（含历史记录的中文翻译）。</p>
         <footer class="dialog__foot">
-          <button class="btn" @click="dialog.visible = false">取消</button>
-          <button class="btn btn--primary" @click="onSave">保存</button>
+          <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
+          <button class="btn btn--primary" :disabled="saving" @click="onSave">
+            {{ saving ? '保存中…' : '保存' }}
+          </button>
         </footer>
       </div>
     </div>
@@ -155,37 +153,6 @@ onMounted(load)
   color: var(--el-text-color-primary);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn--primary {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  color: #fff;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
 .table__muted {
   color: var(--el-text-color-secondary);
 }
@@ -218,20 +185,7 @@ onMounted(load)
   opacity: 0.4;
 }
 
-.mask {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-}
-.dialog {
-  width: 520px;
-  padding: 24px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-}
+/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
 .dialog__title {
   margin: 0 0 20px;
   font-size: 16px;

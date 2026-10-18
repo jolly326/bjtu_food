@@ -1,4 +1,4 @@
-"""学生端「回味」tab：饮食记录的创建 / 评分 / 取消 / 列表。
+"""学生端「记忆」tab：饮食记录的创建 / 评分 / 取消 / 列表。
 
 端点（docs/api/client/records.md）：
     POST   /my/records          去品尝（幂等）
@@ -36,9 +36,10 @@ class RecordOut(OutModel):
     id: int
     dish_id: int
     name: str
-    image_url: str | None = None
+    image_url: str | None
     wanted_at: str
-    reaction: int | None = None
+    reaction: int | None
+    flavor_level: str | None
 
 
 def _out(record) -> RecordOut:
@@ -49,6 +50,7 @@ def _out(record) -> RecordOut:
         image_url=record.image_url,
         wanted_at=record.wanted_at,
         reaction=record.reaction,
+        flavor_level=record.flavor_level,
     )
 
 

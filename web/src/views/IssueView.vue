@@ -22,7 +22,7 @@ const filter = reactive({
 })
 
 async function loadDishes() {
-  const res = await dishApi.list({ page: 1, size: 50 })
+  const res = await dishApi.list({ page: 1, pageSize: 50 })
   dishes.value = res.records.map((d) => ({ id: d.id, name: d.name }))
 }
 
@@ -103,16 +103,26 @@ onMounted(async () => {
     </header>
 
     <div class="filters">
-      <select v-model="filter.handled" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.handled"
+        class="filters__select"
+        aria-label="按处理状态筛选"
+        @change="applyFilter"
+      >
         <option :value="false">未处理</option>
         <option :value="true">已处理</option>
         <option :value="undefined">全部</option>
       </select>
-      <select v-model="filter.dishId" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.dishId"
+        class="filters__select"
+        aria-label="按菜品筛选"
+        @change="applyFilter"
+      >
         <option :value="undefined">全部菜品</option>
         <option v-for="d in dishes" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
-      <button class="btn" @click="resetFilter">重置</button>
+      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <table class="table">
@@ -210,36 +220,6 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
 .table__muted {
   color: var(--el-text-color-secondary);
 }

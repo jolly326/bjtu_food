@@ -6,19 +6,22 @@
 * 「至多一条未评分记录」由本层保证（MySQL 5.7 无部分索引）
 * 取消 = 物理删行，**仅限未评分**
 * 写评分后**同事务**重算 dish.avg_reaction
+* 出参附**群体风味评级** ``flavor_level``（由缓存列实时判定，样本 < 3 条 ⇒ ``None`` 待评）
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import BadRequest, NotFound
+from app.core.rating import flavor_level
+from app.core.storage import to_absolute
 from app.models import Dish, DishRecord
 from app.student.record import repo
-from app.student.record.rating import recalc
+from app.student.record.recalc import recalc
 
 VALID_REACTIONS = frozenset({5, 3, 1})
 
@@ -31,11 +34,10 @@ class RecordView:
     image_url: str | None
     wanted_at: str
     reaction: int | None
+    flavor_level: str | None
 
 
 def _to_view(record: DishRecord, dish: Dish) -> RecordView:
-    from app.core.storage import to_absolute
-
     return RecordView(
         id=record.id,
         dish_id=record.dish_id,
@@ -43,6 +45,7 @@ def _to_view(record: DishRecord, dish: Dish) -> RecordView:
         image_url=to_absolute(dish.image),
         wanted_at=record.wanted_at.strftime("%Y-%m-%d %H:%M:%S") if record.wanted_at else "",
         reaction=record.reaction,
+        flavor_level=flavor_level(dish.avg_reaction, dish.reaction_count),
     )
 
 
@@ -64,7 +67,7 @@ def create_record(session: Session, *, student_id: int, dish_id: int) -> RecordV
 
 def react(session: Session, *, student_id: int, record_id: int, reaction: int) -> RecordView:
     if reaction not in VALID_REACTIONS:
-        raise BadRequest("reaction 只能取 5（好吃）/ 3（一般）/ 1（踩）")
+        raise BadRequest("reaction 只能取 5（喜欢）/ 3（一般）/ 1（不喜欢）")
 
     record = repo.get_owned(session, student_id=student_id, record_id=record_id)
     if record is None:
@@ -72,12 +75,14 @@ def react(session: Session, *, student_id: int, record_id: int, reaction: int) -
     if record.reaction is not None:
         raise BadRequest("该记录已评分，不能修改；想重新评分请再次去品尝")
 
-    dish = repo.get_dish(session, dish_id=record.dish_id)
+    dish = repo.get_on_sale_dish(session, dish_id=record.dish_id)
     if dish is None:
-        raise NotFound("菜品不存在")
+        raise NotFound("菜品不存在或已下架")
 
     record.reaction = reaction
-    record.reacted_at = datetime.now()
+    # 时间戳来源 = DB 时钟（与 wanted_at / created_at 同一基准）：不用应用本地时间，
+    # 否则容器时区与库时区不一致时，同一行会出现两种时区的时间
+    record.reacted_at = session.scalar(select(func.now()))
     recalc(session, record.dish_id)  # 🔴 同事务重算缓存列
     session.flush()
     return _to_view(record, dish)

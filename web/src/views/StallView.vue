@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * 档口管理（设计稿 docs/ui/web/档口管理.md；业务规则 docs/func/web/A2）。
- * 含海报上传（POST /admin/images）与楼层受控字典（两端常量）。
+ * 楼层受控字典（两端常量）；海报独立维护见「海报管理」（A4，/posters）。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { canteenApi, stallApi, upload, type StallBody, type StallOut } from '@/api'
+import AppIcon from '@/components/AppIcon.vue'
+import { canteenApi, stallApi, type StallBody, type StallOut } from '@/api'
 
 const FLOORS = ['负一层', '一层', '二层', '三层', '四层']
 
@@ -21,11 +22,11 @@ const dialog = reactive({
   id: 0,
   canteenId: undefined as number | undefined,
   name: '',
-  posterUrl: '' as string,
   floor: '',
   windowNo: '',
-  uploading: false,
 })
+
+const saving = ref(false)
 
 async function loadCanteens() {
   const res = await canteenApi.list(1, 50)
@@ -70,7 +71,6 @@ function onCreate() {
   dialog.id = 0
   dialog.canteenId = undefined
   dialog.name = ''
-  dialog.posterUrl = ''
   dialog.floor = ''
   dialog.windowNo = ''
   dialog.visible = true
@@ -80,26 +80,9 @@ function onEdit(row: StallOut) {
   dialog.id = row.id
   dialog.canteenId = row.canteenId
   dialog.name = row.name
-  dialog.posterUrl = row.posterUrl ?? ''
   dialog.floor = row.floor ?? ''
   dialog.windowNo = row.windowNo ?? ''
   dialog.visible = true
-}
-
-async function onPickPoster(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-  dialog.uploading = true
-  try {
-    dialog.posterUrl = await upload(file)
-    ElMessage.success('海报已上传')
-  } catch (e) {
-    ElMessage.error((e as Error).message)
-  } finally {
-    dialog.uploading = false
-  }
 }
 
 async function onSave() {
@@ -119,11 +102,11 @@ async function onSave() {
   const body: StallBody = {
     canteenId: dialog.canteenId,
     name: dialog.name.trim(),
-    posterUrl: dialog.posterUrl || null,
     floor: dialog.floor || null,
     windowNo: dialog.windowNo.trim() || null,
   }
 
+  saving.value = true
   try {
     if (dialog.id) await stallApi.update(dialog.id, body)
     else await stallApi.create(body)
@@ -132,6 +115,8 @@ async function onSave() {
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -164,15 +149,22 @@ onMounted(async () => {
   <section class="page">
     <header class="page__bar">
       <h2 class="page__title">档口管理</h2>
-      <button class="btn btn--primary" @click="onCreate">新建</button>
+      <button class="btn btn--primary" @click="onCreate">
+        <AppIcon name="plus" :size="16" />新建
+      </button>
     </header>
 
     <div class="filters">
-      <select v-model="filter.canteenId" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.canteenId"
+        class="filters__select"
+        aria-label="按食堂筛选"
+        @change="applyFilter"
+      >
         <option :value="undefined">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
-      <button class="btn" @click="resetFilter">重置</button>
+      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <table class="table">
@@ -182,7 +174,7 @@ onMounted(async () => {
           <th>所属食堂</th>
           <th class="table__muted">楼层</th>
           <th class="table__muted">窗口号</th>
-          <th class="table__muted">海报</th>
+          <th class="table__muted">海报数</th>
           <th class="table__muted">菜品数</th>
           <th class="table__muted">更新时间</th>
           <th class="table__ops">操作</th>
@@ -194,10 +186,7 @@ onMounted(async () => {
           <td>{{ row.canteenName }}</td>
           <td class="table__muted">{{ row.floor ?? '—' }}</td>
           <td class="table__muted">{{ row.windowNo ?? '—' }}</td>
-          <td class="table__muted">
-            <img v-if="row.posterUrl" :src="row.posterUrl" class="table__thumb" alt="海报" />
-            <span v-else>—</span>
-          </td>
+          <td class="table__muted">{{ row.posterCount }}</td>
           <td class="table__muted">{{ row.dishCount }}</td>
           <td class="table__muted">{{ row.updatedAt }}</td>
           <td class="table__ops">
@@ -224,40 +213,29 @@ onMounted(async () => {
       <div class="dialog">
         <h3 class="dialog__title">{{ dialog.id ? '编辑档口' : '新建档口' }}</h3>
 
-        <label class="dialog__label">所属食堂</label>
-        <select v-model="dialog.canteenId" class="dialog__input">
+        <label class="dialog__label" for="stall-canteen">所属食堂</label>
+        <select id="stall-canteen" v-model="dialog.canteenId" class="dialog__input">
           <option :value="undefined">请选择</option>
           <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
 
-        <label class="dialog__label">名称</label>
-        <input v-model="dialog.name" class="dialog__input" type="text" />
+        <label class="dialog__label" for="stall-name">名称</label>
+        <input id="stall-name" v-model="dialog.name" class="dialog__input" type="text" />
 
-        <label class="dialog__label">竖版海报（3:4，需画进门名 / 食堂 / 位置）</label>
-        <div class="poster">
-          <img v-if="dialog.posterUrl" :src="dialog.posterUrl" class="poster__thumb" alt="海报" />
-          <span v-else class="poster__empty">未上传</span>
-          <div class="poster__ops">
-            <label class="btn">
-              {{ dialog.uploading ? '上传中…' : '上传海报' }}
-              <input type="file" accept="image/*" hidden @change="onPickPoster" />
-            </label>
-            <button v-if="dialog.posterUrl" class="btn" @click="dialog.posterUrl = ''">移除</button>
-          </div>
-        </div>
-
-        <label class="dialog__label">楼层</label>
-        <select v-model="dialog.floor" class="dialog__input">
+        <label class="dialog__label" for="stall-floor">楼层</label>
+        <select id="stall-floor" v-model="dialog.floor" class="dialog__input">
           <option value="">不填</option>
           <option v-for="f in FLOORS" :key="f" :value="f">{{ f }}</option>
         </select>
 
-        <label class="dialog__label">窗口号</label>
-        <input v-model="dialog.windowNo" class="dialog__input" type="text" />
+        <label class="dialog__label" for="stall-window">窗口号</label>
+        <input id="stall-window" v-model="dialog.windowNo" class="dialog__input" type="text" />
 
         <footer class="dialog__foot">
-          <button class="btn" @click="dialog.visible = false">取消</button>
-          <button class="btn btn--primary" @click="onSave">保存</button>
+          <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
+          <button class="btn btn--primary" :disabled="saving" @click="onSave">
+            {{ saving ? '保存中…' : '保存' }}
+          </button>
         </footer>
       </div>
     </div>
@@ -313,41 +291,6 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.btn--primary {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  color: #fff;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
 .table__muted {
   color: var(--el-text-color-secondary);
 }
@@ -359,11 +302,6 @@ onMounted(async () => {
   padding: 40px 0;
   text-align: center;
   color: var(--el-text-color-placeholder);
-}
-.table__thumb {
-  height: 40px;
-  border-radius: 4px;
-  vertical-align: middle;
 }
 
 .link {
@@ -378,22 +316,7 @@ onMounted(async () => {
   color: var(--el-color-danger);
 }
 
-.mask {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-}
-.dialog {
-  width: 520px;
-  max-height: 86vh;
-  overflow: auto;
-  padding: 24px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-}
+/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
 .dialog__title {
   margin: 0 0 20px;
   font-size: 16px;
@@ -421,24 +344,5 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 24px;
-}
-
-.poster {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.poster__thumb {
-  height: 80px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-}
-.poster__empty {
-  font-size: 13px;
-  color: var(--el-text-color-placeholder);
-}
-.poster__ops {
-  display: flex;
-  gap: 8px;
 }
 </style>

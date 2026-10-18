@@ -5,7 +5,7 @@ page {
   background: var(--bg-page);
   color: var(--text-body);
   font-size: var(--font-body);
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* 统一按压反馈：卡片 / 行 / 图片 用 .7，主色实底 CTA 用 .85，小件用 .6 */

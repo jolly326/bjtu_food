@@ -8,13 +8,10 @@ code 含义     端上处置
 200  成功
 400  参数 / 业务校验失败
 401  未登录 / token 失效
-403  无权限（管理端）
 429  请求过于频繁
 4001 资源不存在（含「非本人」，与不存在同响应）
 500  服务器异常
 ==== ======= ==========================================
-
-注意：**没有** 4031（邮箱认证已整体删除）。
 """
 
 from __future__ import annotations
@@ -22,7 +19,6 @@ from __future__ import annotations
 CODE_OK = 200
 CODE_BAD_REQUEST = 400
 CODE_UNAUTHORIZED = 401
-CODE_FORBIDDEN = 403
 CODE_RATE_LIMITED = 429
 CODE_NOT_FOUND = 4001
 CODE_INTERNAL = 500
@@ -47,9 +43,11 @@ class Unauthorized(ApiError):
         super().__init__(CODE_UNAUTHORIZED, message)
 
 
-class Forbidden(ApiError):
-    def __init__(self, message: str = "无权限") -> None:
-        super().__init__(CODE_FORBIDDEN, message)
+class InternalError(ApiError):
+    """服务端故障（依赖未配置 / 外部调用失败）—— 与「请求内容不合规」的 400 区分。"""
+
+    def __init__(self, message: str = "服务开小差了，请稍后再试") -> None:
+        super().__init__(CODE_INTERNAL, message)
 
 
 class RateLimited(ApiError):

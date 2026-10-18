@@ -22,7 +22,6 @@
 | `dishName` | string | 否 | 菜品名称 |
 | `canteenName` | string | 否 | 食堂名 |
 | `stallName` | string | 否 | 档口名 |
-| `optionId` | number | 否 | 错误类型 ID |
 | `optionName` | string | 否 | 错误类型中文（字典翻译） |
 | `createdAt` | string | 否 | 提交时间 |
 | `handledAt` | string | **是** | 标记已处理的时间；`null` = 未处理 |

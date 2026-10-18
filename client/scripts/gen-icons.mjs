@@ -7,9 +7,9 @@
  *
  * 为何按色调预生成：微信 `<image>` 支持 SVG **文件**，但**不支持运行时换色**（`currentColor` 落到黑色）。
  * 为何走 `assets/` 而非 `static/`：`src/static/` 只在 uni-app **构建启动时拷贝一次**，
- * 偶发漏拷会让图标整批 404；改为模块图引用的资产后，由打包器在 dev / build 两种模式下都产出。
+ * 偶发漏拷会让图标整批 404；`assets/` 由模块图引用，打包器在 dev / build 两种模式下都产出。
  */
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -29,11 +29,40 @@ const files = readdirSync(SRC_DIR)
   .sort()
 const keys = files.map((f) => f.slice(0, -4))
 
+/**
+ * 只打包**源码实际引用**的图标键（+ empty 兜底），避免把整批预置图标塞进首屏产物。
+ * 动态图标名（如 TabBar 的 `:name="item.icon"`）必须在其数据源里以字符串字面量出现；
+ * 这是 `scripts/check-icon-system.mjs` 已约定的口径。
+ */
+const SRC_ROOT = join(ROOT, 'src')
+const GENERATED_TS = join(SRC_ROOT, 'theme', 'icons.generated.ts')
+
+function walk(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name)
+    if (statSync(p).isDirectory()) walk(p, out)
+    else if (/\.(vue|ts)$/.test(name)) out.push(p)
+  }
+  return out
+}
+
+const used = new Set(['empty'])
+for (const file of walk(SRC_ROOT)) {
+  if (file === GENERATED_TS) continue
+  const text = readFileSync(file, 'utf8')
+  for (const key of keys) {
+    // 只认 AppIcon 静态名与数据源 icon 字段，避免把 class="filter" 之类的字符串误当图标
+    if (new RegExp(`name="\\s*${key}"|icon\\s*[:=]\\s*['"]${key}['"]`).test(text)) used.add(key)
+  }
+}
+const generateFiles = files.filter((f) => used.has(f.slice(0, -4)))
+const generateKeys = generateFiles.map((f) => f.slice(0, -4))
+
 const imports = []
 const entries = []
 let written = 0
 
-for (const file of files) {
+for (const file of generateFiles) {
   const key = file.slice(0, -4)
   const raw = readFileSync(join(SRC_DIR, file), 'utf8')
   const m = raw.match(/<svg[^>]*>([\s\S]*)<\/svg>/)
@@ -71,9 +100,9 @@ export const ICON_SRC: Record<string, string> = {
 ${entries.join('\n')}
 }
 
-/** 已下载并生成着色变体的图标键（= src/assets/icons/*.svg 文件名） */
+/** 本次被源码引用并生成着色变体的图标键（+ empty 兜底） */
 export const ICON_KEYS = [
-${keys.map((k) => `  ${JSON.stringify(k)},`).join('\n')}
+${generateKeys.map((k) => `  ${JSON.stringify(k)},`).join('\n')}
 ] as const
 
 export type IconKey = (typeof ICON_KEYS)[number]
@@ -86,4 +115,6 @@ export function iconSrc(key: string, tone: IconTone): string {
 `
 
 writeFileSync(TS_OUT, ts, 'utf8')
-console.log(`[gen:icons] ${keys.length} 键 × ${Object.keys(TONES).length} 色调 = ${written} 个 SVG -> src/assets/icon-variants/`)
+console.log(
+  `[gen:icons] 使用 ${generateKeys.length}/${keys.length} 键 × ${Object.keys(TONES).length} 色调 = ${written} 个 SVG -> src/assets/icon-variants/`,
+)

@@ -23,18 +23,17 @@ router = APIRouter(prefix="/admin", tags=["admin-record"])
 
 class DishRecordOut(OutModel):
     id: int
-    dish_id: int
     dish_name: str
     canteen_name: str
     stall_name: str
-    reaction: int | None = None
+    reaction: int | None
     wanted_at: str
-    reacted_at: str | None = None
+    reacted_at: str | None
 
 
 @router.get("/dish-records", response_model=Envelope[AdminPageResult[DishRecordOut]], summary="评分数据")
 def list_records(
-    dish_id: int | None = Query(default=None),
+    dish_id: int | None = Query(default=None, alias="dishId"),
     reaction: str | None = Query(default=None),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),
@@ -53,7 +52,6 @@ def list_records(
         [
             DishRecordOut(
                 id=r.id,
-                dish_id=r.dish_id,
                 dish_name=r.dish_name,
                 canteen_name=r.canteen_name,
                 stall_name=r.stall_name,

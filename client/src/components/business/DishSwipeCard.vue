@@ -1,45 +1,31 @@
 <script setup lang="ts">
 /**
- * 推荐扑克卡片（规格见 docs/ui/client/公共组件与形态基线.md §2.2 DishSwipeCard）。
- * 自上而下：**吊孔**（纸质吊牌隐喻）→ 左上大序号 + 右上标签（评价）→ **圆形**菜品图
- * → 菜名（衬线）→ 元信息行（价格 · 位置）→ 去品尝按钮。
+ * 美食页 Z 轴堆叠卡片栈中的单卡（规格见 docs/ui/client/公共组件与形态基线.md §2.2 DishSwipeCard）。
  *
- * 🔴 菜品图为**圆形**：圆角须**直接落在 `<image>` 上**（微信原生 `<image>` 不被父级
- * `overflow: hidden` 裁切，只给容器加圆角会露方角）。
- * 拖拽手势由 `DishCardStack` 管理（本组件只负责单张内容与点击）。
+ * - 整卡作为页面主容器：填充栈槽（上 48rpx / 下 40rpx / 左右 48rpx）。
+ * - **双层卡片**：外层仅细浅边框 + 大圆角 + 极淡阴影（悬浮层）；内层白卡承载全部内容。
+ * - 顶部信息位：左群体评级字母 / 右风味评级（绝对定位，见 FlavorRating）。
+ * - 内容：圆形菜品图（420rpx，视觉重心）→ 衬线菜名 → 浅灰辅助信息（价格 · 食堂｜档口）→ 胶囊按钮贴底。
  */
-import { computed } from 'vue'
 import ImagePlaceholder from '../base/ImagePlaceholder.vue'
+import FlavorRating from './FlavorRating.vue'
 import WantButton from './WantButton.vue'
 
-const props = withDefaults(
+import type { DishCardOut } from '@/api'
+
+withDefaults(
   defineProps<{
-    dish: {
-      id: number
-      name: string
-      price: number
-      imageUrl?: string | null
-      avgReaction?: number | null
-      wanted: boolean
-      canteenName: string
-      stallName: string
-    }
-    /** 在栈中的序号（1 起），展示为补零两位 */
-    index: number
+    dish: DishCardOut
     submitting?: boolean
+    /** 拖拽中：禁用底部按钮，防止误触 */
+    dragging?: boolean
+    /** 限频退避中：禁用底部按钮直到倒计时结束（docs/secur/S-03） */
+    locked?: boolean
   }>(),
-  { index: 1, submitting: false },
+  { submitting: false, dragging: false, locked: false },
 )
 
 const emit = defineEmits<{ (e: 'want'): void }>()
-
-/** 补零两位序号（01 / 12）—— 弱化作为背景装饰 */
-const ordinal = computed(() => String(props.index).padStart(2, '0'))
-
-/** 右上角标签值：评价分；无评价显示「暂无」 */
-const reactionText = computed(() =>
-  props.dish.avgReaction == null ? '暂无' : String(props.dish.avgReaction),
-)
 
 function yuan(fen: number): string {
   return (fen / 100).toFixed(2)
@@ -48,93 +34,97 @@ function yuan(fen: number): string {
 
 <template>
   <view class="card">
-    <!-- 纸质吊牌的吊孔（轻量拟物） -->
-    <view class="card__punch" />
+    <!-- 内层白卡：承载全部菜品内容 -->
+    <view class="card__inner">
+      <!-- 顶部信息位：左评级字母 / 右风味评级 -->
+      <view class="card__top">
+        <FlavorRating :level="dish.flavorLevel ?? null" />
+      </view>
 
-    <view class="card__top">
-      <text class="card__ordinal">{{ ordinal }}</text>
-      <view class="card__tag">
-        <text class="card__tagLabel">评价</text>
-        <text class="card__tagValue">{{ reactionText }}</text>
+      <view class="card__content">
+        <view class="card__photo">
+          <image v-if="dish.imageUrl" class="card__img" :src="dish.imageUrl" mode="aspectFill" />
+          <ImagePlaceholder v-else :size="48" />
+        </view>
+
+        <text class="card__name wrap-anywhere">{{ dish.name }}</text>
+
+        <text class="card__meta">
+          ¥{{ yuan(dish.price) }} · {{ dish.canteenName }}|{{ dish.stallName }}
+        </text>
+      </view>
+
+      <view class="card__btn">
+        <WantButton
+          :tasted="dish.wanted"
+          :loading="submitting"
+          :disabled="dragging || locked"
+          @press="emit('want')"
+        />
       </view>
     </view>
-
-    <view class="card__photo">
-      <image v-if="dish.imageUrl" class="card__img" :src="dish.imageUrl" mode="aspectFill" />
-      <ImagePlaceholder v-else />
-    </view>
-
-    <text class="card__name wrap-anywhere">{{ dish.name }}</text>
-
-    <view class="card__meta">
-      <text class="card__price">¥{{ yuan(dish.price) }}</text>
-      <text class="card__dot">·</text>
-      <text class="card__place">{{ dish.canteenName }} | {{ dish.stallName }}</text>
-    </view>
-
-    <WantButton :tasted="dish.wanted" :loading="submitting" @press="emit('want')" />
   </view>
 </template>
 
 <style lang="scss" scoped>
+/* 外层容器：仅细浅边框 + 大圆角 + 极淡阴影 —— 悬浮层 */
 .card {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  padding: var(--spacing-xs);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--module-shadow);
+  /* 减少 webview 变换重绘抖动 */
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* 内层白卡：承载全部内容（圆角比外层小一档，形成嵌套） */
+.card__inner {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  /* 顶部 96rpx 预留左右信息位；左右 40rpx；底部 24rpx */
+  padding: calc(var(--spacing-2xl) * 2) var(--spacing-xl) var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card-stack);
+}
+
+/* 顶部信息位：左评级字母 / 右风味评级 */
+.card__top {
+  position: absolute;
+  top: var(--spacing-lg);
+  right: var(--spacing-xl);
+  left: var(--spacing-xl);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 内容层：居中偏上 */
+.card__content {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-lg);
-  /* 上内距小于下内距 ⇒ 整块内容（含大图）落在**中间偏上**（约 16rpx 位移） */
-  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-2xl);
-  background: var(--bg-card);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--module-shadow);
-}
-
-/* 顶部吊孔：透出页底色，模拟纸质吊牌 */
-.card__punch {
-  width: var(--dish-punch-size);
-  height: var(--dish-punch-size);
-  background: var(--bg-page);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-circle);
-}
-
-/* 左上序号 + 右上标签：整卡宽的顶行 */
-.card__top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  gap: var(--spacing-md);
   width: 100%;
+  margin-top: var(--spacing-md);
 }
 
-/* 超大弱化数字（背景装饰） */
-.card__ordinal {
-  font-size: var(--font-display);
-  font-weight: var(--weight-heavy);
-  line-height: 1;
-  color: var(--text-tertiary);
-}
-
-.card__tag {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--spacing-3xs);
-}
-
-.card__tagLabel {
-  font-size: var(--font-tiny);
-  color: var(--text-tertiary);
-}
-
-.card__tagValue {
-  font-size: var(--font-body);
-  font-weight: var(--weight-semibold);
-  color: var(--text-title);
-}
-
+/* 圆形菜品图（视觉重心） */
 .card__photo {
   display: flex;
   align-items: center;
@@ -142,8 +132,8 @@ function yuan(fen: number): string {
   overflow: hidden;
   width: var(--dish-photo-size);
   height: var(--dish-photo-size);
-  background: var(--bg-placeholder);
-  /* 圆形裁切 */
+  margin-bottom: var(--spacing-2xl);
+  background: transparent;
   border-radius: var(--radius-circle);
 }
 
@@ -154,31 +144,27 @@ function yuan(fen: number): string {
   border-radius: var(--radius-circle);
 }
 
-/* 菜名用衬线：柔和优雅，与无衬线正文/按钮形成搭配 */
+/* 菜名：衬线主标题，字号最大 */
 .card__name {
   font-family: var(--font-serif);
-  font-size: var(--font-h2);
+  font-size: var(--font-display);
   font-weight: var(--weight-semibold);
   color: var(--text-title);
   text-align: center;
 }
 
+/* 价格 · 食堂|档口：整行浅灰小字 */
 .card__meta {
-  display: flex;
-  align-items: baseline;
-  gap: var(--spacing-sm);
-  font-size: var(--font-body);
-}
-
-.card__price {
-  color: var(--color-price);
-}
-
-.card__dot {
+  font-size: var(--font-small);
   color: var(--text-tertiary);
+  text-align: center;
 }
 
-.card__place {
-  color: var(--text-tertiary);
+/* 按钮：单层暖橙描边 + 暖白填充，贴底 */
+.card__btn {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  margin-top: var(--spacing-md);
 }
 </style>

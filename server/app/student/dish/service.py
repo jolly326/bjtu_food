@@ -7,8 +7,11 @@ from typing import TypeVar
 
 from sqlalchemy.orm import Session
 
+from app.core.errors import BadRequest
+from app.core.rating import flavor_level
 from app.core.schemas import OutModel
 from app.core.storage import to_absolute
+from app.models import Canteen
 from app.student.dish import repo
 
 # 零评分菜的基线权重：不因缺失评价分而获得高分，也不被排除
@@ -23,9 +26,9 @@ class DishCardOut(OutModel):
     id: int
     name: str
     price: int
-    image_url: str | None = None
-    avg_reaction: float | None = None
-    wanted: bool = False
+    image_url: str | None
+    flavor_level: str | None
+    wanted: bool
     canteen_name: str
     stall_name: str
 
@@ -54,6 +57,9 @@ def sample_cards(
     limit: int,
 ) -> list[DishCardOut]:
     """在售菜品按评价分加权随机取样，附带本人 wanted 态。"""
+    if canteen_id is not None and session.get(Canteen, canteen_id) is None:
+        raise BadRequest("食堂不存在")
+
     rows = repo.list_on_sale(session, canteen_id=canteen_id)
     if not rows:
         return []
@@ -67,7 +73,7 @@ def sample_cards(
             name=row.name,
             price=row.price,
             image_url=to_absolute(row.image),
-            avg_reaction=row.avg_reaction,
+            flavor_level=flavor_level(row.avg_reaction, row.reaction_count),
             wanted=row.id in wanted_ids,
             canteen_name=row.canteen_name,
             stall_name=row.stall_name,

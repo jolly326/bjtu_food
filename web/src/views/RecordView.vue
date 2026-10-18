@@ -9,13 +9,17 @@ import { dishApi, recordApi, type RecordOut } from '@/api'
 
 const REACTIONS = [
   { value: '', label: '全部' },
-  { value: '5', label: '好吃' },
+  { value: '5', label: '喜欢' },
   { value: '3', label: '一般' },
-  { value: '1', label: '踩' },
+  { value: '1', label: '不喜欢' },
   { value: 'none', label: '未评分' },
 ]
 
-const REACTION_LABEL: Record<string, string> = { '5': '好吃', '3': '一般', '1': '踩' }
+const REACTION_LABEL: Record<string, string> = {
+  '5': '喜欢',
+  '3': '一般',
+  '1': '不喜欢',
+}
 
 const rows = ref<RecordOut[]>([])
 const total = ref(0)
@@ -25,7 +29,7 @@ const dishes = ref<{ id: number; name: string }[]>([])
 const filter = reactive({ dishId: undefined as number | undefined, reaction: '' })
 
 async function loadDishes() {
-  const res = await dishApi.list({ page: 1, size: 50 })
+  const res = await dishApi.list({ page: 1, pageSize: 50 })
   dishes.value = res.records.map((d) => ({ id: d.id, name: d.name }))
 }
 
@@ -81,14 +85,24 @@ onMounted(async () => {
     </header>
 
     <div class="filters">
-      <select v-model="filter.dishId" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.dishId"
+        class="filters__select"
+        aria-label="按菜品筛选"
+        @change="applyFilter"
+      >
         <option :value="undefined">全部菜品</option>
         <option v-for="d in dishes" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
-      <select v-model="filter.reaction" class="filters__select" @change="applyFilter">
+      <select
+        v-model="filter.reaction"
+        class="filters__select"
+        aria-label="按反应筛选"
+        @change="applyFilter"
+      >
         <option v-for="r in REACTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
       </select>
-      <button class="btn" @click="resetFilter">重置</button>
+      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <table class="table">
@@ -181,36 +195,6 @@ onMounted(async () => {
   color: var(--el-text-color-regular);
 }
 
-.btn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-.table th {
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
 .table__muted {
   color: var(--el-text-color-secondary);
 }

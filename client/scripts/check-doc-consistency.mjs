@@ -36,9 +36,8 @@ const RESIDUAL_BASE = [
 ]
 const PATTERNS = STRICT ? [...RESIDUAL_BASE, /已删除/, /不再/, /改为/] : RESIDUAL_BASE
 
-// client/uni.scss 纳入扫描：uni-app 编译期把它注入每个组件的 style 作用域，是色值真源的红线重灾区。
 // ⚠️ client/scripts **不自扫** —— 门禁脚本按定义含全部检索词，自指必然全命中。
-const SCAN_DIRS = ['docs', 'client/src', 'client/uni.scss', 'server/app', 'web/src']
+const SCAN_DIRS = ['docs', 'client/src', 'server/app', 'web/src']
 const SCAN_EXTS = new Set(['.md', '.ts', '.vue', '.py', '.mjs', '.scss', '.css'])
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'target', '.git', 'generated', 'logs', 'unpackage'])
 

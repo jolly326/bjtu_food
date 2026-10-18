@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,6 +12,8 @@ from app.core.config import settings
 from app.core.errors import BadRequest
 from app.core.security import STUDENT, create_token
 from app.models import User
+
+logger = logging.getLogger(__name__)
 
 _WECHAT_CODE2SESSION = "https://api.weixin.qq.com/sns/jscode2session"
 
@@ -35,11 +39,16 @@ def exchange_code_for_openid(code: str) -> str:
         )
         data = resp.json()
     except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("jscode2session 请求失败：%s", exc)
         raise BadRequest("微信登录失败，请重试") from exc
 
     openid = data.get("openid")
     if not openid:
-        raise BadRequest("code 无效或已过期")
+        errcode = data.get("errcode")
+        errmsg = data.get("errmsg", "")
+        # 保留微信原始错误码：用于区分 appid/secret 不匹配、code 失效、IP 白名单等
+        logger.warning("jscode2session 失败：errcode=%s errmsg=%s", errcode, errmsg)
+        raise BadRequest(f"code 无效或已过期（微信 errcode={errcode}）")
     return str(openid)
 
 

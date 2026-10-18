@@ -6,9 +6,11 @@
 import { computed } from 'vue'
 import AppIcon from '../base/AppIcon.vue'
 
+import type { CanteenOut } from '@/api'
+
 const props = withDefaults(
   defineProps<{
-    options: { id: number; name: string }[]
+    options: CanteenOut[]
     modelValue?: number
   }>(),
   { modelValue: undefined },
@@ -48,9 +50,9 @@ function onChange(e: { detail: { value: number } }) {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+  box-sizing: border-box;
   height: var(--tap-target-size);
-  padding: 0 var(--spacing-sm);
-  background: var(--bg-page);
+  padding: 0 var(--spacing-md);
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-pill);
 }

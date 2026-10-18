@@ -7,8 +7,4 @@
 @use './styles/global.scss';
 @import './theme/generated-colors.css';
 @import './theme/design-tokens.css';
-
-page {
-  background: var(--bg-page);
-}
 </style>

@@ -1,90 +1,98 @@
 <script setup lang="ts">
 /**
- * 菜品卡占位（规格见 docs/ui/client/公共组件与形态基线.md §2.2 DishCardPlaceholder）。
- * 卡区加载中 / 加载失败时的占位：**与 DishSwipeCard 完全同构** —— 同表面（描边 + 阴影 + 圆角）、
- * 同吊孔、同顶行（序号 / 标签）位置、同**圆形**图位、同内距与部件间距、**同位置保留按钮**，
- * 使数据到位时布局不跳动。
- *
- * 🔴 文本区（序号 / 标签 / 菜名 / 元信息）**不占位、不画横条** —— 只留高度（透明），留空即可。
- * 🔴 按钮**复用 `WantButton`**（`disabled` 态）：文案与真实卡同源，图片能否加载出都照样显示。
+ * 美食页栈内骨架卡（加载态；与 DishSwipeCard 同构）。
+ * 同内距（96/48/24）、同圆形图位、同内容居中、同底部按钮位；无旋转 loading。
  */
-import ImagePlaceholder from '../base/ImagePlaceholder.vue'
 import WantButton from './WantButton.vue'
 </script>
 
 <template>
   <view class="ph">
-    <view class="ph__punch" />
-    <view class="ph__top">
-      <view class="ph__slot ph__slot--ordinal" />
-      <view class="ph__slot ph__slot--tag" />
+    <view class="ph__inner">
+      <view class="ph__content">
+        <view class="ph__photo" />
+        <view class="ph__slot ph__slot--name" />
+        <view class="ph__slot ph__slot--meta" />
+        <view class="ph__slot ph__slot--rating" />
+      </view>
+
+      <view class="ph__btn">
+        <WantButton disabled />
+      </view>
     </view>
-    <view class="ph__photo">
-      <ImagePlaceholder />
-    </view>
-    <view class="ph__slot ph__slot--name" />
-    <view class="ph__slot ph__slot--meta" />
-    <WantButton disabled />
   </view>
 </template>
 
 <style lang="scss" scoped>
+/* 与真实卡同构：外层描边悬浮层 + 内层白卡 */
 .ph {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-lg);
-  /* 与 DishSwipeCard 同内距（上小下大 ⇒ 图位同样偏上） */
-  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-2xl);
-  background: var(--bg-card);
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--spacing-xs);
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-card);
   box-shadow: var(--module-shadow);
 }
 
-.ph__punch {
-  width: var(--dish-punch-size);
-  height: var(--dish-punch-size);
-  background: var(--bg-page);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-circle);
+.ph__inner {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: calc(var(--spacing-2xl) * 2) var(--spacing-xl) var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--radius-card-stack);
 }
 
-/* 顶行：与真实卡的「序号 / 标签」占位对齐（不着色） */
-.ph__top {
+/* 与真实卡一致：内容居中偏上 */
+.ph__content {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
   width: 100%;
+  margin-top: var(--spacing-md);
 }
 
 .ph__photo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
   width: var(--dish-photo-size);
   height: var(--dish-photo-size);
+  margin-bottom: var(--spacing-2xl);
   background: var(--bg-placeholder);
   border-radius: var(--radius-circle);
 }
 
-/* 文本区：只占高度、不着色（不画横条） */
-.ph__slot--ordinal {
-  height: var(--font-display);
-}
-
-.ph__slot--tag {
-  height: var(--font-h2);
+.ph__slot {
+  background: var(--bg-placeholder);
+  border-radius: var(--radius-xs);
 }
 
 .ph__slot--name {
-  height: var(--font-h2);
+  width: 60%;
+  height: var(--font-display);
 }
 
 .ph__slot--meta {
-  height: var(--font-body);
+  width: 80%;
+  height: var(--font-small);
+}
+
+.ph__slot--rating {
+  align-self: flex-end;
+  width: 30%;
+  height: var(--font-small);
+}
+
+.ph__btn {
+  width: 100%;
+  margin-top: var(--spacing-md);
 }
 </style>

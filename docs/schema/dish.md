@@ -12,7 +12,7 @@
 | `price` | INT | NO | 0 | | **现价，单位「分」**；唯一价格数据源 |
 | `image` | VARCHAR(255) | YES | NULL | | **菜品大图**（相对路径，**单张**） |
 | `status` | VARCHAR(32) | NO | `'on'` | KEY | 上架状态：`on` 在售 / `off` 已下架 |
-| `avg_reaction` | DECIMAL(3,1) | YES | NULL | | **评价分缓存列**（1 位小数）；**零评分为 NULL** |
+| `avg_reaction` | DECIMAL(3,1) | YES | NULL | | **评价分缓存列**：`5`/`3`/`1` 三态的算术均值，1 位小数；**零评分为 NULL**（列注释同此口径） |
 | `reaction_count` | INT | NO | 0 | | **缓存列**，评分条数 |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参） |
 
@@ -37,10 +37,10 @@
 
 | 项 | 说明 |
 |---|---|
-| 口径 | 仅统计 `dish_record.reaction` **非空**行；均分 **1 位小数**（`ROUND(AVG(reaction), 1)`） |
-| 维护方 | 评分提交后**同步重算**；每日全量对账兜底 |
-| 零评分 | **`avg_reaction` 为 NULL 而非 0** —— 区分「无评分」与「评分为 0」（后者不可能，取值域 5/3/1） |
-| 展示 | 公开出参为 `NULL` 时前端显示「暂无评价」；**不得兜底成任何数值**（兜底值会污染推荐权重） |
+| 口径 | 仅统计 `dish_record.reaction` **非空**行；三态取值 `5` / `3` / `1` 的算术均值，**1 位小数**（`ROUND(AVG(reaction), 1)`） |
+| 维护方 | 评分提交后**同事务同步重算**（`app/student/record/recalc.py::recalc`） |
+| 零评分 | **`avg_reaction` 为 NULL 而非 0** —— 区分「无评分」与「评分为 0」（后者不可能，取值域 5/3/1，均值恒 ≥ 1.0） |
+| 展示 | 端上按**群体风味评级**展示（见 [B2](../func/client/B-轻量反馈/B2-评分反馈.md)）；`NULL` 或评分条数 < 3 ⇒「待评」；**不得兜底成任何数值**（兜底值会污染推荐权重） |
 
 🔴 **对账纪律**：在线重算只在**应用写路径**触发；**任何直连库改 `dish_record` 评分的操作都必须同时重算受影响菜品** —— 否则用户会在卡片上直接看到错误评价分，而系统不报错、无告警。
 
@@ -53,6 +53,7 @@
 | `category_id` | 筛选维度只有**食堂**，无菜品种类 |
 | `images`（多图） | 卡片只需一张大图 |
 | `original_price` | 卡片只显示现价，无折扣展示 |
+| 风味评级 / 好评度 | 由 `avg_reaction` + `reaction_count` 实时判定（公式见 [B2](../func/client/B-轻量反馈/B2-评分反馈.md)），不落库 |
 
 ## 关联
 

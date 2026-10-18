@@ -19,6 +19,7 @@ class DishRow:
     price: int
     image: str | None
     avg_reaction: float | None
+    reaction_count: int
     canteen_name: str
     stall_name: str
 
@@ -43,6 +44,7 @@ def list_on_sale(session: Session, *, canteen_id: int | None = None) -> list[Dis
                 price=dish.price,
                 image=dish.image,
                 avg_reaction=float(dish.avg_reaction) if dish.avg_reaction is not None else None,
+                reaction_count=dish.reaction_count,
                 canteen_name=canteen_name,
                 stall_name=stall_name,
             )

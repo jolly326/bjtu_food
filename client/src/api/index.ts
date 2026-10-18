@@ -5,7 +5,6 @@
  * 不手写 DTO；字段口径见 docs/api/。
  */
 
-export { authApi } from './auth'
 export { canteenApi } from './canteen'
 export { dishApi } from './dish'
 export { issueApi } from './issue'

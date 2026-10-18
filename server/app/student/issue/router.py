@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_session
 from app.core.deps import current_student_id
 from app.core.envelope import Envelope, ok
-from app.core.ratelimit import RULE_ISSUE, check
+from app.core.ratelimit import RULE_ISSUE, RULE_READ_ACCOUNT, check
 from app.core.schemas import InModel, OutModel
 from app.student.issue import service
 
@@ -36,6 +36,7 @@ def list_options(
     student_id: int = Depends(current_student_id),
     session: Session = Depends(get_session),
 ) -> Envelope[list[IssueOptionOut]]:
+    check(f"read:u:{student_id}", RULE_READ_ACCOUNT)
     options = service.list_options(session)
     return ok([IssueOptionOut(id=o.id, name=o.name) for o in options])
 

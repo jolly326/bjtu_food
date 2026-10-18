@@ -10,7 +10,7 @@ export const dishApi = {
     canteenId?: number
     status?: string
     page?: number
-    size?: number
+    pageSize?: number
   }) => http.get<Page<DishOut>>(`/admin/dishes${toQuery({ ...params })}`),
   create: (body: DishBody) => http.post<DishOut>('/admin/dishes', body),
   update: (id: number, body: DishBody) => http.put<DishOut>(`/admin/dishes/${id}`, body),

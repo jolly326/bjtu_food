@@ -43,7 +43,8 @@ try {
   throw new Error(`${DOCS_URL} 返回的不是合法 JSON（可能命中了网关错误页）。`)
 }
 
-writeFileSync(OUT, text, 'utf8')
+// 契约快照按 2 空格缩写入库 —— 便于 git diff 阅读；语义与后端一致
+writeFileSync(OUT, JSON.stringify(JSON.parse(text), null, 2) + '\n', 'utf8')
 const { paths = {}, components = {} } = JSON.parse(text)
 console.log(`✓ 契约已更新：${OUT}`)
 console.log(`  端点 ${Object.keys(paths).length} 个 / schema ${Object.keys(components.schemas ?? {}).length} 个`)

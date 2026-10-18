@@ -1,17 +1,26 @@
-import { describe, expect, it, vi } from 'vitest'
-
-vi.mock('@/utils/request', () => ({
-  http: {
-    get: vi.fn(() => Promise.resolve([])),
-    post: vi.fn(() => Promise.resolve({})),
-    put: vi.fn(() => Promise.resolve({})),
-    patch: vi.fn(() => Promise.resolve({})),
-    delete: vi.fn(() => Promise.resolve(null)),
-  },
-}))
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { dishApi, issueApi, recordApi } from '@/api'
 import { http } from '@/utils/request'
+
+/**
+ * API 层：参数拼装（路径 / body / query）必须与 docs/api/client/* 口径一致。
+ *
+ * <p>拦截点在 `http` 方法本身（spy 调用记录），不触达真实请求层与 `uni` 全局——
+ * 实测 `vi.mock('@/utils/request')` 在本项目 vitest 配置下不生效（真实模块仍被加载，
+ * 其 readToken 触碰 `uni` 报 ReferenceError），故不走模块 mock；
+ * 与 tests/utils/request.test.ts 的「stub 全局」思路同源。
+ */
+
+vi.spyOn(http, 'get').mockResolvedValue([] as never)
+vi.spyOn(http, 'post').mockResolvedValue({} as never)
+vi.spyOn(http, 'patch').mockResolvedValue({} as never)
+vi.spyOn(http, 'delete').mockResolvedValue(null as never)
+
+beforeEach(() => {
+  // 只清调用记录；spy 实现在模块加载时已设置，clear 不移除
+  vi.clearAllMocks()
+})
 
 describe('recordApi', () => {
   it('want posts to /my/records with dishId', async () => {
@@ -53,3 +62,4 @@ describe('dishApi', () => {
     expect(http.get).toHaveBeenCalledWith('/dishes')
   })
 })
+

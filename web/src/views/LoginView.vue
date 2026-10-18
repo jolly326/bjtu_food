@@ -3,12 +3,17 @@
  * 登录页（设计稿 docs/ui/web/登录页.md；业务规则 docs/func/web/C1）。
  * 无注册 / 无找回密码 / 无验证码；token 存 sessionStorage。
  */
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 
 const router = useRouter()
 const session = useSessionStore()
+
+/** 已登录时直接进首屏 */
+onMounted(() => {
+  if (session.isAuthenticated) router.replace({ name: 'canteens' })
+})
 
 const form = reactive({ username: '', password: '' })
 const loading = ref(false)

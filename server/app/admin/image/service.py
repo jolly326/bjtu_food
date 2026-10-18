@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 
 from app.core.config import settings
-from app.core.errors import BadRequest
+from app.core.errors import BadRequest, InternalError
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_BYTES = 5 * 1024 * 1024
@@ -45,7 +45,7 @@ def store(*, filename: str, content_type: str, content: bytes) -> str:
         raise BadRequest("图片大小不能超过 5MB")
 
     if not (settings.cos_bucket and settings.cos_region and settings.cos_secret_id and settings.cos_secret_key):
-        raise BadRequest("服务端未配置对象存储（COS）")
+        raise InternalError("服务端未配置对象存储（COS）")
 
     ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[sniffed]
     key = f"dishes/{uuid.uuid4().hex}.{ext}"
@@ -67,6 +67,6 @@ def store(*, filename: str, content_type: str, content: bytes) -> str:
             ContentType=sniffed,
         )
     except Exception as exc:
-        raise BadRequest("图片上传失败，请稍后重试") from exc
+        raise InternalError("图片上传失败，请稍后重试") from exc
 
     return f"https://{settings.cos_bucket}.cos.{settings.cos_region}.myqcloud.com/{key}"

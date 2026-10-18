@@ -3,6 +3,7 @@
 口径：
 
 * 阈值见下方规则表，键 = 「端点 + 维度 + 主体」
+* 账号维度限频在端点内（鉴权之后）；全局 IP 兜底在 HTTP 层中间件（探活端点不计数）
 * 命中 ⇒ ``429`` + 可等待秒数（端上做退避倒计时）
 * 🔴 存储为**进程内**：单 worker 部署下计数天然唯一；
   **一旦加 worker 或扩实例必须下沉共享存储**，否则实际阈值 × 进程数
@@ -30,8 +31,8 @@ RULE_WANT = Rule(30, 3600)          # POST /my/records（去品尝）
 RULE_REACT = Rule(60, 3600)         # PATCH /my/records/{id}（评分）
 RULE_UNWANT = Rule(30, 3600)        # DELETE /my/records/{id}（取消）
 RULE_ISSUE = Rule(10, 3600)         # POST /dishes/{id}/issues（纠错）
-RULE_READ_ACCOUNT = Rule(300, 3600)  # 读端点（账号维度）
-RULE_READ_IP = Rule(60, 60)         # 全局 IP 兜底
+RULE_READ_ACCOUNT = Rule(300, 3600)  # 读端点（账号维度，四个读端点共享同一配额）
+RULE_READ_IP = Rule(60, 60)         # 全局 IP 兜底（HTTP 层中间件）
 RULE_WECHAT_LOGIN = Rule(20, 3600)  # POST /auth/wechat-login
 RULE_ADMIN_LOGIN = Rule(10, 60)     # POST /admin/sessions
 
@@ -66,14 +67,29 @@ class FixedWindowCounter:
                 return False, max(1, int(rule.window - (now - start)) + 1)
             return True, 0
 
+    def reset(self) -> None:
+        """清空全部计数（端点级用例之间互不干扰）。"""
+        with self._lock:
+            self._buckets.clear()
+            self._last_prune = time.time()
+
 
 limiter = FixedWindowCounter()
 
 
+def retry_after(key: str, rule: Rule) -> int:
+    """返回需等待秒数；``0`` = 放行。
+
+    中间件在鉴权之前生效，不走异常处理器，故单独给一个「只取结果」的入口。
+    """
+    allowed, wait = limiter.hit(key, rule)
+    return 0 if allowed else wait
+
+
 def check(key: str, rule: Rule) -> None:
-    allowed, retry_after = limiter.hit(key, rule)
-    if not allowed:
-        raise RateLimited(f"操作过于频繁，请 {retry_after} 秒后再试")
+    wait = retry_after(key, rule)
+    if wait:
+        raise RateLimited(f"操作过于频繁，请 {wait} 秒后再试")
 
 
 def client_ip(request: object) -> str:

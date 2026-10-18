@@ -6,6 +6,10 @@ page {
   --radius-xs: 10rpx;
   --radius-btn: 32rpx;
   --radius-card: 36rpx;
+  /* 卡片栈单卡圆角（24rpx） */
+  --radius-card-stack: 24rpx;
+  /* 食谱卡大圆角（Julienne 柔和纸片） */
+  --radius-card-lg: 48rpx;
   --radius-modal: 40rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
@@ -19,7 +23,8 @@ page {
   --spacing-lg: 32rpx;
   --spacing-xl: 40rpx;
   --spacing-2xl: 48rpx;
-  --page-gutter: 36rpx;
+  /* 全站页面左右统一边距（发现 / 美食 / 记忆共用） */
+  --page-gutter: 48rpx;
 
   /* ===== 字体族 ===== */
   --font-serif: 'Noto Serif SC', 'Source Han Serif SC', serif;
@@ -51,7 +56,6 @@ page {
   /* ===== 层级 ===== */
   --z-tabbar: 100;
   --z-sheet: 2000;
-  --z-actionsheet: 4000;
 
   /* ===== 高度 ===== */
   --tabbar-height: 116rpx;
@@ -60,10 +64,9 @@ page {
   --reaction-item-min-width: 120rpx;
 
   /* ===== 结构尺寸 ===== */
-  --dish-photo-size: 380rpx;
+  --dish-photo-size: 420rpx;
   --record-photo-size: 220rpx;
-  --record-card-width: 380rpx;
-  --poster-peek: 40rpx;
-  --dish-punch-size: 14rpx;
-  --empty-action-size: 140rpx;
+  --record-card-width: 480rpx;
+  /* 记忆页底层淡装饰月份数字字号 */
+  --memory-motif-size: 280rpx;
 }

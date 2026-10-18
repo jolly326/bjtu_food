@@ -71,3 +71,24 @@ describe('请求层：401 静默重登', () => {
     expect(uniMock.login).not.toHaveBeenCalled()
   })
 })
+
+describe('请求层：429 退避', () => {
+  it('限频错误带 retryAfter，且不重登、不重试', async () => {
+    storage.set('student_token', 'ok')
+    let calls = 0
+
+    uniMock.request.mockImplementation((options) => {
+      calls += 1
+      options.success({ statusCode: 200, data: envelope(429, null, '操作过于频繁，请 45 秒后再试') })
+    })
+
+    const failure = (await request('GET', '/canteens').catch((error: unknown) => error)) as {
+      code: number
+      retryAfter?: number
+    }
+    expect(failure.code).toBe(429)
+    expect(failure.retryAfter).toBe(45)
+    expect(calls).toBe(1)
+    expect(uniMock.login).not.toHaveBeenCalled()
+  })
+})

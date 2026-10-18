@@ -5,20 +5,28 @@
  * - 所有业务端点都要求凭证；token 存本地 storage，缓存 7 天
  * - 业务码 401 => 静默重登（wx.login -> /auth/wechat-login）并**自动重试原请求一次**
  *   （按 `code` 判定，**不做文案匹配** —— 避免「服务端未配置微信小程序凭证」等文案误触发重登）
- * - 429 => 直接抛给页面做退避倒计时
+ * - 429 => 抛带 `retryAfter`（等待秒数）的错误；**不自动重试**，由页面按秒数禁用入口
+ *   （退避见 utils/backoff）
  * - 信封 {code,message,data}：code !== 200 视为业务失败
  */
+
+import { CODE_RATE_LIMITED, parseRetrySeconds } from './backoff'
 
 const TOKEN_KEY = 'student_token'
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string
 
+if (!BASE_URL) {
+  console.error('[request] VITE_API_BASE_URL 未配置，请检查 client/.env.development / .env.production')
+}
+
 type Envelope<T> = { code: number; message: string; data: T | null }
 
-/** 业务失败：携带后端 `code`，供上层做差异化处置（如 `401` 静默重登）。 */
-type BizError = Error & { code: number }
+/** 业务失败：携带后端 `code`，供上层做差异化处置（如 `401` 静默重登、`429` 退避）。 */
+type BizError = Error & { code: number; retryAfter?: number }
 
 function bizError(code: number, message: string): BizError {
-  return Object.assign(new Error(message), { code })
+  const retryAfter = code === CODE_RATE_LIMITED ? parseRetrySeconds(message) : undefined
+  return Object.assign(new Error(message), { code, retryAfter })
 }
 
 /** uni.request 的方法类型不含 PATCH（小程序运行时支持），此处做一次收敛 */
@@ -38,7 +46,18 @@ function clearToken(): void {
 
 /** 冷启动静默登录：wx.login 换 code，服务端换 token。 */
 async function silentLogin(): Promise<string> {
-  const { code } = await uni.login({ provider: 'weixin' })
+  let code = ''
+  try {
+    const r = await uni.login({ provider: 'weixin' })
+    code = (r as { code?: string }).code ?? ''
+  } catch (err) {
+    console.error('[request] wx.login 失败', err)
+    throw new Error('微信登录失败')
+  }
+  if (!code) {
+    console.error('[request] wx.login 未返回 code')
+    throw new Error('微信登录失败：无 code')
+  }
   const res = await rawRequest<{ token: string }>('POST', '/auth/wechat-login', { code }, '')
   writeToken(res.token)
   return res.token
@@ -50,9 +69,10 @@ function rawRequest<T>(
   data?: unknown,
   token?: string,
 ): Promise<T> {
+  const url = BASE_URL + path
   return new Promise<T>((resolve, reject) => {
     uni.request({
-      url: BASE_URL + path,
+      url,
       method: method as UniApp.RequestOptions['method'],
       data: data as object | undefined,
       header: token ? { Authorization: `Bearer ${token}` } : {},
@@ -61,14 +81,23 @@ function rawRequest<T>(
         if (r.statusCode === 200 && body && typeof body.code === 'number') {
           if (body.code === 200) {
             resolve(body.data as T)
-          } else {
-            reject(bizError(body.code, body.message || '请求失败'))
+            return
           }
-        } else {
-          reject(new Error('网络异常'))
+          // 业务失败：401 走静默重登，其它错误打出来便于定位
+          if (body.code !== 401) {
+            console.error('[request] 业务失败', method, url, body.code, body.message)
+          }
+          reject(bizError(body.code, body.message || '请求失败'))
+          return
         }
+        console.error('[request] 非 200 响应', method, url, r.statusCode, r.data)
+        reject(new Error(`网络异常(${r.statusCode})`))
       },
-      fail: () => reject(new Error('网络异常')),
+      fail: (err: { errMsg?: string }) => {
+        // 最常见、也最容易被静默吞掉：域名未配置 / TLS / 超时 / 网络不可达
+        console.error('[request] 请求失败', method, url, err.errMsg ?? err)
+        reject(new Error(`网络异常: ${err.errMsg ?? 'unknown'}`))
+      },
     })
   })
 }

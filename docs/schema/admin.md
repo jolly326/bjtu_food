@@ -23,7 +23,6 @@
 - **与 `user` 无任何关系** —— 两套身份体系不交叉；运营端凭证不进学生端契约。
 - 口令只存 **BCrypt 哈希**；比对在服务端完成。
 - 单管理员运营场景：账号行由数据库维护，无自助注册。
-- ⏳ **是否保留「改密后吊销旧 token」的凭证版本机制**（旧体系 `credential_version`）待定。
 
 ## 关联
 
@@ -38,4 +37,4 @@
   1. 离线用 **BCrypt** 生成哈希（如 `python -c "import bcrypt;print(bcrypt.hashpw(b'新口令', bcrypt.gensalt()).decode())"`）；
   2. `UPDATE admin SET password = '<哈希>' WHERE username = '<账号>';`
   - 🔴 **严禁写入明文** —— 比对走 BCrypt，明文存进去将**永远无法登录**。
-- ⏳ 是否保留「改密后吊销旧 token」的凭证版本机制待定（当前无吊销通道，改密不影响已签发的 token，直到其 7 天自然过期）。
+- **无吊销通道**：改密**不影响已签发 token**，其最长可用至 7 天自然过期。

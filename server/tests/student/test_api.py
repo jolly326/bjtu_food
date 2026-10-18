@@ -6,12 +6,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core import config
 from app.core.errors import CODE_BAD_REQUEST, CODE_RATE_LIMITED, CODE_UNAUTHORIZED
-from app.core.ratelimit import RULE_REACT
+from app.core.ratelimit import RULE_REACT, limiter
 from app.core.security import STUDENT, create_token
 from app.main import app
 
@@ -23,6 +25,14 @@ ADMIN_SECRET = "admin-secret-9876543210fedcba-9876543210fedcba"
 def _secrets(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config.settings, "jwt_secret", STUDENT_SECRET)
     monkeypatch.setattr(config.settings, "admin_jwt_secret", ADMIN_SECRET)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_limiter() -> Iterator[None]:
+    """清空限频计数：全局 IP 兜底是进程内计数，用例之间需互不干扰。"""
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 @pytest.fixture
@@ -48,12 +58,19 @@ def test_malformed_token_returns_401(client: TestClient) -> None:
 
 def test_invalid_reaction_returns_400(client: TestClient) -> None:
     """三态取值 5/3/1；其它值 400（校验先于数据访问）。"""
-    resp = client.patch("/my/records/1", json={"reaction": 9}, headers=_auth())
-    assert resp.json()["code"] == CODE_BAD_REQUEST
+    for value in (0, 2, 4, 9):
+        resp = client.patch("/my/records/1", json={"reaction": value}, headers=_auth())
+        assert resp.json()["code"] == CODE_BAD_REQUEST
 
 
 def test_missing_option_id_returns_400(client: TestClient) -> None:
     resp = client.post("/dishes/1/issues", json={}, headers=_auth())
+    assert resp.json()["code"] == CODE_BAD_REQUEST
+
+
+def test_extra_identity_field_returns_400(client: TestClient) -> None:
+    """请求体带 userId 一类身份字段 ⇒ 参数非法（docs/secur/S-02）。"""
+    resp = client.post("/my/records", json={"dishId": 1, "userId": 2}, headers=_auth())
     assert resp.json()["code"] == CODE_BAD_REQUEST
 
 
@@ -71,6 +88,7 @@ def test_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPa
         image_url=None,
         wanted_at="2026-01-01 00:00:00",
         reaction=5,
+        flavor_level="S",
     )
     monkeypatch.setattr(record_service, "react", lambda *_args, **_kwargs: fake_record)
 
