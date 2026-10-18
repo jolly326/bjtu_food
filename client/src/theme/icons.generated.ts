@@ -80,18 +80,18 @@ import report__muted from '@/assets/icon-variants/report--muted.svg'
 import report__default__dark from '@/assets/icon-variants/report--default--dark.svg'
 import report__primary__dark from '@/assets/icon-variants/report--primary--dark.svg'
 import report__muted__dark from '@/assets/icon-variants/report--muted--dark.svg'
-import shuffle__default from '@/assets/icon-variants/shuffle--default.svg'
-import shuffle__primary from '@/assets/icon-variants/shuffle--primary.svg'
-import shuffle__muted from '@/assets/icon-variants/shuffle--muted.svg'
-import shuffle__default__dark from '@/assets/icon-variants/shuffle--default--dark.svg'
-import shuffle__primary__dark from '@/assets/icon-variants/shuffle--primary--dark.svg'
-import shuffle__muted__dark from '@/assets/icon-variants/shuffle--muted--dark.svg'
 import smile__default from '@/assets/icon-variants/smile--default.svg'
 import smile__primary from '@/assets/icon-variants/smile--primary.svg'
 import smile__muted from '@/assets/icon-variants/smile--muted.svg'
 import smile__default__dark from '@/assets/icon-variants/smile--default--dark.svg'
 import smile__primary__dark from '@/assets/icon-variants/smile--primary--dark.svg'
 import smile__muted__dark from '@/assets/icon-variants/smile--muted--dark.svg'
+import star__default from '@/assets/icon-variants/star--default.svg'
+import star__primary from '@/assets/icon-variants/star--primary.svg'
+import star__muted from '@/assets/icon-variants/star--muted.svg'
+import star__default__dark from '@/assets/icon-variants/star--default--dark.svg'
+import star__primary__dark from '@/assets/icon-variants/star--primary--dark.svg'
+import star__muted__dark from '@/assets/icon-variants/star--muted--dark.svg'
 import sun__default from '@/assets/icon-variants/sun--default.svg'
 import sun__primary from '@/assets/icon-variants/sun--primary.svg'
 import sun__muted from '@/assets/icon-variants/sun--muted.svg'
@@ -162,12 +162,12 @@ export const ICON_SRC: Record<string, string> = {
   "report--default": report__default,
   "report--primary": report__primary,
   "report--muted": report__muted,
-  "shuffle--default": shuffle__default,
-  "shuffle--primary": shuffle__primary,
-  "shuffle--muted": shuffle__muted,
   "smile--default": smile__default,
   "smile--primary": smile__primary,
   "smile--muted": smile__muted,
+  "star--default": star__default,
+  "star--primary": star__primary,
+  "star--muted": star__muted,
   "sun--default": sun__default,
   "sun--primary": sun__primary,
   "sun--muted": sun__muted,
@@ -217,12 +217,12 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "report--default--dark": report__default__dark,
   "report--primary--dark": report__primary__dark,
   "report--muted--dark": report__muted__dark,
-  "shuffle--default--dark": shuffle__default__dark,
-  "shuffle--primary--dark": shuffle__primary__dark,
-  "shuffle--muted--dark": shuffle__muted__dark,
   "smile--default--dark": smile__default__dark,
   "smile--primary--dark": smile__primary__dark,
   "smile--muted--dark": smile__muted__dark,
+  "star--default--dark": star__default__dark,
+  "star--primary--dark": star__primary__dark,
+  "star--muted--dark": star__muted__dark,
   "sun--default--dark": sun__default__dark,
   "sun--primary--dark": sun__primary__dark,
   "sun--muted--dark": sun__muted__dark,
@@ -246,8 +246,8 @@ export const ICON_KEYS = [
   "moon",
   "refresh-cw",
   "report",
-  "shuffle",
   "smile",
+  "star",
   "sun",
   "trash-2",
 ] as const
