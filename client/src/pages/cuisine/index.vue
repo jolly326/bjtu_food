@@ -10,16 +10,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import RetryBlock from '@/components/base/RetryBlock.vue'
-import TabBar from '@/components/base/TabBar.vue'
 import CanteenFilter from './components/CanteenFilter.vue'
 import DishCardStack from './components/DishCardStack.vue'
 import DishFlowEnd from './components/DishFlowEnd.vue'
 import { canteenApi, dishApi, recordApi } from '@/api'
 import type { CanteenOut, DishCardOut } from '@/api'
 import { todayLabelWeekdayCN } from '@/utils/date'
-import { freshBatch } from '@/utils/dishBatch'
-import AppHeader from '@/components/base/AppHeader.vue'
-import { useTheme } from '@/utils/theme'
+import { freshBatch, uniqueById } from '@/utils/dishBatch'
+import TabPage from '@/components/base/TabPage.vue'
 import { cooldownFrom, useCooldown } from '@/utils/backoff'
 
 /** 「去品尝」入口的限频退避键（docs/secur/S-03） */
@@ -44,8 +42,6 @@ const finished = computed(
 )
 /** 页头日期：固定值，避免每次渲染重复格式化（Julienne 风格：星期日，10月18日） */
 const today = todayLabelWeekdayCN()
-/** 全站主题（明暗切换作用于三个 tab 页） */
-const theme = useTheme()
 
 async function load() {
   loading.value = true
@@ -55,7 +51,7 @@ async function load() {
       dishApi.list({ canteenId: canteenId.value, pageSize: 20 }),
       canteenApi.list(),
     ])
-    batch.value = uniqueCards(dishList.records)
+    batch.value = uniqueById(dishList.records)
     cards.value = [...batch.value]
     canteens.value = canteenList
   } catch {
@@ -119,12 +115,6 @@ async function onWant(dish: DishCardOut) {
 }
 
 /** 卡片飞出后移出栈，下一张晋升顶层（批次保留，供重新浏览） */
-/** 按菜品 id 去重（后端分页理论不重复，这里做防御：重复 id 会让卡片栈少渲染一层） */
-function uniqueCards(list: DishCardOut[]): DishCardOut[] {
-  const seen = new Set<number>()
-  return list.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)))
-}
-
 function onSwipe(id: number) {
   // 只移除**第一张**匹配的卡（数据里若出现重复菜品，filter 会一次删掉多张）
   const index = cards.value.findIndex((c) => c.id === id)
@@ -147,7 +137,7 @@ async function onSurprise() {
       uni.showToast({ title: '暂无更多菜品', icon: 'none' })
       return
     }
-    batch.value = uniqueCards(next)
+    batch.value = uniqueById(next)
     cards.value = [...batch.value]
   } catch (error) {
     uni.showToast({ title: (error as Error).message || '加载失败，请重试', icon: 'none' })
@@ -165,17 +155,17 @@ onMounted(load)
 </script>
 
 <template>
-  <view class="page" :data-theme="theme">
-    <!-- 全局页头（品牌 + 明暗切换；与 TabBar 同级，三页统一） -->
-    <AppHeader />
-
-    <view class="topbar">
-      <view class="topbar__left">
-        <text class="topbar__title">美味</text>
-        <text class="topbar__date">{{ today }}</text>
+  <TabPage active="cuisine">
+    <!-- 页级标题块（hero 插槽）：标题 + 日期 + 筛选器 -->
+    <template #hero>
+      <view class="topbar">
+        <view class="topbar__left">
+          <text class="topbar__title">美味</text>
+          <text class="topbar__date">{{ today }}</text>
+        </view>
+        <CanteenFilter :options="canteens" :model-value="canteenId" @pick="onFilterChange" />
       </view>
-      <CanteenFilter :options="canteens" :model-value="canteenId" @pick="onFilterChange" />
-    </view>
+    </template>
 
     <RetryBlock v-if="failed" @retry="load" />
 
@@ -193,36 +183,25 @@ onMounted(load)
         <DishFlowEnd :busy="surprising" @replay="onReplay" @surprise="onSurprise" />
       </template>
     </DishCardStack>
-
-    <TabBar active="cuisine" />
-  </view>
+  </TabPage>
 </template>
 
 <style lang="scss" scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  height: 100vh;
-  overflow: hidden;
-  padding-bottom: calc(
-    var(--tabbar-height) + var(--tabbar-gap) + var(--spacing-md) + env(safe-area-inset-bottom)
-  );
-}
-
 /* 顶部信息区块（通栏矩形）：承载标题日期 + 筛选器，与下方卡片区域留白统一 */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  /* 头部轻量化：上 8 / 左右 32 / 下 8（压缩头部高度，把纵向空间让给卡片栈） */
-  padding: var(--spacing-xs) var(--page-gutter) var(--spacing-xs);
+  box-sizing: border-box;
+  /* 与风物问候语 / 记忆标题块等高（--hero-box-height）；上下内距同风物问候语 --spacing-md */
+  min-height: var(--hero-box-height);
+  padding: var(--spacing-md) var(--page-gutter);
 }
 
 .topbar__left {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2xs);
+  gap: var(--spacing-sm);
 }
 
 /* 大标题：hero 档衬线 + 中黑字重（与风物页标题字重规范统一） */
@@ -236,6 +215,7 @@ onMounted(load)
 
 .topbar__date {
   font-size: var(--font-small);
+  line-height: 1.2;
   color: var(--text-tertiary);
 }
 </style>

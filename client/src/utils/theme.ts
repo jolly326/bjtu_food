@@ -19,10 +19,6 @@ export function useTheme() {
   return theme
 }
 
-export function isDark(): boolean {
-  return theme.value === 'dark'
-}
-
 /** 切换浅色 / 深色并持久化 */
 export function toggleTheme(): void {
   theme.value = theme.value === 'light' ? 'dark' : 'light'

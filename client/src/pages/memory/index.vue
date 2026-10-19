@@ -13,16 +13,15 @@ import { computed, onMounted, ref } from 'vue'
 import BaseSheet from '@/components/base/BaseSheet.vue'
 import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
 import RetryBlock from '@/components/base/RetryBlock.vue'
-import TabBar from '@/components/base/TabBar.vue'
 import AppIcon from '@/components/base/AppIcon.vue'
 import MonthTimeline from './components/MonthTimeline.vue'
 import ReactionPicker from './components/ReactionPicker.vue'
 import { issueApi, recordApi } from '@/api'
 import type { IssueOptionOut, RecordOut } from '@/api'
 import { formatDayLabel, todayLabelWeekdayCN } from '@/utils/date'
-import AppHeader from '@/components/base/AppHeader.vue'
-import { useTheme } from '@/utils/theme'
+import TabPage from '@/components/base/TabPage.vue'
 import { cooldownFrom, useCooldown } from '@/utils/backoff'
+import { fenToYuan } from '@/utils/price'
 
 /** 写入口的限频退避键（docs/secur/S-03）—— 评分 / 删除 / 纠错各自独立计数 */
 const REACT_KEY = 'records:react'
@@ -38,8 +37,6 @@ const failed = ref(false)
 const activeMonth = ref('')
 /** 页头日期：固定值，避免每次渲染重复格式化（`星期日，10月18日` 星期在前） */
 const today = todayLabelWeekdayCN()
-/** 全站主题（明暗切换作用于三个 tab 页） */
-const theme = useTheme()
 
 /** 纠错弹层 */
 const sheetOpen = ref(false)
@@ -64,34 +61,66 @@ function recentMonths(): string[] {
   })
 }
 
-/** 年月栏数据：有记录用记录月份，否则用近三月兜底 */
-const barMonths = computed(() => (months.value.length ? months.value : recentMonths()))
+/** 连续月份轴：从最早记录月 → 当前月（降序，含中间无记录月份），空月份保留节点 */
+function continuousMonths(earliest: string): string[] {
+  const now = new Date()
+  let y = now.getFullYear()
+  let m = now.getMonth() // 0-based 当前月
+  const [sy, sm] = earliest.split('-').map(Number)
+  const startY = sy
+  const startM = sm - 1 // 0-based
+  const out: string[] = []
+  while (y > startY || (y === startY && m >= startM)) {
+    out.push(`${y}-${String(m + 1).padStart(2, '0')}`)
+    if (m === 0) {
+      y -= 1
+      m = 11
+    } else {
+      m -= 1
+    }
+  }
+  return out
+}
 
-/** 当前生效月份：选中月不在记录月份时回退到最近记录月 */
-const effectiveMonth = computed(() =>
+/** 年月栏数据：有记录 ⇒ 连续月份轴（最早记录月 → 当前月，含空月份）；否则近三月兜底 */
+const barMonths = computed<string[]>(() =>
   months.value.length
-    ? months.value.includes(activeMonth.value)
-      ? activeMonth.value
-      : months.value[0]
-    : '',
+    ? continuousMonths(months.value[months.value.length - 1])
+    : recentMonths(),
 )
 
-const grouped = computed(() => {
+/** 当前生效月份：选中月即生效（可为空月份，下方不渲染卡片）；未选时回退最近记录月 */
+const effectiveMonth = computed(() =>
+  months.value.length ? activeMonth.value || months.value[0] : '',
+)
+
+/** 分组内的卡片行项目：`meta`（档口 · 价格）在这里**一次算好**，避免模板里每张卡重复求值 */
+interface GroupCard {
+  record: RecordOut
+  meta: string
+}
+
+/** 日期分组：短日期标记 + 底层装饰数字 + 该日卡片行 */
+interface DayGroup {
+  day: string
+  motif: string
+  cards: GroupCard[]
+}
+
+/** 倒序日期分组（同一天的记录归为一组，组内保持原顺序） */
+const grouped = computed<DayGroup[]>(() => {
   const list = records.value.filter((r) => r.wantedAt.slice(0, 7) === effectiveMonth.value)
-  const map = new Map<string, RecordOut[]>()
-  for (const r of list) {
-    const day = r.wantedAt.slice(0, 10)
+  const map = new Map<string, GroupCard[]>()
+  for (const record of list) {
+    const day = record.wantedAt.slice(0, 10)
     const bucket = map.get(day) ?? []
-    bucket.push(r)
+    bucket.push({ record, meta: metaLine(record) })
     map.set(day, bucket)
   }
-  return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
+  return [...map.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .map(([day, cards]) => ({ day, motif: day.slice(8, 10), cards }))
 })
-
-/** 日期组底层装饰数字：日部分（`DD`，如 `18`），与 `MM.DD` 日期标记呼应 */
-function motifOfDay(day: string): string {
-  return day.slice(8, 10)
-}
 
 async function load() {
   loading.value = true
@@ -131,7 +160,7 @@ async function onCancel(record: RecordOut) {
 /** 卡片辅助行：`档口 · N元`（价格单位「分」→ 元，整数去掉 .00；无档口时回退食堂名） */
 function metaLine(record: RecordOut): string {
   const place = record.stallName || record.canteenName || ''
-  const yuan = record.price > 0 ? Number((record.price / 100).toFixed(2)) : null
+  const yuan = record.price > 0 ? Number(fenToYuan(record.price)) : null
   if (!place) return yuan === null ? '' : `${yuan}元`
   return yuan === null ? place : `${place} · ${yuan}元`
 }
@@ -183,15 +212,14 @@ onMounted(load)
 </script>
 
 <template>
-  <view class="page" :data-theme="theme">
-    <!-- 全局页头（品牌 + 明暗切换；与 TabBar 同级，三页统一） -->
-    <AppHeader />
-
+  <TabPage active="memory">
     <!-- 页级标题：hero 衬线 + 正下方数字日期 -->
-    <view class="topbar">
-      <text class="topbar__title">记忆</text>
-      <text class="topbar__date">{{ today }}</text>
-    </view>
+    <template #hero>
+      <view class="topbar">
+        <text class="topbar__title">记忆</text>
+        <text class="topbar__date">{{ today }}</text>
+      </view>
+    </template>
 
     <MonthTimeline
       v-if="barMonths.length"
@@ -233,31 +261,31 @@ onMounted(load)
     </view>
 
     <scroll-view v-else class="body" scroll-y enhanced :show-scrollbar="false">
-      <view v-for="[day, list] in grouped" :key="day" class="group">
+      <view v-for="group in grouped" :key="group.day" class="group">
         <!-- 日期组底层装饰：半透明大号日数字（不遮挡卡片，卡片行层级在上） -->
-        <text class="group__motif">{{ motifOfDay(day) }}</text>
-        <text class="group__day">{{ formatDayLabel(day) }}</text>
+        <text class="group__motif">{{ group.motif }}</text>
+        <text class="group__day">{{ formatDayLabel(group.day) }}</text>
         <scroll-view class="group__row" scroll-x enhanced :show-scrollbar="false">
           <!-- 行内容器：左右各留 gutter（滚动容器自身的 padding 不计入可滚宽度） -->
           <view class="group__cards">
             <view
-              v-for="record in list"
-              :key="record.id"
+              v-for="item in group.cards"
+              :key="item.record.id"
               class="record"
               hover-class="record--pressed"
-              @longpress="onLongPress(record)"
+              @longpress="onLongPress(item.record)"
             >
               <!-- 顶部左上：菜名（衬线粗体，卡片一级标题；右上角整片留空） -->
-              <text class="record__name wrap-anywhere">{{ record.name }}</text>
+              <text class="record__name wrap-anywhere">{{ item.record.name }}</text>
               <!-- 辅助行：紧贴菜名下方、同左对齐（档口 · 价格） -->
-              <text v-if="metaLine(record)" class="record__meta">{{ metaLine(record) }}</text>
+              <text v-if="item.meta" class="record__meta">{{ item.meta }}</text>
 
               <!-- 中部：圆形菜品大图（卡内可用宽度 75%，上下留白均等） -->
               <view class="record__photoWrap">
                 <view class="record__photo">
                   <image
-                    v-if="record.imageUrl"
-                    :src="record.imageUrl"
+                    v-if="item.record.imageUrl"
+                    :src="item.record.imageUrl"
                     class="record__img"
                     mode="aspectFill"
                   />
@@ -271,14 +299,14 @@ onMounted(load)
                   class="record__feedback"
                   :class="{ 'is-disabled': issueLocked }"
                   hover-class="record__feedback--pressed"
-                  @tap="onOpenIssue(record)"
+                  @tap="onOpenIssue(item.record)"
                 >
                   <text class="record__feedbackText">反馈</text>
                 </view>
                 <ReactionPicker
-                  :model-value="record.reaction"
+                  :model-value="item.record.reaction"
                   :locked="reactLocked"
-                  @pick="onReact(record, $event)"
+                  @pick="onReact(item.record, $event)"
                 />
               </view>
             </view>
@@ -311,21 +339,10 @@ onMounted(load)
         <text class="sheet__optLabel">{{ opt.name }}</text>
       </view>
     </BaseSheet>
-
-    <TabBar active="memory" />
-  </view>
+  </TabPage>
 </template>
 
 <style lang="scss" scoped>
-.page {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  height: 100vh;
-  overflow: hidden;
-}
-
 /* 日期分组：装饰数字的定位祖先（组内底层背景） */
 .group {
   position: relative;
@@ -347,14 +364,16 @@ onMounted(load)
   opacity: 0.06;
   pointer-events: none;
 }
-/* 页头：垂直位置与左右边距对齐美味 Topbar（上 40 / 左右 32 / 下 16） */
+/* 页头：盒高与上下内距均对齐风物问候语（--spacing-md 上下 / --page-gutter 左右） */
 .topbar {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2xs);
-  padding: var(--spacing-xs) var(--page-gutter) var(--spacing-sm);
+  gap: var(--spacing-sm);
+  box-sizing: border-box;
+  min-height: var(--hero-box-height);
+  padding: var(--spacing-md) var(--page-gutter);
 }
 
 /* 主标题：与美味页「美味」完全一致（hero 档衬线 + 中黑字重） */
@@ -368,6 +387,7 @@ onMounted(load)
 
 .topbar__date {
   font-size: var(--font-small);
+  line-height: 1.2;
   color: var(--text-tertiary);
 }
 
@@ -376,9 +396,6 @@ onMounted(load)
   z-index: 1;
   flex: 1;
   min-height: 0;
-  padding-bottom: calc(
-    var(--tabbar-height) + var(--tabbar-gap) + var(--spacing-md) + env(safe-area-inset-bottom)
-  );
 }
 
 /* 日期标记：MM.DD 衬线放大，置于卡片组左上方作时间分割标记（层级在装饰数字之上） */
@@ -578,11 +595,7 @@ onMounted(load)
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
-  padding: 0 var(--page-gutter)
-    calc(
-      var(--tabbar-height) + var(--tabbar-gap) + var(--spacing-md) + env(safe-area-inset-bottom) +
-        10vh
-    );
+  padding: 0 var(--page-gutter) 10vh;
 }
 
 .recordEmpty__icon {

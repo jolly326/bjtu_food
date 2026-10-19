@@ -50,7 +50,7 @@ function onChange(e: { detail: { value: number } }) {
 </template>
 
 <style lang="scss" scoped>
-/* 筛选胶囊：细描边 + 小幅度柔和圆角（非全圆），轻量化不抢视觉重心 */
+/* 筛选触发器：仅细描边 + 小幅度柔和圆角（非全圆），无底色，轻量化不抢视觉重心 */
 .filter {
   display: flex;
   align-items: center;
@@ -58,13 +58,12 @@ function onChange(e: { detail: { value: number } }) {
   box-sizing: border-box;
   height: var(--tap-target-size);
   padding: 0 var(--spacing-md);
-  background: var(--color-primary-soft);
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-btn);
 }
 
 .filter__label {
   font-size: var(--font-small);
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 </style>

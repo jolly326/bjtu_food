@@ -8,8 +8,6 @@ page {
   --radius-card: 36rpx;
   /* 海报卡圆角（风物页专属卡形态；与美味卡族同为 28rpx） */
   --radius-card-stack: 28rpx;
-  /* 餐盘白环：菜品图外圈圆盘的白色留白环底色 */
-  --dish-photo-inner-size: 360rpx;
   --radius-modal: 40rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
@@ -31,7 +29,7 @@ page {
   --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
 
   /* ===== 字号 ===== */
-  /* 页头大标题 / 卡片装饰大字专用档（美味页标题、FlavorRating decor 档字母） */
+  /* 页头大标题专用档（美味页标题、记忆页标题） */
   --font-hero: 64rpx;
   --font-display: 48rpx;
   --font-title: 40rpx;
@@ -40,7 +38,6 @@ page {
   --font-body: 26rpx;
   --font-subtitle: 24rpx;
   --font-small: 22rpx;
-  --font-tiny: 20rpx;
 
   /* ===== 字重 ===== */
   --weight-regular: 400;
@@ -66,11 +63,12 @@ page {
 
   /* ===== 结构尺寸 ===== */
   --dish-photo-size: 420rpx;
-  /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton / FlavorRating） */
+  /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton） */
   --dish-card-radius: 28rpx;
   --dish-card-pad-y: 40rpx;
   --dish-name-size: 56rpx;
-  --dish-decor-letter: 180rpx;
+  /* 卡片左上装饰大字（DishSwipeCard：菜品名首字水印，被菜品图遮挡） */
+  --dish-decor-letter: 240rpx;
   --want-btn-width: 320rpx;
   --want-btn-border: 2rpx;
   --want-btn-radius: 20rpx;
@@ -83,4 +81,12 @@ page {
   --flowend-icon-box: 120rpx;
   /* 记忆页底层淡装饰月份数字字号 */
   --memory-motif-size: 280rpx;
+  /* 记忆页年月导航：每项固定宽度（全部月份 64rpx 衬线，容纳「十二月」并留余量；不随内容压缩） */
+  --month-item-width: 220rpx;
+  /* 全局页头标题左右对称内距：把标题文字收进「明暗切换钮 ↔ 微信胶囊」之间的安全区（对称内距不改变水平居中） */
+  --header-title-inset: 100rpx;
+  /* 三 tab 页 hero 插槽盒（风物问候语 / 美味·记忆标题块）统一高度与上下内距：
+     上下内距 --spacing-md(24rpx)×2 + 双行标题块内容（标题 76.8 + 标题日期间距 16 + 日期 26.4 ≈ 119rpx）
+     ≈ 167rpx，取 176rpx 留余量，切 tab 时下方内容区起点一致 */
+  --hero-box-height: 176rpx;
 }

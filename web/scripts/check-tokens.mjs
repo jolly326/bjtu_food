@@ -24,8 +24,10 @@ const EXTS = new Set(['.vue', '.ts', '.js', '.css', '.scss'])
 /** 生成物 / 类型产物不参与扫描 */
 const SKIP_DIRS = new Set(['types'])
 
-/** `--name:`（声明）；`['"]?` 兼收 `:style` 内联注入的带引号写法（如 `'--clamp-lines': '2'`）*/
-const DECL_RE = /--([a-z0-9-]+)['"]?\s*:/gi
+/** `--name:`（声明）；`['"]?` 兼收 `:style` 内联注入的带引号写法（如 `'--clamp-lines': '2'`）。
+    负向后顾（前一字符不得为标识符字符）：排除 `.btn--outline:hover` 这类 BEM 修饰符
+    选择器被误识为 `--outline` 声明（零消费审计误报） */
+const DECL_RE = /(?<![A-Za-z0-9_-])--([a-z0-9-]+)['"]?\s*:/gi
 /** `var(--name)`（引用）*/
 const USE_RE = /var\(\s*--([a-z0-9-]+)/gi
 

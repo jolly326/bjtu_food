@@ -32,8 +32,8 @@ const theme = useTheme()
     <view class="header__row" :style="{ height: navBarHeight + 'px' }">
       <!-- 左：明暗切换（浅色态显 moon、深色态显 sun，预示点击后的目标模式） -->
       <view class="header__toggle" hover-class="header__toggle--pressed" @tap="toggleTheme">
-        <AppIcon v-if="theme === 'dark'" name="sun" :size="44" />
-        <AppIcon v-else name="moon" :size="44" />
+        <AppIcon v-if="theme === 'dark'" name="sun" :size="48" />
+        <AppIcon v-else name="moon" :size="48" />
       </view>
       <!-- 中：标题（水平居中） -->
       <view class="header__title">{{ title }}</view>
@@ -70,15 +70,20 @@ const theme = useTheme()
   opacity: 0.6;
 }
 
-/* 标题：衬线 + 常规字重，水平居中（两侧等宽占位 ⇒ 视觉居中） */
+/* 标题：衬线 + 常规字重；跨整行水平居中（左右等宽占位 ⇒ 盒中心在屏中），
+   左右对称内距把文字收进「切换钮 ↔ 胶囊」安全区（对称内距不改变居中），超长省略 */
 .header__title {
   flex: 1;
+  padding: 0 var(--header-title-inset);
+  overflow: hidden;
   font-family: var(--font-serif);
   font-size: var(--font-title);
   font-weight: var(--weight-regular);
   line-height: 1.2;
   color: var(--text-title);
   text-align: center;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* 右侧占位：与左侧切换按钮等宽，保证标题居于屏中 */

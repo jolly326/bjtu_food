@@ -4,15 +4,9 @@
 page {
   /* ===== 主色 ===== */
   --color-primary: #B4531A;
-  --color-primary-fill: #B4531A;
   --color-primary-text: #B4531A;
   --color-brown-deep: #7B4F2A;
   --color-primary-soft: #FFF3D6;
-
-  /* ===== 功能色 ===== */
-  --color-error: #C62828;
-  --color-warning: #E67E22;
-  --color-warning-soft: #FFF8E1;
 
   /* ===== 文字四档（深棕标题 + 深炭灰正文 + 浅灰次要）===== */
   --text-title: #44382e;
@@ -27,8 +21,6 @@ page {
   /* ===== 背景 / 边框 ===== */
   /* 奶米白底：Julienne 柔和底色（规格 rgba(255,250,243,.65) 叠白等效实色） */
   --bg-page: #FFFAF3;
-  /* 餐盘圆盘（菜品图外圈白色留白环） */
-  --bg-plate: #ffffff;
   --bg-placeholder: #F2EBE1;
   --border-color: #E8E3DE;
   --border-bold: #CBC5BE;
@@ -37,6 +29,8 @@ page {
   /* 卡片族统一：弥散软阴影 */
   --shadow-card-stack: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
   --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
+  /* 内阴影：纸片卡顶部吊孔「打孔下沉」的层级感 */
+  --shadow-inset: inset 0 2rpx 6rpx rgba(68, 56, 46, 0.16);
   --overlay-scrim: rgba(0, 0, 0, 0.4);
   --overlay-panel-bg: #FFFFFF;
 }
@@ -45,15 +39,9 @@ page {
 view[data-theme='dark'] {
   /* ===== 主色 ===== */
   --color-primary: #E07E38;
-  --color-primary-fill: #B4531A;
   --color-primary-text: #F0995A;
   --color-brown-deep: #BFAE93;
   --color-primary-soft: #3B2A1B;
-
-  /* ===== 功能色 ===== */
-  --color-error: #E0685F;
-  --color-warning: #EFA24E;
-  --color-warning-soft: #3D2E1A;
 
   /* ===== 文字四档 ===== */
   --text-title: #F0E7DA;
@@ -65,7 +53,6 @@ view[data-theme='dark'] {
 
   /* ===== 背景 / 边框 ===== */
   --bg-page: #1A1410;
-  --bg-plate: #241d18;
   --bg-placeholder: #332B22;
   --border-color: #3D3429;
   --border-bold: #4E4536;
@@ -73,6 +60,7 @@ view[data-theme='dark'] {
   /* ===== 阴影 / 遮罩（压深语义）===== */
   --shadow-card-stack: 0 8rpx 24rpx rgba(0, 0, 0, 0.38);
   --shadow-modal: 0 -8rpx 32rpx rgba(0, 0, 0, 0.45);
+  --shadow-inset: inset 0 2rpx 6rpx rgba(0, 0, 0, 0.45);
   --overlay-scrim: rgba(0, 0, 0, 0.6);
   --overlay-panel-bg: #28211A;
 }

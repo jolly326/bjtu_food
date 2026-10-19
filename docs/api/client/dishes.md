@@ -22,7 +22,7 @@
 | `name` | string | 否 | 菜品名称 |
 | `price` | number | 否 | 现价，**单位「分」** |
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 该菜未配图 |
-| `flavorLevel` | string | **是** | **群体风味评级**字母：`S` / `A` / `B` / `C` / `D`；**`null` = 待评**（评分条数 < 3）—— 卡片左上字母 + 右上风味评级据此渲染 |
+| `flavorLevel` | string | **是** | **群体风味评级**字母：`S` / `A` / `B` / `C` / `D`；**`null` = 待评**（评分条数 < 3）—— 美味卡**右上「风味评级 / 档位词」**据此渲染；判定口径见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-评分反馈.md) |
 | `wanted` | boolean | 否 | 当前用户对该菜**是否已有未评分记录**（决定「去品尝」按钮是否为已标记态） |
 | `canteenName` | string | 否 | 食堂名（位置） |
 | `stallName` | string | 否 | 档口名（位置） |

@@ -80,12 +80,6 @@ import sparkles__muted from '@/assets/icon-variants/sparkles--muted.svg'
 import sparkles__default__dark from '@/assets/icon-variants/sparkles--default--dark.svg'
 import sparkles__primary__dark from '@/assets/icon-variants/sparkles--primary--dark.svg'
 import sparkles__muted__dark from '@/assets/icon-variants/sparkles--muted--dark.svg'
-import star__default from '@/assets/icon-variants/star--default.svg'
-import star__primary from '@/assets/icon-variants/star--primary.svg'
-import star__muted from '@/assets/icon-variants/star--muted.svg'
-import star__default__dark from '@/assets/icon-variants/star--default--dark.svg'
-import star__primary__dark from '@/assets/icon-variants/star--primary--dark.svg'
-import star__muted__dark from '@/assets/icon-variants/star--muted--dark.svg'
 import sun__default from '@/assets/icon-variants/sun--default.svg'
 import sun__primary from '@/assets/icon-variants/sun--primary.svg'
 import sun__muted from '@/assets/icon-variants/sun--muted.svg'
@@ -150,9 +144,6 @@ export const ICON_SRC: Record<string, string> = {
   "sparkles--default": sparkles__default,
   "sparkles--primary": sparkles__primary,
   "sparkles--muted": sparkles__muted,
-  "star--default": star__default,
-  "star--primary": star__primary,
-  "star--muted": star__muted,
   "sun--default": sun__default,
   "sun--primary": sun__primary,
   "sun--muted": sun__muted,
@@ -199,9 +190,6 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "sparkles--default--dark": sparkles__default__dark,
   "sparkles--primary--dark": sparkles__primary__dark,
   "sparkles--muted--dark": sparkles__muted__dark,
-  "star--default--dark": star__default__dark,
-  "star--primary--dark": star__primary__dark,
-  "star--muted--dark": star__muted__dark,
   "sun--default--dark": sun__default__dark,
   "sun--primary--dark": sun__primary__dark,
   "sun--muted--dark": sun__muted__dark,
@@ -222,7 +210,6 @@ export const ICON_KEYS = [
   "report",
   "smile",
   "sparkles",
-  "star",
   "sun",
 ] as const
 

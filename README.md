@@ -135,7 +135,7 @@ cd client && npm install && npm run dev:mp-weixin
    ```bash
    pytest                          # 后端：pytest + 分层护栏
    cd client && npm run verify     # 小程序：契约门禁 + 类型检查
-   cd web && npm run type-check    # 管理后台：类型检查
+   cd web && npm run verify        # 管理后台：token 门禁 + 单测 + lint + 类型检查 + 构建
    ```
 
 4. 使用 [Conventional Commits](https://www.conventionalcommits.org/) 风格提交（如 `feat(client): ...`、`fix(server): ...`、`docs: ...`）

@@ -6,16 +6,15 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
+import CardActionSheet from '@/components/CardActionSheet.vue'
+import { useCardMenu } from '@/composables/useCardMenu'
+import { usePagedList } from '@/composables/usePagedList'
 import { canteenApi, stallApi, type StallBody, type StallOut } from '@/api'
 
 const FLOORS = ['负一层', '一层', '二层', '三层', '四层']
 
-const rows = ref<StallOut[]>([])
-const total = ref(0)
-const page = ref(1)
 const canteens = ref<{ id: number; name: string }[]>([])
 const filter = reactive({ canteenId: undefined as number | undefined })
-const loading = ref(false)
 
 const dialog = reactive({
   visible: false,
@@ -28,44 +27,20 @@ const dialog = reactive({
 
 const saving = ref(false)
 
+/** 指标行位置文案：楼层 · 窗口号（均可空，全空则整段不显示） */
+function locText(row: StallOut): string {
+  return [row.floor, row.windowNo ? `窗口 ${row.windowNo}` : ''].filter(Boolean).join(' · ')
+}
+
 async function loadCanteens() {
   const res = await canteenApi.list(1, 50)
   canteens.value = res.records
 }
 
-async function load() {
-  loading.value = true
-  try {
-    const res = await stallApi.list({ canteenId: filter.canteenId, page: page.value })
-    rows.value = res.records
-    total.value = res.total
-  } catch (e) {
-    ElMessage.error((e as Error).message)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function prevPage() {
-  page.value -= 1
-  await load()
-}
-
-async function nextPage() {
-  page.value += 1
-  await load()
-}
-
-function applyFilter() {
-  page.value = 1
-  load()
-}
-
-function resetFilter() {
-  filter.canteenId = undefined
-  page.value = 1
-  load()
-}
+/** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
+const { rows, total, page, loading, hasNext, load, go, reload } = usePagedList<StallOut>((p) =>
+  stallApi.list({ canteenId: filter.canteenId, page: p }),
+)
 
 function onCreate() {
   dialog.id = 0
@@ -143,6 +118,9 @@ onMounted(async () => {
   await loadCanteens()
   await load()
 })
+
+/** 长按浮层（编辑 / 删除）：卡面无操作按钮 */
+const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
 </script>
 
 <template>
@@ -159,31 +137,32 @@ onMounted(async () => {
         v-model="filter.canteenId"
         class="filters__select"
         aria-label="按食堂筛选"
-        @change="applyFilter"
+        @change="reload"
       >
         <option :value="undefined">全部食堂</option>
         <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
       </select>
-      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <div class="list-card-wrap">
       <div
-        class="list-card"
         v-for="row in rows"
         :key="row.id"
+        class="list-card"
+        tabindex="0"
+        aria-haspopup="menu"
+        v-bind="cardMenu.pressAttrs(row, { title: row.name })"
       >
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
           </div>
-          <div class="list-card__meta">
-            <span class="list-card__metaText">所属食堂：{{ row.canteenName }}</span>
+          <div class="list-card__path">{{ row.canteenName }}</div>
+          <div class="list-card__stats">
+            <span v-if="locText(row)" class="list-card__stat">{{ locText(row) }}</span>
+            <span class="list-card__stat">{{ row.dishCount }} 道菜</span>
+            <span class="list-card__stat">{{ row.posterCount }} 张海报</span>
           </div>
-        </div>
-        <div class="list-card__actions">
-          <button class="link" @click="onEdit(row)">编辑</button>
-          <button class="link link--danger" @click="onRemove(row)">删除</button>
         </div>
       </div>
       <div class="list-card" v-if="!rows.length && !loading">
@@ -194,9 +173,9 @@ onMounted(async () => {
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
       <div class="pager">
-        <button class="btn" :disabled="page <= 1" @click="prevPage">上一页</button>
+        <button class="btn" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
         <span class="pager__cur">{{ page }}</span>
-        <button class="btn" :disabled="page * 20 >= total" @click="nextPage">下一页</button>
+        <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
       </div>
     </footer>
 
@@ -230,117 +209,14 @@ onMounted(async () => {
         </footer>
       </div>
     </div>
+
+    <CardActionSheet
+      v-model="cardMenu.open"
+      :title="cardMenu.title"
+      :remove-disabled="cardMenu.removeDisabled"
+      :remove-hint="cardMenu.removeHint"
+      @edit="cardMenu.pickEdit"
+      @remove="cardMenu.pickRemove"
+    />
   </section>
 </template>
-
-<style scoped>
-/* 与食堂管理页共用同一套「列表 + 弹窗」样式约定 */
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.page__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page__title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--el-text-color-primary);
-}
-.page__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page__total {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-.pager {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.pager__cur {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-
-.filters {
-  display: flex;
-  gap: 8px;
-}
-.filters__select {
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-}
-
-  color: var(--el-text-color-secondary);
-}
-  text-align: right;
-  white-space: nowrap;
-}
-  padding: 40px 0;
-  text-align: center;
-  color: var(--el-text-color-placeholder);
-}
-
-.link {
-  border: none;
-  background: none;
-  color: var(--el-color-primary);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0 6px;
-}
-.link--danger {
-  color: var(--el-color-danger);
-}
-
-/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
-.dialog__title {
-  margin: 0 0 20px;
-  font-size: 16px;
-  color: var(--el-text-color-primary);
-}
-.dialog__label {
-  display: block;
-  margin: 14px 0 6px;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-.dialog__input {
-  width: 100%;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  outline: none;
-  box-sizing: border-box;
-}
-.dialog__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 24px;
-}
-
-
-/* 弹窗窄屏近全宽，避免在手机上超出屏幕 */
-@media (max-width: 640px) {
-  .dialog {
-    width: min(520px, 92vw);
-    margin: 0 4px;
-  }
-}
-</style>
-`n

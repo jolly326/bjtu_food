@@ -7,14 +7,12 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { usePagedList } from '@/composables/usePagedList'
 import { dishApi, issueApi, type IssueOut } from '@/api'
+import { formatDateTime } from '@/utils/datetime'
 
 const router = useRouter()
 
-const rows = ref<IssueOut[]>([])
-const total = ref(0)
-const page = ref(1)
-const loading = ref(false)
 const dishes = ref<{ id: number; name: string }[]>([])
 const filter = reactive({
   handled: false as boolean | undefined,
@@ -26,44 +24,14 @@ async function loadDishes() {
   dishes.value = res.records.map((d) => ({ id: d.id, name: d.name }))
 }
 
-async function load() {
-  loading.value = true
-  try {
-    const res = await issueApi.list({
-      handled: filter.handled,
-      dishId: filter.dishId,
-      page: page.value,
-    })
-    rows.value = res.records
-    total.value = res.total
-  } catch (e) {
-    ElMessage.error((e as Error).message)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function prevPage() {
-  page.value -= 1
-  await load()
-}
-
-async function nextPage() {
-  page.value += 1
-  await load()
-}
-
-function applyFilter() {
-  page.value = 1
-  load()
-}
-
-function resetFilter() {
-  filter.handled = false
-  filter.dishId = undefined
-  page.value = 1
-  load()
-}
+/** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
+const { rows, total, page, loading, hasNext, load, go, reload } = usePagedList<IssueOut>((p) =>
+  issueApi.list({
+    handled: filter.handled,
+    dishId: filter.dishId,
+    page: p,
+  }),
+)
 
 /** 一键直达：跳菜品管理并自动打开该菜编辑弹窗 */
 function onFix(row: IssueOut) {
@@ -107,7 +75,7 @@ onMounted(async () => {
         v-model="filter.handled"
         class="filters__select"
         aria-label="按处理状态筛选"
-        @change="applyFilter"
+        @change="reload"
       >
         <option :value="false">未处理</option>
         <option :value="true">已处理</option>
@@ -117,17 +85,17 @@ onMounted(async () => {
         v-model="filter.dishId"
         class="filters__select"
         aria-label="按菜品筛选"
-        @change="applyFilter"
+        @change="reload"
       >
         <option :value="undefined">全部菜品</option>
         <option v-for="d in dishes" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
-      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
     <div class="list-card-wrap">
       <div
         class="list-card"
+        :class="{ 'list-card--dim': row.handledAt != null }"
         v-for="row in rows"
         :key="row.id"
       >
@@ -135,6 +103,13 @@ onMounted(async () => {
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.dishName }}</span>
             <span class="tag">{{ row.optionName }}</span>
+          </div>
+          <div class="list-card__path">{{ row.canteenName }} · {{ row.stallName }}</div>
+          <div class="list-card__stats">
+            <span class="list-card__stat">提交于 {{ formatDateTime(row.createdAt) }}</span>
+            <span v-if="row.handledAt" class="list-card__stat">
+              处理于 {{ formatDateTime(row.handledAt) }}
+            </span>
           </div>
         </div>
         <div class="list-card__actions">
@@ -153,67 +128,17 @@ onMounted(async () => {
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
       <div class="pager">
-        <button class="btn" :disabled="page <= 1" @click="prevPage">上一页</button>
+        <button class="btn" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
         <span class="pager__cur">{{ page }}</span>
-        <button class="btn" :disabled="page * 20 >= total" @click="nextPage">下一页</button>
+        <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
       </div>
     </footer>
   </section>
 </template>
 
 <style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.page__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page__title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--el-text-color-primary);
-}
-.page__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page__total {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-.pager {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.pager__cur {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-
-.filters {
-  display: flex;
-  gap: 8px;
-}
-.filters__select {
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-}
-
+/* 基础形态在 theme.css（#app .tag）；本页仅覆写中性底色（错误类型 tag） */
 .tag {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 12px;
   background: var(--el-fill-color);
   color: var(--el-text-color-secondary);
 }

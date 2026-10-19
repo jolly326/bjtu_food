@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * 运营端布局（知行食记 · 运营端）：
- * - 顶层固定导航栏：品牌名 知行食记（衬线）+ 日期；右侧 Admin（橙色主按钮）
- * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.2）：
+ * - 顶层固定导航栏：品牌名 知行食记（衬线）+ 日期；右侧操作员用户名文本（弱化，非按钮）
+ * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.3）：
  *   七个功能入口（主数据组 ｜ 反馈组，分组分隔线）+ 分隔线 + 退出登录；
  *   悬停放大上浮 + 名称气泡、激活项主色 + 圆点指示；桌面 / 移动同构（无隐藏态）
  * - 内容区（滚动）：底部留白让出应用坞，防遮挡
@@ -26,13 +26,13 @@ type DockItem = {
 }
 
 const MENUS: DockItem[] = [
-  { path: '/canteens', label: '食堂', icon: 'home', sep: false },
-  { path: '/stalls', label: '档口', icon: 'compass', sep: false },
+  { path: '/canteens', label: '食堂', icon: 'building-2', sep: false },
+  { path: '/stalls', label: '档口', icon: 'store', sep: false },
   { path: '/dishes', label: '菜品', icon: 'dish', sep: false },
   { path: '/posters', label: '海报', icon: 'image', sep: false },
   { path: '/records', label: '评分数据', icon: 'star', sep: true },
   { path: '/issues', label: '纠错处理', icon: 'report', sep: false },
-  { path: '/options', label: '纠错选项', icon: 'settings', sep: false },
+  { path: '/options', label: '纠错选项', icon: 'list-checks', sep: false },
 ]
 
 const now = computed(() => {
@@ -54,9 +54,7 @@ function onLogout() {
         <span class="brand__name">知行食记</span>
         <span class="brand__date">{{ now }}</span>
       </div>
-      <div class="topbar__actions">
-        <button class="topbar__btn topbar__btn--primary">Admin</button>
-      </div>
+      <span class="topbar__user">{{ session.username || '运营' }}</span>
     </nav>
 
     <main class="layout__main">
@@ -132,42 +130,13 @@ function onLogout() {
   color: var(--el-text-color-secondary);
 }
 
-.topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* 操作员用户名文本（非按钮，Julienne 极简：纯文本弱化即可） */
+.topbar__user {
+  font-size: 14px;
+  color: var(--el-text-color-secondary);
 }
 
-.topbar__btn {
-  display: inline-flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: var(--el-border-radius-sm);
-  font-size: 13px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--el-text-color-regular);
-}
-
-.topbar__btn--outline {
-  border-color: var(--el-border-color);
-}
-.topbar__btn--outline:hover {
-  background: var(--el-fill-color-light);
-}
-
-.topbar__btn--primary {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary);
-  color: #fff;
-}
-.topbar__btn--primary:hover {
-  background: var(--el-color-primary-dark-2);
-}
-
-/* ===== 内容区（底部让出应用坞，防遮挡，见基线 §2.2） ===== */
+/* ===== 内容区（底部让出应用坞，防遮挡，见基线 §2.3） ===== */
 .layout__main {
   flex: 1;
   min-width: 0;
@@ -176,7 +145,7 @@ function onLogout() {
   overflow-y: auto;
 }
 
-/* ===== 底部应用坞（Dock 式全局导航：悬浮胶囊居中，见基线 §2.2）===== */
+/* ===== 底部应用坞（Dock 式全局导航：悬浮胶囊居中，见基线 §2.3）===== */
 .layout__dock {
   position: fixed;
   left: 50%;
@@ -188,6 +157,7 @@ function onLogout() {
 .dock__wrap {
   display: flex;
   align-items: center;
+  justify-content: center; /* 坞内入口始终水平居中（窄屏见 safe center 兜底） */
   gap: 2px;
   padding: 6px;
   border: 1px solid var(--el-border-color-lighter);
@@ -231,7 +201,7 @@ function onLogout() {
   left: 50%;
   transform: translateX(-50%) translateY(4px);
   padding: 4px 10px;
-  border-radius: var(--el-border-radius-sm);
+  border-radius: var(--web-radius-sm);
   background: var(--el-text-color-primary);
   color: var(--el-bg-color);
   font-size: 12px;
@@ -288,7 +258,7 @@ function onLogout() {
   background: var(--el-color-error-light-9);
 }
 
-/* 窄屏（≤640px）：Dock 图标缩小并允许横向滚动，避免七项溢出；内容区收窄边距 */
+/* 窄屏（≤640px）：图标格收窄保证整坞一屏内**仍水平居中**（极窄屏 safe 兜底可横滚）；内容区收窄边距 */
 @media (max-width: 640px) {
   .layout__main {
     margin-top: 52px;
@@ -299,29 +269,28 @@ function onLogout() {
     padding: 0 12px;
   }
   .layout__dock {
-    left: 0;
-    right: 0;
-    width: 100%;
-    transform: none;
+    /* 维持基座的 left:50% + translateX(-50%) 居中，仅收窄底距 */
     bottom: calc(8px + env(safe-area-inset-bottom));
   }
   .dock__wrap {
+    justify-content: center;
+    justify-content: safe center; /* 溢出时退化为起点对齐，保证首项可滚达（不支持 safe 的浏览器回退上一行） */
+    gap: 1px;
+    padding: 4px 6px;
+    max-width: calc(100vw - 16px);
     overflow-x: auto;
-    gap: 4px;
-    padding: 4px 8px;
-    justify-content: flex-start;
     scrollbar-width: none;
   }
   .dock__wrap::-webkit-scrollbar {
     display: none;
   }
   .dock__item {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     flex-shrink: 0;
   }
   .dock__sep {
-    height: 20px;
+    height: 18px;
     margin: 0 2px;
   }
 }
