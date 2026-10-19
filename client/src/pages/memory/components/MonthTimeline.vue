@@ -114,7 +114,7 @@ watch(() => props.months, centerSelected, { immediate: true })
   display: inline-flex;
   align-items: flex-end;
   gap: var(--spacing-lg);
-  padding: var(--spacing-xs) var(--page-gutter) var(--spacing-sm);
+  padding: var(--page-gutter);
 }
 
 /* 每项上下层级：年份小字在上、月份大号衬线在下；整项命中 ≥ 触达下限 */
@@ -123,8 +123,8 @@ watch(() => props.months, centerSelected, { immediate: true })
   flex: none;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--spacing-3xs);
-  width: var(--month-item-width);
+  gap: var(--spacing-2xs);
+  white-space: nowrap;
   box-sizing: border-box;
   min-height: var(--tap-target-size);
   justify-content: center;

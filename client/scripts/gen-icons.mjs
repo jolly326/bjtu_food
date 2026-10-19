@@ -57,7 +57,7 @@ for (const file of walk(SRC_ROOT)) {
   const text = readFileSync(file, 'utf8')
   for (const key of keys) {
     // 只认 AppIcon 静态名、数据源 icon 字段，以及「动态图标名」所在行的字符串字面量
-    // （如 ReactionPicker 的三态图标表），避免把 class="filter" 之类的字符串误当图标
+    // （如 MemoryRecordCard 的图标引用），避免把 class="filter" 之类的字符串误当图标
     const re = new RegExp(
       `name="\\s*${key}"|icon\\s*[:=]\\s*['"]${key}['"]|^.*icon.*['"]${key}['"]`,
       'im',

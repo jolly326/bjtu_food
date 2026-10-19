@@ -18,7 +18,6 @@
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import AppIcon from '@/components/base/AppIcon.vue'
-import DishCardPlaceholder from './DishCardPlaceholder.vue'
 import DishSwipeCard from './DishSwipeCard.vue'
 import PaperCard from './PaperCard.vue'
 import { windowWidth } from '@/utils/safeArea'
@@ -256,10 +255,9 @@ const backStyles = computed(() =>
       @touchend="slot.level === 0 ? onEnd($event) : undefined"
     >
       <view class="stack__cardWrap">
-        <!-- 上层：骨架 / 流末尾 / 空态 / 真实卡（唯一可拖拽） -->
+        <!-- 上层：流末尾 / 空态 / 真实卡（唯一可拖拽） -->
         <template v-if="slot.level === 0">
-          <DishCardPlaceholder v-if="loading" />
-          <slot v-else-if="finished" name="end" />
+          <slot v-if="finished" name="end" />
           <PaperCard v-else-if="!slot.card">
             <view class="stack__empty">
               <AppIcon class="stack__emptyIcon" name="dish" :size="64" tone="muted" />

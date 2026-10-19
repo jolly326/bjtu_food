@@ -10,12 +10,13 @@
  * 每个日期组底层挂半透明大号日数字装饰（不遮挡卡片）。
  */
 import { computed, onMounted, ref } from 'vue'
-import BaseSheet from '@/components/base/BaseSheet.vue'
-import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
+import { onHide, onUnload } from '@dcloudio/uni-app'
 import RetryBlock from '@/components/base/RetryBlock.vue'
 import AppIcon from '@/components/base/AppIcon.vue'
 import MonthTimeline from './components/MonthTimeline.vue'
-import ReactionPicker from './components/ReactionPicker.vue'
+import MemoryRecordCard from './components/MemoryRecordCard.vue'
+import MemoryActionsSheet from './components/MemoryActionsSheet.vue'
+import { useMemoryUI } from './components/useMemoryUI'
 import { issueApi, recordApi } from '@/api'
 import type { IssueOptionOut, RecordOut } from '@/api'
 import { formatDayLabel, todayLabelWeekdayCN } from '@/utils/date'
@@ -38,14 +39,16 @@ const activeMonth = ref('')
 /** 页头日期：固定值，避免每次渲染重复格式化（`星期日，10月18日` 星期在前） */
 const today = todayLabelWeekdayCN()
 
-/** 纠错弹层 */
-const sheetOpen = ref(false)
-const sheetTarget = ref<RecordOut | null>(null)
+/** 纠错选项（长按菜单「反馈」展开） */
 const options = ref<IssueOptionOut[]>([])
 
-/** 长按浮层（擦除记忆）—— 卡片表层不展示删除入口 */
-const eraseOpen = ref(false)
-const eraseTarget = ref<RecordOut | null>(null)
+/** 全局互斥状态机（原位评价 / 长按菜单 / 删除确认） */
+const { sheetRecordId, closeEval, closeSheet, resetAll } = useMemoryUI()
+
+/** 当前长按菜单 / 确认弹窗指向的记录 */
+const sheetRecord = computed<RecordOut | null>(
+  () => records.value.find((r) => r.id === sheetRecordId.value) ?? null,
+)
 
 const months = computed(() => {
   const set = new Set(records.value.map((r) => r.wantedAt.slice(0, 7)))
@@ -165,37 +168,22 @@ function metaLine(record: RecordOut): string {
   return yuan === null ? place : `${place} · ${yuan}元`
 }
 
-/** 长按卡片整区：唤起极简浮层（仅「擦除记忆」，不做红色警示） */
-function onLongPress(record: RecordOut) {
-  eraseTarget.value = record
-  eraseOpen.value = true
-}
-
-/** 浮层内确认擦除 */
-function onErase() {
-  const target = eraseTarget.value
-  eraseOpen.value = false
-  if (target) void onCancel(target)
-}
-
-async function onOpenIssue(record: RecordOut) {
-  sheetTarget.value = record
-  sheetOpen.value = true
-  if (!options.value.length) {
-    try {
-      options.value = await issueApi.options()
-    } catch {
-      uni.showToast({ title: '选项加载失败', icon: 'none' })
-    }
+/** 纠错选项：进入页面即预拉取（长按菜单「反馈」展开时使用） */
+async function loadOptions() {
+  if (options.value.length) return
+  try {
+    options.value = await issueApi.options()
+  } catch {
+    /* 选项缺失时反馈入口静默降级 */
   }
 }
 
 async function onPickOption(optionId: number) {
-  const target = sheetTarget.value
+  const target = sheetRecord.value
   if (!target || issueLocked.value) return
   try {
     await issueApi.submit(target.dishId, optionId)
-    sheetOpen.value = false
+    closeSheet()
     uni.showToast({ title: '已收到反馈', icon: 'none' })
   } catch (error) {
     cooldownFrom(ISSUE_KEY, error)
@@ -203,12 +191,24 @@ async function onPickOption(optionId: number) {
   }
 }
 
+/** 删除二次确认 → 取消品尝（后端仅允许删未评分记录） */
+function onConfirmDelete() {
+  const target = sheetRecord.value
+  if (target) void onCancel(target)
+}
+
 /** 空态跳转：去美味 tab */
 function goRecipes() {
   uni.switchTab({ url: '/pages/cuisine/index' })
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void loadOptions()
+})
+/** 页面隐藏 / Tab 切换：强制销毁评价态与全部弹层（全局互斥铁则 4） */
+onHide(resetAll)
+onUnload(resetAll)
 </script>
 
 <template>
@@ -230,26 +230,9 @@ onMounted(load)
 
     <RetryBlock v-if="failed" @retry="load" />
 
-    <scroll-view v-else-if="loading" class="body" scroll-y enhanced :show-scrollbar="false">
-      <view v-for="g in 2" :key="g" class="group">
-        <view class="group__day group__day--ph" />
-        <scroll-view class="group__row" scroll-x enhanced :show-scrollbar="false">
-          <view class="group__cards">
-            <view v-for="c in 3" :key="c" class="record record--ph">
-              <view class="record__phLine record__phLine--name" />
-              <view class="record__phLine record__phLine--meta" />
-              <view class="record__photoWrap">
-                <view class="record__phCircle" />
-              </view>
-              <view class="record__ops">
-                <view class="record__phDot" />
-                <view class="record__phDot" />
-              </view>
-            </view>
-          </view>
-        </scroll-view>
-      </view>
-    </scroll-view>
+    <view v-else-if="loading" class="body" scroll-y enhanced :show-scrollbar="false">
+      <!-- 加载中时不渲染骨架，保持内容区域空白，由页面级 loading 状态控制 -->
+    </view>
 
     <view v-else-if="!records.length" class="recordEmpty">
       <AppIcon class="recordEmpty__icon" name="notebook" :size="64" tone="muted" />
@@ -262,83 +245,37 @@ onMounted(load)
 
     <scroll-view v-else class="body" scroll-y enhanced :show-scrollbar="false">
       <view v-for="group in grouped" :key="group.day" class="group">
-        <!-- 日期组底层装饰：半透明大号日数字（不遮挡卡片，卡片行层级在上） -->
-        <text class="group__motif">{{ group.motif }}</text>
         <text class="group__day">{{ formatDayLabel(group.day) }}</text>
-        <scroll-view class="group__row" scroll-x enhanced :show-scrollbar="false">
+        <scroll-view
+          class="group__row"
+          scroll-x
+          enhanced
+          :show-scrollbar="false"
+          @scroll="closeEval"
+        >
           <!-- 行内容器：左右各留 gutter（滚动容器自身的 padding 不计入可滚宽度） -->
           <view class="group__cards">
-            <view
+            <MemoryRecordCard
               v-for="item in group.cards"
               :key="item.record.id"
-              class="record"
-              hover-class="record--pressed"
-              @longpress="onLongPress(item.record)"
-            >
-              <!-- 顶部左上：菜名（衬线粗体，卡片一级标题；右上角整片留空） -->
-              <text class="record__name wrap-anywhere">{{ item.record.name }}</text>
-              <!-- 辅助行：紧贴菜名下方、同左对齐（档口 · 价格） -->
-              <text v-if="item.meta" class="record__meta">{{ item.meta }}</text>
-
-              <!-- 中部：圆形菜品大图（卡内可用宽度 75%，上下留白均等） -->
-              <view class="record__photoWrap">
-                <view class="record__photo">
-                  <image
-                    v-if="item.record.imageUrl"
-                    :src="item.record.imageUrl"
-                    class="record__img"
-                    mode="aspectFill"
-                  />
-                  <ImagePlaceholder v-else :size="48" bare />
-                </view>
-              </view>
-
-              <!-- 底部单行（同一基线、两端对齐）：左「反馈」纯文本 / 右三态表情线性图标 -->
-              <view class="record__ops">
-                <view
-                  class="record__feedback"
-                  :class="{ 'is-disabled': issueLocked }"
-                  hover-class="record__feedback--pressed"
-                  @tap="onOpenIssue(item.record)"
-                >
-                  <text class="record__feedbackText">反馈</text>
-                </view>
-                <ReactionPicker
-                  :model-value="item.record.reaction"
-                  :locked="reactLocked"
-                  @pick="onReact(item.record, $event)"
-                />
-              </view>
-            </view>
+              :record="item.record"
+              :meta="item.meta"
+              @react="(v: number) => onReact(item.record, v)"
+            />
           </view>
         </scroll-view>
       </view>
     </scroll-view>
 
-    <!-- 长按浮层：仅「擦除记忆」，无红色警示 -->
-    <BaseSheet v-model="eraseOpen" title="擦除这条记忆？">
-      <view
-        class="sheet__opt"
-        :class="{ 'sheet__opt--locked': cancelLocked }"
-        hover-class="sheet__opt--pressed"
-        @tap="onErase"
-      >
-        <text class="sheet__optLabel">擦除记忆</text>
-      </view>
-    </BaseSheet>
-
-    <BaseSheet v-model="sheetOpen" title="哪里不对？">
-      <view
-        v-for="opt in options"
-        :key="opt.id"
-        class="sheet__opt"
-        :class="{ 'sheet__opt--locked': issueLocked }"
-        hover-class="sheet__opt--pressed"
-        @tap="onPickOption(opt.id)"
-      >
-        <text class="sheet__optLabel">{{ opt.name }}</text>
-      </view>
-    </BaseSheet>
+    <!-- 长按菜单 / 纠错表单 / 删除二次确认（全局互斥状态机驱动） -->
+    <MemoryActionsSheet
+      :record="sheetRecord"
+      :issue-options="options"
+      :issue-locked="issueLocked"
+      :cancel-locked="cancelLocked"
+      @submit-issue="onPickOption"
+      @confirm-delete="onConfirmDelete"
+    />
   </TabPage>
 </template>
 
@@ -349,27 +286,13 @@ onMounted(load)
   margin-bottom: var(--spacing-2xl);
 }
 
-/* 日期组底层装饰：半透明大号日数字 —— 挂在对应日期组背景（非页面底部），
-   不参与交互、不遮挡卡片（日期标题与卡片行层级在上） */
-.group__motif {
-  position: absolute;
-  right: calc(var(--spacing-2xl) * -1);
-  bottom: 0;
-  z-index: 0;
-  font-family: var(--font-serif);
-  font-size: var(--memory-motif-size);
-  font-weight: var(--weight-heavy);
-  line-height: 1;
-  color: var(--text-tertiary);
-  opacity: 0.06;
-  pointer-events: none;
-}
-/* 页头：盒高与上下内距均对齐风物问候语（--spacing-md 上下 / --page-gutter 左右） */
+/* 页头：盒高 / 上下内距 / 盒内垂直居中均对齐美味 Topbar（--spacing-md 上下 / --page-gutter 左右） */
 .topbar {
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: var(--spacing-sm);
   box-sizing: border-box;
   min-height: var(--hero-box-height);
@@ -396,6 +319,8 @@ onMounted(load)
   z-index: 1;
   flex: 1;
   min-height: 0;
+  /* 年月导航与首个日期组之间的呼吸间距（与组间距同级） */
+  // margin-top: var(--spacing-2xl);
 }
 
 /* 日期标记：MM.DD 衬线放大，置于卡片组左上方作时间分割标记（层级在装饰数字之上） */
@@ -410,16 +335,6 @@ onMounted(load)
   color: var(--text-title);
 }
 
-/* 骨架：日期标记占位 */
-.group__day--ph {
-  width: 40%;
-  height: var(--font-display);
-  margin: 0 var(--page-gutter) var(--spacing-md);
-  padding: 0;
-  background: var(--bg-placeholder);
-  border-radius: var(--radius-xs);
-}
-
 /* 卡片行：横向滚动；层级在装饰数字之上 */
 .group__row {
   position: relative;
@@ -428,160 +343,13 @@ onMounted(load)
   white-space: nowrap;
 }
 
-/* 行内容器：左右各留 gutter（滚动容器自身的 padding 不计入可滚宽度，故落在内层）；
-   卡间留一档呼吸位，滑动时互相露出侧边 */
+/* 行内容器：左内距 = 页面 gutter（与日期标记、页头左缘对齐）；
+   右/底留白 = gutter + 24rpx，容纳探出卡片外的挂角头部；卡间留一档呼吸位 */
 .group__cards {
   display: inline-flex;
   gap: var(--spacing-md);
   box-sizing: border-box;
-  padding: 0 var(--page-gutter);
-}
-
-/* 记录卡：竖版圆角卡（高 > 宽）—— 圆角 / 阴影与美味页卡片统一；
-   顶部菜名 + 中部圆形大图 + 底部两枚线性图标 */
-.record {
-  display: inline-flex;
-  flex: none;
-  flex-direction: column;
-  box-sizing: border-box;
-  width: var(--record-card-width);
-  height: var(--record-card-height);
-  padding: var(--spacing-2xl) var(--spacing-xl) var(--spacing-xl);
-  background: var(--bg-page);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card-stack);
-  vertical-align: top;
-  transition: transform var(--duration-base) var(--ease-out);
-}
-
-/* 卡片点击 / 长按反馈：仅轻微缩放，无花哨动效 */
-.record--pressed {
-  transform: scale(0.98);
-}
-
-/* 菜名：顶部内边距之下、左上起点，衬线粗体、卡片内最大字号（一级标题） */
-.record__name {
-  display: -webkit-box;
-  overflow: hidden;
-  font-family: var(--font-serif);
-  font-size: var(--font-h3);
-  font-weight: var(--weight-bold);
-  line-height: 1.3;
-  color: var(--text-title);
-  text-align: left;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-/* 辅助行：档口 · 价格 —— 紧贴菜名正下方、同左对齐、不换行；衬线细体浅灰 */
-.record__meta {
-  margin-top: var(--spacing-2xs);
-  font-family: var(--font-serif);
-  font-size: var(--font-small);
-  font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
-  white-space: nowrap;
-}
-
-/* 中部：圆形菜品大图（视觉主体），上下留白均等 */
-.record__photoWrap {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-  margin-top: var(--spacing-lg);
-}
-
-.record__photo {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: var(--record-photo-size);
-  height: var(--record-photo-size);
-  overflow: hidden;
-  background: var(--bg-placeholder);
-  border-radius: var(--radius-circle);
-}
-
-/* 圆角必须落在这里（原生 <image> 不吃父级 overflow 裁切） */
-.record__img {
-  width: 100%;
-  height: 100%;
-  border-radius: var(--radius-circle);
-}
-
-/* 底部：同一水平基线 —— 左反馈 / 右三态评价 */
-.record__ops {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: var(--spacing-lg);
-}
-
-/* 反馈：纯文本操作 —— 无下划线、无底色、无外框；命中区仍满足触达下限 */
-.record__feedback {
-  display: flex;
-  align-items: center;
-  min-height: var(--tap-target-size);
-  padding-right: var(--spacing-sm);
-}
-
-/* 反馈文案：衬线浅灰，字号与正文同级（保证可点可辨） */
-.record__feedbackText {
-  font-family: var(--font-serif);
-  font-size: var(--font-subtitle);
-  font-weight: var(--weight-regular);
-  line-height: 1;
-  color: var(--text-tertiary);
-}
-
-/* 点击态：仅文字颜色轻微加深 */
-.record__feedback--pressed .record__feedbackText {
-  color: var(--text-body);
-}
-
-/* 禁用（限频退避）：opacity .5，禁点由全局 .is-disabled 承担 */
-.record__feedback.is-disabled {
-  opacity: 0.5;
-}
-
-/* 加载骨架：淡占位块，同新卡结构（菜名 / 圆图 / 图标位） */
-.record--ph {
-  pointer-events: none;
-}
-
-.record__phLine {
-  background: var(--bg-placeholder);
-  border-radius: var(--radius-xs);
-}
-
-.record__phLine--name {
-  width: 60%;
-  height: var(--font-h3);
-}
-
-.record__phLine--meta {
-  width: 45%;
-  height: var(--font-small);
-  margin-top: var(--spacing-2xs);
-}
-
-.record__phCircle {
-  width: var(--record-photo-size);
-  height: var(--record-photo-size);
-  background: var(--bg-placeholder);
-  border-radius: var(--radius-circle);
-}
-
-/* 图标位占位：与线性图标同尺寸（无圆形底） */
-.record__phDot {
-  width: calc(var(--tap-target-size) - var(--spacing-2xl));
-  height: calc(var(--tap-target-size) - var(--spacing-2xl));
-  background: var(--bg-placeholder);
-  border-radius: var(--radius-circle);
+  padding: 0 calc(var(--page-gutter) + 24rpx) calc(var(--spacing-md) + 24rpx) var(--page-gutter);
 }
 
 /* 空态：整体略偏上（底部预留卡片空间），线性图标 + 衬线主文案 + 浅灰引导 + 描边按钮 */
@@ -635,25 +403,5 @@ onMounted(load)
 
 .recordEmpty__btn--pressed {
   opacity: 0.6;
-}
-
-.sheet__opt {
-  display: flex;
-  align-items: center;
-  height: var(--tap-target-size);
-  border-bottom: 1rpx solid var(--border-color);
-}
-
-.sheet__opt:last-child {
-  border-bottom: none;
-}
-
-.sheet__opt--pressed {
-  opacity: 0.7;
-}
-
-.sheet__optLabel {
-  font-size: var(--font-body);
-  color: var(--text-title);
 }
 </style>

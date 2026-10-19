@@ -20,12 +20,12 @@ import empty__muted from '@/assets/icon-variants/empty--muted.svg'
 import empty__default__dark from '@/assets/icon-variants/empty--default--dark.svg'
 import empty__primary__dark from '@/assets/icon-variants/empty--primary--dark.svg'
 import empty__muted__dark from '@/assets/icon-variants/empty--muted--dark.svg'
-import frown__default from '@/assets/icon-variants/frown--default.svg'
-import frown__primary from '@/assets/icon-variants/frown--primary.svg'
-import frown__muted from '@/assets/icon-variants/frown--muted.svg'
-import frown__default__dark from '@/assets/icon-variants/frown--default--dark.svg'
-import frown__primary__dark from '@/assets/icon-variants/frown--primary--dark.svg'
-import frown__muted__dark from '@/assets/icon-variants/frown--muted--dark.svg'
+import face__default from '@/assets/icon-variants/face--default.svg'
+import face__primary from '@/assets/icon-variants/face--primary.svg'
+import face__muted from '@/assets/icon-variants/face--muted.svg'
+import face__default__dark from '@/assets/icon-variants/face--default--dark.svg'
+import face__primary__dark from '@/assets/icon-variants/face--primary--dark.svg'
+import face__muted__dark from '@/assets/icon-variants/face--muted--dark.svg'
 import image_broken__default from '@/assets/icon-variants/image-broken--default.svg'
 import image_broken__primary from '@/assets/icon-variants/image-broken--primary.svg'
 import image_broken__muted from '@/assets/icon-variants/image-broken--muted.svg'
@@ -38,6 +38,12 @@ import image__muted from '@/assets/icon-variants/image--muted.svg'
 import image__default__dark from '@/assets/icon-variants/image--default--dark.svg'
 import image__primary__dark from '@/assets/icon-variants/image--primary--dark.svg'
 import image__muted__dark from '@/assets/icon-variants/image--muted--dark.svg'
+import laugh__default from '@/assets/icon-variants/laugh--default.svg'
+import laugh__primary from '@/assets/icon-variants/laugh--primary.svg'
+import laugh__muted from '@/assets/icon-variants/laugh--muted.svg'
+import laugh__default__dark from '@/assets/icon-variants/laugh--default--dark.svg'
+import laugh__primary__dark from '@/assets/icon-variants/laugh--primary--dark.svg'
+import laugh__muted__dark from '@/assets/icon-variants/laugh--muted--dark.svg'
 import meh__default from '@/assets/icon-variants/meh--default.svg'
 import meh__primary from '@/assets/icon-variants/meh--primary.svg'
 import meh__muted from '@/assets/icon-variants/meh--muted.svg'
@@ -114,15 +120,18 @@ export const ICON_SRC: Record<string, string> = {
   "empty--default": empty__default,
   "empty--primary": empty__primary,
   "empty--muted": empty__muted,
-  "frown--default": frown__default,
-  "frown--primary": frown__primary,
-  "frown--muted": frown__muted,
+  "face--default": face__default,
+  "face--primary": face__primary,
+  "face--muted": face__muted,
   "image-broken--default": image_broken__default,
   "image-broken--primary": image_broken__primary,
   "image-broken--muted": image_broken__muted,
   "image--default": image__default,
   "image--primary": image__primary,
   "image--muted": image__muted,
+  "laugh--default": laugh__default,
+  "laugh--primary": laugh__primary,
+  "laugh--muted": laugh__muted,
   "meh--default": meh__default,
   "meh--primary": meh__primary,
   "meh--muted": meh__muted,
@@ -160,15 +169,18 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "empty--default--dark": empty__default__dark,
   "empty--primary--dark": empty__primary__dark,
   "empty--muted--dark": empty__muted__dark,
-  "frown--default--dark": frown__default__dark,
-  "frown--primary--dark": frown__primary__dark,
-  "frown--muted--dark": frown__muted__dark,
+  "face--default--dark": face__default__dark,
+  "face--primary--dark": face__primary__dark,
+  "face--muted--dark": face__muted__dark,
   "image-broken--default--dark": image_broken__default__dark,
   "image-broken--primary--dark": image_broken__primary__dark,
   "image-broken--muted--dark": image_broken__muted__dark,
   "image--default--dark": image__default__dark,
   "image--primary--dark": image__primary__dark,
   "image--muted--dark": image__muted__dark,
+  "laugh--default--dark": laugh__default__dark,
+  "laugh--primary--dark": laugh__primary__dark,
+  "laugh--muted--dark": laugh__muted__dark,
   "meh--default--dark": meh__default__dark,
   "meh--primary--dark": meh__primary__dark,
   "meh--muted--dark": meh__muted__dark,
@@ -200,9 +212,10 @@ export const ICON_KEYS = [
   "arrow-down",
   "dish",
   "empty",
-  "frown",
+  "face",
   "image-broken",
   "image",
+  "laugh",
   "meh",
   "moon",
   "notebook",

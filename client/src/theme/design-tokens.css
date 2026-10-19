@@ -62,27 +62,31 @@ page {
   --tap-target-size: 88rpx;
 
   /* ===== 结构尺寸 ===== */
-  --dish-photo-size: 420rpx;
+  /* 美味页圆形菜品图：缩小直径，预留上下大片空白，避免撑满卡片垂直高度 */
+  --dish-photo-size: 320rpx;
   /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton） */
   --dish-card-radius: 28rpx;
-  --dish-card-pad-y: 40rpx;
+  /* 卡片上下内边距：加大至 80rpx，四周留白充裕 */
+  --dish-card-pad-y: 80rpx;
+  /* 卡片左右内边距：60rpx */
+  --dish-card-pad-x: 60rpx;
   --dish-name-size: 56rpx;
   /* 卡片左上装饰大字（DishSwipeCard：菜品名首字水印，被菜品图遮挡） */
   --dish-decor-letter: 240rpx;
+  /* 胶囊按钮：圆角加大至 40rpx，边框改为低饱和暖棕 */
   --want-btn-width: 320rpx;
   --want-btn-border: 2rpx;
-  --want-btn-radius: 20rpx;
+  --want-btn-border-color: #d4b9a4;
+  --want-btn-radius: 40rpx;
   --want-btn-font: 30rpx;
   /* 记忆卡：竖版圆角卡（顶部菜名 + 档口·价格 + 中部圆形大图 = 卡内宽 75% + 底部单行操作） */
-  --record-photo-size: 390rpx;
-  --record-card-width: 600rpx;
-  --record-card-height: 750rpx;
+  --record-photo-size: 280rpx;
+  --record-card-width: 480rpx;
+  --record-card-height: 540rpx;
   /* 流末尾结束态：动作图标框边长（方框，图标居中；非卡片） */
   --flowend-icon-box: 120rpx;
   /* 记忆页底层淡装饰月份数字字号 */
   --memory-motif-size: 280rpx;
-  /* 记忆页年月导航：每项固定宽度（全部月份 64rpx 衬线，容纳「十二月」并留余量；不随内容压缩） */
-  --month-item-width: 220rpx;
   /* 全局页头标题左右对称内距：把标题文字收进「明暗切换钮 ↔ 微信胶囊」之间的安全区（对称内距不改变水平居中） */
   --header-title-inset: 100rpx;
   /* 三 tab 页 hero 插槽盒（风物问候语 / 美味·记忆标题块）统一高度与上下内距：

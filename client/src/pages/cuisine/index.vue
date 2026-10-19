@@ -9,6 +9,7 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import PageLoading from '@/components/base/PageLoading.vue'
 import RetryBlock from '@/components/base/RetryBlock.vue'
 import CanteenFilter from './components/CanteenFilter.vue'
 import DishCardStack from './components/DishCardStack.vue'
@@ -155,7 +156,9 @@ onMounted(load)
 </script>
 
 <template>
-  <TabPage active="cuisine">
+  <PageLoading v-if="loading" />
+
+  <TabPage v-else active="cuisine">
     <!-- 页级标题块（hero 插槽）：标题 + 日期 + 筛选器 -->
     <template #hero>
       <view class="topbar">

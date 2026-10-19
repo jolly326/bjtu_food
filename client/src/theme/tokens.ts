@@ -25,14 +25,17 @@ export const COLOR_MAP = {
   'text-placeholder': '#C4BEB5',
 
   /* ===== 背景 / 边框 ===== */
-  'bg-page': '#FFFAF3',
+  /* 页面底色：极浅米白，几乎接近纯白 */
+  'bg-page': '#fffbf5',
+  /* 卡片底色：比页面底色再深一点点的奶白色 */
+  'bg-card': '#fff9f0',
   'bg-placeholder': '#F2EBE1',
   'border-color': '#E8E3DE',
   'border-bold': '#CBC5BE',
 
   /* ===== 阴影 / 遮罩 ===== */
   /* 海报卡阴影：拉开卡与卡之间的层次（纸片卡面无阴影，层次由描边承担） */
-  'shadow-card-stack': '0 8rpx 24rpx rgba(68, 56, 46, 0.08)',
+  'shadow-card-stack': '0 8rpx 24rpx rgba(140, 120, 100, 0.06), 0 2rpx 8rpx rgba(140, 120, 100, 0.03)',
   'shadow-modal': '0 18rpx 54rpx rgba(0, 0, 0, 0.18)',
   /* 内阴影：纸片卡顶部吊孔「打孔下沉」的层级感 */
   'shadow-inset': 'inset 0 2rpx 6rpx rgba(68, 56, 46, 0.16)',
@@ -61,6 +64,8 @@ export const DARK_COLOR_MAP = {
 
   /* ===== 背景 / 边框 ===== */
   'bg-page': '#1A1410',
+  /* 深色卡片底色：比页面底色再深一点点的奶黑棕 */
+  'bg-card': '#241c15',
   'bg-placeholder': '#332B22',
   'border-color': '#3D3429',
   'border-bold': '#4E4536',

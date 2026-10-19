@@ -3,16 +3,19 @@
  * 风物 tab（设计稿 docs/ui/client/风物.md；功能规则 docs/func/client/A1）。
  * 4 块垂直分区：Header（通栏矩形：明暗切换 + 标题）→ 问候语（通栏矩形块，四态）
  * → 海报区（左上角「今日食单」+ 横向滑动的海报卡，右邻卡露边提示可滑）→ TabBar 容器。
- * 问候语、Header 与页面骨架是本地内容、不依赖网络；海报区**失败 / 为空时渲染 3 张占位卡**
- * （见 PosterSlider），页内不提供重试入口。
+ * 问候语、Header 与页面骨架是本地内容、不依赖网络；海报区**失败 / 为空时渲染空态文案**，
+ * 页内不提供重试入口。
  */
 import { computed, onMounted, ref } from 'vue'
 import TabPage from '@/components/base/TabPage.vue'
+import PageLoading from '@/components/base/PageLoading.vue'
 import PosterSlider from './components/PosterSlider.vue'
 import { posterApi } from '@/api'
 import type { PosterOut } from '@/api'
 
 const posters = ref<PosterOut[]>([])
+const loading = ref(true)
+const failed = ref(false)
 
 /** 问候语四态（无姓名；「小红果」为固定群体称谓） */
 const greeting = computed(() => {
@@ -24,11 +27,15 @@ const greeting = computed(() => {
 })
 
 async function load() {
+  loading.value = true
+  failed.value = false
   try {
     posters.value = await posterApi.list()
   } catch {
-    // 失败不提示、不给重试入口：海报区转 3 张占位卡（口径见 docs/ui/client/风物.md §2 / §4）
+    failed.value = true
     posters.value = []
+  } finally {
+    loading.value = false
   }
 }
 
@@ -36,7 +43,24 @@ onMounted(load)
 </script>
 
 <template>
-  <TabPage active="scenery">
+  <PageLoading v-if="loading" />
+
+  <TabPage v-else-if="failed" active="scenery">
+    <!-- 区块 2 · 问候语（hero 插槽）：块内水平 + 垂直居中 -->
+    <template #hero>
+      <view class="greeting">{{ greeting }}</view>
+    </template>
+
+    <!-- 区块 3 · 海报区（内容插槽）：左上角次级标题 + 空态文案 -->
+    <view class="posterArea">
+      <view class="posterArea__title">今日食单</view>
+      <view class="posterArea__empty">
+        <text class="posterArea__emptyText">海报加载失败</text>
+      </view>
+    </view>
+  </TabPage>
+
+  <TabPage v-else active="scenery">
     <!-- 区块 2 · 问候语（hero 插槽）：块内水平 + 垂直居中 -->
     <template #hero>
       <view class="greeting">{{ greeting }}</view>
@@ -46,8 +70,11 @@ onMounted(load)
     <view class="posterArea">
       <view class="posterArea__title">今日食单</view>
       <view class="posterArea__swiper">
-        <PosterSlider :posters="posters" />
-      </view> 
+        <PosterSlider v-if="posters.length" :posters="posters" />
+        <view v-else class="posterArea__empty">
+          <text class="posterArea__emptyText">今日食单暂未更新</text>
+        </view>
+      </view>
     </view>
   </TabPage>
 </template>
@@ -99,5 +126,23 @@ onMounted(load)
   position: relative;
   flex: 1;
   min-height: 0;
+}
+
+/* 海报区空态：失败 / 暂无海报时的文案提示 */
+.posterArea__empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.posterArea__emptyText {
+  font-family: var(--font-serif);
+  font-size: var(--font-body);
+  font-weight: var(--weight-regular);
+  color: var(--text-tertiary);
+  text-align: center;
 }
 </style>

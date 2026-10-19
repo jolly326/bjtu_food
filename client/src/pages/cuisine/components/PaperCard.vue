@@ -60,8 +60,8 @@ defineOptions({ options: { virtualHost: true } })
   overflow: hidden;
   box-sizing: border-box;
   width: 100%;
-  padding: var(--dish-card-pad-y) var(--spacing-xl) calc(var(--dish-card-pad-y) + var(--spacing-md));
-  background: var(--bg-page);
+  padding: var(--dish-card-pad-y) var(--dish-card-pad-x) var(--dish-card-pad-y);
+  background: var(--bg-card);
   border: 1rpx solid var(--border-color);
   border-radius: var(--dish-card-radius);
   box-shadow: var(--shadow-card-stack);

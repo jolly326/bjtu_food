@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 底部弹层（口径见 docs/ui/client/公共组件与形态基线.md §2.1.4）。
- * 本项目两处用法：记忆页「纠错选项」弹层（单选，无图标）· 长按「擦除记忆」单项文本浮层。
+ * 本项目用法：记忆页长按菜单（反馈 / 删除记忆 / 取消）与纠错表单，由 MemoryActionsSheet 复用。
  */
 import { ref } from 'vue'
 
