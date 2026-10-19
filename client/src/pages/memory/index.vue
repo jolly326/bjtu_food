@@ -344,12 +344,27 @@ onUnload(resetAll)
 }
 
 /* 行内容器：左内距 = 页面 gutter（与日期标记、页头左缘对齐）；
-   右/底留白 = gutter + 24rpx，容纳探出卡片外的挂角头部；卡间留一档呼吸位 */
+   右/底留白 = gutter + 挂角探出余量，容纳探出卡片外的挂角头部；卡间留一档呼吸位 */
 .group__cards {
   display: inline-flex;
   gap: var(--spacing-md);
   box-sizing: border-box;
-  padding: 0 calc(var(--page-gutter) + 24rpx) calc(var(--spacing-md) + 24rpx) var(--page-gutter);
+  padding: 0 calc(var(--page-gutter) + var(--record-row-peek))
+    calc(var(--spacing-md) + var(--record-row-peek)) var(--page-gutter);
+}
+
+/* 同组后卡 Z 轴景深：逐级轻微缩小 + 下坠 + 阴影减弱（前三层可见层次），
+   横向滑动浏览时呈现「三层堆叠」的层次感；缩放围绕底边 ⇒ 下坠量即真实露出量 */
+.group__cards .record:nth-child(2) {
+  transform: translateY(var(--record-stack-step)) scale(0.97);
+  transform-origin: bottom center;
+  box-shadow: var(--shadow-card-back);
+}
+
+.group__cards .record:nth-child(3) {
+  transform: translateY(calc(var(--record-stack-step) * 2)) scale(0.94);
+  transform-origin: bottom center;
+  box-shadow: var(--shadow-card-back-far);
 }
 
 /* 空态：整体略偏上（底部预留卡片空间），线性图标 + 衬线主文案 + 浅灰引导 + 描边按钮 */

@@ -11,7 +11,7 @@ defineOptions({ options: { virtualHost: true } })
 
 import AppIcon from './AppIcon.vue'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     /** 加载提示文案，默认「加载中」 */
     text?: string
@@ -46,8 +46,8 @@ const props = withDefaults(
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  width: 120rpx;
-  height: 120rpx;
+  width: var(--page-loading-size);
+  height: var(--page-loading-size);
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-pill);
   animation: page-loading-rotate var(--duration-slow) linear infinite;

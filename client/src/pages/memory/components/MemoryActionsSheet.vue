@@ -2,8 +2,9 @@
 /**
  * 记忆页 Modal Bottom Sheet + 删除二次确认弹窗（口径见 docs/ui/client/记忆.md）。
  *
- * 菜单（长按唤起）：反馈 / 删除记忆 / 取消。
+ * 菜单（长按唤起）：反馈 / 评价 / 删除记忆 / 取消。
  *  - 反馈 → 纠错表单（同一 Sheet 内容切换，不另起浮层）；
+ *  - 评价 → 关闭 Sheet、进入该卡「原位评价态 B」（同一状态机 openEval，互斥由 useMemoryUI 保证）；
  *  - 删除记忆 → 关闭 Sheet、唤起高优先级二次确认弹窗；
  *  - 取消 → 关闭 Sheet。
  * 纠错表单：列出反馈选项，点选提交。
@@ -30,7 +31,7 @@ const emit = defineEmits<{
   (e: 'confirm-delete'): void
 }>()
 
-const { sheetOpen, sheetMode, confirmOpen, closeSheet, openIssue, requestDelete, closeConfirm } =
+const { sheetOpen, sheetMode, confirmOpen, closeSheet, openIssue, openEval, requestDelete, closeConfirm } =
   useMemoryUI()
 
 function onSheetClose() {
@@ -38,6 +39,12 @@ function onSheetClose() {
 }
 function onFeedback() {
   openIssue()
+}
+/** 评价 → 关闭 Sheet 并进入该卡原位评价态（openEval 内部即收敛 Sheet） */
+function onEvaluate() {
+  const id = props.record?.id
+  if (id == null) return
+  openEval(id)
 }
 function onDelete() {
   requestDelete()
@@ -72,6 +79,15 @@ function onConfirmDelete() {
         @tap="onFeedback"
       >
         <text class="mact__optLabel">反馈</text>
+      </view>
+      <view
+        class="mact__opt"
+        hover-class="mact__opt--pressed"
+        role="button"
+        aria-label="评价"
+        @tap="onEvaluate"
+      >
+        <text class="mact__optLabel">评价</text>
       </view>
       <view
         class="mact__opt"
@@ -172,7 +188,7 @@ function onConfirmDelete() {
   background: var(--overlay-scrim);
 }
 .mact__dialog {
-  width: 560rpx;
+  width: var(--sheet-dialog-width);
   padding: var(--spacing-xl);
   background: var(--overlay-panel-bg);
   border-radius: var(--radius-modal);
@@ -210,7 +226,7 @@ function onConfirmDelete() {
   opacity: 0.6;
 }
 .mact__dialogBtn--primary {
-  color: #ffffff;
+  color: var(--text-on-primary);
   background: var(--color-primary);
   border-color: var(--color-primary);
 }

@@ -48,6 +48,7 @@ const theme = useTheme()
    下留白收窄（16rpx），把纵向空间让给各页主内容区 */
 .header {
   flex: none;
+  width: 100%;
   padding-bottom: var(--spacing-sm);
 }
 

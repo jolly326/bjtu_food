@@ -4,7 +4,7 @@
  *
  * Julienne 纸片卡：卡面 / 吊孔由 `PaperCard` 承载（堆叠层次由 `DishCardStack` 承担）；本组件只排内容。
  * - 顶部信息带：左菜品名首字水印（背景层，可被图片遮挡；纯装饰、不表意）／右群体风味评级两行。
- * - 内容：圆形菜品图（420rpx，无外圈）→ 衬线菜名 → 浅灰辅助信息（价格 · 食堂 | 档口）→ 描边按钮。
+ * - 内容：圆形菜品图（280rpx，无外圈）→ 衬线菜名 → 浅灰辅助信息（价格 · 食堂 | 档口）→ 描边按钮。
  * - 按钮无图标、不贴卡片底边（下方预留充足留白）。
  */
 import { computed } from 'vue'
@@ -26,8 +26,10 @@ const props = withDefaults(
     dragging?: boolean
     /** 限频退避中：禁用底部按钮直到倒计时结束（docs/secur/S-03） */
     locked?: boolean
+    /** 卡面阴影（堆叠后方层传更弱的两档阴影实现景深） */
+    paperShadow?: string
   }>(),
-  { submitting: false, dragging: false, locked: false },
+  { submitting: false, dragging: false, locked: false, paperShadow: '' },
 )
 
 const emit = defineEmits<{ (e: 'want'): void }>()
@@ -58,7 +60,7 @@ const flavorLabel = computed(() =>
 </script>
 
 <template>
-  <PaperCard>
+  <PaperCard :shadow="paperShadow">
     <!-- 顶部信息带：左菜品名首字水印（背景层，可被菜品图遮挡）/ 右群体风味评级 -->
     <view class="card__top">
       <text v-if="initial" class="card__initial">{{ initial }}</text>
@@ -72,7 +74,7 @@ const flavorLabel = computed(() =>
       <!-- 圆形菜品图：正圆裁切，🔴 无外圈白盘 -->
       <view class="card__photo">
         <image v-if="dish.imageUrl" class="card__img" :src="dish.imageUrl" mode="aspectFill" />
-        <ImagePlaceholder v-else :size="48" bare />
+        <ImagePlaceholder v-else :size="48" />
       </view>
 
       <text class="card__name wrap-anywhere">{{ dish.name }}</text>
@@ -82,7 +84,6 @@ const flavorLabel = computed(() =>
 
     <view class="card__btn">
       <WantButton
-        :tasted="dish.wanted"
         :loading="submitting"
         :disabled="dragging || locked"
         @press="emit('want')"
@@ -105,7 +106,8 @@ const flavorLabel = computed(() =>
   pointer-events: none;
 }
 
-/* 左上：菜品名首字水印（可被菜品图遮挡）。与右上标签靠 flex-start 顶端对齐，🔴 不加纵向偏移 */
+/* 左上：菜品名首字水印（可被菜品图遮挡）。与右上标签靠 flex-start 顶端对齐，🔴 不加纵向偏移；
+   装饰暖灰（--text-decor）直接显色（不叠不透明度）—— 白底上靠色值保证可见，只做氛围装饰 */
 .card__initial {
   font-family: var(--font-serif);
   font-size: var(--dish-decor-letter);
@@ -123,21 +125,22 @@ const flavorLabel = computed(() =>
   margin-left: auto;
 }
 
-/* 第一行小字：衬线 + 字距，弱化为标签 */
+/* 第一行小字：衬线 + 字距，弱化为标签；浅灰，权重低但可读。 */
 .card__ratingCap {
   font-family: var(--font-serif);
-  font-size: var(--font-subtitle);
+  font-size: var(--font-small);
   font-weight: var(--weight-regular);
   color: var(--text-tertiary);
   letter-spacing: 0.04em;
 }
 
-/* 第二行档位词：大号衬线（标签小字在上、等级值大字在下），深棕保证可读 */
+/* 第二行档位词：中号衬线 + 中号字重，浅棕灰弱化 —— 与第一行标签拉开字号 / 字重级差，
+   作为弱附属信息，仍不抢菜名视线 */
 .card__ratingLabel {
   font-family: var(--font-serif);
-  font-size: var(--font-title);
-  font-weight: var(--weight-regular);
-  color: var(--text-title);
+  font-size: var(--font-h3);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
 }
 
 /* 内容层：底对齐 —— 「图 → 菜名 → 辅助行」整组贴齐按钮上方，
@@ -157,19 +160,24 @@ const flavorLabel = computed(() =>
   padding-top: var(--spacing-2xl);
 }
 
-/* 圆形菜品图：单层正圆，图铺满整个圆位（🔴 无外圈白盘，与骨架卡 / 记忆页圆图一致）；
+/* 圆形菜品图：单层正圆，图铺满整个圆位（🔴 无外圈白盘）；
+   **自适应**：主轴按剩余空间撑满、宽度由 1:1 派生、`--dish-photo-size` 封顶
+   ⇒ 槽位偏矮（小屏 / 短机身）时圆图等比收缩，绝不因超排被裁成「挤压」；
    底色仅在图未就绪时透出（--bg-placeholder），不参与正常态观感 */
 .card__photo {
   display: flex;
-  flex: none;
+  flex: 1 1 0;
   align-items: center;
   justify-content: center;
-  width: var(--dish-photo-size);
-  height: var(--dish-photo-size);
-  margin-bottom: var(--spacing-xl);
+  align-self: center;
+  min-height: 0;
+  max-height: var(--dish-photo-size);
+  max-width: 100%;
+  margin-bottom: var(--spacing-2xl);
   overflow: hidden;
   background: var(--bg-placeholder);
   border-radius: var(--radius-circle);
+  aspect-ratio: 1;
 }
 
 /* 圆角必须落在这里（原生 <image> 不吃父级 overflow 裁切） */
@@ -179,22 +187,22 @@ const flavorLabel = computed(() =>
   border-radius: var(--radius-circle);
 }
 
-/* 菜名：衬线常规字重 + 放大字号 —— 卡片主标题（层级靠字号与颜色，不加粗） */
+/* 菜名：衬线中粗字重 + 放大字号 —— 卡片视觉绝对主体，颜色深棕，层级最高 */
 .card__name {
   font-family: var(--font-serif);
   font-size: var(--dish-name-size);
-  font-weight: var(--weight-regular);
+  font-weight: var(--weight-medium);
   color: var(--text-title);
   text-align: center;
 }
 
-/* 价格 · 食堂|档口：无衬线 + 弱化（副标题行，浅灰 --text-secondary，不抢菜名重心） */
+/* 价格 · 食堂|档口：无衬线 + 弱化（副标题行，浅棕灰细体，对比度显著低于菜名，次要信息） */
 .card__meta {
   margin-top: calc(var(--spacing-sm) + var(--spacing-2xs));
   font-family: var(--font-sans);
-  font-size: var(--font-body);
+  font-size: var(--font-small);
   font-weight: var(--weight-regular);
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   text-align: center;
 }
 

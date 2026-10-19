@@ -74,41 +74,17 @@ onShow(async () => {
   }
 })
 
-/** 本会话内「去品尝」返回的记录 id（用于取消）—— 服务端只给 `wanted` 布尔，不带 id */
-const recordIdByDish = ref<Map<number, number>>(new Map())
-
-/** 优先用本会话缓存的记录 id；否则回查清单按 dishId 找（记录量级小） */
-async function findRecordId(dishId: number): Promise<number | null> {
-  const cached = recordIdByDish.value.get(dishId)
-  if (cached != null) return cached
-  const list = await recordApi.list()
-  return list.find((r) => r.dishId === dishId)?.id ?? null
-}
-
-/** 「去品尝 / 取消品尝」切换：未品尝 ⇒ POST（写入当日记忆）；已品尝 ⇒ DELETE（仅未评分可撤销） */
+/** 「加入记忆」：单向写入，不提供取消。取消应在「记忆」Tab 页从已有记录中删除。 */
 async function onWant(dish: DishCardOut) {
   if (submittingId.value != null || wantLocked.value) return
   submittingId.value = dish.id
   try {
-    if (dish.wanted) {
-      const id = await findRecordId(dish.id)
-      if (id == null) {
-        uni.showToast({ title: '找不到可取消的记录', icon: 'none' })
-        return
-      }
-      await recordApi.cancel(id)
-      dish.wanted = false
-      recordIdByDish.value.delete(dish.id)
-      return
-    }
-    const record = await recordApi.want(dish.id)
+    await recordApi.want(dish.id)
     dish.wanted = true
-    recordIdByDish.value.set(dish.id, record.id)
     uni.showToast({ title: '已记录到记忆', icon: 'none', duration: 3000 })
   } catch (error) {
     // 429：按服务端给的秒数禁用本入口，倒计时结束自动恢复
     cooldownFrom(WANT_KEY, error)
-    // 含边界：已评分的记录不可撤销（后端 400），此时保持已品尝态
     uni.showToast({ title: (error as Error).message || '操作失败，请重试', icon: 'none' })
   } finally {
     submittingId.value = null

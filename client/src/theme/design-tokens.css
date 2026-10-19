@@ -5,9 +5,10 @@ page {
   /* ===== 圆角 ===== */
   --radius-xs: 10rpx;
   --radius-btn: 32rpx;
-  --radius-card: 36rpx;
-  /* 海报卡圆角（风物页专属卡形态；与美味卡族同为 28rpx） */
-  --radius-card-stack: 28rpx;
+  /* 全站卡片统一大圆角（美味卡族 / 记忆卡 / 风物海报卡） */
+  --radius-card: 32rpx;
+  /* 海报卡圆角（风物页专属卡形态；与全站卡片统一） */
+  --radius-card-stack: 32rpx;
   --radius-modal: 40rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
@@ -62,31 +63,47 @@ page {
   --tap-target-size: 88rpx;
 
   /* ===== 结构尺寸 ===== */
-  /* 美味页圆形菜品图：缩小直径，预留上下大片空白，避免撑满卡片垂直高度 */
-  --dish-photo-size: 320rpx;
+  /* 美味页圆形菜品图：预留上下大片空白，避免撑满卡片垂直高度 */
+  --dish-photo-size: 420rpx;
   /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton） */
-  --dish-card-radius: 28rpx;
+  --dish-card-radius: 32rpx;
   /* 卡片上下内边距：加大至 80rpx，四周留白充裕 */
   --dish-card-pad-y: 80rpx;
   /* 卡片左右内边距：60rpx */
   --dish-card-pad-x: 60rpx;
-  --dish-name-size: 56rpx;
-  /* 卡片左上装饰大字（DishSwipeCard：菜品名首字水印，被菜品图遮挡） */
-  --dish-decor-letter: 240rpx;
-  /* 胶囊按钮：圆角加大至 40rpx，边框改为低饱和暖棕 */
+  /* 卡片菜名：大号衬线（卡内一级标题） */
+  --dish-name-size: 44rpx;
+  /* 卡片左上装饰大字（DishSwipeCard：菜品名首字水印，沉卡面最底层、低透明度） */
+  --dish-decor-letter: 320rpx;
+  /* 胶囊按钮：圆角加大至 48rpx，描边减细 */
   --want-btn-width: 320rpx;
-  --want-btn-border: 2rpx;
+  --want-btn-border: 1rpx;
   --want-btn-border-color: #d4b9a4;
-  --want-btn-radius: 40rpx;
+  --want-btn-radius: 48rpx;
   --want-btn-font: 30rpx;
-  /* 记忆卡：竖版圆角卡（顶部菜名 + 档口·价格 + 中部圆形大图 = 卡内宽 75% + 底部单行操作） */
+  /* 记忆卡：竖版圆角卡（顶部菜名 + 档口·价格 + 中部圆形大图 + 底部单行操作） */
   --record-photo-size: 280rpx;
   --record-card-width: 480rpx;
   --record-card-height: 540rpx;
+  /* 记忆卡菜名字号（卡内一级标题） */
+  --record-name-size: 44rpx;
+  /* 记忆卡右下探出角标（星芒挂角）：本体边长 / 骨架态占位边长 */
+  --record-badge-size: 200rpx;
+  --record-badge-ph-size: 96rpx;
+  /* 记忆卡行组内容器右 / 下预留：容纳探出卡片外的挂角头部 */
+  --record-row-peek: 24rpx;
+  /* 记忆卡同组后卡景深：逐级下坠量 */
+  --record-stack-step: 12rpx;
+  /* 记忆卡原位评价面板选中项底色 */
+  --eval-active-bg: rgba(180, 83, 26, 0.12);
   /* 流末尾结束态：动作图标框边长（方框，图标居中；非卡片） */
   --flowend-icon-box: 120rpx;
   /* 记忆页底层淡装饰月份数字字号 */
   --memory-motif-size: 280rpx;
+  /* 页面级加载指示尺寸 */
+  --page-loading-size: 120rpx;
+  /* 删除二次确认弹窗宽度 */
+  --sheet-dialog-width: 560rpx;
   /* 全局页头标题左右对称内距：把标题文字收进「明暗切换钮 ↔ 微信胶囊」之间的安全区（对称内距不改变水平居中） */
   --header-title-inset: 100rpx;
   /* 三 tab 页 hero 插槽盒（风物问候语 / 美味·记忆标题块）统一高度与上下内距：

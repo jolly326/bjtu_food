@@ -16,26 +16,31 @@ export const COLOR_MAP = {
   'brown-deep': '#7B4F2A',
   'primary-soft': '#FFF3D6',
 
-  /* ===== 文字五档（深棕标题 + 深炭灰正文 + 浅灰次要 + 弱化辅助 + 装饰水印）===== */
+  /* ===== 文字五档（深棕标题 + 深炭灰正文 + 浅棕灰辅助 + 弱化 + 装饰水印）===== */
   'text-title': '#44382e',
   'text-body': '#3D3A35',
-  'text-tertiary': '#9A948C',
+  'text-tertiary': '#8a7c70',
   'text-secondary': '#888888',
-  'text-decor': '#E9E5E0',
+  'text-decor': '#E6DECD',
   'text-placeholder': '#C4BEB5',
+  /* 主色底（按钮 / 弹窗主操作）上的文字色 */
+  'text-on-primary': '#FFFFFF',
 
   /* ===== 背景 / 边框 ===== */
-  /* 页面底色：极浅米白，几乎接近纯白 */
-  'bg-page': '#fffbf5',
-  /* 卡片底色：比页面底色再深一点点的奶白色 */
-  'bg-card': '#fff9f0',
+  /* 页面底色：纯白 */
+  'bg-page': '#FFFFFF',
+  /* 卡片底色：与页面同色（纯白）—— 层次只由弱阴影与描边承担 */
+  'bg-card': '#FFFFFF',
   'bg-placeholder': '#F2EBE1',
   'border-color': '#E8E3DE',
   'border-bold': '#CBC5BE',
 
   /* ===== 阴影 / 遮罩 ===== */
-  /* 海报卡阴影：拉开卡与卡之间的层次（纸片卡面无阴影，层次由描边承担） */
+  /* 卡片族统一：两层极淡软阴影，模拟轻微悬浮，没有硬边 */
   'shadow-card-stack': '0 8rpx 24rpx rgba(140, 120, 100, 0.06), 0 2rpx 8rpx rgba(140, 120, 100, 0.03)',
+  /* 堆叠后方层阴影：透明度继续降低，实现上浮景深（中层 / 下层两档） */
+  'shadow-card-back': '0 6rpx 16rpx rgba(140, 120, 100, 0.04), 0 1rpx 6rpx rgba(140, 120, 100, 0.02)',
+  'shadow-card-back-far': '0 4rpx 12rpx rgba(140, 120, 100, 0.025), 0 1rpx 4rpx rgba(140, 120, 100, 0.015)',
   'shadow-modal': '0 18rpx 54rpx rgba(0, 0, 0, 0.18)',
   /* 内阴影：纸片卡顶部吊孔「打孔下沉」的层级感 */
   'shadow-inset': 'inset 0 2rpx 6rpx rgba(68, 56, 46, 0.16)',
@@ -61,6 +66,7 @@ export const DARK_COLOR_MAP = {
   'text-secondary': '#8C8375',
   'text-decor': '#3A3229',
   'text-placeholder': '#5E564B',
+  'text-on-primary': '#FFFFFF',
 
   /* ===== 背景 / 边框 ===== */
   'bg-page': '#1A1410',
@@ -72,6 +78,9 @@ export const DARK_COLOR_MAP = {
 
   /* ===== 阴影 / 遮罩（压深语义）===== */
   'shadow-card-stack': '0 8rpx 24rpx rgba(0, 0, 0, 0.38)',
+  /* 堆叠后方层阴影：深底下继续压深（两档） */
+  'shadow-card-back': '0 6rpx 16rpx rgba(0, 0, 0, 0.28)',
+  'shadow-card-back-far': '0 4rpx 12rpx rgba(0, 0, 0, 0.2)',
   'shadow-modal': '0 -8rpx 32rpx rgba(0, 0, 0, 0.45)',
   'shadow-inset': 'inset 0 2rpx 6rpx rgba(0, 0, 0, 0.45)',
   'overlay-scrim': 'rgba(0, 0, 0, 0.6)',

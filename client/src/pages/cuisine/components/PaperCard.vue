@@ -17,6 +17,14 @@ export default {
 
 /** 宿主节点虚拟化：组件根直接参与单卡 flex 布局（卡片才能撑满槽位高度） */
 defineOptions({ options: { virtualHost: true } })
+
+const props = withDefaults(
+  defineProps<{
+    /** 卡面阴影（默认全量卡片阴影；堆叠后方层传更弱的两档阴影实现景深） */
+    shadow?: string
+  }>(),
+  { shadow: '' },
+)
 </script>
 
 <template>
@@ -24,7 +32,7 @@ defineOptions({ options: { virtualHost: true } })
     <!-- 顶部吊孔：上沿中线，完全在卡片边框内 -->
     <view class="paper__hole" />
     <!-- 卡面：承载全部内容 -->
-    <view class="paper__inner">
+    <view class="paper__inner" :style="props.shadow ? { boxShadow: props.shadow } : undefined">
       <slot />
     </view>
   </view>

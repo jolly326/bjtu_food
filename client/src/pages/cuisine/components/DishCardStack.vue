@@ -274,8 +274,15 @@ const backStyles = computed(() =>
             @want="emit('want', slot.card)"
           />
         </template>
-        <!-- 中层 / 下层：**真实后续卡片**（自己的卡面与描边，只露下坠出来的那段卡边） -->
-        <DishSwipeCard v-else-if="slot.card" :dish="slot.card" />
+        <!-- 中层 / 下层：**真实后续卡片**（自己的卡面与描边，只露下坠出来的那段卡边；
+             阴影随层级递减 —— 中层 / 下层各传一档更弱阴影，实现上浮景深） -->
+        <DishSwipeCard
+          v-else-if="slot.card"
+          :dish="slot.card"
+          :paper-shadow="
+            slot.level === 1 ? 'var(--shadow-card-back)' : 'var(--shadow-card-back-far)'
+          "
+        />
       </view>
     </view>
   </view>

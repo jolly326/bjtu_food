@@ -80,18 +80,18 @@ onMounted(load)
 </template>
 
 <style lang="scss" scoped>
-/* 问候语：独立全屏宽矩形容器 —— 文字在容器内水平 + 垂直居中，上下留白均匀；hero 档衬线
-   （页头主信息：字号最大、色最重；次级标题再弱化一档） */
+/* 问候语：独立全屏宽矩形容器 —— 文字在容器内水平 + 垂直居中；单行问候语字号缩小、
+   盒高压紧（不与美味 / 记忆的双行标题块对齐），与下方「今日食单」的垂直间距收窄 */
 .greeting {
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: var(--hero-box-height);
+  min-height: calc(var(--hero-box-height) - var(--spacing-2xl));
   padding: var(--spacing-md) var(--page-gutter);
   font-family: var(--font-serif);
-  font-size: var(--font-hero);
+  font-size: var(--font-title);
   font-weight: var(--weight-regular);
   line-height: 1.2;
   color: var(--text-title);
@@ -109,15 +109,15 @@ onMounted(load)
   padding-bottom: var(--spacing-md);
 }
 
-/* 次级标题：左对齐，字号小于问候语、色降一档（--text-secondary）；与卡片之间紧凑柔和的留白 */
+/* 次级标题：左对齐，浅棕灰辅助文字、字号下调（二级副标题）；与卡片之间紧凑柔和的留白 */
 .posterArea__title {
   flex: none;
   padding: var(--page-gutter);
   font-family: var(--font-serif);
-  font-size: var(--font-title);
+  font-size: var(--font-h3);
   font-weight: var(--weight-regular);
   line-height: 1.2;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   text-align: left;
 }
 

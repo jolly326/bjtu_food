@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 风物页 · 海报横向滑动器（slider）：单卡大圆角 + 柔和弥散阴影，图铺满卡、无留白；
+ * 风物页 · 海报横向滑动器（slider）：单卡大圆角 + 柔和弥散阴影（图即卡面，无外围衬底）；
  * 卡片在原生 swiper 内横向排布，右邻卡露出一小段左缘（`next-margin`）暗示可横滑；
  * 规格见 docs/ui/client/风物.md §2 / §3 与基线 §2.2。
  *
@@ -100,12 +100,13 @@ const items = computed(() => {
   padding: 0 0 0 var(--page-gutter);
 }
 
-/* 单卡：大圆角 + 柔和弥散阴影（浮起层次）；图铺满卡、无内距留白；卡底仅作图未就绪兜底 */
+/* 单卡：图即卡面 —— 大圆角 + 柔和弥散阴影直接落在卡片盒上（无底色 ⇒ 无外围矩形环），
+   四边留白由页面 gutter 与卡间距承担；🔴 圆角同时落到 <image> 上
+   （原生 <image> 不吃父级 overflow 裁切） */
 .poster__card {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-page);
   border-radius: var(--radius-card-stack);
   box-shadow: var(--shadow-card-stack);
 }
@@ -113,5 +114,6 @@ const items = computed(() => {
 .poster__img {
   width: 100%;
   height: 100%;
+  border-radius: var(--radius-card-stack);
 }
 </style>

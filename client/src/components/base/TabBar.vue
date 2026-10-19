@@ -87,7 +87,8 @@ function go(path: string) {
   align-items: center;
   gap: var(--spacing-xs);
   box-sizing: border-box;
-  width: calc(100vw - var(--page-gutter) * 2 - var(--spacing-md));
+  width: calc(100% - var(--page-gutter) * 2 - var(--spacing-md));
+  max-width: calc(100% - var(--page-gutter) * 2 - var(--spacing-md));
   height: var(--tabbar-height);
   padding: var(--spacing-xs);
   border: 1rpx solid var(--border-color);

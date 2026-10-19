@@ -134,12 +134,12 @@ watch(() => props.months, centerSelected, { immediate: true })
   opacity: 0.6;
 }
 
-/* 未选：浅灰（年份 + 月份同弱化） */
+/* 未选：浅灰淡化（年份 + 月份同弱化；当前月实色、历史月低透明度） */
 .timeline__year {
   font-size: var(--font-small);
   letter-spacing: 0.02em;
   color: var(--text-placeholder);
-  opacity: 0.65;
+  opacity: 0.5;
 }
 
 .timeline__month {
@@ -148,7 +148,7 @@ watch(() => props.months, centerSelected, { immediate: true })
   font-weight: var(--weight-regular);
   letter-spacing: 0.02em;
   color: var(--text-placeholder);
-  opacity: 0.65;
+  opacity: 0.5;
 }
 
 /* 当前月：仅加深颜色（字号与未选一致，均为 --font-hero） */

@@ -20,12 +20,6 @@ import empty__muted from '@/assets/icon-variants/empty--muted.svg'
 import empty__default__dark from '@/assets/icon-variants/empty--default--dark.svg'
 import empty__primary__dark from '@/assets/icon-variants/empty--primary--dark.svg'
 import empty__muted__dark from '@/assets/icon-variants/empty--muted--dark.svg'
-import face__default from '@/assets/icon-variants/face--default.svg'
-import face__primary from '@/assets/icon-variants/face--primary.svg'
-import face__muted from '@/assets/icon-variants/face--muted.svg'
-import face__default__dark from '@/assets/icon-variants/face--default--dark.svg'
-import face__primary__dark from '@/assets/icon-variants/face--primary--dark.svg'
-import face__muted__dark from '@/assets/icon-variants/face--muted--dark.svg'
 import image_broken__default from '@/assets/icon-variants/image-broken--default.svg'
 import image_broken__primary from '@/assets/icon-variants/image-broken--primary.svg'
 import image_broken__muted from '@/assets/icon-variants/image-broken--muted.svg'
@@ -120,9 +114,6 @@ export const ICON_SRC: Record<string, string> = {
   "empty--default": empty__default,
   "empty--primary": empty__primary,
   "empty--muted": empty__muted,
-  "face--default": face__default,
-  "face--primary": face__primary,
-  "face--muted": face__muted,
   "image-broken--default": image_broken__default,
   "image-broken--primary": image_broken__primary,
   "image-broken--muted": image_broken__muted,
@@ -169,9 +160,6 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "empty--default--dark": empty__default__dark,
   "empty--primary--dark": empty__primary__dark,
   "empty--muted--dark": empty__muted__dark,
-  "face--default--dark": face__default__dark,
-  "face--primary--dark": face__primary__dark,
-  "face--muted--dark": face__muted__dark,
   "image-broken--default--dark": image_broken__default__dark,
   "image-broken--primary--dark": image_broken__primary__dark,
   "image-broken--muted--dark": image_broken__muted__dark,
@@ -212,7 +200,6 @@ export const ICON_KEYS = [
   "arrow-down",
   "dish",
   "empty",
-  "face",
   "image-broken",
   "image",
   "laugh",
