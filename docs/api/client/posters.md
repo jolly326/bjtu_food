@@ -1,4 +1,4 @@
-# 学生端接口 · 档口海报
+# 学生端接口 · 风物
 
 > **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../README.md)。
 
@@ -22,5 +22,5 @@
 | `id` | number | 否 | **海报 ID**（端上列表 key；一档口可多张，与档口 ID 无关） |
 | `imageUrl` | string | 否 | 海报绝对 URL（库内为相对路径，出参转绝对） |
 
-> 列定义见 [`schema/poster.md`](../../schema/poster.md) · 页面形态见 [`ui/client/档口海报.md`](../../ui/client/档口海报.md)。
+> 列定义见 [`schema/poster.md`](../../schema/poster.md) · 页面形态见 [`ui/client/风物.md`](../../ui/client/风物.md)。
 > 🔴 海报**不叠加任何文本** —— 档口名称 / 食堂 / 位置由海报图自身承载，故本端点**不下发**这些字段。

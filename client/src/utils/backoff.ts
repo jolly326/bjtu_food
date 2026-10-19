@@ -53,12 +53,10 @@ export function cooldownLeft(key: string): number {
   return Math.ceil((until - now.value) / 1000)
 }
 
-/** 入口的退避状态：`locked` 为真时该入口不可点 */
+/** 入口的退避状态：`locked` 为真时该入口不可点（`locked` 由 `left` 派生，避免重复求值） */
 export function useCooldown(key: string): { locked: ComputedRef<boolean>; left: ComputedRef<number> } {
-  return {
-    locked: computed(() => cooldownLeft(key) > 0),
-    left: computed(() => cooldownLeft(key)),
-  }
+  const left = computed(() => cooldownLeft(key))
+  return { locked: computed(() => left.value > 0), left }
 }
 
 /** 命中 429 时登记退避并返回等待秒数；其它错误返回 0（不禁用入口） */

@@ -13,9 +13,9 @@
 |---|---|---|
 | [client/auth.md](./client/auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
 | [client/posters.md](./client/posters.md) | `GET /posters` | 海报页 |
-| [client/dishes.md](./client/dishes.md) | `GET /dishes` | 推荐页 |
+| [client/dishes.md](./client/dishes.md) | `GET /dishes` | 美味页 |
 | [client/canteens.md](./client/canteens.md) | `GET /canteens` | 食堂筛选 |
-| [client/records.md](./client/records.md) | `GET /my/records` · `POST /my/records` · `PATCH /my/records/{id}` · `DELETE /my/records/{id}` | 我的食谱 · 去品尝 · 评分 · 取消品尝 |
+| [client/records.md](./client/records.md) | `GET /my/records` · `POST /my/records` · `PATCH /my/records/{id}` · `DELETE /my/records/{id}` | 记忆 · 去品尝 · 评分 · 取消品尝 |
 | [client/issues.md](./client/issues.md) | `GET /dish-issue-options` · `POST /dishes/{id}/issues` | 菜品纠错 |
 
 ### 运营端（`web/`）

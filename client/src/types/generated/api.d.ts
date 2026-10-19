@@ -748,7 +748,7 @@ export interface components {
     /** ReactIn */
     ReactIn: {
       /** Reaction */
-      reaction: number;
+      reaction: number | null;
     };
     /** RecordOut */
     RecordOut: {
@@ -766,6 +766,12 @@ export interface components {
       reaction?: number | null;
       /** Flavorlevel */
       flavorLevel?: string | null;
+      /** Canteenname */
+      canteenName: string;
+      /** Stallname */
+      stallName: string;
+      /** Price */
+      price: number;
     };
     /** StallOut */
     StallOut: {

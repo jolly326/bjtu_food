@@ -8,15 +8,13 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
+import CardActionSheet from '@/components/CardActionSheet.vue'
+import { useCardMenu } from '@/composables/useCardMenu'
+import { usePagedList } from '@/composables/usePagedList'
 import { canteenApi, dishApi, stallApi, upload, type DishBody, type DishOut } from '@/api'
 import { fenToYuan, yuanToFen } from '@/utils/money'
 
 const route = useRoute()
-
-const rows = ref<DishOut[]>([])
-const total = ref(0)
-const page = ref(1)
-const loading = ref(false)
 
 const canteens = ref<{ id: number; name: string }[]>([])
 const stalls = ref<{ id: number; name: string; canteenId: number; canteenName: string }[]>([])
@@ -39,6 +37,13 @@ const dialog = reactive({
 
 const saving = ref(false)
 
+/** 指标行评分文案：无评分显示「暂无评分」 */
+function ratingText(row: DishOut): string {
+  return row.reactionCount > 0 && row.avgReaction != null
+    ? `${row.avgReaction.toFixed(1)} · ${row.reactionCount} 人评`
+    : '暂无评分'
+}
+
 /** 筛选用的档口：随食堂联动，未选食堂时列全部 */
 const filterStalls = reactive({ items: [] as typeof stalls.value })
 
@@ -54,47 +59,15 @@ async function loadStalls(canteenId?: number) {
   filterStalls.items = res.records as typeof stalls.value
 }
 
-async function load() {
-  loading.value = true
-  try {
-    const res = await dishApi.list({
-      stallId: filter.stallId,
-      canteenId: filter.canteenId,
-      status: filter.status || undefined,
-      page: page.value,
-    })
-    rows.value = res.records
-    total.value = res.total
-  } catch (e) {
-    ElMessage.error((e as Error).message)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function prevPage() {
-  page.value -= 1
-  await load()
-}
-
-async function nextPage() {
-  page.value += 1
-  await load()
-}
-
-function applyFilter() {
-  page.value = 1
-  load()
-}
-
-function resetFilter() {
-  filter.canteenId = undefined
-  filter.stallId = undefined
-  filter.status = ''
-  loadStalls()
-  page.value = 1
-  load()
-}
+/** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
+const { rows, total, page, loading, hasNext, load, go, reload } = usePagedList<DishOut>((p) =>
+  dishApi.list({
+    stallId: filter.stallId,
+    canteenId: filter.canteenId,
+    status: filter.status || undefined,
+    page: p,
+  }),
+)
 
 function onCreate() {
   dialog.id = 0
@@ -188,11 +161,13 @@ async function onRemove(row: DishOut) {
   }
 }
 
+/** 长按浮层（编辑 / 删除）：卡面无操作按钮 */
+const cardMenu = useCardMenu<DishOut>({ onEdit, onRemove })
+
 function onFilterCanteenChange() {
   filter.stallId = undefined
   loadStalls(filter.canteenId)
-  page.value = 1
-  load()
+  reload()
 }
 
 onMounted(async () => {
@@ -232,7 +207,7 @@ onMounted(async () => {
         v-model="filter.stallId"
         class="filters__select"
         aria-label="按档口筛选"
-        @change="applyFilter"
+        @change="reload"
       >
         <option :value="undefined">全部档口</option>
         <option v-for="s in filterStalls.items" :key="s.id" :value="s.id">{{ s.name }}</option>
@@ -241,58 +216,61 @@ onMounted(async () => {
         v-model="filter.status"
         class="filters__select"
         aria-label="按状态筛选"
-        @change="applyFilter"
+        @change="reload"
       >
         <option value="">全部状态</option>
         <option value="on">在售</option>
         <option value="off">已下架</option>
       </select>
-      <button class="btn btn--outline" @click="resetFilter">重置</button>
     </div>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>名称</th>
-          <th>所属档口</th>
-          <th class="table__num">价格</th>
-          <th>状态</th>
-          <th class="table__muted table__num">评价分</th>
-          <th class="table__muted table__num">评分条数</th>
-          <th class="table__muted">更新时间</th>
-          <th class="table__ops">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td>{{ row.name }}</td>
-          <td>{{ row.stallName }}</td>
-          <td class="table__num">¥{{ fenToYuan(row.price) }}</td>
-          <td>
+    <div class="list-card-wrap">
+      <div
+        v-for="row in rows"
+        :key="row.id"
+        class="list-card"
+        tabindex="0"
+        aria-haspopup="menu"
+        v-bind="cardMenu.pressAttrs(row, { title: row.name })"
+      >
+        <img
+          v-if="row.imageUrl"
+          :src="row.imageUrl"
+          class="list-card__figure"
+          :alt="row.name"
+          loading="lazy"
+        />
+        <span v-else class="list-card__figure list-card__figure--ph" aria-hidden="true">
+          <AppIcon name="image-broken" :size="20" />
+        </span>
+        <div class="list-card__main">
+          <div class="list-card__title">
+            <span class="list-card__titleText">{{ row.name }}</span>
             <span class="tag" :class="row.status === 'on' ? 'tag--on' : 'tag--off'">
               {{ row.status === 'on' ? '在售' : '已下架' }}
             </span>
-          </td>
-          <td class="table__muted table__num">{{ row.avgReaction ?? '暂无评分' }}</td>
-          <td class="table__muted table__num">{{ row.reactionCount }}</td>
-          <td class="table__muted">{{ row.updatedAt }}</td>
-          <td class="table__ops">
-            <button class="link" @click="onEdit(row)">编辑</button>
-            <button class="link link--danger" @click="onRemove(row)">删除</button>
-          </td>
-        </tr>
-        <tr v-if="!rows.length && !loading">
-          <td colspan="8" class="table__empty">暂无数据</td>
-        </tr>
-      </tbody>
-    </table>
+          </div>
+          <div class="list-card__path">{{ row.canteenName }} · {{ row.stallName }}</div>
+          <div class="list-card__stats">
+            <span class="list-card__rating">
+              <AppIcon name="star" :size="12" />
+              {{ ratingText(row) }}
+            </span>
+            <span class="list-card__price">¥{{ fenToYuan(row.price) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="list-card" v-if="!rows.length && !loading">
+        <span class="list-card__empty">暂无数据</span>
+      </div>
+    </div>
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
       <div class="pager">
-        <button class="btn" :disabled="page <= 1" @click="prevPage">上一页</button>
+        <button class="btn" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
         <span class="pager__cur">{{ page }}</span>
-        <button class="btn" :disabled="page * 20 >= total" @click="nextPage">下一页</button>
+        <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
       </div>
     </footer>
 
@@ -354,130 +332,19 @@ onMounted(async () => {
         </footer>
       </div>
     </div>
+
+    <CardActionSheet
+      v-model="cardMenu.open"
+      :title="cardMenu.title"
+      :remove-disabled="cardMenu.removeDisabled"
+      :remove-hint="cardMenu.removeHint"
+      @edit="cardMenu.pickEdit"
+      @remove="cardMenu.pickRemove"
+    />
   </section>
 </template>
 
 <style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.page__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page__title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--el-text-color-primary);
-}
-.page__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page__total {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-.pager {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.pager__cur {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-
-.filters {
-  display: flex;
-  gap: 8px;
-}
-.filters__select {
-  height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
-}
-
-.table__muted {
-  color: var(--el-text-color-secondary);
-}
-.table__num {
-  text-align: right;
-}
-.table__ops {
-  text-align: right;
-  white-space: nowrap;
-}
-.table__empty {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--el-text-color-placeholder);
-}
-
-.tag {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-}
-.tag--on {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
-}
-.tag--off {
-  background: var(--el-fill-color);
-  color: var(--el-text-color-secondary);
-}
-
-.link {
-  border: none;
-  background: none;
-  color: var(--el-color-primary);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0 6px;
-}
-.link--danger {
-  color: var(--el-color-danger);
-}
-
-/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
-.dialog__title {
-  margin: 0 0 20px;
-  font-size: 16px;
-  color: var(--el-text-color-primary);
-}
-.dialog__label {
-  display: block;
-  margin: 14px 0 6px;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-.dialog__input {
-  width: 100%;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  outline: none;
-  box-sizing: border-box;
-}
-.dialog__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 24px;
-}
-
 .poster {
   display: flex;
   align-items: center;

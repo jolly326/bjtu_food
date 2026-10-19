@@ -8,9 +8,12 @@ vi.mock('@/api/request', () => ({
   readToken: vi.fn(() => ''),
   writeToken: vi.fn(),
   clearToken: vi.fn(),
+  readUsername: vi.fn(() => ''),
+  writeUsername: vi.fn(),
+  clearUsername: vi.fn(),
 }))
 
-import { clearToken, writeToken } from '@/api/request'
+import { clearToken, clearUsername, writeToken, writeUsername } from '@/api/request'
 import { useSessionStore } from '@/stores/session'
 
 describe('运营端会话 store', () => {
@@ -23,6 +26,7 @@ describe('运营端会话 store', () => {
     const session = useSessionStore()
     await session.login('admin', 'pw')
     expect(writeToken).toHaveBeenCalledWith('T')
+    expect(writeUsername).toHaveBeenCalledWith('admin')
     expect(session.token).toBe('T')
     expect(session.username).toBe('admin')
     expect(session.isAuthenticated).toBe(true)
@@ -32,6 +36,7 @@ describe('运营端会话 store', () => {
     const session = useSessionStore()
     session.logout()
     expect(clearToken).toHaveBeenCalled()
+    expect(clearUsername).toHaveBeenCalled()
     expect(session.token).toBe('')
     expect(session.username).toBe('')
     expect(session.isAuthenticated).toBe(false)

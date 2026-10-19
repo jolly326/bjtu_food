@@ -9,6 +9,8 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL as string
 const TOKEN_KEY = 'admin_token'
+/** 操作员账号名（顶栏展示用，非凭证）—— 与 token 同生命周期持久化，避免刷新丢名 */
+const USERNAME_KEY = 'admin_username'
 
 type Envelope<T> = { code: number; message: string; data: T | null }
 
@@ -22,6 +24,18 @@ export function writeToken(token: string): void {
 
 export function clearToken(): void {
   sessionStorage.removeItem(TOKEN_KEY)
+}
+
+export function readUsername(): string {
+  return sessionStorage.getItem(USERNAME_KEY) || ''
+}
+
+export function writeUsername(username: string): void {
+  sessionStorage.setItem(USERNAME_KEY, username)
+}
+
+export function clearUsername(): void {
+  sessionStorage.removeItem(USERNAME_KEY)
 }
 
 function toLogin() {

@@ -1,12 +1,13 @@
-"""record 域业务规则（docs/func/client/B1-品尝标记.md、B2-评分反馈.md、B4-我的食谱.md）。
+"""record 域业务规则（docs/func/client/B1-品尝标记.md、B2-评分反馈.md、B4-记忆.md）。
 
 关键口径：
 * 一行 = 一次品尝；**一人一菜可多行**
-* 🔴 评分**不可修改**；重新评分须再次去品尝（新建一行）
+* 🔴 评分**可循环修改**（喜欢 5 → 一般 3 → 不喜欢 1 → 清除 null），每次写入即时生效
 * 「至多一条未评分记录」由本层保证（MySQL 5.7 无部分索引）
 * 取消 = 物理删行，**仅限未评分**
 * 写评分后**同事务**重算 dish.avg_reaction
 * 出参附**群体风味评级** ``flavor_level``（由缓存列实时判定，样本 < 3 条 ⇒ ``None`` 待评）
+* 出参附**档口 / 食堂 / 价格**（记忆卡辅助行）
 """
 
 from __future__ import annotations
@@ -35,9 +36,18 @@ class RecordView:
     wanted_at: str
     reaction: int | None
     flavor_level: str | None
+    canteen_name: str
+    stall_name: str
+    price: int
 
 
-def _to_view(record: DishRecord, dish: Dish) -> RecordView:
+def _to_view(
+    record: DishRecord,
+    dish: Dish,
+    *,
+    canteen_name: str = "",
+    stall_name: str = "",
+) -> RecordView:
     return RecordView(
         id=record.id,
         dish_id=record.dish_id,
@@ -46,6 +56,9 @@ def _to_view(record: DishRecord, dish: Dish) -> RecordView:
         wanted_at=record.wanted_at.strftime("%Y-%m-%d %H:%M:%S") if record.wanted_at else "",
         reaction=record.reaction,
         flavor_level=flavor_level(dish.avg_reaction, dish.reaction_count),
+        canteen_name=canteen_name,
+        stall_name=stall_name,
+        price=dish.price,
     )
 
 
@@ -55,25 +68,26 @@ def create_record(session: Session, *, student_id: int, dish_id: int) -> RecordV
     if dish is None:
         raise NotFound("菜品不存在或已下架")
 
+    canteen_name, stall_name = repo.place_of(session, stall_id=dish.stall_id)
+
     existing = repo.find_unrated(session, student_id=student_id, dish_id=dish_id)
     if existing is not None:
-        return _to_view(existing, dish)
+        return _to_view(existing, dish, canteen_name=canteen_name, stall_name=stall_name)
 
     record = DishRecord(user_id=student_id, dish_id=dish_id)
     session.add(record)
     session.flush()
-    return _to_view(record, dish)
+    return _to_view(record, dish, canteen_name=canteen_name, stall_name=stall_name)
 
 
-def react(session: Session, *, student_id: int, record_id: int, reaction: int) -> RecordView:
-    if reaction not in VALID_REACTIONS:
-        raise BadRequest("reaction 只能取 5（喜欢）/ 3（一般）/ 1（不喜欢）")
+def react(session: Session, *, student_id: int, record_id: int, reaction: int | None) -> RecordView:
+    """三态评分：**循环可改**（5 → 3 → 1），传 ``None`` 表示清除评价。"""
+    if reaction is not None and reaction not in VALID_REACTIONS:
+        raise BadRequest("reaction 只能取 5（喜欢）/ 3（一般）/ 1（不喜欢），或 null 清除评价")
 
     record = repo.get_owned(session, student_id=student_id, record_id=record_id)
     if record is None:
         raise NotFound("记录不存在")
-    if record.reaction is not None:
-        raise BadRequest("该记录已评分，不能修改；想重新评分请再次去品尝")
 
     dish = repo.get_on_sale_dish(session, dish_id=record.dish_id)
     if dish is None:
@@ -82,10 +96,11 @@ def react(session: Session, *, student_id: int, record_id: int, reaction: int) -
     record.reaction = reaction
     # 时间戳来源 = DB 时钟（与 wanted_at / created_at 同一基准）：不用应用本地时间，
     # 否则容器时区与库时区不一致时，同一行会出现两种时区的时间
-    record.reacted_at = session.scalar(select(func.now()))
+    record.reacted_at = session.scalar(select(func.now())) if reaction is not None else None
     recalc(session, record.dish_id)  # 🔴 同事务重算缓存列
     session.flush()
-    return _to_view(record, dish)
+    canteen_name, stall_name = repo.place_of(session, stall_id=dish.stall_id)
+    return _to_view(record, dish, canteen_name=canteen_name, stall_name=stall_name)
 
 
 def cancel(session: Session, *, student_id: int, record_id: int) -> None:
@@ -101,5 +116,8 @@ def cancel(session: Session, *, student_id: int, record_id: int) -> None:
 
 
 def list_mine(session: Session, *, student_id: int) -> list[RecordView]:
-    pairs = repo.list_mine_with_dish(session, student_id=student_id)
-    return [_to_view(record, dish) for record, dish in pairs]
+    rows = repo.list_mine_with_dish(session, student_id=student_id)
+    return [
+        _to_view(record, dish, canteen_name=canteen_name or "", stall_name=stall_name or "")
+        for record, dish, stall_name, canteen_name in rows
+    ]

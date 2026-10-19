@@ -6,6 +6,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
+import CardActionSheet from '@/components/CardActionSheet.vue'
+import { useCardMenu } from '@/composables/useCardMenu'
 import { optionApi, type OptionOut } from '@/api'
 
 const rows = ref<OptionOut[]>([])
@@ -75,6 +77,9 @@ async function onRemove(row: OptionOut) {
   }
 }
 
+/** 长按浮层（编辑 / 删除）：被引用（refCount > 0）时浮层内删除置灰并注明原因 */
+const cardMenu = useCardMenu<OptionOut>({ onEdit, onRemove })
+
 onMounted(load)
 </script>
 
@@ -87,37 +92,34 @@ onMounted(load)
       </button>
     </header>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>选项文案</th>
-          <th class="table__muted table__num">引用次数</th>
-          <th class="table__muted">更新时间</th>
-          <th class="table__ops">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td>{{ row.name }}</td>
-          <td class="table__muted table__num">{{ row.refCount }}</td>
-          <td class="table__muted">{{ row.updatedAt }}</td>
-          <td class="table__ops">
-            <button class="link" @click="onEdit(row)">编辑</button>
-            <button
-              class="link link--danger"
-              :class="{ 'is-disabled': row.refCount > 0 }"
-              :title="row.refCount > 0 ? `已被 ${row.refCount} 条纠错提交引用，无法删除` : ''"
-              @click="onRemove(row)"
-            >
-              删除
-            </button>
-          </td>
-        </tr>
-        <tr v-if="!rows.length && !loading">
-          <td colspan="4" class="table__empty">暂无选项</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="list-card-wrap">
+      <div
+        v-for="row in rows"
+        :key="row.id"
+        class="list-card"
+        tabindex="0"
+        aria-haspopup="menu"
+        v-bind="
+          cardMenu.pressAttrs(row, {
+            title: row.name,
+            removeDisabled: row.refCount > 0,
+            removeHint: row.refCount > 0 ? `已被 ${row.refCount} 条纠错引用，无法删除` : undefined,
+          })
+        "
+      >
+        <div class="list-card__main">
+          <h3 class="list-card__title">
+            <span class="list-card__titleText">{{ row.name }}</span>
+          </h3>
+          <div class="list-card__stats">
+            <span class="list-card__stat">被 {{ row.refCount }} 条纠错引用</span>
+          </div>
+        </div>
+      </div>
+      <div class="list-card" v-if="!rows.length && !loading">
+        <span class="list-card__empty">暂无选项</span>
+      </div>
+    </div>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
       <div class="dialog">
@@ -133,90 +135,14 @@ onMounted(load)
         </footer>
       </div>
     </div>
+
+    <CardActionSheet
+      v-model="cardMenu.open"
+      :title="cardMenu.title"
+      :remove-disabled="cardMenu.removeDisabled"
+      :remove-hint="cardMenu.removeHint"
+      @edit="cardMenu.pickEdit"
+      @remove="cardMenu.pickRemove"
+    />
   </section>
 </template>
-
-<style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.page__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.page__title {
-  margin: 0;
-  font-size: 18px;
-  color: var(--el-text-color-primary);
-}
-
-.table__muted {
-  color: var(--el-text-color-secondary);
-}
-.table__num {
-  text-align: right;
-}
-.table__ops {
-  text-align: right;
-  white-space: nowrap;
-}
-.table__empty {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--el-text-color-placeholder);
-}
-
-.link {
-  border: none;
-  background: none;
-  color: var(--el-color-primary);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0 6px;
-}
-.link--danger {
-  color: var(--el-color-danger);
-}
-.is-disabled {
-  pointer-events: none;
-  opacity: 0.4;
-}
-
-/* 遮罩底色由 theme.css 的 #app .mask 单点提供（暖色半透明） */
-.dialog__title {
-  margin: 0 0 20px;
-  font-size: 16px;
-  color: var(--el-text-color-primary);
-}
-.dialog__label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-}
-.dialog__input {
-  width: 100%;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-primary);
-  outline: none;
-  box-sizing: border-box;
-}
-.dialog__hint {
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-}
-.dialog__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 24px;
-}
-</style>

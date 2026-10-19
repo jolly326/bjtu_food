@@ -1,5 +1,9 @@
 <script setup lang="ts">
-// 全局入口：只承担样式挂载，不放业务逻辑
+// 全局入口：样式挂载 + 主题初始化（读取持久化的明暗选择）
+import { onLaunch } from '@dcloudio/uni-app'
+import { initTheme } from '@/utils/theme'
+
+onLaunch(initTheme)
 </script>
 
 <style lang="scss">

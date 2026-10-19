@@ -5,6 +5,9 @@
  */
 import AppIcon from './AppIcon.vue'
 
+/** 宿主节点虚拟化：组件根直接参与页面 flex 布局 */
+defineOptions({ options: { virtualHost: true } })
+
 defineProps<{
   loading?: boolean
 }>()

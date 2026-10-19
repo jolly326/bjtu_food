@@ -1,15 +1,14 @@
-﻿/* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
+/* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
    口径见 docs/ui/client/设计变量.md；改值只改这里，再同步文档。 */
 
 page {
   /* ===== 圆角 ===== */
   --radius-xs: 10rpx;
   --radius-btn: 32rpx;
-  --radius-card: 36rpx;
-  /* 卡片栈单卡圆角（24rpx） */
-  --radius-card-stack: 24rpx;
-  /* 食谱卡大圆角（Julienne 柔和纸片） */
-  --radius-card-lg: 48rpx;
+  /* 全站卡片统一大圆角（美味卡族 / 记忆卡 / 风物海报卡） */
+  --radius-card: 32rpx;
+  /* 海报卡圆角（风物页专属卡形态；与全站卡片统一） */
+  --radius-card-stack: 32rpx;
   --radius-modal: 40rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
@@ -23,14 +22,16 @@ page {
   --spacing-lg: 32rpx;
   --spacing-xl: 40rpx;
   --spacing-2xl: 48rpx;
-  /* 全站页面左右统一边距（发现 / 美食 / 记忆共用） */
-  --page-gutter: 48rpx;
+  /* 全站页面左右统一边距（风物 / 美味 / 记忆共用；各模块左侧基准线均以此为齐） */
+  --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
   --font-serif: 'Noto Serif SC', 'Source Han Serif SC', serif;
   --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
 
   /* ===== 字号 ===== */
+  /* 页头大标题专用档（美味页标题、记忆页标题） */
+  --font-hero: 64rpx;
   --font-display: 48rpx;
   --font-title: 40rpx;
   --font-h2: 36rpx;
@@ -38,7 +39,6 @@ page {
   --font-body: 26rpx;
   --font-subtitle: 24rpx;
   --font-small: 22rpx;
-  --font-tiny: 20rpx;
 
   /* ===== 字重 ===== */
   --weight-regular: 400;
@@ -61,12 +61,53 @@ page {
   --tabbar-height: 116rpx;
   --tabbar-gap: 20rpx;
   --tap-target-size: 88rpx;
-  --reaction-item-min-width: 120rpx;
 
   /* ===== 结构尺寸 ===== */
+  /* 美味页圆形菜品图：预留上下大片空白，避免撑满卡片垂直高度 */
   --dish-photo-size: 420rpx;
-  --record-photo-size: 220rpx;
+  /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton） */
+  --dish-card-radius: 32rpx;
+  /* 卡片上下内边距：加大至 80rpx，四周留白充裕 */
+  --dish-card-pad-y: 80rpx;
+  /* 卡片左右内边距：60rpx */
+  --dish-card-pad-x: 60rpx;
+  /* 卡片菜名：大号衬线（卡内一级标题） */
+  --dish-name-size: 44rpx;
+  /* 卡片左上装饰大字（DishSwipeCard：菜品名首字水印，沉卡面最底层、低透明度） */
+  --dish-decor-letter: 320rpx;
+  /* 胶囊按钮：圆角加大至 48rpx，描边减细 */
+  --want-btn-width: 320rpx;
+  --want-btn-border: 1rpx;
+  --want-btn-border-color: #d4b9a4;
+  --want-btn-radius: 48rpx;
+  --want-btn-font: 30rpx;
+  /* 记忆卡：竖版圆角卡（顶部菜名 + 档口·价格 + 中部圆形大图 + 底部单行操作） */
+  --record-photo-size: 280rpx;
   --record-card-width: 480rpx;
+  --record-card-height: 540rpx;
+  /* 记忆卡菜名字号（卡内一级标题） */
+  --record-name-size: 44rpx;
+  /* 记忆卡右下探出角标（星芒挂角）：本体边长 / 骨架态占位边长 */
+  --record-badge-size: 200rpx;
+  --record-badge-ph-size: 96rpx;
+  /* 记忆卡行组内容器右 / 下预留：容纳探出卡片外的挂角头部 */
+  --record-row-peek: 24rpx;
+  /* 记忆卡同组后卡景深：逐级下坠量 */
+  --record-stack-step: 12rpx;
+  /* 记忆卡原位评价面板选中项底色 */
+  --eval-active-bg: rgba(180, 83, 26, 0.12);
+  /* 流末尾结束态：动作图标框边长（方框，图标居中；非卡片） */
+  --flowend-icon-box: 120rpx;
   /* 记忆页底层淡装饰月份数字字号 */
   --memory-motif-size: 280rpx;
+  /* 页面级加载指示尺寸 */
+  --page-loading-size: 120rpx;
+  /* 删除二次确认弹窗宽度 */
+  --sheet-dialog-width: 560rpx;
+  /* 全局页头标题左右对称内距：把标题文字收进「明暗切换钮 ↔ 微信胶囊」之间的安全区（对称内距不改变水平居中） */
+  --header-title-inset: 100rpx;
+  /* 三 tab 页 hero 插槽盒（风物问候语 / 美味·记忆标题块）统一高度与上下内距：
+     上下内距 --spacing-md(24rpx)×2 + 双行标题块内容（标题 76.8 + 标题日期间距 16 + 日期 26.4 ≈ 119rpx）
+     ≈ 167rpx，取 176rpx 留余量，切 tab 时下方内容区起点一致 */
+  --hero-box-height: 176rpx;
 }

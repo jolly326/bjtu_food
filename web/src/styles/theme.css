@@ -14,6 +14,9 @@ html:root {
   --el-color-primary-light-8: #f0cdb4;
   --el-color-primary-light-9: #f7e2d4;
   --el-color-primary-dark-2: #8f4014;
+  /* 🔴 上列 light-3/5/7 与 dark-2、以及下方 --el-color-info / --el-border-color-light 由
+     Element Plus 组件内部消费（按钮 hover、弹层边框、MessageBox 图标等）—— 静态扫描不可见，
+     check:tokens 列为「零引用」属预期，按「EP 内部消费」保留，🔴 不得零消费即删 */
 
   /* 功能色：保持 Element Plus 默认语义，仅饱和度微调避免与主色冲突 */
   --el-color-success: #2e7d32;
@@ -22,11 +25,10 @@ html:root {
   --el-color-error: var(--el-color-danger);
   --el-color-info: #1565c0;
 
-  /* ===== 页面基底：纯白 ===== */
+  /* ===== 页面基底：纯白 =====
+     （--el-bg-color-overlay / --el-fill-color-blank 已按「零消费即删」移除：与 EP 默认逐字同值） */
   --el-bg-color-page: #ffffff;
   --el-bg-color: #ffffff;
-  --el-bg-color-overlay: #ffffff;
-  --el-fill-color-blank: #ffffff;
   --el-fill-color-light: #f4ede3;
   --el-fill-color-lighter: #f8f3ec;
   --el-fill-color: #efe7db;
@@ -46,7 +48,8 @@ html:root {
   /* ===== 圆角与阴影：纸片质感 ===== */
   --el-border-radius-base: 12px;
   --el-border-radius-large: 16px;
-  --el-border-radius-sm: 8px; /* 次要按钮 / 小控件圆角，更轻盈 */
+  /* 小圆角（自建，非 EP 变量）：原 --el-border-radius-sm 冒用 el- 前缀，已更名 */
+  --web-radius-sm: 8px;
   --el-box-shadow-light: 0 10px 30px rgba(90, 70, 45, 0.08);
   --el-box-shadow-elevated: 0 14px 38px rgba(90, 70, 45, 0.1); /* 悬浮纸片更重阴影 */
 
@@ -75,8 +78,11 @@ h3 {
   letter-spacing: 0.01em;
 }
 
-/* ===== 内容区 = 悬浮纸片卡片 ===== */
+/* ===== 内容区 = 悬浮纸片卡片（骨架布局 + BEM 子块一并收口，视图 scoped 不得再写同名块） ===== */
 #app .page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   padding: 24px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
@@ -84,9 +90,58 @@ h3 {
   box-shadow: var(--el-box-shadow-light);
 }
 
-/* ===== 基础控件形态（唯一收口）：按钮 / 表格 / 弹窗 / 遮罩 =====
-   🔴 各视图**不得**再写同名基础块（`.btn` / `.table` / `.dialog` / `.mask` 的
-   尺寸与盒模型一律在此维护），视图 scoped 只放页面私有差异（如 `.table__ops`）。 */
+/* 顶栏（标题 + 主操作）/ 底部分页栏 / 筛选区：全站同一形态（基线 §2.1） */
+#app .page__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#app .page__title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--el-text-color-primary);
+}
+
+#app .page__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#app .page__total {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+#app .pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#app .pager__cur {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+#app .filters {
+  display: flex;
+  gap: 8px;
+}
+
+#app .filters__select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
+}
+
+/* ===== 基础控件形态（唯一收口）：按钮 / 列表卡片 / 概览统计卡 / 弹窗 / 遮罩 =====
+   🔴 各视图**不得**再写同名基础块（`.btn` / `.dialog` / `.mask` / `.list-card*` /
+   `.overview*` 的尺寸与盒模型一律在此维护），视图 scoped 只放页面私有差异。 */
 #app .btn {
   display: inline-flex;
   align-items: center;
@@ -113,26 +168,6 @@ h3 {
   color: #fff;
 }
 
-#app .table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-#app .table th,
-#app .table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
-  text-align: left;
-}
-
-/* ===== 表格头暖底、行分隔柔和 ===== */
-#app .table th {
-  background: var(--el-fill-color-lighter);
-  color: var(--el-text-color-secondary);
-  font-weight: 600;
-}
-
 /* ===== 弹窗：纸片卡片 + 柔和阴影 + 暖色遮罩 ===== */
 #app .mask {
   position: fixed;
@@ -154,12 +189,112 @@ h3 {
   box-shadow: var(--el-box-shadow-light);
 }
 
+/* 弹窗内字段：标签在上（上距 14px / 下距 6px）+ 输入 34px；全站同一形态 */
+#app .dialog__title {
+  margin: 0 0 20px;
+  font-size: 16px;
+  color: var(--el-text-color-primary);
+}
+
+#app .dialog__label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+
+#app .dialog__input {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+#app .dialog__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+
+#app .dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+/* ===== 长按操作浮层（底部纸片，见基线 §2.3；.mask 底边锚定变体） ===== */
+#app .mask--sheet {
+  align-items: flex-end;
+  justify-content: center;
+  /* 与屏幕底缘留间距悬浮（含安全区）不贴边；左右 12px 使浮层成内缩纸片 */
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+  z-index: 300;
+}
+
+#app .sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100%);
+  padding: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-large);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
+}
+
+#app .sheet__title {
+  margin: 0;
+  padding: 10px 12px 8px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  text-align: center;
+}
+
+#app .sheet__row {
+  height: 44px;
+  border: none;
+  border-radius: var(--el-border-radius-base);
+  background: transparent;
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#app .sheet__row:hover {
+  background: var(--el-fill-color-light);
+}
+
+#app .sheet__row:disabled {
+  color: var(--el-text-color-placeholder);
+  cursor: not-allowed;
+}
+
+#app .sheet__row--muted {
+  color: var(--el-text-color-secondary);
+}
+
+#app .sheet__hint {
+  margin: -4px 0 4px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+  text-align: center;
+}
+
+/* 窄屏无需单独规则：.sheet 宽度 min(420px, 100%) 自然收窄，间距由 .mask--sheet 统一提供 */
+
 /* ===== 次要按钮：暖橙描边式，透明底（知行食记 标志性）===== */
 #app .btn--outline {
   height: 32px;
   padding: 0 14px;
   border: 1px solid var(--el-color-primary);
-  border-radius: var(--el-border-radius-sm);
+  border-radius: var(--web-radius-sm);
   background: transparent;
   color: var(--el-color-primary);
   font-size: 13px;
@@ -182,7 +317,7 @@ h3 {
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-sm);
+  border-radius: var(--web-radius-sm);
   background: var(--el-bg-color);
   color: var(--el-text-color-regular);
   font-size: 12px;
@@ -205,4 +340,239 @@ h3 {
 
 #app .login__card {
   box-shadow: var(--el-box-shadow-light);
+}
+
+/* ===== 列表卡片容器：响应式栅格（宽屏一行多卡，窄屏自然单列） ===== */
+#app .list-card-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 8px 12px;
+}
+
+#app .list-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  /* 长按手势面：防按住时误触发文本选中（见基线 §2.3） */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 键盘可达（tabindex=0 卡片）：聚焦时主色描边 */
+#app .list-card:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+#app .list-card__main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+#app .list-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#app .list-card__titleText {
+  font-size: 15px;
+  color: var(--el-text-color-primary);
+}
+
+#app .list-card__empty {
+  grid-column: 1 / -1; /* 空态横跨整行，不被栅格收窄 */
+  padding: 40px 14px;
+  text-align: center;
+  color: var(--el-text-color-placeholder);
+}
+
+/* ===== 列表卡片：操作列（仅纠错处理页处置动线，见基线 §2.3） ===== */
+#app .list-card__actions {
+  display: flex;
+  align-items: center;
+}
+
+/* ===== 列表卡片：左置缩略图（无图占位同尺寸，列表不塌陷、行行等高） ===== */
+#app .list-card__figure {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--web-radius-sm);
+  object-fit: cover;
+}
+
+#app .list-card__figure--ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-fill-color-lighter);
+  color: var(--el-text-color-placeholder);
+}
+
+/* 海报列缩略图：3:4 竖版（仅海报管理页出图，见基线 §1.6） */
+#app .list-card__figure--poster {
+  width: 48px;
+  height: 64px;
+  border-radius: 4px;
+}
+
+/* ===== 列表卡片：归属路径（三级弱化，体现 父 → 子 层级） ===== */
+#app .list-card__path {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
+
+/* ===== 列表卡片：指标行（本页量化信息：价格 / 评分 / 计数 / 时间） ===== */
+#app .list-card__stats {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+#app .list-card__statValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+/* 价格随指标行左贴强调（卡面内容整体左对齐，见基线 §1.6） */
+#app .list-card__price {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+#app .list-card__rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 已处理 / 失效态整卡弱化（纠错处理页） */
+#app .list-card--dim {
+  opacity: 0.55;
+}
+
+/* ===== 状态 / 反应标签（基础形态全站收口；反应色变体留在评分数据页 scoped） ===== */
+#app .tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+#app .tag--on {
+  background: var(--el-color-success-light-9);
+  color: var(--el-color-success);
+}
+
+#app .tag--off {
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+}
+
+/* ===== 评分概览统计卡（评分数据页；四档位聚合，压在明细列表上方） ===== */
+#app .overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#app .overview__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+}
+
+#app .overview__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+#app .overview__pct {
+  color: var(--el-text-color-placeholder);
+}
+
+#app .overview__count {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--el-text-color-primary);
+}
+
+#app .overview__bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--el-fill-color);
+}
+
+#app .overview__barFill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--el-color-primary);
+}
+
+#app .overview__barFill--5 {
+  background: var(--el-color-success);
+}
+
+#app .overview__barFill--3 {
+  background: var(--el-color-warning);
+}
+
+#app .overview__barFill--1 {
+  background: var(--el-color-danger);
+}
+
+#app .overview__barFill--none {
+  background: var(--el-text-color-placeholder);
+}
+
+/* ===== 手机端（≤640px）：弹窗近全宽 + 卡片纵排 + 操作换行到卡底右对齐 + 概览 2×2 ===== */
+@media (max-width: 640px) {
+  /* 弹窗窄屏近全宽（原散落 6 个视图的同名规则，收口于此） */
+  #app .dialog {
+    width: min(520px, 92vw);
+    margin: 0 4px;
+  }
+
+  #app .list-card {
+    flex-wrap: wrap;
+  }
+
+  #app .list-card__figure:not(.list-card__figure--poster) {
+    width: 48px;
+    height: 48px;
+  }
+
+  #app .list-card__actions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+
+  #app .overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

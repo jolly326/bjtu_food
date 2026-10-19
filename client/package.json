@@ -7,6 +7,7 @@
     "dev:mp-weixin": "uni -p mp-weixin",
     "prebuild:mp-weixin": "npm run gen:icons",
     "build:mp-weixin": "uni build -p mp-weixin",
+    "postbuild:mp-weixin": "node scripts/inject-virtual-host.mjs",
     "type-check": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

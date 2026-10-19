@@ -1,4 +1,4 @@
-"""poster 域业务规则（docs/func/client/A1-档口海报.md）。"""
+"""poster 域业务规则（docs/func/client/A1-风物.md）。"""
 
 from __future__ import annotations
 

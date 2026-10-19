@@ -1,9 +1,12 @@
 <script setup lang="ts">
 /**
  * 底部弹层（口径见 docs/ui/client/公共组件与形态基线.md §2.1.4）。
- * 本设计唯一用法：我的食谱页的「纠错选项」弹层（单选、无图标）。
+ * 本项目用法：记忆页长按菜单（反馈 / 删除记忆 / 取消）与纠错表单，由 MemoryActionsSheet 复用。
  */
 import { ref } from 'vue'
+
+/** 宿主节点虚拟化：组件根直接参与页面布局 */
+defineOptions({ options: { virtualHost: true } })
 
 withDefaults(
   defineProps<{
@@ -88,8 +91,9 @@ function close() {
 
 .sheet__title {
   margin-bottom: var(--spacing-md);
+  font-family: var(--font-serif);
   font-size: var(--font-subtitle);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-regular);
   color: var(--text-title);
 }
 
