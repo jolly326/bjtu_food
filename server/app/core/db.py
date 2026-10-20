@@ -18,6 +18,10 @@ engine = create_engine(
     settings.sqlalchemy_url,
     pool_pre_ping=True,
     pool_recycle=3600,
+    # 单 worker 显式池参数：稳态 10 + 突发 10 —— 须与容器 CPU 配额 / MySQL max_connections 匹配
+    pool_size=10,
+    max_overflow=10,
+    pool_timeout=30,  # 等连接超时快速失败，避免请求悬挂
     future=True,
     echo=False,
 )

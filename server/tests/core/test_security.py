@@ -13,6 +13,7 @@ from app.core.security import (
     STUDENT,
     create_token,
     current_subject,
+    dummy_hash,
     extract_bearer,
     hash_password,
     verify_password,
@@ -84,3 +85,11 @@ def test_password_hash_is_not_plaintext_and_verifies() -> None:
 def test_verify_password_rejects_non_bcrypt_value() -> None:
     """库里若被误写明文，比对必须安全失败（不抛异常、不通过）。"""
     assert verify_password("whatever", "plain-text-not-a-hash") is False
+
+
+def test_dummy_hash_is_valid_stable_and_rejects_passwords() -> None:
+    """时序均衡占位哈希：合法 BCrypt 串、惰性复用、任何口令都比对失败。"""
+    first = dummy_hash()
+    assert first.startswith("$2")
+    assert dummy_hash() is first  # 惰性复用：避免每次登录重新 gensalt
+    assert verify_password("anything", first) is False

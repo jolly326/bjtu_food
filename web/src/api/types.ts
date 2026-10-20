@@ -35,14 +35,15 @@ export type DishOut = DishBody & {
 }
 
 export type PosterBody = {
-  stallId: number
+  /** 档口**可选**：不传 ⇒ 海报不关联档口（纯运营内容） */
+  stallId?: number | null
   imageUrl: string
   sort?: number | null
   status: string
 }
 export type PosterOut = {
   id: number
-  stallId: number
+  stallId: number | null
   stallName: string
   canteenName: string
   imageUrl: string

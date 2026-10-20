@@ -84,6 +84,7 @@ async function onSubmit() {
   display: flex;
   flex-direction: column;
   width: min(400px, 92vw);
+  box-sizing: border-box; /* 无全局重置：不定死则 padding 外溢，手机上卡片超出视口产生横滚 */
   padding: 32px;
   border-radius: 20px;
   background: var(--web-bg-card);
@@ -151,5 +152,29 @@ async function onSubmit() {
 .login__submit:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+/* 手机（≤640px）：输入 44px 触控 + 16px 字号（iOS 聚焦 <16px 会强制缩放视口）、
+   按钮加高、卡面内距收紧；100dvh 让卡片始终落在浏览器动态工具栏之内的可视区居中 */
+@media (max-width: 640px) {
+  .login {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 24px 0;
+  }
+
+  .login__card {
+    padding: 28px 22px;
+  }
+
+  .login__input {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .login__submit {
+    height: 46px;
+    font-size: 15px;
+  }
 }
 </style>

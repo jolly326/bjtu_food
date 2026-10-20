@@ -132,9 +132,7 @@ onMounted(load)
 </script>
 
 <template>
-  <PageLoading v-if="loading" />
-
-  <TabPage v-else active="cuisine">
+  <TabPage active="cuisine">
     <!-- 页级标题块（hero 插槽）：标题 + 日期 + 筛选器 -->
     <template #hero>
       <view class="topbar">
@@ -147,6 +145,9 @@ onMounted(load)
     </template>
 
     <RetryBlock v-if="failed" @retry="load" />
+
+    <!-- 加载中 ⇒ 加载块居中于卡片栈区域（不整页覆盖） -->
+    <PageLoading v-else-if="loading" />
 
     <DishCardStack
       v-else

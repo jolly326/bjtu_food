@@ -4,8 +4,8 @@
  *
  * - 取消操作应在「记忆」Tab 页从已有记录中删除，此处只负责加入。
  * - **形态**：左侧本子图标 + 右侧文案「加入记忆」，胶囊描边式；
- *   最小宽 `--want-btn-width`(240rpx)、高 ≥ `--tap-target-size`(88rpx)，
- *   左右内边距 `--spacing-md`、图文间距 `--spacing-xs`（紧凑，不浪费横向空间）。
+ *   宽度由内容撑起（不设最小宽）、高 ≥ `--tap-target-size`(88rpx)，
+ *   左右内边距 `--spacing-lg`、图文间距 `--spacing-xs`。
  * - **配色**：低饱和暖棕边框（`--want-btn-border-color`）+ 卡片底色填充（`--bg-card`）+ 深色文字（`--text-title`）。
  * - **禁用**：`loading`（请求中）或 `disabled`（占位卡）时禁用。
  * - 点击会触发 `@press` 事件，调用方负责调用 `recordApi.want`。
@@ -45,16 +45,14 @@ function onTap() {
 
 <style lang="scss" scoped>
 .want {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-xs);
   box-sizing: border-box;
-  min-width: var(--want-btn-width);
   min-height: var(--tap-target-size);
-  margin: 0 auto;
-  /* 横向内边距收紧（图标 + 四字文案已足够撑开），纵向保留舒展感 */
-  padding: var(--spacing-sm) var(--spacing-md);
+  /* 宽度由内容撑起，卡内居中；横向内边距给出舒展呼吸位 */
+  padding: var(--spacing-sm) var(--spacing-lg);
   /* 胶囊描边：低饱和暖棕边框、圆角加大、描边减细 */
   border: var(--want-btn-border) solid var(--want-btn-border-color);
   border-radius: var(--want-btn-radius);

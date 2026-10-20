@@ -67,8 +67,8 @@ page {
   --tap-target-size: 88rpx;
 
   /* ===== 结构尺寸 ===== */
-  /* 美味页圆形菜品图：预留上下大片空白，避免撑满卡片垂直高度 */
-  --dish-photo-size: 420rpx;
+  /* 美味页圆形菜品图：占卡片横向主体，封顶后不再纵向拉伸 */
+  --dish-photo-size: 480rpx;
   /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton） */
   --dish-card-radius: 32rpx;
   /* 卡片上下内边距：加大至 80rpx，四周留白充裕 */
@@ -77,26 +77,21 @@ page {
   --dish-card-pad-x: 60rpx;
   /* 卡片菜名：大号衬线（卡内一级标题） */
   --dish-name-size: 44rpx;
-  /* 卡片左上装饰大字（DishSwipeCard：菜品名首字水印，沉卡面最底层、低透明度） */
-  --dish-decor-letter: 320rpx;
-  /* 胶囊按钮：圆角加大至 48rpx，描边减细 */
-  --want-btn-width: 240rpx;
+  /* 卡片左上装饰大字（菜品名首字，衬线浅灰；对标参考图 `01` 的视觉分量） */
+  --dish-decor-letter: 280rpx;
+  /* 胶囊按钮：内容撑起，圆角加大至 48rpx，描边减细 */
   --want-btn-border: 1rpx;
   --want-btn-border-color: #d4b9a4;
   --want-btn-radius: 48rpx;
   --want-btn-font: 30rpx;
-  /* 记忆卡：竖版圆角卡（顶部菜名 + 档口·价格 + 中部圆形大图 + 底部单行操作） */
-  --record-photo-size: 280rpx;
+  /* 记忆卡：竖版圆角卡（顶部菜名 + 价格 + 中部圆形大图 + 底部位置行） */
+  --record-photo-size: 340rpx;
   --record-card-width: 480rpx;
-  --record-card-height: 540rpx;
+  --record-card-height: 600rpx;
   /* 记忆卡菜名字号（卡内一级标题） */
   --record-name-size: 44rpx;
   /* 记忆卡右下探出状态角标：本体边长 */
   --record-badge-size: 200rpx;
-  /* 记忆卡行组内容器右 / 下预留：容纳探出卡片外的挂角头部 */
-  --record-row-peek: 24rpx;
-  /* 记忆卡同组后卡景深：逐级下坠量 */
-  --record-stack-step: 12rpx;
   /* 记忆卡原位评价面板选中项底色 */
   --eval-active-bg: rgba(180, 83, 26, 0.12);
   /* 流末尾结束态：动作图标框边长（方框，图标居中；非卡片） */

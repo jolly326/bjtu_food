@@ -16,7 +16,7 @@
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 海报 ID |
-| `stallId` | number | 否 | 所属档口 |
+| `stallId` | number \| null | 否 | 所属档口；🔴 **可空** = 未关联档口（纯运营内容） |
 | `stallName` | string | 否 | 档口名 |
 | `canteenName` | string | 否 | 食堂名（位置链路展示） |
 | `imageUrl` | string | 否 | 海报绝对 URL（**必填**） |
@@ -30,7 +30,7 @@
 |---|---|
 | 入参 | `{ stallId, imageUrl, sort?, status? }` —— `status` 缺省 `on`；`sort` 缺省 = **当前全局最大值 + 1**（排到最后，空表首张为 `1`） |
 | 出参 | `PosterAdminVO` |
-| 错误码 | `400` `stallId` / `imageUrl` 缺失或非法 ｜ `status` 非法 ｜ `4001` 档口不存在 |
+| 错误码 | `400` `imageUrl` 缺失或非法 ｜ `status` 非法 ｜ `4001` 档口不存在（仅当传入 `stallId`） |
 
 ## `PUT /admin/posters/{id}`
 
@@ -38,7 +38,7 @@
 |---|---|
 | 入参 | 同 `POST`（`sort` **不传 = 保持原排序值**，不重算） |
 | 出参 | `PosterAdminVO` |
-| 错误码 | `400` `stallId` / `imageUrl` 缺失或非法 ｜ `status` 非法 ｜ `4001` 海报不存在 / 档口不存在 |
+| 错误码 | `400` `imageUrl` 缺失或非法 ｜ `status` 非法 ｜ `4001` 海报不存在 / 档口不存在（仅当传入 `stallId`） |
 
 ## `DELETE /admin/posters/{id}`
 

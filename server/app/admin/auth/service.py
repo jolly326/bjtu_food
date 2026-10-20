@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.admin.auth import repo
 from app.core.errors import Unauthorized
-from app.core.security import ADMIN, create_token, verify_password
+from app.core.security import ADMIN, create_token, dummy_hash, verify_password
 from app.models import Admin
 
 
@@ -16,7 +16,11 @@ def authenticate(session: Session, *, username: str, password: str) -> Admin:
         raise Unauthorized("用户名或密码错误")
 
     admin = repo.find_by_username(session, username=username)
-    if admin is None or not verify_password(password, admin.password):
+    if admin is None:
+        # 账号不存在也做一次等价 BCrypt 开销：防「账号存在性」时序侧信道
+        verify_password(password, dummy_hash())
+        raise Unauthorized("用户名或密码错误")
+    if not verify_password(password, admin.password):
         raise Unauthorized("用户名或密码错误")
     return admin
 

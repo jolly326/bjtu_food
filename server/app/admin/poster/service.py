@@ -4,7 +4,7 @@
 * 新建 ``sort`` 缺省 ⇒ 取当前全局最大值 + 1（排到最后）；编辑缺省 ⇒ 保持原值
 * ``status`` 只允许 ``on`` / ``off``；🔴 ``off`` 对学生端等价于不存在
 * ``image`` **必填** —— 无「空海报」态，移除 = 删除海报
-* 删除档口时海报由外键 **ON DELETE CASCADE** 连带清理（本域无感知）
+* 档口**可选**（🔴 不强制绑定）：不传 ⇒ 不关联；删除档口 ⇒ ``SET NULL``（海报保留，仅来源标注消失）
 """
 
 from __future__ import annotations
@@ -53,10 +53,18 @@ def list_page(
     )
 
 
+def _stall_id(session: Session, payload) -> int | None:
+    """档口**可选**：不传 / 传空 ⇒ 不绑定（海报是运营内容，不强制挂档口）。"""
+    stall_id = getattr(payload, "stall_id", None)
+    if stall_id is None:
+        return None
+    if session.get(Stall, stall_id) is None:
+        raise NotFound("档口不存在")
+    return stall_id
+
+
 def create(session: Session, *, payload) -> PosterRow:
     _validate(payload)
-    if session.get(Stall, payload.stall_id) is None:
-        raise NotFound("档口不存在")
 
     sort = payload.sort
     if sort is None:
@@ -64,7 +72,7 @@ def create(session: Session, *, payload) -> PosterRow:
         sort = int(session.scalar(select(func.max(Poster.sort)).select_from(Poster)) or 0) + 1
 
     poster = Poster(
-        stall_id=payload.stall_id,
+        stall_id=_stall_id(session, payload),
         image=_image(payload),
         sort=sort,
         status=payload.status,
@@ -79,10 +87,8 @@ def update(session: Session, *, poster_id: int, payload) -> PosterRow:
     poster = session.get(Poster, poster_id)
     if poster is None:
         raise NotFound("海报不存在")
-    if session.get(Stall, payload.stall_id) is None:
-        raise NotFound("档口不存在")
 
-    poster.stall_id = payload.stall_id
+    poster.stall_id = _stall_id(session, payload)
     poster.image = _image(payload)
     poster.status = payload.status
     if payload.sort is not None:

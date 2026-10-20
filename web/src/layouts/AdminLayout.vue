@@ -71,6 +71,7 @@ function onLogout() {
             class="dock__item"
             :class="{ 'dock__item--on': route.path.startsWith(item.path) }"
             :data-label="item.label"
+            :aria-label="item.label"
           >
             <AppIcon :name="item.icon" :size="22" />
             <span class="dock__dot" />
@@ -79,7 +80,12 @@ function onLogout() {
 
         <span class="dock__sep" aria-hidden="true" />
 
-        <button class="dock__item dock__item--danger" data-label="退出登录" @click="onLogout">
+        <button
+          class="dock__item dock__item--danger"
+          data-label="退出登录"
+          aria-label="退出登录"
+          @click="onLogout"
+        >
           <AppIcon name="log-out" :size="22" />
         </button>
       </div>
@@ -117,9 +123,11 @@ function onLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .brand__name {
+  flex-shrink: 0;
   font-family: var(--web-font-serif);
   font-size: 20px;
   font-weight: 500;
@@ -128,14 +136,23 @@ function onLogout() {
 }
 
 .brand__date {
+  min-width: 0;
+  overflow: hidden;
   font-size: 13px;
   color: var(--el-text-color-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 操作员用户名文本（非按钮，Julienne 极简：纯文本弱化即可） */
+/* 操作员用户名文本（非按钮，Julienne 极简：纯文本弱化即可）；
+   窄屏时品牌名优先，用户名超长收缩省略，顶栏不产生横向溢出 */
 .topbar__user {
+  min-width: 0;
+  overflow: hidden;
   font-size: 14px;
   color: var(--el-text-color-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ===== 内容区（底部让出应用坞，防遮挡，见基线 §2.3） ===== */
@@ -281,13 +298,13 @@ function onLogout() {
     padding: 0 12px;
   }
   .layout__dock {
-    /* 维持基座的 left:50% + translateX(-50%) 居中，仅收窄底距 */
+    /* 维持基座的 left:50% + translateX(-50%) 居中，仅收窄底距；底缘让出系统手势条 */
     bottom: calc(8px + env(safe-area-inset-bottom));
   }
   .dock__wrap {
     justify-content: center;
     justify-content: safe center; /* 溢出时退化为起点对齐，保证首项可滚达（不支持 safe 的浏览器回退上一行） */
-    gap: 1px;
+    gap: 0;
     padding: 4px 6px;
     max-width: calc(100vw - 16px);
     overflow-x: auto;
@@ -296,14 +313,40 @@ function onLogout() {
   .dock__wrap::-webkit-scrollbar {
     display: none;
   }
+  /* 触控格 40×44（8 项 + 2 分隔 ≈ 338px，360px 屏内不溢出且保住 ≥44px 点按高度） */
   .dock__item {
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 44px;
     flex-shrink: 0;
   }
   .dock__sep {
     height: 18px;
-    margin: 0 2px;
+    margin: 0 1px;
+  }
+}
+
+/* 触屏（无 hover 指针）：点按后 hover 态会「粘滞」，一律还原；名称气泡改为激活项常显 */
+@media (hover: none) {
+  .dock__item:hover {
+    transform: none;
+  }
+  .dock__item:not(.dock__item--on):hover {
+    background: transparent;
+    color: var(--el-text-color-regular);
+  }
+  .dock__item--danger:hover {
+    background: transparent;
+    color: var(--el-text-color-secondary);
+  }
+  /* 气泡不再依赖 hover（防粘滞），激活项常显名称，弥补触屏无悬停的图标识别 */
+  .dock__item:hover::after {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  .dock__item--on::after,
+  .dock__item--on:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 </style>

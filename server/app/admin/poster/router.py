@@ -25,7 +25,9 @@ router = APIRouter(prefix="/admin/posters", tags=["admin-poster"])
 
 
 class PosterSaveIn(InModel):
-    stall_id: int
+    """档口**可选**：不传 / null ⇒ 海报不关联档口。"""
+
+    stall_id: int | None = None
     image_url: str
     sort: int | None = None
     status: str = "on"
@@ -33,7 +35,7 @@ class PosterSaveIn(InModel):
 
 class AdminPosterOut(OutModel):
     id: int
-    stall_id: int
+    stall_id: int | None
     stall_name: str
     canteen_name: str
     image_url: str

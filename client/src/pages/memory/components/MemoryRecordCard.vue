@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 /**
  * 记忆卡（规格 docs/ui/client/记忆.md）。竖版 480×540，两互斥状态：
- * - 浏览态 A：菜名 / 圆形图 / 左下「食堂·档口·价格」/ 右下探出状态角标（已评对勾、未评圆点）。
+ * - 浏览态 A：菜名行（菜名 + 价格） / 中部居中圆形大图 / 左下位置（食堂 档口，无衬线小字）/ 右下探出状态角标（已评对勾、未评圆点）。
  * - 评价态 B：卡片底色面板原位覆盖，三档线性表情；点表情提交并退出，点空白不保存。
  * 入口：点角标 或 长按菜单「评价」（互斥由 useMemoryUI 保证）。
  */
@@ -9,7 +9,7 @@ import { computed } from 'vue'
 import AppIcon from '@/components/base/AppIcon.vue'
 import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
 import { useMemoryUI } from './useMemoryUI'
-import { recordMetaLine } from '@/utils/recordMeta'
+import { recordPlaceLine, recordPriceText } from '@/utils/recordMeta'
 import type { RecordOut } from '@/api'
 
 /** 宿主节点虚拟化：组件根直接参与卡片行布局（flex 子节点即 .record） */
@@ -18,10 +18,10 @@ defineOptions({ options: { virtualHost: true } })
 const props = withDefaults(
   defineProps<{
     record?: RecordOut
-    /** 辅助行文案（父级一次算好；缺省时组件按同一实现兜底） */
-    meta?: string
+    /** 位置文案（父级一次算好；缺省时组件按同一实现兜底） */
+    place?: string
   }>(),
-  { meta: '' },
+  { place: '' },
 )
 
 const emit = defineEmits<{ (e: 'react', value: number): void }>()
@@ -34,10 +34,13 @@ const isRated = computed(() => props.record?.reaction != null)
 /** 右下角状态图标：已评 = 圆圈对勾，未评 = 圆圈点（同一形态、同一弱装饰样式） */
 const badgeIcon = computed(() => (isRated.value ? 'circle-check' : 'circle-dot'))
 
-/** 辅助行：优先用 prop meta，缺省时按同一实现从 record 兜底（`食堂 · 档口 · N元`） */
-const renderMeta = computed<string>(() =>
-  props.meta || (props.record ? recordMetaLine(props.record) : ''),
+/** 位置行：优先用 prop place，缺省时按同一实现从 record 兜底（`食堂 档口`） */
+const renderPlace = computed<string>(() =>
+  props.place || (props.record ? recordPlaceLine(props.record) : ''),
 )
+
+/** 价格：与菜名同行右侧（无有效价格为空串，不占位） */
+const priceText = computed<string>(() => (props.record ? recordPriceText(props.record) : ''))
 
 /** 点右下角标 → 进入原位评价态（长按菜单「评价」为同一入口的第二条路径） */
 function onBadgeTap() {
@@ -65,9 +68,14 @@ function onBlankTap() {
     <!-- 不透明卡片表面：遮挡挂角重叠部分，使挂角呈「探出头」效果 -->
     <view class="record__surface" />
 
-    <!-- 浏览态 A：菜名(顶) / 圆形菜品图(居中) / 位置·价格(底部右对齐) -->
+    <!-- 浏览态 A：菜名行(顶) / 圆形菜品图(居中) / 位置行(底部左对齐)；
+         右上角唯一例外：菜品已下架 ⇒ 中性灰 tag 提示（低刺激，不抢主体） -->
     <view class="record__content">
-      <text class="record__name wrap-anywhere">{{ record?.name }}</text>
+      <text v-if="record?.offShelf" class="record__offTag">已下架</text>
+      <view class="record__title">
+        <text class="record__name wrap-anywhere">{{ record?.name }}</text>
+        <text v-if="priceText" class="record__price">{{ priceText }}</text>
+      </view>
       <view class="record__photoWrap">
         <view class="record__photo">
           <image
@@ -75,16 +83,12 @@ function onBlankTap() {
             :src="record?.imageUrl"
             class="record__img"
             mode="aspectFill"
+            lazy-load
           />
           <ImagePlaceholder v-else :size="64" />
         </view>
       </view>
-      <text
-        v-if="renderMeta"
-        class="record__meta"
-      >
-        {{ renderMeta }}
-      </text>
+      <text v-if="renderPlace" class="record__placeText">{{ renderPlace }}</text>
     </view>
 
     <!-- 右下：探出式状态角标（已评 = 圆圈对勾 / 未评 = 圆圈点；低透明度弱装饰外观，
@@ -156,6 +160,7 @@ function onBlankTap() {
   width: var(--record-card-width);
   height: var(--record-card-height);
   border-radius: var(--radius-card);
+  border: 1rpx solid var(--border-color);
   overflow: hidden;
   box-shadow: var(--shadow-card-stack);
 }
@@ -178,12 +183,34 @@ function onBlankTap() {
   width: 100%;
   height: 100%;
   min-height: 0;
-  /* 卡片内距：上下 40rpx / 左右 32rpx —— 文字与图片四周留足呼吸位，不贴卡缘 */
-  padding: var(--spacing-xl) var(--page-gutter) var(--spacing-xl);
+  /* 卡片内距：上下左右均 40rpx —— 文字与图片四周留足呼吸位，不贴卡缘 */
+  padding: var(--spacing-xl);
+}
+
+/* 右上角「已下架」tag：中性灰（占位底 + 弱化字），仅菜品下架时渲染；
+   绝对定位于内容区右上（落在卡内距内，不贴卡缘） */
+.record__offTag {
+  position: absolute;
+  top: var(--spacing-xl);
+  right: var(--spacing-xl);
+  padding: var(--spacing-2xs) var(--spacing-sm);
+  background: var(--bg-placeholder);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-small);
+  color: var(--text-tertiary);
+}
+
+/* 菜名行：菜名与价格同行（价格紧跟菜名右侧，间距 --spacing-xs） */
+.record__title {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+  width: 100%;
 }
 
 .record__name {
-  flex: none;
+  flex: 1;
   display: -webkit-box;
   overflow: hidden;
   font-family: var(--font-serif);
@@ -198,27 +225,39 @@ function onBlankTap() {
   line-clamp: 2;
 }
 
+/* 价格：紧随菜名右侧同行，字号与字重低于菜名一档（弱化的数据文本） */
+.record__price {
+  flex: none;
+  font-family: var(--font-sans);
+  font-size: var(--font-h3);
+  font-weight: var(--weight-medium);
+  line-height: 1.3;
+  color: var(--text-tertiary);
+}
+
+/* 图片槽：吃掉菜名行以下、位置行以上的剩余空间，圆图在其中水平 + 竖直居中（与菜名块之间不留间距） */
 .record__photoWrap {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 0;
-  margin-top: var(--spacing-lg);
 }
 
+/* 圆形菜品图：**取剩余高度、封顶 --record-photo-size**（空间越足图越大，菜名折两行时等比收缩，
+   永不挤压变形）；宽度由 1:1 派生，卡内更窄时由 100% 让位 */
 .record__photo {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 固定正方形（不做百分比高度 / 1:1 派生 —— 小程序容器高度不确定，两者都会塌成 0 或被裁）；
-     尺寸封顶须保证「菜名折两行 + 位置·价格行」仍能放进 540rpx 卡高 */
-  width: var(--record-photo-size);
-  height: var(--record-photo-size);
+  height: 100%;
+  max-height: var(--record-photo-size);
+  max-width: 100%;
   overflow: hidden;
   background: var(--bg-placeholder);
   border-radius: var(--radius-circle);
+  aspect-ratio: 1;
 }
 
 .record__img {
@@ -227,13 +266,15 @@ function onBlankTap() {
   border-radius: var(--radius-circle);
 }
 
-/* 位置 · 价格：卡片左下角、单行、无衬线小字浅灰（对标参考图「30m cook time」的弱化辅助行） */
-.record__meta {
+/* 位置文字：无衬线正文级字号弱化行（左下角，低于菜名一档） */
+.record__placeText {
+  flex: none;
   align-self: flex-start;
+  max-width: 100%;
   font-family: var(--font-sans);
-  font-size: var(--font-small);
+  font-size: var(--font-body);
   font-weight: var(--weight-regular);
-  letter-spacing: 0.02em;
+  line-height: 1.3;
   color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;

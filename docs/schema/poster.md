@@ -1,13 +1,13 @@
 # poster — 海报
 
-**用途**：档口的竖版展示海报 —— 学生端「橱窗」（拾味 tab）一屏一张的取数来源。一档口可挂**多张**（N→1 [`stall`](./stall.md)）；**是否上橱窗、展示先后由运营在「海报管理」页独立控制**。
+**用途**：竖版展示海报 —— 学生端「风物」页「今日食单」一屏一张的取数来源。**运营内容，档口绑定可选**（N→0..1 [`stall`](./stall.md)）；**是否展示、展示先后由运营在「海报管理」页独立控制**。
 
 ## 列定义
 
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 海报 ID |
-| `stall_id` | BIGINT | NO | 无 | KEY, FK→stall | 所属档口；**必填、无默认值**（无「未归属」态） |
+| `stall_id` | BIGINT | **YES** | NULL | KEY, FK→stall | 所属档口；🔴 **可空** —— 海报是运营内容，**不强制绑档口**（`NULL` = 未归属） |
 | `image` | VARCHAR(255) | NO | 无 | | **竖版海报图**（相对路径，单张）；必填 —— 无「空海报」态，清除图 = 删除海报 |
 | `sort` | INT | NO | 0 | | **全局排序值**：升序展示、**小者靠前**；同值按 `id` 升序（创建顺序） |
 | `status` | VARCHAR(32) | NO | `'on'` | KEY | 上下架：`on` 上橱窗 / `off` 不展示 |
@@ -20,7 +20,7 @@
 | `PRIMARY` | `id` | 主键 | — |
 | `idx_poster_stall` | `stall_id` | 普通 | 按档口取海报（同时是外键所需索引） |
 | `idx_poster_status` | `status` | 普通 | 学生端「只查上架」的过滤（`WHERE status='on'`） |
-| `fk_poster_stall` | `stall_id` | **外键** | `REFERENCES stall(id)`，**`ON DELETE CASCADE`** |
+| `fk_poster_stall` | `stall_id` | **外键** | `REFERENCES stall(id)`，**`ON DELETE SET NULL`** —— 删档口海报保留，仅来源标注消失 |
 
 ## 关键设计
 
@@ -45,7 +45,7 @@
 
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
-| N→1 | `stall.id` | 所属档口 | **`ON DELETE CASCADE`** —— 删档口时其海报一并清理（海报无下游引用、纯档口附属） |
+| N→0..1 | `stall.id` | 所属档口（**可选**） | **`ON DELETE SET NULL`** —— 删档口时海报保留，`stall_id` 置空（未归属） |
 
 ## 注意事项
 

@@ -21,8 +21,15 @@ const BASE_URL = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '
 /** 是否走云调用（配了环境 ID 即启用） */
 const USE_CLOUD = Boolean(TCB_ENV)
 
+/** 是否开发构建（生产构建下由 Vite 静态替换为 false） */
+const IS_DEV = import.meta.env.DEV
+/** 开发期诊断日志：仅 DEV 输出；生产构建被 tree-shaking 剥离，保持控制台干净 */
+function devError(...args: unknown[]): void {
+  if (IS_DEV) console.error(...args)
+}
+
 if (!USE_CLOUD && !BASE_URL) {
-  console.error(
+  devError(
     '[request] 既未配置 VITE_TCB_ENV（云调用）也未配置 VITE_API_BASE_URL（直连），请求无法发出',
   )
 }
@@ -98,17 +105,17 @@ function transport<T>(
         }
         // 业务失败：401 走静默重登，其它错误打出来便于定位
         if (body.code !== 401) {
-          console.error('[request] 业务失败', method, path, body.code, body.message)
+          devError('[request] 业务失败', method, path, body.code, body.message)
         }
         reject(bizError(body.code, body.message || '请求失败'))
         return
       }
-      console.error('[request] 非 200 响应', method, path, r.statusCode, r.data)
+      devError('[request] 非 200 响应', method, path, r.statusCode, r.data)
       reject(new Error(`网络异常(${r.statusCode})`))
     }
 
     const onFail = (err: TransportFail) => {
-      console.error('[request] 请求失败', method, path, err.errMsg ?? err)
+      devError('[request] 请求失败', method, path, err.errMsg ?? err)
       reject(new Error(`网络异常: ${err.errMsg ?? 'unknown'}`))
     }
 
@@ -134,7 +141,7 @@ function transport<T>(
           fail: onFail,
         })
       } catch (error) {
-        console.error('[request] 云调用初始化失败', error)
+        devError('[request] 云调用初始化失败', error)
         reject(new Error('云调用不可用：请确认小程序已开通云开发并绑定该云托管环境'))
       }
       return
@@ -158,11 +165,11 @@ async function silentLogin(): Promise<string> {
     const r = await uni.login({ provider: 'weixin' })
     code = (r as { code?: string }).code ?? ''
   } catch (err) {
-    console.error('[request] wx.login 失败', err)
+    devError('[request] wx.login 失败', err)
     throw new Error('微信登录失败')
   }
   if (!code) {
-    console.error('[request] wx.login 未返回 code')
+    devError('[request] wx.login 未返回 code')
     throw new Error('微信登录失败：无 code')
   }
   const res = await transport<{ token: string }>('POST', '/auth/wechat-login', { code }, '')

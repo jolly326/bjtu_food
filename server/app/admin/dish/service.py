@@ -3,18 +3,19 @@
 * **同一档口下** ``name`` 唯一（应用层保证）
 * ``price`` 一律以**分**存取
 * 🔴 ``avg_reaction`` / ``reaction_count`` 只读，**本域不写**
-* 删除由外键 **ON DELETE CASCADE** 连带清理饮食记录与纠错记录
+* 🔴 删除**引用即禁删**：存在学生记忆或纠错 ⇒ `400` 引导改用「下架」（CASCADE 仅为兜底，正常路径不可达）
 """
 
 from __future__ import annotations
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.admin.dish import repo
 from app.admin.dish.repo import DishRow
 from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
-from app.models import Dish, Stall
+from app.models import Dish, DishIssue, DishRecord, Stall
 
 VALID_STATUS = frozenset({"on", "off"})
 
@@ -92,7 +93,15 @@ def delete(session: Session, *, dish_id: int) -> None:
     dish = session.get(Dish, dish_id)
     if dish is None:
         raise NotFound("菜品不存在")
-    # 外键 ON DELETE CASCADE 会连带清理 dish_record 与 dish_issue
+    # 🔴 引用即禁删：学生记忆 / 纠错一旦随 CASCADE 蒸发不可恢复 —— 请改用「下架」
+    record_count = session.scalar(
+        select(func.count()).select_from(DishRecord).where(DishRecord.dish_id == dish_id)
+    )
+    issue_count = session.scalar(
+        select(func.count()).select_from(DishIssue).where(DishIssue.dish_id == dish_id)
+    )
+    if record_count or issue_count:
+        raise BadRequest("该菜品已有学生记忆或纠错记录，无法删除，请改用「下架」")
     session.delete(dish)
     session.flush()
 

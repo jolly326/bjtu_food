@@ -2127,7 +2127,14 @@
             "title": "Id"
           },
           "stallId": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Stallid"
           },
           "stallName": {
@@ -3285,7 +3292,14 @@
       "PosterSaveIn": {
         "properties": {
           "stallId": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Stallid"
           },
           "imageUrl": {
@@ -3312,10 +3326,10 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "stallId",
           "imageUrl"
         ],
-        "title": "PosterSaveIn"
+        "title": "PosterSaveIn",
+        "description": "档口**可选**：不传 / null ⇒ 海报不关联档口。"
       },
       "ReactIn": {
         "properties": {
@@ -3379,6 +3393,10 @@
             ],
             "title": "Reaction"
           },
+          "offShelf": {
+            "type": "boolean",
+            "title": "Offshelf"
+          },
           "canteenName": {
             "type": "string",
             "title": "Canteenname"
@@ -3400,6 +3418,7 @@
           "imageUrl",
           "wantedAt",
           "reaction",
+          "offShelf",
           "canteenName",
           "stallName",
           "price"

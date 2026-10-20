@@ -13,6 +13,18 @@ uploads/
 .env.*
 !.env.example
 
+# 测试与开发产物（镜像只装运行依赖，tests / dev 工具链不进上下文）
+.venv/
+__pycache__/
+*.py[cod]
+tests/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.import_linter_cache/
+requirements-dev.txt
+pyproject.toml
+
 # 临时日志
 *.log
 *.err

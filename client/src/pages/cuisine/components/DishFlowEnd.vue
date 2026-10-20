@@ -7,7 +7,7 @@
  * 🔴 **它不是卡片**：无描边 / 无卡面圆角 / 无吊孔 / 无阴影 —— 直接呈现在**页面背景**上，
  *   语义是「上层卡片已全部划干净」；留白充足，是温和的结束提示而非错误页。
  * - 文案层级：衬线加粗主标题 + 浅灰副标题（紧凑不拥挤）。
- * - 两个动作：**重新浏览**（`refresh-cw` 循环箭头）/ **随机首选**（`sparkles` 星芒，低饱和暖橙点缀）——
+ * - 两个动作：**重新浏览**（`refresh-cw` 循环箭头）/ **随机首选**（`sparkles` 星芒）——
  *   **图标框在上、文字在下**的圆角方框（细描边、无阴影），两列等宽居中、间距适中。
  * - 纯展示 + 两个动作事件；流水线（请求 / 批次切换）由页面负责。
  */
@@ -46,13 +46,13 @@ const emit = defineEmits<{
       </view>
 
       <view
-        class="flowEnd__act flowEnd__act--accent"
+        class="flowEnd__act"
         :class="{ 'is-disabled': busy }"
         hover-class="flowEnd__act--pressed"
         @tap="emit('surprise')"
       >
         <view class="flowEnd__actBox">
-          <AppIcon name="sparkles" :size="44" tone="primary" />
+          <AppIcon name="sparkles" :size="44" tone="default" />
         </view>
         <text class="flowEnd__actText">随机首选</text>
       </view>
@@ -118,11 +118,6 @@ const emit = defineEmits<{
   height: var(--flowend-icon-box);
   border: 1rpx solid var(--border-color);
   border-radius: var(--radius-btn);
-}
-
-/* 随机首选：低饱和暖橙点缀（仅描边 + 图标色调，文字仍为深棕，不做高亮主色按钮） */
-.flowEnd__act--accent .flowEnd__actBox {
-  border-color: var(--color-primary);
 }
 
 /* 文字：深棕居中、字号小于图标，与图标框保持舒适间距 */
