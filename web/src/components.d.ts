@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AppIcon: typeof import('./components/AppIcon.vue')['default']
     CardActionSheet: typeof import('./components/CardActionSheet.vue')['default']
+    ImageZoomOverlay: typeof import('./components/ImageZoomOverlay.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

@@ -142,7 +142,6 @@ function onConfirmDelete() {
   <view v-if="confirmOpen" class="mact__mask" @tap="closeConfirm">
     <view class="mact__dialog" @tap.stop>
       <text class="mact__dialogTitle">删除这条记忆？</text>
-      <text class="mact__dialogDesc">删除后无法恢复；已评分的记录删除后会重新计算该菜评价。</text>
       <view class="mact__dialogBtns">
         <view
           class="mact__dialogBtn"
@@ -215,14 +214,6 @@ function onConfirmDelete() {
   font-weight: var(--weight-regular);
   line-height: 1.3;
   color: var(--text-title);
-  text-align: left;
-}
-.mact__dialogDesc {
-  display: block;
-  margin-top: var(--spacing-md);
-  font-size: var(--font-small);
-  line-height: 1.7;
-  color: var(--text-tertiary);
   text-align: left;
 }
 .mact__dialogBtns {

@@ -23,7 +23,7 @@ import type { IssueOptionOut, RecordOut } from '@/api'
 import { formatDayLabel, todayLabelWeekdayCN } from '@/utils/date'
 import TabPage from '@/components/base/TabPage.vue'
 import { cooldownFrom, useCooldown } from '@/utils/backoff'
-import { recordMetaLine } from '@/utils/recordMeta'
+import { recordPlaceLine } from '@/utils/recordMeta'
 
 /** 写入口的限频退避键（docs/secur/S-03）—— 评分 / 删除 / 纠错各自独立计数 */
 const REACT_KEY = 'records:react'
@@ -56,15 +56,6 @@ const months = computed(() => {
   return [...set].sort().reverse()
 })
 
-/** 无记录时的兜底年月栏（当前月 + 前两个月，纯装饰） */
-function recentMonths(): string[] {
-  const now = new Date()
-  return [0, 1, 2].map((offset) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  })
-}
-
 /** 连续月份轴：从最早记录月 → 当前月（降序，含中间无记录月份），空月份保留节点 */
 function continuousMonths(earliest: string): string[] {
   const now = new Date()
@@ -86,11 +77,9 @@ function continuousMonths(earliest: string): string[] {
   return out
 }
 
-/** 年月栏数据：有记录 ⇒ 连续月份轴（最早记录月 → 当前月，含空月份）；否则近三月兜底 */
+/** 年月栏数据：连续月份轴（最早记录月 → 当前月，含空月份）；无任何记录 ⇒ 空数组（不渲染年月栏） */
 const barMonths = computed<string[]>(() =>
-  months.value.length
-    ? continuousMonths(months.value[months.value.length - 1])
-    : recentMonths(),
+  months.value.length ? continuousMonths(months.value[months.value.length - 1]) : [],
 )
 
 /** 当前生效月份：选中月即生效（可为空月份，下方不渲染卡片）；未选时回退最近记录月 */
@@ -98,10 +87,10 @@ const effectiveMonth = computed(() =>
   months.value.length ? activeMonth.value || months.value[0] : '',
 )
 
-/** 分组内的卡片行项目：`meta`（档口 · 价格）在这里**一次算好**，避免模板里每张卡重复求值 */
+/** 分组内的卡片行项目：`place`（食堂 档口）在这里**一次算好**，避免模板里每张卡重复求值 */
 interface GroupCard {
   record: RecordOut
-  meta: string
+  place: string
 }
 
 /** 日期分组：短日期标记 + 底层装饰数字 + 该日卡片行 */
@@ -118,7 +107,7 @@ const grouped = computed<DayGroup[]>(() => {
   for (const record of list) {
     const day = record.wantedAt.slice(0, 10)
     const bucket = map.get(day) ?? []
-    bucket.push({ record, meta: recordMetaLine(record) })
+    bucket.push({ record, place: recordPlaceLine(record) })
     map.set(day, bucket)
   }
   return [...map.entries()]
@@ -165,7 +154,7 @@ async function onCancel(record: RecordOut) {
     // 先本地移除（即时反馈），再静默向服务端对齐（月份轴 / 分组 / 其他端改动）
     records.value = records.value.filter((r) => r.id !== record.id)
     uni.showToast({ title: '已删除', icon: 'none' })
-    // 刷新失败不覆盖已删除的本地结果：下次进入 tab 会再拉
+    // 刷新失败不覆盖本地移除结果：下次进入 tab 会再拉
     void fetchRecords().catch(() => {})
   } catch (error) {
     cooldownFrom(CANCEL_KEY, error)
@@ -206,11 +195,6 @@ function onConfirmDelete(recordId: number) {
   void onCancel(target)
 }
 
-/** 空态跳转：去美味 tab */
-function goRecipes() {
-  uni.switchTab({ url: '/pages/cuisine/index' })
-}
-
 /** 每次进入 / 切回本 tab 都重新拉取 —— 在美味页新增的记忆返回后立即可见（tab 页不会重新挂载） */
 onShow(() => {
   void load()
@@ -222,10 +206,7 @@ onUnload(resetAll)
 </script>
 
 <template>
-  <!-- 首屏（尚无数据）走整页加载；切 tab 重拉时保留旧列表，不闪白 -->
-  <PageLoading v-if="loading && !records.length" />
-
-  <TabPage v-else active="memory">
+  <TabPage active="memory">
     <!-- 页级标题：hero 衬线 + 正下方数字日期 -->
     <template #hero>
       <view class="topbar">
@@ -234,48 +215,51 @@ onUnload(resetAll)
       </view>
     </template>
 
-    <!-- 失败态不渲染年月栏：RetryBlock 独占 hero 下方区域并竖直居中（与美味页一致） -->
-    <MonthTimeline
-      v-if="!failed && barMonths.length"
-      :months="barMonths"
-      :model-value="effectiveMonth || barMonths[0]"
-      @pick="activeMonth = $event"
-    />
+    <!-- 时间流区域：年月导航 + 日期分组滚动区为**同一整体**；
+         无数据 / 加载失败时整块让位给对应状态块（在该区域内竖直居中），年月导航只呈现真实记录覆盖的月份轴 -->
+    <view class="stream">
+      <!-- 加载失败 ⇒ 整块让位 RetryBlock（点此重试） -->
+      <RetryBlock v-if="failed" @retry="load" />
 
-    <RetryBlock v-if="failed" @retry="load" />
+      <!-- 加载中（尚无任何数据）⇒ 加载块居中于本区域；切 tab 重拉时保留旧列表，不闪白 -->
+      <PageLoading v-else-if="loading && !records.length" />
 
-    <EmptyBlock
-      v-else-if="!records.length"
-      icon="notebook"
-      title="暂无美食记忆"
-      desc="去美味页标记品尝过的餐食，收藏属于你的校园美食记忆"
-      action-text="去美味页"
-      @action="goRecipes"
-    />
+      <!-- 无任何记录 ⇒ 空态块居中于本区域（年月导航不渲染，只呈现真实记录覆盖的月份轴） -->
+      <EmptyBlock v-else-if="!records.length" icon="notebook" title="暂无美食记忆" />
 
-    <scroll-view v-else class="body" scroll-y enhanced :show-scrollbar="false">
-      <view v-for="group in grouped" :key="group.day" class="group">
-        <text class="group__day">{{ formatDayLabel(group.day) }}</text>
-        <scroll-view
-          class="group__row"
-          scroll-x
-          enhanced
-          :show-scrollbar="false"
-          @scroll="closeEval"
-        >
-          <!-- 行内容器：左右各留 gutter（滚动容器自身的 padding 不计入可滚宽度） -->
-          <view class="group__cards">
-            <MemoryRecordCard
-              v-for="item in group.cards"
-              :key="item.record.id"
-              :record="item.record"
-              :meta="item.meta"
-              @react="(v: number) => onReact(item.record, v)"
-            />
+      <!-- 正常态：年月导航 + 倒序日期分组 -->
+      <template v-else>
+        <MonthTimeline
+          :months="barMonths"
+          :model-value="effectiveMonth || barMonths[0]"
+          @pick="activeMonth = $event"
+        />
+
+        <scroll-view class="body" scroll-y enhanced :show-scrollbar="false">
+          <view v-for="group in grouped" :key="group.day" class="group">
+            <text class="group__day">{{ formatDayLabel(group.day) }}</text>
+            <scroll-view
+              class="group__row"
+              scroll-x
+              enhanced
+              :show-scrollbar="false"
+              @scroll="closeEval"
+            >
+              <!-- 行内容器：左右各留 gutter（滚动容器自身的 padding 不计入可滚宽度） -->
+              <view class="group__cards">
+                <MemoryRecordCard
+                  v-for="item in group.cards"
+                  :key="item.record.id"
+                  :record="item.record"
+                  :place="item.place"
+                  @react="(v: number) => onReact(item.record, v)"
+                />
+              </view>
+            </scroll-view>
           </view>
         </scroll-view>
-      </view>
-    </scroll-view>
+      </template>
+    </view>
 
     <!-- 长按菜单 / 纠错表单 / 删除二次确认（全局互斥状态机驱动） -->
     <MemoryActionsSheet
@@ -324,6 +308,15 @@ onUnload(resetAll)
   color: var(--text-tertiary);
 }
 
+/* 时间流区域：年月导航 + 日期分组为同一整体，占满 hero 下方内容区；
+   失败 / 空态 / 首屏加载中时由状态块整块接管并在其中竖直居中 */
+.stream {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .body {
   position: relative;
   z-index: 1;
@@ -353,28 +346,17 @@ onUnload(resetAll)
   white-space: nowrap;
 }
 
-/* 行内容器：左内距 = 页面 gutter（与日期标记、页头左缘对齐）；
-   右/底留白 = gutter + 挂角探出余量，容纳探出卡片外的挂角头部；卡间留一档呼吸位 */
+/* 行内容器：🔴 首卡左缘对齐日期标记（同 page-gutter，不再额外缩进）；
+   底部仅留一档呼吸位，无堆叠探出余量；卡间留一档呼吸位 */
 .group__cards {
   display: inline-flex;
   gap: var(--spacing-md);
   box-sizing: border-box;
-  padding: 0 calc(var(--page-gutter) + var(--record-row-peek))
-    calc(var(--spacing-md) + var(--record-row-peek)) var(--page-gutter);
+  padding: 0 var(--page-gutter) var(--spacing-md) var(--page-gutter);
 }
 
-/* 同组后卡 Z 轴景深：逐级轻微缩小 + 下坠 + 阴影减弱（前三层可见层次），
-   横向滑动浏览时呈现「三层堆叠」的层次感；缩放围绕底边 ⇒ 下坠量即真实露出量 */
-.group__cards .record:nth-child(2) {
-  transform: translateY(var(--record-stack-step)) scale(0.97);
-  transform-origin: bottom center;
-  box-shadow: var(--shadow-card-back);
-}
+/* 记忆卡片：🔴 不使用美味卡片的拖拽翻卡 / 缩放堆叠（Z 轴景深）那一套——
+   同组多卡为**等高齐平**的水平横滑行（固定 480×600，尺寸一致），仅横向滑动浏览 */
 
-.group__cards .record:nth-child(3) {
-  transform: translateY(calc(var(--record-stack-step) * 2)) scale(0.94);
-  transform-origin: bottom center;
-  box-shadow: var(--shadow-card-back-far);
-}
 
 </style>

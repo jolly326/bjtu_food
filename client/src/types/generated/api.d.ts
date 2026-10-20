@@ -202,7 +202,7 @@ export interface components {
       /** Id */
       id: number;
       /** Stallid */
-      stallId: number;
+      stallId: number | null;
       /** Stallname */
       stallName: string;
       /** Canteenname */
@@ -722,10 +722,13 @@ export interface components {
       /** Imageurl */
       imageUrl: string;
     };
-    /** PosterSaveIn */
+    /**
+     * PosterSaveIn
+     * @description 档口**可选**：不传 / null ⇒ 海报不关联档口。
+     */
     PosterSaveIn: {
       /** Stallid */
-      stallId: number;
+      stallId?: number | null;
       /** Imageurl */
       imageUrl: string;
       /** Sort */
@@ -758,6 +761,8 @@ export interface components {
       wantedAt: string;
       /** Reaction */
       reaction: number | null;
+      /** Offshelf */
+      offShelf: boolean;
       /** Canteenname */
       canteenName: string;
       /** Stallname */

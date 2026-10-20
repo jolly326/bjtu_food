@@ -45,12 +45,12 @@ onMounted(load)
 </script>
 
 <template>
-  <PageLoading v-if="loading" />
-
-  <TabPage v-else-if="failed" active="scenery">
-    <!-- 区块 2 · 问候语（hero 插槽）：块内水平 + 垂直居中 -->
+  <TabPage v-if="failed" active="scenery">
+    <!-- 区块 2 · 问候语（hero 插槽）：与美味 / 记忆同一 topbar 盒高，块内水平 + 垂直居中 -->
     <template #hero>
-      <view class="greeting">{{ greeting }}</view>
+      <view class="topbar">
+        <text class="topbar__greeting">{{ greeting }}</text>
+      </view>
     </template>
 
     <!-- 区块 3 · 失败态：与美味 / 记忆同构 —— hero 下方区域竖直居中渲染重试块 -->
@@ -58,63 +58,55 @@ onMounted(load)
   </TabPage>
 
   <TabPage v-else active="scenery">
-    <!-- 区块 2 · 问候语（hero 插槽）：块内水平 + 垂直居中 -->
+    <!-- 区块 2 · 问候语（hero 插槽）：与美味 / 记忆同一 topbar 盒高，块内水平 + 垂直居中 -->
     <template #hero>
-      <view class="greeting">{{ greeting }}</view>
+      <view class="topbar">
+        <text class="topbar__greeting">{{ greeting }}</text>
+      </view>
     </template>
 
-    <!-- 区块 3 · 海报区（内容插槽）：左上角次级标题 + 横向滑动的海报卡（右邻卡露边提示可滑）；
-         无海报 ⇒ 统一空态块（三页同一实现） -->
+    <!-- 区块 3 · 海报区（内容插槽）：topbar 下方整块区域全部交给海报滑动器（右邻卡露边提示可滑）；
+         加载中 ⇒ 加载块居中于该区域（不整页覆盖）；无海报 ⇒ 统一空态块（三页同一实现） -->
     <view class="posterArea">
-      <view class="posterArea__title">今日食单</view>
-      <view v-if="posters.length" class="posterArea__swiper">
+      <PageLoading v-if="loading" />
+      <view v-else-if="posters.length" class="posterArea__swiper">
         <PosterSlider :posters="posters" />
       </view>
-      <EmptyBlock v-else icon="image" title="今日食单暂未更新" desc="上新的海报会出现在这里" />
+      <EmptyBlock v-else icon="image" title="暂无风物海报" />
     </view>
   </TabPage>
 </template>
 
 <style lang="scss" scoped>
-/* 问候语：独立全屏宽矩形容器 —— 文字在容器内水平 + 垂直居中；单行问候语字号缩小、
-   盒高压紧（不与美味 / 记忆的双行标题块对齐），与下方「今日食单」的垂直间距收窄 */
-.greeting {
+/* 问候语 topbar：与美味 / 记忆的 hero 标题块**同一盒高**（--hero-box-height）——
+   三页切 tab 时内容区起点完全一致；文字块内水平 + 垂直居中 */
+.topbar {
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: calc(var(--hero-box-height) - var(--spacing-2xl));
+  min-height: var(--hero-box-height);
   padding: var(--spacing-md) var(--page-gutter);
+}
+
+/* 问候语文本：hero 档衬线（与美味 / 记忆页头标题同字号），层级一致 */
+.topbar__greeting {
   font-family: var(--font-serif);
-  font-size: var(--font-title);
+  font-size: var(--font-hero);
   font-weight: var(--weight-regular);
   line-height: 1.2;
   color: var(--text-title);
   text-align: center;
 }
 
-/* 海报区：占满剩余高度 —— 问候容器 → 大留白 → 次级标题 → 空白 → 横向滑动的海报卡。
-   顶部内距 = 问候语与次级标题之间的纵向留白（两级标题拉开层次）；
-   底部内距 = 海报与 TabBar 容器的呼吸位（不贴 TabBar） */
+/* 海报区：占满 topbar 下方全部剩余高度 ——
+   加载 / 空态 / 滑动器三者都在这整块区域内居中或铺满 */
 .posterArea {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding-bottom: var(--spacing-md);
-}
-
-/* 次级标题：左对齐，浅棕灰辅助文字、字号下调（二级副标题）；与卡片之间紧凑柔和的留白 */
-.posterArea__title {
-  flex: none;
-  padding: var(--page-gutter);
-  font-family: var(--font-serif);
-  font-size: var(--font-h3);
-  font-weight: var(--weight-regular);
-  line-height: 1.2;
-  color: var(--text-tertiary);
-  text-align: left;
 }
 
 /* 滑动器宿主：占满海报区剩余高度；海报滑动器绝对定位铺满本容器 */

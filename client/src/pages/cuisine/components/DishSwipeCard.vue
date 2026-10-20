@@ -3,11 +3,12 @@
  * 美味页 Z 轴堆叠卡片栈中的单卡（规格见 docs/ui/client/公共组件与形态基线.md §2.2 DishSwipeCard）。
  *
  * Julienne 纸片卡：卡面 / 吊孔由 `PaperCard` 承载（堆叠层次由 `DishCardStack` 承担）；本组件只排内容。
- * - 顶部信息带：左菜品名首字水印（背景层，可被图片遮挡；纯装饰、不表意）／右群体风味评级两行。
- * - 内容：圆形菜品图（280rpx，无外圈）→ 衬线菜名 → 浅灰辅助信息（价格 · 食堂 | 档口）→ 描边按钮。
+ * - 顶部信息带：左菜品名首字装饰大字（衬线浅灰，可被菜品图遮挡）／右群体风味评级两行（标签 + 档位词）。
+ * - 内容：圆形菜品图（居中，封顶 480rpx）→ 衬线菜名 → 辅助行（图标 + 位置 + 价格）→ 描边按钮。
  * - 按钮无图标、不贴卡片底边（下方预留充足留白）。
  */
 import { computed } from 'vue'
+import AppIcon from '@/components/base/AppIcon.vue'
 import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
 import PaperCard from './PaperCard.vue'
 import WantButton from './WantButton.vue'
@@ -34,12 +35,13 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: 'want'): void }>()
 
-/** 辅助行文案：`¥14.00 · 食堂 | 档口` —— 竖线两侧各留一个空格（无档口时只显示价格） */
-const metaText = computed(() => {
-  const place = [props.dish.canteenName, props.dish.stallName].filter(Boolean).join(' | ')
-  const price = `¥${fenToYuan(props.dish.price)}`
-  return place ? `${price} · ${place}` : price
-})
+/** 价格文案：`¥14.00`（与位置同行、紧随位置文本右侧，字号与位置文本一致） */
+const priceText = computed(() => `¥${fenToYuan(props.dish.price)}`)
+
+/** 位置文案：`食堂 档口` —— 空格分隔（缺失项跳过；两者皆缺时为空，位置文本不渲染） */
+const placeText = computed(() =>
+  [props.dish.canteenName, props.dish.stallName].filter(Boolean).join(' '),
+)
 
 /** 左上装饰大字：菜品名首字（去首尾空白后取第一个字符）—— 纯装饰、不表意 */
 const initial = computed(() => props.dish.name.trim().slice(0, 1))
@@ -61,7 +63,7 @@ const flavorLabel = computed(() =>
 
 <template>
   <PaperCard :shadow="paperShadow">
-    <!-- 顶部信息带：左菜品名首字水印（背景层，可被菜品图遮挡）/ 右群体风味评级 -->
+    <!-- 顶部信息带：左菜品名首字装饰大字 / 右群体风味评级（标签 + 档位词） -->
     <view class="card__top">
       <text v-if="initial" class="card__initial">{{ initial }}</text>
       <view class="card__rating">
@@ -73,13 +75,18 @@ const flavorLabel = computed(() =>
     <view class="card__content">
       <!-- 圆形菜品图：正圆裁切，🔴 无外圈白盘 -->
       <view class="card__photo">
-        <image v-if="dish.imageUrl" class="card__img" :src="dish.imageUrl" mode="aspectFill" />
+        <image v-if="dish.imageUrl" class="card__img" :src="dish.imageUrl" mode="aspectFill" lazy-load />
         <ImagePlaceholder v-else :size="48" />
       </view>
 
       <text class="card__name wrap-anywhere">{{ dish.name }}</text>
 
-      <text class="card__meta">{{ metaText }}</text>
+      <!-- 辅助行：`map-pin` + 位置文本 + 价格（价格在位置文本右侧，与位置文本同字号） -->
+      <view class="card__meta">
+        <AppIcon name="map-pin" :size="32" tone="muted" />
+        <text v-if="placeText" class="card__metaText">{{ placeText }}</text>
+        <text class="card__metaPrice">{{ priceText }}</text>
+      </view>
     </view>
 
     <view class="card__btn">
@@ -106,8 +113,8 @@ const flavorLabel = computed(() =>
   pointer-events: none;
 }
 
-/* 左上：菜品名首字水印（可被菜品图遮挡）。与右上标签靠 flex-start 顶端对齐，🔴 不加纵向偏移；
-   装饰暖灰（--text-decor）直接显色（不叠不透明度）—— 白底上靠色值保证可见，只做氛围装饰 */
+/* 左上：菜品名首字装饰大字（可被菜品图遮挡）—— 与右上评级顶端对齐、不加纵向偏移；
+   衬线 + 大字号 + 极浅暖灰直接显色（不叠不透明度），作背景层氛围装饰、不抢主体 */
 .card__initial {
   font-family: var(--font-serif);
   font-size: var(--dish-decor-letter);
@@ -125,27 +132,26 @@ const flavorLabel = computed(() =>
   margin-left: auto;
 }
 
-/* 第一行小字：衬线 + 字距，弱化为标签；浅灰，权重低但可读。 */
+/* 第一行：纯标签（低对比浅灰小字）—— 让位于下方档位词 */
 .card__ratingCap {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--font-small);
   font-weight: var(--weight-regular);
   color: var(--text-tertiary);
   letter-spacing: 0.04em;
 }
 
-/* 第二行档位词：中号衬线 + 中号字重，浅棕灰弱化 —— 与第一行标签拉开字号 / 字重级差，
-   作为弱附属信息，仍不抢菜名视线 */
+/* 第二行档位词：无衬线 + 中号字重，浅棕灰弱化 —— 卡内评级的信息本体，明显大于上方标签 */
 .card__ratingLabel {
-  font-family: var(--font-serif);
-  font-size: var(--font-h3);
+  font-family: var(--font-sans);
+  font-size: var(--font-body);
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
+  letter-spacing: 0.02em;
 }
 
-/* 内容层：底对齐 —— 「图 → 菜名 → 辅助行」整组贴齐按钮上方，
-   剩余空间留在图片上方 ⇒ **图片中心位于卡片竖直中心稍偏上**，且随卡高自适应；
-   最小顶距保证图片不贴吊孔 / 信息带 */
+/* 内容层：**整组竖直居中** ——「图 → 菜名与价格 → 位置行」居中于按钮上方，
+   圆形图落在组内视觉中心，剩余空间均分上下；最小顶距保证图不贴吊孔 / 信息带 */
 .card__content {
   position: relative;
   z-index: 1;
@@ -153,7 +159,7 @@ const flavorLabel = computed(() =>
   flex: 1;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   /* 🔴 min-height: 0 —— 允许内容区在槽位不足时收缩，避免把卡片顶高溢出槽底 */
   min-height: 0;
   width: 100%;
@@ -161,18 +167,12 @@ const flavorLabel = computed(() =>
 }
 
 /* 圆形菜品图：单层正圆，图铺满整个圆位（🔴 无外圈白盘）；
-   **自适应**：主轴按剩余空间撑满、宽度由 1:1 派生、`--dish-photo-size` 封顶
-   ⇒ 槽位偏矮（小屏 / 短机身）时圆图等比收缩，绝不因超排被裁成「挤压」；
-   底色仅在图未就绪时透出（--bg-placeholder），不参与正常态观感 */
+   **尺寸封顶 + 水平居中**：宽度取 --dish-photo-size、卡内更窄时由 100% 让位，
+   1:1 派生高度 ⇒ 图不被纵向拉伸变形；底色仅图未就绪时透出（--bg-placeholder） */
 .card__photo {
-  display: flex;
-  flex: 1 1 0;
-  align-items: center;
-  justify-content: center;
+  flex: none;
   align-self: center;
-  min-height: 0;
-  max-height: var(--dish-photo-size);
-  max-width: 100%;
+  width: min(var(--dish-photo-size), 100%);
   margin-bottom: var(--spacing-2xl);
   overflow: hidden;
   background: var(--bg-placeholder);
@@ -187,7 +187,7 @@ const flavorLabel = computed(() =>
   border-radius: var(--radius-circle);
 }
 
-/* 菜名：衬线中粗字重 + 放大字号 —— 卡片视觉绝对主体，颜色深棕，层级最高 */
+/* 菜名：衬线大字号 —— 卡片视觉绝对主体，🔴 卡内最重（medium 衬线），颜色深棕，层级最高 */
 .card__name {
   font-family: var(--font-serif);
   font-size: var(--dish-name-size);
@@ -196,22 +196,38 @@ const flavorLabel = computed(() =>
   text-align: center;
 }
 
-/* 价格 · 食堂|档口：无衬线 + 弱化（副标题行，浅棕灰细体，对比度显著低于菜名，次要信息） */
+/* 辅助行：`map-pin` 图标 + 位置文本 + 价格（价格紧随位置右侧）—— 一行居中，
+   与菜名块间距 --spacing-sm + --spacing-2xs */
 .card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
   margin-top: calc(var(--spacing-sm) + var(--spacing-2xs));
-  font-family: var(--font-sans);
-  font-size: var(--font-small);
-  font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
-  text-align: center;
 }
 
-/* 按钮：与信息行间距 + 底部留白由 PaperCard 卡面内距承担（不贴底）；高度不参与压缩 */
+/* 位置文本：无衬线弱化行（meta，保持轻，不抢主体） */
+.card__metaText {
+  font-family: var(--font-sans);
+  font-size: var(--font-body);
+  font-weight: var(--weight-regular);
+  color: var(--text-tertiary);
+}
+
+/* 价格：**核心数据**，🔴 比位置 meta 重一档（medium 字重 + 深炭灰），与菜名 / 评级同属卡内信息本体 */
+.card__metaPrice {
+  font-family: var(--font-sans);
+  font-size: var(--font-body);
+  font-weight: var(--weight-medium);
+  color: var(--text-body);
+}
+
+/* 按钮：内容撑起、卡内水平居中；底部留白由 PaperCard 卡面内距承担（不贴底），高度不参与压缩 */
 .card__btn {
   position: relative;
   z-index: 1;
   flex: none;
-  width: 100%;
+  align-self: center;
   margin-top: var(--spacing-lg);
 }
 </style>

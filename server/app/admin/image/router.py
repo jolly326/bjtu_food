@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.admin.image import service
 from app.core.db import get_session
@@ -34,7 +35,9 @@ async def upload_image(
     session: Session = Depends(get_session),
 ) -> Envelope[ImageOut]:
     content = await file.read()
-    url = service.store(
+    # COS 上传是同步网络调用：丢线程池执行，避免阻塞整个事件循环
+    url = await run_in_threadpool(
+        service.store,
         filename=file.filename or "",
         content_type=file.content_type or "",
         content=content,

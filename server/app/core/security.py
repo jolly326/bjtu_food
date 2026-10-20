@@ -84,3 +84,15 @@ def verify_password(plain: str, hashed: str) -> bool:
     except ValueError:
         # 库里存的不是合法 BCrypt 哈希（例如误写明文）
         return False
+
+
+# 时序均衡用占位哈希（惰性生成；不对应任何真实口令，仅用于统一 BCrypt 开销）
+_DUMMY_HASH: str | None = None
+
+
+def dummy_hash() -> str:
+    """账号不存在时也执行一次等价 BCrypt 比对，消弭「账号存在性」的时序侧信道。"""
+    global _DUMMY_HASH
+    if _DUMMY_HASH is None:
+        _DUMMY_HASH = bcrypt.hashpw(b"timing-equalizer", bcrypt.gensalt()).decode("utf-8")
+    return _DUMMY_HASH

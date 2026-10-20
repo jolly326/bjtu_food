@@ -13,10 +13,10 @@ from app.models import Canteen, Poster, Stall
 
 @dataclass(slots=True)
 class PosterRow:
-    """海报行 + 位置链路（image 为**绝对 URL**）。"""
+    """海报行 + 位置链路（image 为**绝对 URL**；档口可空 ⇒ 名称可能为空串）。"""
 
     id: int
-    stall_id: int
+    stall_id: int | None
     stall_name: str
     canteen_name: str
     image: str
@@ -41,15 +41,15 @@ def _to_row(poster: Poster, stall_name: str, canteen_name: str) -> PosterRow:
 def find_row(session: Session, *, poster_id: int) -> PosterRow | None:
     stmt = (
         select(Poster, Stall.name, Canteen.name)
-        .join(Stall, Stall.id == Poster.stall_id)
-        .join(Canteen, Canteen.id == Stall.canteen_id)
+        .outerjoin(Stall, Stall.id == Poster.stall_id)
+        .outerjoin(Canteen, Canteen.id == Stall.canteen_id)
         .where(Poster.id == poster_id)
     )
     found = session.execute(stmt).first()
     if found is None:
         return None
     poster, stall_name, canteen_name = found
-    return _to_row(poster, stall_name, canteen_name)
+    return _to_row(poster, stall_name or "", canteen_name or "")
 
 
 def list_page(
@@ -63,8 +63,8 @@ def list_page(
 ) -> tuple[list[PosterRow], int]:
     stmt = (
         select(Poster, Stall.name, Canteen.name)
-        .join(Stall, Stall.id == Poster.stall_id)
-        .join(Canteen, Canteen.id == Stall.canteen_id)
+        .outerjoin(Stall, Stall.id == Poster.stall_id)
+        .outerjoin(Canteen, Canteen.id == Stall.canteen_id)
         .order_by(Poster.sort, Poster.id)
     )
     if stall_id is not None:
@@ -76,4 +76,4 @@ def list_page(
 
     total = session.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
     pairs = session.execute(stmt.offset((page - 1) * size).limit(size)).all()
-    return [_to_row(p, s, c) for p, s, c in pairs], int(total or 0)
+    return [_to_row(p, s or "", c or "") for p, s, c in pairs], int(total or 0)

@@ -234,6 +234,7 @@ h3 {
 
 #app .dialog {
   width: min(520px, 100%);
+  box-sizing: border-box; /* 无全局重置：不定死则 padding 外溢，窄屏弹窗超出视口 */
   max-height: 86vh;
   overflow: auto;
   padding: 28px;
@@ -300,6 +301,7 @@ h3 {
   display: flex;
   flex-direction: column;
   width: min(420px, 100%);
+  box-sizing: border-box;
   padding: 10px;
   border-radius: 20px;
   background: var(--el-bg-color);
@@ -446,12 +448,6 @@ h3 {
   padding: 48px 16px;
   text-align: center;
   color: var(--el-text-color-placeholder);
-}
-
-#app .list-card__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--web-gap-tight);
 }
 
 /* 左置缩略图：无图占位同尺寸，行行等高；圆角与卡片节奏统一 */
@@ -604,7 +600,11 @@ h3 {
   background: var(--el-text-color-placeholder);
 }
 
-/* ===== 响应式三档：≥1200 宽松 / 768–1199 紧凑 / ≤767 手机 ===== */
+/* ===== 响应式：≥1200 宽松 / 900–1199 收紧 / ≤900 概览折半 / ≤767 手机触控 / ≤640 窄屏纵排 =====
+   手机档口径（收口 theme.css，页面不另写）：
+   - 触控尺寸：主按钮 40px、弹窗输入 44px、筛选下拉 40/44px、长按浮层行 46px（基础值已达标）
+   - 输入类字号 16px —— iOS 聚焦输入框 <16px 会强制缩放视口，此为移动端防跳关键
+   - ≤640：筛选区与页脚纵排整宽、弹窗贴底成「底部纸片」（拇指可达 + 软键盘不遮挡提交行） */
 @media (max-width: 1199px) {
   #app .page {
     padding: 20px;
@@ -637,6 +637,15 @@ h3 {
     border-radius: var(--el-border-radius-large);
   }
 
+  #app .dialog__input {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  #app .dialog__foot .btn {
+    flex: 1;
+  }
+
   #app .list-card {
     padding: 14px;
   }
@@ -647,7 +656,146 @@ h3 {
   }
 
   #app .btn {
+    height: 40px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+
+  /* .btn--sm 单类选择器权重高于 .btn，需同档单独收口（上传 / 移除 / 翻页小按钮） */
+  #app .btn--sm {
     height: 34px;
     padding: 0 14px;
+    font-size: 13px;
+  }
+
+  #app .filters__select {
+    height: 40px;
+    font-size: 16px;
+  }
+}
+
+/* ≤640px 手机窄屏：筛选纵排整宽、页脚分页拉满、弹窗贴底 */
+@media (max-width: 640px) {
+  #app .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+  }
+
+  #app .filters > .filters__select:last-child:nth-child(odd) {
+    /* 奇数个筛选时末项独占整行，不留半宽缺口 */
+    grid-column: 1 / -1;
+  }
+
+  #app .filters__select {
+    width: 100%;
+    height: 44px;
+  }
+
+  #app .page__foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  #app .page__total {
+    text-align: center;
+  }
+
+  #app .pager {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  #app .pager .btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* 顶栏主操作（新建）触控化：换行独占整行 / 同行时补满剩余宽度 */
+  #app .page__bar .btn {
+    flex: 1 1 auto;
+    min-width: 96px;
+  }
+
+  /* 弹窗 → 底部整宽纸片：顶圆角、底留安全区，提交 / 取消落在拇指可达区。
+     长按浮层 .mask--sheet 本身已是贴底形态，排除在外不动其留白规格 */
+  #app .mask:not(.mask--sheet) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  #app .mask:not(.mask--sheet) .dialog {
+    width: 100%;
+    max-height: 88vh;
+    border-radius: 20px 20px 0 0;
+    padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ===== Element Plus 程序式提示覆盖（ElMessage / ElMessageBox 挂 body，不进 #app；
+   theme.css 在 element-plus/dist/index.css 之后加载，同权重即后写生效） ===== */
+.el-message-box {
+  border-radius: var(--el-border-radius-large);
+  box-shadow: var(--el-box-shadow-elevated);
+}
+
+@media (max-width: 640px) {
+  .el-overlay-message-box {
+    padding: 12px;
+  }
+
+  /* 确认弹窗按钮纵排整宽：≥44px 触控，主操作（末位）落拇指区 */
+  .el-message-box__btns {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .el-message-box__btns .el-button {
+    width: 100%;
+    height: 44px;
+    font-size: 15px;
+  }
+
+  .el-message {
+    max-width: calc(100% - 24px);
+    font-size: 14px;
+  }
+}
+
+/* ===== 触屏（无 hover 指针）：去 hover 残留 + 快速点按不吃双击缩放延迟 ===== */
+@media (hover: none) {
+  #app .btn:hover {
+    border-color: var(--el-border-color-light);
+    color: var(--el-text-color-regular);
+  }
+
+  #app .btn--primary:hover {
+    border-color: var(--el-color-primary);
+    background: var(--el-color-primary);
+    color: #fff;
+  }
+
+  #app .btn--outline:hover {
+    border-color: var(--el-color-primary);
+    background: transparent;
+    color: var(--el-color-primary);
+  }
+
+  #app .filters__select:hover {
+    border-color: var(--el-border-color-light);
+  }
+
+  #app .list-card:hover {
+    transform: none;
+    box-shadow: var(--el-box-shadow-light);
+  }
+
+  #app a,
+  #app button,
+  #app select,
+  #app input {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 }

@@ -235,6 +235,7 @@ onMounted(async () => {
       >
         <img
           v-if="row.imageUrl"
+          v-zoomimg
           :src="row.imageUrl"
           class="list-card__figure"
           :alt="row.name"
@@ -302,6 +303,7 @@ onMounted(async () => {
         <div class="poster">
           <img
             v-if="dialog.imageUrl"
+            v-zoomimg
             :src="dialog.imageUrl"
             class="poster__thumb img--round"
             alt="菜品图"

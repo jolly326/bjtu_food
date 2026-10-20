@@ -16,6 +16,25 @@ from app.models import User
 logger = logging.getLogger(__name__)
 
 _WECHAT_CODE2SESSION = "https://api.weixin.qq.com/sns/jscode2session"
+_CLIENT_TIMEOUT = 5.0
+
+_client: httpx.Client | None = None
+
+
+def _wechat_client() -> httpx.Client:
+    """进程级共享客户端：复用 TCP / TLS 连接，免去每次登录重新握手。"""
+    global _client
+    if _client is None:
+        _client = httpx.Client(timeout=_CLIENT_TIMEOUT)
+    return _client
+
+
+def close_http_client() -> None:
+    """释放连接池（应用关闭时由 lifespan 调用）。"""
+    global _client
+    if _client is not None:
+        _client.close()
+        _client = None
 
 
 def exchange_code_for_openid(code: str) -> str:
@@ -27,7 +46,7 @@ def exchange_code_for_openid(code: str) -> str:
         raise BadRequest("服务端未配置微信小程序凭证")
 
     try:
-        resp = httpx.get(
+        resp = _wechat_client().get(
             _WECHAT_CODE2SESSION,
             params={
                 "appid": settings.wechat_appid,
@@ -35,7 +54,6 @@ def exchange_code_for_openid(code: str) -> str:
                 "js_code": code,
                 "grant_type": "authorization_code",
             },
-            timeout=5.0,
         )
         data = resp.json()
     except (httpx.HTTPError, ValueError) as exc:

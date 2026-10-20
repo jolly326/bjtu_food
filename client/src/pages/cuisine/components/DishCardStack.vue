@@ -19,7 +19,6 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import EmptyBlock from '@/components/base/EmptyBlock.vue'
 import DishSwipeCard from './DishSwipeCard.vue'
-import PaperCard from './PaperCard.vue'
 import { windowWidth } from '@/utils/safeArea'
 
 import type { DishCardOut } from '@/api'
@@ -100,7 +99,7 @@ const ROT_SATURATE = 0.3
 /* ===== 手势状态 ===== */
 const dragging = ref(false)
 const animating = ref(false)
-/** 已判定为垂直滑动 ⇒ 本次手势不再进入横向拖拽 */
+/** 已判定为垂直滑动 ⇒ 本次手势不进入横向拖拽 */
 const vertical = ref(false)
 /** 顶层位移（px，已含阻尼） */
 const dx = ref(0)
@@ -239,53 +238,61 @@ const backStyles = computed(() =>
 
 <template>
   <view class="stack">
-    <view
-      v-for="slot in stackSlots"
-      :key="slot.key"
-      class="stack__slot"
-      :class="
-        slot.level === 0
-          ? { 'stack__slot--dragging': dragging, 'stack__slot--fly': animating }
-          : 'stack__slot--back'
-      "
-      :style="slot.level === 0 ? topStyle : backStyles[slot.level - 1]"
-      @touchstart="slot.level === 0 ? onStart($event) : undefined"
-      @touchmove.stop.prevent="slot.level === 0 ? onMove($event) : undefined"
-      @touchend="slot.level === 0 ? onEnd($event) : undefined"
-    >
-      <view class="stack__cardWrap">
-        <!-- 上层：流末尾 / 空态 / 真实卡（唯一可拖拽） -->
-        <template v-if="slot.level === 0">
-          <slot v-if="finished" name="end" />
-          <PaperCard v-else-if="!slot.card">
-            <EmptyBlock icon="dish" title="暂无菜品推荐" desc="等待食堂上新美食" />
-          </PaperCard>
+    <!-- 空态（无卡片且非流末尾）：不用空卡片容器，EmptyBlock 直接居中于**整个栈区域** -->
+    <EmptyBlock
+      v-if="!cards.length && !finished"
+      icon="dish"
+      title="暂无菜品推荐"
+    />
+    <template v-else>
+      <view
+        v-for="slot in stackSlots"
+        :key="slot.key"
+        class="stack__slot"
+        :class="
+          slot.level === 0
+            ? { 'stack__slot--dragging': dragging, 'stack__slot--fly': animating }
+            : 'stack__slot--back'
+        "
+        :style="slot.level === 0 ? topStyle : backStyles[slot.level - 1]"
+        @touchstart="slot.level === 0 ? onStart($event) : undefined"
+        @touchmove.stop.prevent="slot.level === 0 ? onMove($event) : undefined"
+        @touchend="slot.level === 0 ? onEnd($event) : undefined"
+      >
+        <view class="stack__cardWrap">
+          <!-- 上层：流末尾 / 真实卡（唯一可拖拽）；空态已在栈层级整体渲染，不走槽位 -->
+          <template v-if="slot.level === 0">
+            <slot v-if="finished" name="end" />
+            <DishSwipeCard
+              v-else-if="slot.card"
+              :dish="slot.card"
+              :submitting="submitting === slot.card.id"
+              :dragging="dragging"
+              :locked="wantLocked"
+              @want="emit('want', slot.card)"
+            />
+          </template>
+          <!-- 中层 / 下层：**真实后续卡片**（自己的卡面与描边，只露下坠出来的那段卡边；
+               阴影随层级递减 —— 中层 / 下层各传一档更弱阴影，实现上浮景深） -->
           <DishSwipeCard
-            v-else
+            v-else-if="slot.card"
             :dish="slot.card"
-            :submitting="submitting === slot.card.id"
-            :dragging="dragging"
-            :locked="wantLocked"
-            @want="emit('want', slot.card)"
+            :paper-shadow="
+              slot.level === 1 ? 'var(--shadow-card-back)' : 'var(--shadow-card-back-far)'
+            "
           />
-        </template>
-        <!-- 中层 / 下层：**真实后续卡片**（自己的卡面与描边，只露下坠出来的那段卡边；
-             阴影随层级递减 —— 中层 / 下层各传一档更弱阴影，实现上浮景深） -->
-        <DishSwipeCard
-          v-else-if="slot.card"
-          :dish="slot.card"
-          :paper-shadow="
-            slot.level === 1 ? 'var(--shadow-card-back)' : 'var(--shadow-card-back-far)'
-          "
-        />
+        </view>
       </view>
-    </view>
+    </template>
   </view>
 </template>
 
 <style lang="scss" scoped>
 .stack {
   position: relative;
+  /* flex 纵向列：槽位均绝对定位不受影响；空态 EmptyBlock（flex:1）据此占满整栈居中 */
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   width: 100%;
@@ -350,6 +357,6 @@ const backStyles = computed(() =>
   }
 }
 
-/* 空态占位卡：与栈卡同卡面（表面由 PaperCard 承担），内容居中纵向排布；
-   语言与记忆页空态一致 —— 细线图标（弱化）+ 衬线标题 + 浅灰引导 */
+/* 空态：不用空卡片容器 —— EmptyBlock（`flex: 1`）直接占满栈槽居中；
+   语言与风物 / 记忆页空态一致 —— 细线图标（弱化）+ 衬线标题 + 浅灰引导 */
 </style>

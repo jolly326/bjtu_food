@@ -41,6 +41,7 @@ class RecordOut(OutModel):
     image_url: str | None
     wanted_at: str
     reaction: int | None
+    off_shelf: bool
     canteen_name: str
     stall_name: str
     price: int
@@ -54,6 +55,7 @@ def _out(record) -> RecordOut:
         image_url=record.image_url,
         wanted_at=record.wanted_at,
         reaction=record.reaction,
+        off_shelf=record.off_shelf,
         canteen_name=record.canteen_name,
         stall_name=record.stall_name,
         price=record.price,

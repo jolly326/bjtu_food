@@ -2,12 +2,24 @@
  * 由 `scripts/gen-icons.mjs` 生成 —— **请勿手改**。
  * 源资源与获取路径见 docs/ui/client/图标资源.md。
  */
-import arrow_down__default from '@/assets/icon-variants/arrow-down--default.svg'
-import arrow_down__primary from '@/assets/icon-variants/arrow-down--primary.svg'
-import arrow_down__muted from '@/assets/icon-variants/arrow-down--muted.svg'
-import arrow_down__default__dark from '@/assets/icon-variants/arrow-down--default--dark.svg'
-import arrow_down__primary__dark from '@/assets/icon-variants/arrow-down--primary--dark.svg'
-import arrow_down__muted__dark from '@/assets/icon-variants/arrow-down--muted--dark.svg'
+import check__default from '@/assets/icon-variants/check--default.svg'
+import check__primary from '@/assets/icon-variants/check--primary.svg'
+import check__muted from '@/assets/icon-variants/check--muted.svg'
+import check__default__dark from '@/assets/icon-variants/check--default--dark.svg'
+import check__primary__dark from '@/assets/icon-variants/check--primary--dark.svg'
+import check__muted__dark from '@/assets/icon-variants/check--muted--dark.svg'
+import chevron_down__default from '@/assets/icon-variants/chevron-down--default.svg'
+import chevron_down__primary from '@/assets/icon-variants/chevron-down--primary.svg'
+import chevron_down__muted from '@/assets/icon-variants/chevron-down--muted.svg'
+import chevron_down__default__dark from '@/assets/icon-variants/chevron-down--default--dark.svg'
+import chevron_down__primary__dark from '@/assets/icon-variants/chevron-down--primary--dark.svg'
+import chevron_down__muted__dark from '@/assets/icon-variants/chevron-down--muted--dark.svg'
+import chevron_up__default from '@/assets/icon-variants/chevron-up--default.svg'
+import chevron_up__primary from '@/assets/icon-variants/chevron-up--primary.svg'
+import chevron_up__muted from '@/assets/icon-variants/chevron-up--muted.svg'
+import chevron_up__default__dark from '@/assets/icon-variants/chevron-up--default--dark.svg'
+import chevron_up__primary__dark from '@/assets/icon-variants/chevron-up--primary--dark.svg'
+import chevron_up__muted__dark from '@/assets/icon-variants/chevron-up--muted--dark.svg'
 import circle_check__default from '@/assets/icon-variants/circle-check--default.svg'
 import circle_check__primary from '@/assets/icon-variants/circle-check--primary.svg'
 import circle_check__muted from '@/assets/icon-variants/circle-check--muted.svg'
@@ -32,6 +44,12 @@ import empty__muted from '@/assets/icon-variants/empty--muted.svg'
 import empty__default__dark from '@/assets/icon-variants/empty--default--dark.svg'
 import empty__primary__dark from '@/assets/icon-variants/empty--primary--dark.svg'
 import empty__muted__dark from '@/assets/icon-variants/empty--muted--dark.svg'
+import filter__default from '@/assets/icon-variants/filter--default.svg'
+import filter__primary from '@/assets/icon-variants/filter--primary.svg'
+import filter__muted from '@/assets/icon-variants/filter--muted.svg'
+import filter__default__dark from '@/assets/icon-variants/filter--default--dark.svg'
+import filter__primary__dark from '@/assets/icon-variants/filter--primary--dark.svg'
+import filter__muted__dark from '@/assets/icon-variants/filter--muted--dark.svg'
 import image_broken__default from '@/assets/icon-variants/image-broken--default.svg'
 import image_broken__primary from '@/assets/icon-variants/image-broken--primary.svg'
 import image_broken__muted from '@/assets/icon-variants/image-broken--muted.svg'
@@ -50,6 +68,12 @@ import laugh__muted from '@/assets/icon-variants/laugh--muted.svg'
 import laugh__default__dark from '@/assets/icon-variants/laugh--default--dark.svg'
 import laugh__primary__dark from '@/assets/icon-variants/laugh--primary--dark.svg'
 import laugh__muted__dark from '@/assets/icon-variants/laugh--muted--dark.svg'
+import map_pin__default from '@/assets/icon-variants/map-pin--default.svg'
+import map_pin__primary from '@/assets/icon-variants/map-pin--primary.svg'
+import map_pin__muted from '@/assets/icon-variants/map-pin--muted.svg'
+import map_pin__default__dark from '@/assets/icon-variants/map-pin--default--dark.svg'
+import map_pin__primary__dark from '@/assets/icon-variants/map-pin--primary--dark.svg'
+import map_pin__muted__dark from '@/assets/icon-variants/map-pin--muted--dark.svg'
 import meh__default from '@/assets/icon-variants/meh--default.svg'
 import meh__primary from '@/assets/icon-variants/meh--primary.svg'
 import meh__muted from '@/assets/icon-variants/meh--muted.svg'
@@ -117,9 +141,15 @@ export type IconTone = keyof typeof ICON_TONES
 
 /** 浅色组：着色变体 -> 打包器资产地址（dev / build 均由模块图产出） */
 export const ICON_SRC: Record<string, string> = {
-  "arrow-down--default": arrow_down__default,
-  "arrow-down--primary": arrow_down__primary,
-  "arrow-down--muted": arrow_down__muted,
+  "check--default": check__default,
+  "check--primary": check__primary,
+  "check--muted": check__muted,
+  "chevron-down--default": chevron_down__default,
+  "chevron-down--primary": chevron_down__primary,
+  "chevron-down--muted": chevron_down__muted,
+  "chevron-up--default": chevron_up__default,
+  "chevron-up--primary": chevron_up__primary,
+  "chevron-up--muted": chevron_up__muted,
   "circle-check--default": circle_check__default,
   "circle-check--primary": circle_check__primary,
   "circle-check--muted": circle_check__muted,
@@ -132,6 +162,9 @@ export const ICON_SRC: Record<string, string> = {
   "empty--default": empty__default,
   "empty--primary": empty__primary,
   "empty--muted": empty__muted,
+  "filter--default": filter__default,
+  "filter--primary": filter__primary,
+  "filter--muted": filter__muted,
   "image-broken--default": image_broken__default,
   "image-broken--primary": image_broken__primary,
   "image-broken--muted": image_broken__muted,
@@ -141,6 +174,9 @@ export const ICON_SRC: Record<string, string> = {
   "laugh--default": laugh__default,
   "laugh--primary": laugh__primary,
   "laugh--muted": laugh__muted,
+  "map-pin--default": map_pin__default,
+  "map-pin--primary": map_pin__primary,
+  "map-pin--muted": map_pin__muted,
   "meh--default": meh__default,
   "meh--primary": meh__primary,
   "meh--muted": meh__muted,
@@ -169,9 +205,15 @@ export const ICON_SRC: Record<string, string> = {
 
 /** 深色组：着色变体 -> 打包器资产地址 */
 export const ICON_SRC_DARK: Record<string, string> = {
-  "arrow-down--default--dark": arrow_down__default__dark,
-  "arrow-down--primary--dark": arrow_down__primary__dark,
-  "arrow-down--muted--dark": arrow_down__muted__dark,
+  "check--default--dark": check__default__dark,
+  "check--primary--dark": check__primary__dark,
+  "check--muted--dark": check__muted__dark,
+  "chevron-down--default--dark": chevron_down__default__dark,
+  "chevron-down--primary--dark": chevron_down__primary__dark,
+  "chevron-down--muted--dark": chevron_down__muted__dark,
+  "chevron-up--default--dark": chevron_up__default__dark,
+  "chevron-up--primary--dark": chevron_up__primary__dark,
+  "chevron-up--muted--dark": chevron_up__muted__dark,
   "circle-check--default--dark": circle_check__default__dark,
   "circle-check--primary--dark": circle_check__primary__dark,
   "circle-check--muted--dark": circle_check__muted__dark,
@@ -184,6 +226,9 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "empty--default--dark": empty__default__dark,
   "empty--primary--dark": empty__primary__dark,
   "empty--muted--dark": empty__muted__dark,
+  "filter--default--dark": filter__default__dark,
+  "filter--primary--dark": filter__primary__dark,
+  "filter--muted--dark": filter__muted__dark,
   "image-broken--default--dark": image_broken__default__dark,
   "image-broken--primary--dark": image_broken__primary__dark,
   "image-broken--muted--dark": image_broken__muted__dark,
@@ -193,6 +238,9 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "laugh--default--dark": laugh__default__dark,
   "laugh--primary--dark": laugh__primary__dark,
   "laugh--muted--dark": laugh__muted__dark,
+  "map-pin--default--dark": map_pin__default__dark,
+  "map-pin--primary--dark": map_pin__primary__dark,
+  "map-pin--muted--dark": map_pin__muted__dark,
   "meh--default--dark": meh__default__dark,
   "meh--primary--dark": meh__primary__dark,
   "meh--muted--dark": meh__muted__dark,
@@ -221,14 +269,18 @@ export const ICON_SRC_DARK: Record<string, string> = {
 
 /** 本次被源码引用并生成着色变体的图标键（+ empty 兜底） */
 export const ICON_KEYS = [
-  "arrow-down",
+  "check",
+  "chevron-down",
+  "chevron-up",
   "circle-check",
   "circle-dot",
   "dish",
   "empty",
+  "filter",
   "image-broken",
   "image",
   "laugh",
+  "map-pin",
   "meh",
   "moon",
   "notebook",

@@ -7,11 +7,15 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
+/** 是否生产构建（`vite build` ⇒ NODE_ENV=production） */
+const isProduction = process.env.NODE_ENV === 'production'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
-    vueDevTools(),
+    // 生产构建剔除 Vue DevTools：仅开发期启用，避免其注入进生产 bundle
+    ...(isProduction ? [] : [vueDevTools()]),
     // WEB-116：Element Plus 组件与函数式 API 自动导入。
     // 基础样式与主题变量统一由 main.ts 引入 `element-plus/dist/index.css`
     // （原生 HTML + var(--el-*) 的页面依赖它拿到完整变量，否则弹窗/输入框会透明）。
@@ -33,6 +37,8 @@ export default defineConfig({
     },
   },
   build: {
+    // 生产：源码映射无用途，显式关闭（默认即 false，此处显式声明口径）
+    sourcemap: false,
     rollupOptions: {
       output: {
         // 分包（长缓存命中）：vue 生态 / Element Plus 各自独立 chunk，应用代码按路由

@@ -69,8 +69,9 @@ const props = withDefaults(
   box-sizing: border-box;
   width: 100%;
   padding: var(--dish-card-pad-y) var(--dish-card-pad-x) var(--dish-card-pad-y);
-  /* 卡面轮廓只靠极浅灰白底色 + 极弱阴影，不加实线描边（Julienne 口径） */
+  /* 卡面轮廓：极浅灰白底色 + 1rpx 极浅描边（纸张边缘，非粗边框）+ 柔和浅阴影（悬浮纸感） */
   background: var(--bg-card);
+  border: 1rpx solid var(--border-color);
   border-radius: var(--dish-card-radius);
   box-shadow: var(--shadow-card-stack);
 }

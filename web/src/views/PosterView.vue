@@ -68,7 +68,8 @@ function onCreate() {
 
 function onEdit(row: PosterOut) {
   dialog.id = row.id
-  dialog.stallId = row.stallId
+  // 服务端已允许 stallId 为空（不关联档口）；表单态用 undefined 表示未选（select 的「不关联档口」option value 即 undefined）
+  dialog.stallId = row.stallId ?? undefined
   dialog.imageUrl = row.imageUrl
   dialog.sortText = String(row.sort)
   dialog.status = row.status
@@ -92,10 +93,6 @@ async function onPickImage(event: Event) {
 }
 
 async function onSave() {
-  if (!dialog.stallId) {
-    ElMessage.warning('请选择所属档口')
-    return
-  }
   if (!dialog.imageUrl.trim()) {
     ElMessage.warning('海报图不能为空')
     return
@@ -214,10 +211,11 @@ onMounted(async () => {
         class="list-card"
         tabindex="0"
         aria-haspopup="menu"
-        v-bind="cardMenu.pressAttrs(row, { title: row.stallName })"
+        v-bind="cardMenu.pressAttrs(row, { title: row.stallName || '未关联档口' })"
       >
         <img
           v-if="row.imageUrl"
+          v-zoomimg
           :src="row.imageUrl"
           class="list-card__figure list-card__figure--poster"
           alt="海报"
@@ -232,7 +230,7 @@ onMounted(async () => {
         </span>
         <div class="list-card__main">
           <div class="list-card__title">
-            <span class="list-card__titleText">{{ row.stallName }}</span>
+            <span class="list-card__titleText">{{ row.stallName || '未关联档口' }}</span>
             <span class="tag" :class="row.status === 'on' ? 'tag--on' : 'tag--off'">
               {{ row.status === 'on' ? '上橱窗' : '不展示' }}
             </span>
@@ -261,9 +259,9 @@ onMounted(async () => {
       <div class="dialog">
         <h3 class="dialog__title">{{ dialog.id ? '编辑海报' : '新建海报' }}</h3>
 
-        <label class="dialog__label" for="poster-stall">所属档口</label>
+        <label class="dialog__label" for="poster-stall">所属档口（可选）</label>
         <select id="poster-stall" v-model="dialog.stallId" class="dialog__input">
-          <option :value="undefined">请选择</option>
+          <option :value="undefined">不关联档口</option>
           <option v-for="s in stalls" :key="s.id" :value="s.id">
             {{ s.canteenName }} · {{ s.name }}
           </option>
@@ -273,7 +271,13 @@ onMounted(async () => {
           竖版海报（3:4，需画进档口名称 / 所属食堂 / 楼层窗口）
         </label>
         <div class="poster">
-          <img v-if="dialog.imageUrl" :src="dialog.imageUrl" class="poster__thumb" alt="海报" />
+          <img
+            v-if="dialog.imageUrl"
+            v-zoomimg
+            :src="dialog.imageUrl"
+            class="poster__thumb"
+            alt="海报"
+          />
           <span v-else class="poster__empty">未上传</span>
           <div class="poster__ops">
             <label class="btn btn--sm">

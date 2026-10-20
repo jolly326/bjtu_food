@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Canteen, Dish, DishRecord, Stall
+from app.models import Canteen, Dish, DishRating, DishRecord, Stall
 
 
 def get_on_sale_dish(session: Session, *, dish_id: int) -> Dish | None:
@@ -37,6 +37,21 @@ def get_owned(session: Session, *, student_id: int, record_id: int) -> DishRecor
     return session.scalar(
         select(DishRecord).where(DishRecord.id == record_id, DishRecord.user_id == student_id)
     )
+
+
+def rating_of(session: Session, *, student_id: int, dish_id: int) -> DishRating | None:
+    """本人该菜的当前评分（口碑真源 ``dish_rating``，一人一菜一行）。"""
+    return session.scalar(
+        select(DishRating).where(DishRating.user_id == student_id, DishRating.dish_id == dish_id)
+    )
+
+
+def ratings_of(session: Session, *, student_id: int) -> dict[int, int]:
+    """本人**全部**当前评分：``{dish_id: reaction}``（批量一次查询，避免列表 N+1）。"""
+    rows = session.execute(
+        select(DishRating.dish_id, DishRating.reaction).where(DishRating.user_id == student_id)
+    ).all()
+    return {dish_id: reaction for dish_id, reaction in rows}
 
 
 def place_of(session: Session, *, stall_id: int) -> tuple[str, str]:

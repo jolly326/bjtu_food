@@ -3,11 +3,14 @@
  * 纠错处理（设计稿 docs/ui/web/纠错处理.md；业务规则 docs/func/web/B2）。
  * 默认只查未处理；「去改菜品」是全站唯一跨菜单跳转（带 dishId 直达菜品管理）。
  * 本页只标记「看过了」：不改菜品、不回执学生、不删提交行。
+ * 🔴 卡面无操作按钮：去改菜品 / 标记已处理 / 撤销 一律走长按浮层（与其他页同构）。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import CardActionSheet from '@/components/CardActionSheet.vue'
 import { usePagedList } from '@/composables/usePagedList'
+import { useCardActions, type CardAction } from '@/composables/useCardMenu'
 import { dishApi, issueApi, type IssueOut } from '@/api'
 import { formatDateTime } from '@/utils/datetime'
 
@@ -58,6 +61,23 @@ async function onUndo(row: IssueOut) {
   }
 }
 
+/** 该行的处置动作：未处理 ⇒ 去改菜品 / 标记已处理；已处理 ⇒ 撤销 */
+function actionsOf(row: IssueOut): CardAction[] {
+  return row.handledAt == null
+    ? [
+        { key: 'fix', label: '去改菜品' },
+        { key: 'handle', label: '标记已处理' },
+      ]
+    : [{ key: 'undo', label: '撤销处理' }]
+}
+
+/** 长按浮层：动作按 key 分发到既有处理器 */
+const cardMenu = useCardActions<IssueOut>((row, key) => {
+  if (key === 'fix') onFix(row)
+  else if (key === 'handle') void onHandle(row)
+  else if (key === 'undo') void onUndo(row)
+})
+
 onMounted(async () => {
   await loadDishes()
   await load()
@@ -98,6 +118,8 @@ onMounted(async () => {
         :class="{ 'list-card--dim': row.handledAt != null }"
         v-for="row in rows"
         :key="row.id"
+        tabindex="0"
+        v-bind="cardMenu.pressAttrs(row, { title: row.dishName, actions: actionsOf(row) })"
       >
         <div class="list-card__main">
           <div class="list-card__title">
@@ -111,13 +133,6 @@ onMounted(async () => {
               处理于 {{ formatDateTime(row.handledAt) }}
             </span>
           </div>
-        </div>
-        <div class="list-card__actions">
-          <template v-if="row.handledAt == null">
-            <button class="link" @click="onFix(row)">去改菜品</button>
-            <button class="link" @click="onHandle(row)">标记已处理</button>
-          </template>
-          <button v-else class="link" @click="onUndo(row)">撤销</button>
         </div>
       </div>
       <div class="list-card" v-if="!rows.length && !loading">
@@ -133,6 +148,14 @@ onMounted(async () => {
         <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
       </div>
     </footer>
+
+    <!-- 卡片长按浮层：去改菜品 / 标记已处理 / 撤销（与主数据五页同一组件） -->
+    <CardActionSheet
+      v-model="cardMenu.open"
+      :title="cardMenu.title"
+      :actions="cardMenu.actions"
+      @pick="cardMenu.pick"
+    />
   </section>
 </template>
 
@@ -141,14 +164,5 @@ onMounted(async () => {
 .tag {
   background: var(--el-fill-color);
   color: var(--el-text-color-secondary);
-}
-
-.link {
-  border: none;
-  background: none;
-  color: var(--el-color-primary);
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0 6px;
 }
 </style>

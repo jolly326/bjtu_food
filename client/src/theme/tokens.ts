@@ -17,13 +17,14 @@ export const COLOR_MAP = {
   'brown-deep': '#7B4F2A',
   'primary-soft': '#FFF3D6',
 
-  /* ===== 文字五档（深棕标题 + 深炭灰正文 + 浅棕灰辅助 + 弱化 + 装饰水印）===== */
+  /* ===== 文字五档（深棕标题 + 深炭灰正文 + 浅棕灰辅助 + 弱化）===== */
   'text-title': '#44382e',
   'text-body': '#3D3A35',
   'text-tertiary': '#8a7c70',
   'text-secondary': '#888888',
-  'text-decor': '#E6DECD',
   'text-placeholder': '#C4BEB5',
+  /* 装饰大字（卡片左上首字水印）：极浅暖灰，直接显色、只作氛围、不抢主体 */
+  'text-decor': '#E6DECD',
   /* 主色底（按钮 / 弹窗主操作）上的文字色 */
   'text-on-primary': '#FFFFFF',
 
@@ -37,8 +38,8 @@ export const COLOR_MAP = {
   'border-bold': '#CBC5BE',
 
   /* ===== 阴影 / 遮罩 ===== */
-  /* 卡片族统一：两层极淡软阴影，模拟轻微悬浮，没有硬边 */
-  'shadow-card-stack': '0 8rpx 24rpx rgba(140, 120, 100, 0.06), 0 2rpx 8rpx rgba(140, 120, 100, 0.03)',
+  /* 卡片族统一：两层柔和浅阴影，模拟纸片明显悬浮（纸张感：比旧版更立的投影，仍无硬边） */
+  'shadow-card-stack': '0 14rpx 36rpx rgba(140, 120, 100, 0.11), 0 4rpx 12rpx rgba(140, 120, 100, 0.06)',
   /* 堆叠后方层阴影：透明度继续降低，实现上浮景深（中层 / 下层两档） */
   'shadow-card-back': '0 6rpx 16rpx rgba(140, 120, 100, 0.04), 0 1rpx 6rpx rgba(140, 120, 100, 0.02)',
   'shadow-card-back-far': '0 4rpx 12rpx rgba(140, 120, 100, 0.025), 0 1rpx 4rpx rgba(140, 120, 100, 0.015)',
@@ -69,13 +70,14 @@ export const DARK_COLOR_MAP = {
   'brown-deep': '#A3A3A3',
   'primary-soft': '#3A2A1E',
 
-  /* ===== 文字五档（中性浅灰标题 + 正文 + 次要 + 弱化 + 装饰水印）===== */
+  /* ===== 文字五档（中性浅灰标题 + 正文 + 次要 + 弱化）===== */
   'text-title': '#ECECEC',
   'text-body': '#CFCFCF',
   'text-tertiary': '#A0A0A0',
   'text-secondary': '#8A8A8A',
-  'text-decor': '#2F2F2F',
   'text-placeholder': '#6B6B6B',
+  /* 装饰大字（卡片左上首字水印）：深底上用深中性灰，保持极弱存在感 */
+  'text-decor': '#3A3A3A',
   'text-on-primary': '#FFFFFF',
 
   /* ===== 背景 / 边框（中性灰色阶：页面 → 卡片 → 占位）===== */

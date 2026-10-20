@@ -6,6 +6,7 @@ import { nextTick, ref, watch } from 'vue'
  * 每项上下层级：**年份小字在上、月份大号衬线在下**；全部月份 `--font-hero`(64rpx) 同字号，
  * 选中仅加深颜色（年份 + 月份），其余浅灰弱化；**连续月份轴**（空月份保留节点）。
  * 外层 scroll-view 永远可滑；滑动结束后选中月自动居中吸附。
+ * 🔴 **月份数组为空 ⇒ 组件整体不渲染**（年月导航只呈现真实记录覆盖的月份轴，见 docs/ui/client/公共组件与形态基线.md §2.2）。
  */
 /** 宿主节点虚拟化：组件根直接参与页面布局 */
 defineOptions({ options: { virtualHost: true } })
@@ -78,6 +79,7 @@ watch(() => props.months, centerSelected, { immediate: true })
 
 <template>
   <scroll-view
+    v-if="months.length"
     :id="svId"
     class="timeline"
     scroll-x
@@ -108,6 +110,8 @@ watch(() => props.months, centerSelected, { immediate: true })
 .timeline {
   width: 100%;
   white-space: nowrap;
+  /* 作为时间流区 flex 容器的一子项：保持自身内容高度，不被压缩 */
+  flex: none;
 }
 
 .timeline__inner {
