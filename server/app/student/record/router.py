@@ -41,7 +41,6 @@ class RecordOut(OutModel):
     image_url: str | None
     wanted_at: str
     reaction: int | None
-    flavor_level: str | None
     canteen_name: str
     stall_name: str
     price: int
@@ -55,7 +54,6 @@ def _out(record) -> RecordOut:
         image_url=record.image_url,
         wanted_at=record.wanted_at,
         reaction=record.reaction,
-        flavor_level=record.flavor_level,
         canteen_name=record.canteen_name,
         stall_name=record.stall_name,
         price=record.price,

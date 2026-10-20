@@ -25,7 +25,6 @@
 | `imageUrl` | string | **是** | 菜品图绝对 URL；`null` = 该菜未配图 |
 | `wantedAt` | string | 否 | 点「去品尝」的时间 |
 | `reaction` | number | **是** | `5` = 喜欢 ｜ `3` = 一般 ｜ `1` = 不喜欢；**`null` = 尚未评分** |
-| `flavorLevel` | string | **是** | 该菜品的**群体风味评级**字母：`S` / `A` / `B` / `C` / `D`；**`null` = 待评**（投票人数 < 3）—— 口径见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-评分反馈.md) |
 | `canteenName` | string | 否 | 菜品所属**食堂名**（记忆卡辅助行用；取不到时为空串） |
 | `stallName` | string | 否 | 菜品所属**档口名**（记忆卡辅助行用；取不到时为空串） |
 | `price` | number | 否 | 菜品**现价，单位「分」**（记忆卡辅助行用） |

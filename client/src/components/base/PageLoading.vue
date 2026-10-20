@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 页面级加载提示（规格见 docs/ui/client/公共组件与形态基线.md §2.1.7）。
- * 全屏同色底 + 居中 96rpx 线性图标（仅图标本体以 `--duration-spin` 匀速旋转，无外围圆环）。
+ * 全屏同色底 + 居中 44rpx 线性图标（仅图标本体以 `--duration-spin` 匀速旋转，无外围圆环）。
  */
 import AppIcon from './AppIcon.vue'
 
@@ -19,7 +19,7 @@ withDefaults(
 <template>
   <view class="page-loading">
     <view class="page-loading__icon">
-      <AppIcon name="refresh-cw" :size="96" tone="primary" />
+      <AppIcon name="refresh-cw" :size="44" tone="primary" />
     </view>
     <text class="page-loading__text">{{ text }}</text>
   </view>
@@ -44,7 +44,7 @@ withDefaults(
 }
 
 .page-loading__text {
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
   font-family: var(--font-serif);
   font-size: var(--font-body);
   font-weight: var(--weight-regular);

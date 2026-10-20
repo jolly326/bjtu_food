@@ -6,8 +6,7 @@
 * 「至多一条未评分记录」由本层保证（MySQL 5.7 无部分索引）
 * 取消 = 物理删行，**仅限未评分**
 * 写评分后**同事务**重算 dish.avg_reaction
-* 出参附**群体风味评级** ``flavor_level``（由缓存列实时判定，样本 < 3 条 ⇒ ``None`` 待评）
-* 出参附**档口 / 食堂 / 价格**（记忆卡辅助行）
+* 出参附**档口 / 食堂 / 价格**（记忆卡辅助行）；🔴 **不下发群体评级**（记忆卡不展示，评级只在菜品卡 `DishCardOut`）
 """
 
 from __future__ import annotations
@@ -18,7 +17,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import BadRequest, NotFound
-from app.core.rating import flavor_level
 from app.core.storage import to_absolute
 from app.models import Dish, DishRecord
 from app.student.record import repo
@@ -35,7 +33,6 @@ class RecordView:
     image_url: str | None
     wanted_at: str
     reaction: int | None
-    flavor_level: str | None
     canteen_name: str
     stall_name: str
     price: int
@@ -55,7 +52,6 @@ def _to_view(
         image_url=to_absolute(dish.image),
         wanted_at=record.wanted_at.strftime("%Y-%m-%d %H:%M:%S") if record.wanted_at else "",
         reaction=record.reaction,
-        flavor_level=flavor_level(dish.avg_reaction, dish.reaction_count),
         canteen_name=canteen_name,
         stall_name=stall_name,
         price=dish.price,
