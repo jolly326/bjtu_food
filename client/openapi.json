@@ -3379,17 +3379,6 @@
             ],
             "title": "Reaction"
           },
-          "flavorLevel": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Flavorlevel"
-          },
           "canteenName": {
             "type": "string",
             "title": "Canteenname"
@@ -3411,7 +3400,6 @@
           "imageUrl",
           "wantedAt",
           "reaction",
-          "flavorLevel",
           "canteenName",
           "stallName",
           "price"

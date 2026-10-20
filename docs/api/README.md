@@ -37,7 +37,15 @@
 
 ### 服务基路径
 
-后端在**根路径**提供服务（**无版本段**）：端上 base = 服务域名本身（`client/.env.*` 与 `web/.env.*` 的 `VITE_API_BASE_URL`），下文各端点的路径即**相对 base 的路径**。部署口径见 [`secur/S-04`](../secur/S-04-凭据与部署边界.md) §二。
+后端在**根路径**提供服务（**无版本段**），下文各端点的路径即**相对基址的路径**。基址由端上配置决定，两种通道：
+
+| 端 | 通道 | 配置 |
+|---|---|---|
+| 小程序（`client/`） | **云调用（默认推荐）** `wx.cloud.callContainer` —— 真机**免域名白名单** | `client/.env.*` 的 `VITE_TCB_ENV`（云托管环境 ID）+ 可选 `VITE_TCB_SERVICE` |
+| 小程序（回退） | 直连 `uni.request` | `VITE_API_BASE_URL` = 服务域名本身（真机须配 request 合法域名） |
+| 运营端（`web/`） | 浏览器直连 | `web/.env.*` 的 `VITE_API_BASE_URL` |
+
+🔴 小程序端**同时配置**时以云调用为准（`client/src/utils/request.ts::USE_CLOUD`）。部署口径见 [`secur/S-04`](../secur/S-04-凭据与部署边界.md) §二。
 
 ### 响应信封 `Result<T>`
 
@@ -123,7 +131,7 @@
 | 数组字段**恒为数组** | 无数据时返回 `[]`，**不为 null** |
 | 有意可空的字段 | 逐字段在资源文档中标「可空 = 是」并说明 `null` 的语义 |
 
-**有意可空字段（逐条登记）**：`flavorLevel`（`null` = **待评**：投票人数 < 3）；运营端 `avgReaction`（`null` = **零评分**，与「评分为 0」语义不同）。
+**有意可空字段（逐条登记）**：`flavorLevel`（**仅菜品卡 `DishCardOut` 下发**；`null` = **待评**：投票人数 < 3；记录出参 `RecordOut` 不携带该字段 —— 记忆卡不展示评级）；运营端 `avgReaction`（`null` = **零评分**，与「评分为 0」语义不同）。
 
 ---
 

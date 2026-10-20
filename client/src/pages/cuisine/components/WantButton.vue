@@ -4,8 +4,8 @@
  *
  * - 取消操作应在「记忆」Tab 页从已有记录中删除，此处只负责加入。
  * - **形态**：左侧本子图标 + 右侧文案「加入记忆」，胶囊描边式；
- *   圆角 `--radius-btn`（40rpx），高度 `--tap-target-size`（88rpx），
- *   左右内边距 `--spacing-xl`，内部垂直留白 `--spacing-xs`。
+ *   最小宽 `--want-btn-width`(240rpx)、高 ≥ `--tap-target-size`(88rpx)，
+ *   左右内边距 `--spacing-md`、图文间距 `--spacing-xs`（紧凑，不浪费横向空间）。
  * - **配色**：低饱和暖棕边框（`--want-btn-border-color`）+ 卡片底色填充（`--bg-card`）+ 深色文字（`--text-title`）。
  * - **禁用**：`loading`（请求中）或 `disabled`（占位卡）时禁用。
  * - 点击会触发 `@press` 事件，调用方负责调用 `recordApi.want`。
@@ -48,13 +48,13 @@ function onTap() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   box-sizing: border-box;
   min-width: var(--want-btn-width);
   min-height: var(--tap-target-size);
   margin: 0 auto;
-  /* 上下内边距加大，样式舒展；高度由内容撑起（不低于触达下限） */
-  padding: var(--spacing-sm) var(--spacing-xl);
+  /* 横向内边距收紧（图标 + 四字文案已足够撑开），纵向保留舒展感 */
+  padding: var(--spacing-sm) var(--spacing-md);
   /* 胶囊描边：低饱和暖棕边框、圆角加大、描边减细 */
   border: var(--want-btn-border) solid var(--want-btn-border-color);
   border-radius: var(--want-btn-radius);

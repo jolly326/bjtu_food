@@ -76,7 +76,7 @@ page {
   /* 卡片左上装饰大字（DishSwipeCard：菜品名首字水印，沉卡面最底层、低透明度） */
   --dish-decor-letter: 320rpx;
   /* 胶囊按钮：圆角加大至 48rpx，描边减细 */
-  --want-btn-width: 320rpx;
+  --want-btn-width: 240rpx;
   --want-btn-border: 1rpx;
   --want-btn-border-color: #d4b9a4;
   --want-btn-radius: 48rpx;

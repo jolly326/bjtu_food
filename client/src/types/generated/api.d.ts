@@ -758,8 +758,6 @@ export interface components {
       wantedAt: string;
       /** Reaction */
       reaction: number | null;
-      /** Flavorlevel */
-      flavorLevel: string | null;
       /** Canteenname */
       canteenName: string;
       /** Stallname */
