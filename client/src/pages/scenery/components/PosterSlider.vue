@@ -41,6 +41,13 @@ const items = computed(() => {
     imageUrl: '',
   }))
 })
+
+/** 点卡看大图：走微信原生看图（`uni.previewImage` ⇒ `wx.previewImage`），占位卡不响应 */
+function onPreview(item: { imageUrl: string }): void {
+  if (!item.imageUrl) return
+  const urls = props.posters.map((p) => p.imageUrl).filter(Boolean)
+  uni.previewImage({ current: item.imageUrl, urls })
+}
 </script>
 
 <template>
@@ -52,7 +59,13 @@ const items = computed(() => {
       :next-margin="nextMargin"
     >
       <swiper-item v-for="item in items" :key="item.id" class="poster__item">
-        <view class="poster__card">
+        <view
+          class="poster__card"
+          :hover-class="item.imageUrl ? 'poster__card--pressed' : 'none'"
+          role="button"
+          :aria-label="item.imageUrl ? '查看海报大图' : '海报占位'"
+          @tap="onPreview(item)"
+        >
           <image
             v-if="item.imageUrl"
             class="poster__img"
@@ -115,5 +128,10 @@ const items = computed(() => {
   width: 100%;
   height: 100%;
   border-radius: var(--radius-card-stack);
+}
+
+/* 按压反馈：仅透明度微降（不缩放、不改色） */
+.poster__card--pressed {
+  opacity: 0.85;
 }
 </style>

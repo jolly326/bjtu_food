@@ -126,12 +126,17 @@ const grouped = computed<DayGroup[]>(() => {
     .map(([day, cards]) => ({ day, motif: day.slice(8, 10), cards }))
 })
 
+/** 拉全量记录（唯一取数实现：首屏 / 切 tab / 删除后刷新共用） */
+async function fetchRecords() {
+  records.value = await recordApi.list()
+  if (!activeMonth.value && months.value.length) activeMonth.value = months.value[0]
+}
+
 async function load() {
   loading.value = true
   failed.value = false
   try {
-    records.value = await recordApi.list()
-    if (!activeMonth.value && months.value.length) activeMonth.value = months.value[0]
+    await fetchRecords()
   } catch {
     failed.value = true
   } finally {
@@ -154,7 +159,11 @@ async function onCancel(record: RecordOut) {
   if (cancelLocked.value) return
   try {
     await recordApi.cancel(record.id)
+    // 先本地移除（即时反馈），再静默向服务端对齐（月份轴 / 分组 / 其他端改动）
     records.value = records.value.filter((r) => r.id !== record.id)
+    uni.showToast({ title: '已删除', icon: 'none' })
+    // 刷新失败不覆盖已删除的本地结果：下次进入 tab 会再拉
+    void fetchRecords().catch(() => {})
   } catch (error) {
     cooldownFrom(CANCEL_KEY, error)
     uni.showToast({ title: (error as Error).message, icon: 'none' })
