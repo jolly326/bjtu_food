@@ -3,12 +3,14 @@
  * 风物 tab（设计稿 docs/ui/client/风物.md；功能规则 docs/func/client/A1）。
  * 4 块垂直分区：Header（通栏矩形：明暗切换 + 标题）→ 问候语（通栏矩形块，四态）
  * → 海报区（左上角「今日食单」+ 横向滑动的海报卡，右邻卡露边提示可滑）→ TabBar 容器。
- * 问候语、Header 与页面骨架是本地内容、不依赖网络；海报区**失败 / 为空时渲染空态文案**，
- * 页内不提供重试入口。
+ * 问候语、Header 与页面骨架是本地内容、不依赖网络；海报区**加载失败 ⇒ hero 下方区域竖直居中
+ * 渲染 `RetryBlock` 可重试**（与美味 / 记忆同构）；**无海报 ⇒ 空态文案**。
  */
 import { computed, onMounted, ref } from 'vue'
 import TabPage from '@/components/base/TabPage.vue'
 import PageLoading from '@/components/base/PageLoading.vue'
+import RetryBlock from '@/components/base/RetryBlock.vue'
+import EmptyBlock from '@/components/base/EmptyBlock.vue'
 import PosterSlider from './components/PosterSlider.vue'
 import { posterApi } from '@/api'
 import type { PosterOut } from '@/api'
@@ -51,13 +53,8 @@ onMounted(load)
       <view class="greeting">{{ greeting }}</view>
     </template>
 
-    <!-- 区块 3 · 海报区（内容插槽）：左上角次级标题 + 空态文案 -->
-    <view class="posterArea">
-      <view class="posterArea__title">今日食单</view>
-      <view class="posterArea__empty">
-        <text class="posterArea__emptyText">海报加载失败</text>
-      </view>
-    </view>
+    <!-- 区块 3 · 失败态：与美味 / 记忆同构 —— hero 下方区域竖直居中渲染重试块 -->
+    <RetryBlock @retry="load" />
   </TabPage>
 
   <TabPage v-else active="scenery">
@@ -66,15 +63,14 @@ onMounted(load)
       <view class="greeting">{{ greeting }}</view>
     </template>
 
-    <!-- 区块 3 · 海报区（内容插槽）：左上角次级标题 + 横向滑动的海报卡（右邻卡露边提示可滑） -->
+    <!-- 区块 3 · 海报区（内容插槽）：左上角次级标题 + 横向滑动的海报卡（右邻卡露边提示可滑）；
+         无海报 ⇒ 统一空态块（三页同一实现） -->
     <view class="posterArea">
       <view class="posterArea__title">今日食单</view>
-      <view class="posterArea__swiper">
-        <PosterSlider v-if="posters.length" :posters="posters" />
-        <view v-else class="posterArea__empty">
-          <text class="posterArea__emptyText">今日食单暂未更新</text>
-        </view>
+      <view v-if="posters.length" class="posterArea__swiper">
+        <PosterSlider :posters="posters" />
       </view>
+      <EmptyBlock v-else icon="image" title="今日食单暂未更新" desc="上新的海报会出现在这里" />
     </view>
   </TabPage>
 </template>
@@ -128,21 +124,4 @@ onMounted(load)
   min-height: 0;
 }
 
-/* 海报区空态：失败 / 暂无海报时的文案提示 */
-.posterArea__empty {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 0;
-}
-
-.posterArea__emptyText {
-  font-family: var(--font-serif);
-  font-size: var(--font-body);
-  font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
-  text-align: center;
-}
 </style>

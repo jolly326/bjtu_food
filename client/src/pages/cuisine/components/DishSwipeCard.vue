@@ -53,7 +53,7 @@ const LABELS: Record<string, string> = {
   D: '平实',
 }
 
-/** 右上档位词：无评级（评分条数 < 3）⇒ 待评 */
+/** 右上档位词：无评级（投票人数 < 3）⇒ 待评 */
 const flavorLabel = computed(() =>
   props.dish.flavorLevel ? (LABELS[props.dish.flavorLevel] ?? '待评') : '待评',
 )

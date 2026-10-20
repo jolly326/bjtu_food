@@ -12,6 +12,6 @@ export const recordApi = {
   /** 三态评分（5 喜欢 / 3 一般 / 1 不喜欢 / **null 清除评价**；循环可改） */
   react: (id: number, reaction: number | null) =>
     http.patch<RecordOut>(`/my/records/${id}`, { reaction }),
-  /** 取消品尝（仅未评分） */
+  /** 删除记录（未评分 / 已评分均可；服务端重算评价分） */
   cancel: (id: number) => http.delete<null>(`/my/records/${id}`),
 }

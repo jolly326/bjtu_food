@@ -89,6 +89,9 @@ def test_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPa
         wanted_at="2026-01-01 00:00:00",
         reaction=5,
         flavor_level="S",
+        canteen_name="学一食堂",
+        stall_name="川味小炒",
+        price=1200,
     )
     monkeypatch.setattr(record_service, "react", lambda *_args, **_kwargs: fake_record)
 

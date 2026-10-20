@@ -24,7 +24,7 @@
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 未上传 |
 | `status` | string | 否 | `on` 在售 / `off` 已下架 |
 | `avgReaction` | number | **是** | 平均评价度（**只读**缓存列）；`null` = 零评分 |
-| `reactionCount` | number | 否 | 评分条数（**只读**缓存列） |
+| `reactionCount` | number | 否 | 投票人数（**只读**缓存列，一人一菜一票） |
 | `updatedAt` | string | 否 | 更新时间 |
 
 ## `POST /admin/dishes`

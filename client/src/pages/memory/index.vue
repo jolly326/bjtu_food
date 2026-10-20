@@ -9,10 +9,11 @@
  * （左反馈 / 右三态评分，均为纯线性图标、无底座）；删除走**长按浮层**，卡面无入口。
  * 每个日期组底层挂半透明大号日数字装饰（不遮挡卡片）。
  */
-import { computed, onMounted, ref } from 'vue'
-import { onHide, onUnload } from '@dcloudio/uni-app'
+import { computed, ref } from 'vue'
+import { onHide, onShow, onUnload } from '@dcloudio/uni-app'
 import RetryBlock from '@/components/base/RetryBlock.vue'
-import AppIcon from '@/components/base/AppIcon.vue'
+import EmptyBlock from '@/components/base/EmptyBlock.vue'
+import PageLoading from '@/components/base/PageLoading.vue'
 import MonthTimeline from './components/MonthTimeline.vue'
 import MemoryRecordCard from './components/MemoryRecordCard.vue'
 import MemoryActionsSheet from './components/MemoryActionsSheet.vue'
@@ -22,7 +23,7 @@ import type { IssueOptionOut, RecordOut } from '@/api'
 import { formatDayLabel, todayLabelWeekdayCN } from '@/utils/date'
 import TabPage from '@/components/base/TabPage.vue'
 import { cooldownFrom, useCooldown } from '@/utils/backoff'
-import { fenToYuan } from '@/utils/price'
+import { recordMetaLine } from '@/utils/recordMeta'
 
 /** 写入口的限频退避键（docs/secur/S-03）—— 评分 / 删除 / 纠错各自独立计数 */
 const REACT_KEY = 'records:react'
@@ -117,7 +118,7 @@ const grouped = computed<DayGroup[]>(() => {
   for (const record of list) {
     const day = record.wantedAt.slice(0, 10)
     const bucket = map.get(day) ?? []
-    bucket.push({ record, meta: metaLine(record) })
+    bucket.push({ record, meta: recordMetaLine(record) })
     map.set(day, bucket)
   }
   return [...map.entries()]
@@ -160,14 +161,6 @@ async function onCancel(record: RecordOut) {
   }
 }
 
-/** 卡片辅助行：`档口 · N元`（价格单位「分」→ 元，整数去掉 .00；无档口时回退食堂名） */
-function metaLine(record: RecordOut): string {
-  const place = record.stallName || record.canteenName || ''
-  const yuan = record.price > 0 ? Number(fenToYuan(record.price)) : null
-  if (!place) return yuan === null ? '' : `${yuan}元`
-  return yuan === null ? place : `${place} · ${yuan}元`
-}
-
 /** 纠错选项：进入页面即预拉取（长按菜单「反馈」展开时使用） */
 async function loadOptions() {
   if (options.value.length) return
@@ -191,7 +184,7 @@ async function onPickOption(optionId: number) {
   }
 }
 
-/** 删除二次确认 → 取消品尝（后端仅允许删未评分记录） */
+/** 删除二次确认 → 删除记录（未评分 / 已评分均可；后端重算评价分） */
 function onConfirmDelete() {
   const target = sheetRecord.value
   if (target) void onCancel(target)
@@ -202,7 +195,8 @@ function goRecipes() {
   uni.switchTab({ url: '/pages/cuisine/index' })
 }
 
-onMounted(() => {
+/** 每次进入 / 切回本 tab 都重新拉取 —— 在美味页新增的记忆返回后立即可见（tab 页不会重新挂载） */
+onShow(() => {
   void load()
   void loadOptions()
 })
@@ -212,7 +206,10 @@ onUnload(resetAll)
 </script>
 
 <template>
-  <TabPage active="memory">
+  <!-- 首屏（尚无数据）走整页加载；切 tab 重拉时保留旧列表，不闪白 -->
+  <PageLoading v-if="loading && !records.length" />
+
+  <TabPage v-else active="memory">
     <!-- 页级标题：hero 衬线 + 正下方数字日期 -->
     <template #hero>
       <view class="topbar">
@@ -221,8 +218,9 @@ onUnload(resetAll)
       </view>
     </template>
 
+    <!-- 失败态不渲染年月栏：RetryBlock 独占 hero 下方区域并竖直居中（与美味页一致） -->
     <MonthTimeline
-      v-if="barMonths.length"
+      v-if="!failed && barMonths.length"
       :months="barMonths"
       :model-value="effectiveMonth || barMonths[0]"
       @pick="activeMonth = $event"
@@ -230,18 +228,14 @@ onUnload(resetAll)
 
     <RetryBlock v-if="failed" @retry="load" />
 
-    <view v-else-if="loading" class="body" scroll-y enhanced :show-scrollbar="false">
-      <!-- 加载中时不渲染骨架，保持内容区域空白，由页面级 loading 状态控制 -->
-    </view>
-
-    <view v-else-if="!records.length" class="recordEmpty">
-      <AppIcon class="recordEmpty__icon" name="notebook" :size="64" tone="muted" />
-      <text class="recordEmpty__title">暂无美食记忆</text>
-      <text class="recordEmpty__desc">去美味页标记品尝过的餐食，收藏属于你的校园美食记忆</text>
-      <view class="recordEmpty__btn" hover-class="recordEmpty__btn--pressed" @tap="goRecipes">
-        去美味页
-      </view>
-    </view>
+    <EmptyBlock
+      v-else-if="!records.length"
+      icon="notebook"
+      title="暂无美食记忆"
+      desc="去美味页标记品尝过的餐食，收藏属于你的校园美食记忆"
+      action-text="去美味页"
+      @action="goRecipes"
+    />
 
     <scroll-view v-else class="body" scroll-y enhanced :show-scrollbar="false">
       <view v-for="group in grouped" :key="group.day" class="group">
@@ -367,56 +361,4 @@ onUnload(resetAll)
   box-shadow: var(--shadow-card-back-far);
 }
 
-/* 空态：整体略偏上（底部预留卡片空间），线性图标 + 衬线主文案 + 浅灰引导 + 描边按钮 */
-.recordEmpty {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
-  padding: 0 var(--page-gutter) 10vh;
-}
-
-.recordEmpty__icon {
-  margin-bottom: var(--spacing-xs);
-  opacity: 0.55;
-}
-
-.recordEmpty__title {
-  font-family: var(--font-serif);
-  font-size: var(--font-h2);
-  font-weight: var(--weight-regular);
-  color: var(--text-title);
-  text-align: center;
-}
-
-.recordEmpty__desc {
-  padding: 0 var(--spacing-xl);
-  font-size: var(--font-small);
-  line-height: 1.6;
-  color: var(--text-tertiary);
-  text-align: center;
-}
-
-.recordEmpty__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: var(--tap-target-size);
-  margin-top: var(--spacing-md);
-  padding: 0 var(--spacing-xl);
-  border: 1rpx solid var(--color-primary);
-  border-radius: var(--radius-btn);
-  color: var(--text-title);
-  font-size: var(--font-subtitle);
-  font-weight: var(--weight-medium);
-}
-
-.recordEmpty__btn--pressed {
-  opacity: 0.6;
-}
 </style>

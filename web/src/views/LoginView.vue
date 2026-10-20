@@ -79,19 +79,22 @@ async function onSubmit() {
   min-height: 100vh;
 }
 
+/* 登录卡：极浅灰白卡面 + 双层极弱阴影，无实线描边；窄屏自适应 */
 .login__card {
   display: flex;
   flex-direction: column;
-  width: 400px;
+  width: min(400px, 92vw);
   padding: 32px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
+  border-radius: 20px;
+  background: var(--web-bg-card);
+  box-shadow: var(--el-box-shadow-elevated);
 }
 
 .login__title {
   margin: 0 0 24px;
-  font-size: 18px;
+  font-family: var(--web-font-serif);
+  font-size: 20px;
+  font-weight: 500;
   text-align: center;
   color: var(--el-text-color-primary);
 }
@@ -103,18 +106,20 @@ async function onSubmit() {
 }
 
 .login__input {
-  height: 36px;
+  height: 38px;
   margin-bottom: 16px;
-  padding: 0 12px;
-  border: 1px solid var(--el-border-color);
+  padding: 0 14px;
+  border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
   color: var(--el-text-color-primary);
+  font-family: inherit;
   outline: none;
+  transition: border-color 0.15s ease;
 }
 
 .login__input:focus {
-  border-color: var(--el-color-primary);
+  border-color: var(--el-color-primary-light-5);
 }
 
 .login__error {
@@ -123,14 +128,24 @@ async function onSubmit() {
   color: var(--el-color-danger);
 }
 
+/* 主操作：胶囊按钮（圆角 = 半高） */
 .login__submit {
-  height: 36px;
+  height: 40px;
   border: none;
-  border-radius: var(--el-border-radius-base);
+  border-radius: var(--web-radius-pill);
   background: var(--el-color-primary);
   color: #fff;
   font-size: 14px;
   cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.login__submit:hover {
+  opacity: 0.9;
+}
+
+.login__submit:active {
+  opacity: 0.75;
 }
 
 .login__submit:disabled {

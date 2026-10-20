@@ -1,26 +1,18 @@
 <script setup lang="ts">
 /**
  * 加载失败块（规格见 docs/ui/client/公共组件与形态基线.md §2.1.3）。
- * 整块可点；在途时忽略点击。
+ * 整块可点即重试；点击后父级立即切到加载态，本块随之卸载。
  */
 import AppIcon from './AppIcon.vue'
 
 /** 宿主节点虚拟化：组件根直接参与页面 flex 布局 */
 defineOptions({ options: { virtualHost: true } })
 
-defineProps<{
-  loading?: boolean
-}>()
-
 const emit = defineEmits<{ (e: 'retry'): void }>()
-
-function onTap() {
-  emit('retry')
-}
 </script>
 
 <template>
-  <view class="retry" :class="{ 'is-disabled': loading }" hover-class="retry--pressed" @tap="onTap">
+  <view class="retry" hover-class="retry--pressed" @tap="emit('retry')">
     <AppIcon name="report" :size="44" tone="default" />
     <text class="retry__title">加载失败</text>
     <text class="retry__subtitle">点此重试</text>

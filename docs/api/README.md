@@ -15,7 +15,7 @@
 | [client/posters.md](./client/posters.md) | `GET /posters` | 海报页 |
 | [client/dishes.md](./client/dishes.md) | `GET /dishes` | 美味页 |
 | [client/canteens.md](./client/canteens.md) | `GET /canteens` | 食堂筛选 |
-| [client/records.md](./client/records.md) | `GET /my/records` · `POST /my/records` · `PATCH /my/records/{id}` · `DELETE /my/records/{id}` | 记忆 · 去品尝 · 评分 · 取消品尝 |
+| [client/records.md](./client/records.md) | `GET /my/records` · `POST /my/records` · `PATCH /my/records/{id}` · `DELETE /my/records/{id}` | 记忆 · 去品尝 · 评分 · 删除记录 |
 | [client/issues.md](./client/issues.md) | `GET /dish-issue-options` · `POST /dishes/{id}/issues` | 菜品纠错 |
 
 ### 运营端（`web/`）
@@ -123,7 +123,7 @@
 | 数组字段**恒为数组** | 无数据时返回 `[]`，**不为 null** |
 | 有意可空的字段 | 逐字段在资源文档中标「可空 = 是」并说明 `null` 的语义 |
 
-**有意可空字段（逐条登记）**：`flavorLevel`（`null` = **待评**：评分条数 < 3）；运营端 `avgReaction`（`null` = **零评分**，与「评分为 0」语义不同）。
+**有意可空字段（逐条登记）**：`flavorLevel`（`null` = **待评**：投票人数 < 3）；运营端 `avgReaction`（`null` = **零评分**，与「评分为 0」语义不同）。
 
 ---
 

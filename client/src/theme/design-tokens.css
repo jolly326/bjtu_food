@@ -40,17 +40,17 @@ page {
   --font-subtitle: 24rpx;
   --font-small: 22rpx;
 
-  /* ===== 字重 ===== */
+  /* ===== 字重（三档封顶：禁 bold / heavy，靠字号与颜色立层级） ===== */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
-  --weight-bold: 700;
-  --weight-heavy: 800;
 
   /* ===== 动效 ===== */
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 360ms;
+  /* 加载旋转：一圈 2s 匀速（慢速克制，不做高速转圈） */
+  --duration-spin: 2000ms;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   /* ===== 层级 ===== */
@@ -87,9 +87,8 @@ page {
   --record-card-height: 540rpx;
   /* 记忆卡菜名字号（卡内一级标题） */
   --record-name-size: 44rpx;
-  /* 记忆卡右下探出角标（星芒挂角）：本体边长 / 骨架态占位边长 */
+  /* 记忆卡右下探出状态角标：本体边长 */
   --record-badge-size: 200rpx;
-  --record-badge-ph-size: 96rpx;
   /* 记忆卡行组内容器右 / 下预留：容纳探出卡片外的挂角头部 */
   --record-row-peek: 24rpx;
   /* 记忆卡同组后卡景深：逐级下坠量 */
@@ -98,10 +97,6 @@ page {
   --eval-active-bg: rgba(180, 83, 26, 0.12);
   /* 流末尾结束态：动作图标框边长（方框，图标居中；非卡片） */
   --flowend-icon-box: 120rpx;
-  /* 记忆页底层淡装饰月份数字字号 */
-  --memory-motif-size: 280rpx;
-  /* 页面级加载指示尺寸 */
-  --page-loading-size: 120rpx;
   /* 删除二次确认弹窗宽度 */
   --sheet-dialog-width: 560rpx;
   /* 全局页头标题左右对称内距：把标题文字收进「明暗切换钮 ↔ 微信胶囊」之间的安全区（对称内距不改变水平居中） */

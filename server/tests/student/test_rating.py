@@ -29,7 +29,7 @@ def test_level_thresholds(avg: Decimal, level: str) -> None:
 
 
 def test_below_min_count_is_pending() -> None:
-    """评分条数 < 3 ⇒ 待评（None），即使均分很高。"""
+    """投票人数 < 3 ⇒ 待评（None），即使均分很高。"""
     assert flavor_level(Decimal("5.0"), 0) is None
     assert flavor_level(Decimal("5.0"), 2) is None
 
