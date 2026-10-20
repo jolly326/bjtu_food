@@ -156,7 +156,10 @@ async function onReact(record: RecordOut, value: number | null) {
 }
 
 async function onCancel(record: RecordOut) {
-  if (cancelLocked.value) return
+  if (cancelLocked.value) {
+    uni.showToast({ title: '操作过于频繁，请稍后再试', icon: 'none' })
+    return
+  }
   try {
     await recordApi.cancel(record.id)
     // 先本地移除（即时反馈），再静默向服务端对齐（月份轴 / 分组 / 其他端改动）
@@ -194,9 +197,13 @@ async function onPickOption(optionId: number) {
 }
 
 /** 删除二次确认 → 删除记录（未评分 / 已评分均可；后端重算评价分） */
-function onConfirmDelete() {
-  const target = sheetRecord.value
-  if (target) void onCancel(target)
+function onConfirmDelete(recordId: number) {
+  const target = records.value.find((r) => r.id === recordId)
+  if (!target) {
+    uni.showToast({ title: '记录不存在，请刷新', icon: 'none' })
+    return
+  }
+  void onCancel(target)
 }
 
 /** 空态跳转：去美味 tab */

@@ -28,11 +28,21 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'submit-issue', optionId: number): void
-  (e: 'confirm-delete'): void
+  /** 二次确认删除：携带目标记录 id（此时 sheet 已关闭，id 只在 confirmRecordId 里） */
+  (e: 'confirm-delete', recordId: number): void
 }>()
 
-const { sheetOpen, sheetMode, confirmOpen, closeSheet, openIssue, openEval, requestDelete, closeConfirm } =
-  useMemoryUI()
+const {
+  sheetOpen,
+  sheetMode,
+  confirmOpen,
+  confirmRecordId,
+  closeSheet,
+  openIssue,
+  openEval,
+  requestDelete,
+  closeConfirm,
+} = useMemoryUI()
 
 function onSheetClose() {
   closeSheet()
@@ -56,9 +66,11 @@ function onPick(optionId: number) {
   if (props.issueLocked) return
   emit('submit-issue', optionId)
 }
+/** 确认删除：把目标 id 带出（`requestDelete` 已清空 sheetRecordId，不能靠 sheet 的 record 反查） */
 function onConfirmDelete() {
-  if (props.cancelLocked) return
-  emit('confirm-delete')
+  const id = confirmRecordId.value
+  if (props.cancelLocked || id == null) return
+  emit('confirm-delete', id)
   closeConfirm()
 }
 </script>
@@ -174,7 +186,9 @@ function onConfirmDelete() {
   color: var(--text-title);
 }
 
-/* 二次确认弹窗（优先级高于 Bottom Sheet） */
+/* 二次确认弹窗（优先级高于 Bottom Sheet）
+   Julienne：暖白面板 + 大圆角 + 极弱弥散阴影、**面板不画描边**；文字左对齐、按钮居中；
+   🔴 暖橙**不做实底填充** —— 主操作只走「细橙描边 + 暖白底 + 深色文字」 */
 .mact__mask {
   position: fixed;
   inset: 0;
@@ -182,11 +196,14 @@ function onConfirmDelete() {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--page-gutter);
   background: var(--overlay-scrim);
 }
 .mact__dialog {
+  box-sizing: border-box;
   width: var(--sheet-dialog-width);
-  padding: var(--spacing-xl);
+  max-width: 100%;
+  padding: var(--spacing-2xl) var(--spacing-xl);
   background: var(--overlay-panel-bg);
   border-radius: var(--radius-modal);
   box-shadow: var(--shadow-modal);
@@ -194,22 +211,26 @@ function onConfirmDelete() {
 .mact__dialogTitle {
   display: block;
   font-family: var(--font-serif);
-  font-size: var(--font-h3);
+  font-size: var(--font-h2);
   font-weight: var(--weight-regular);
+  line-height: 1.3;
   color: var(--text-title);
+  text-align: left;
 }
 .mact__dialogDesc {
   display: block;
-  margin-top: var(--spacing-sm);
+  margin-top: var(--spacing-md);
   font-size: var(--font-small);
-  line-height: 1.6;
+  line-height: 1.7;
   color: var(--text-tertiary);
+  text-align: left;
 }
 .mact__dialogBtns {
   display: flex;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
+  margin-top: var(--spacing-2xl);
 }
+/* 按钮：胶囊（圆角 = 半高）+ 1rpx 极浅描边、文案居中、无图标 */
 .mact__dialogBtn {
   display: flex;
   flex: 1;
@@ -217,22 +238,28 @@ function onConfirmDelete() {
   justify-content: center;
   height: var(--tap-target-size);
   border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-btn);
+  border-radius: var(--radius-pill);
+  background: transparent;
 }
 .mact__dialogBtn--pressed {
   opacity: 0.6;
 }
+/* 主操作：细橙描边 + 暖白底 + 深色文字（不做实底填充） */
 .mact__dialogBtn--primary {
-  color: var(--text-on-primary);
-  background: var(--color-primary);
   border-color: var(--color-primary);
+  background: var(--bg-card);
 }
 .mact__dialogBtn.is-disabled {
   opacity: 0.5;
 }
 .mact__dialogBtnLabel {
   font-size: var(--font-subtitle);
+  font-weight: var(--weight-regular);
+  color: var(--text-body);
+  text-align: center;
+}
+.mact__dialogBtn--primary .mact__dialogBtnLabel {
   font-weight: var(--weight-medium);
-  color: inherit;
+  color: var(--text-title);
 }
 </style>

@@ -33,7 +33,7 @@ page {
   /* 堆叠后方层阴影：透明度继续降低，实现上浮景深（中层 / 下层两档） */
   --shadow-card-back: 0 6rpx 16rpx rgba(140, 120, 100, 0.04), 0 1rpx 6rpx rgba(140, 120, 100, 0.02);
   --shadow-card-back-far: 0 4rpx 12rpx rgba(140, 120, 100, 0.025), 0 1rpx 4rpx rgba(140, 120, 100, 0.015);
-  --shadow-modal: 0 18rpx 54rpx rgba(0, 0, 0, 0.18);
+  --shadow-modal: 0 16rpx 44rpx rgba(140, 120, 100, 0.12), 0 2rpx 10rpx rgba(140, 120, 100, 0.06);
   /* 内阴影：纸片卡顶部吊孔「打孔下沉」的层级感 */
   --shadow-inset: inset 0 2rpx 6rpx rgba(68, 56, 46, 0.16);
   --overlay-scrim: rgba(0, 0, 0, 0.4);
