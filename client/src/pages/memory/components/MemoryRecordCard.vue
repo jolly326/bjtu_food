@@ -1,19 +1,15 @@
 ﻿<script setup lang="ts">
-/** 记忆卡片（设计稿 docs/ui/client/记忆.md；交互状态机见记忆.md·全局互斥铁则）。
- *
- * 竖版卡片（高 > 宽，480×540）。两互斥状态：
- *  - 浏览态 A：菜名(左上) / 圆形菜品图(居中) / 位置·价格(底部右对齐)；
- *  - 评价激活态 B：原位面板（卡片底色，容器不变形），「为这道菜打分」+ 三档线性表情。
- *
- * 星芒挂角 = 纯装饰（低透明度、不可交互）：评价入口走长按菜单（见 useMemoryUI / MemoryActionsSheet）。
- * B 由长按菜单「评价」进入；B 内点表情提交并退出 B；B 内点空白退出 B 不保存。
- * 评分映射（仅换皮，后端 B2 不变）：很棒=laugh(5) / 不错=smile(3) / 一般=meh(1)。
+/**
+ * 记忆卡（规格 docs/ui/client/记忆.md）。竖版 480×540，两互斥状态：
+ * - 浏览态 A：菜名 / 圆形图 / 左下「食堂·档口·价格」/ 右下探出状态角标（已评对勾、未评圆点）。
+ * - 评价态 B：卡片底色面板原位覆盖，三档线性表情；点表情提交并退出，点空白不保存。
+ * 入口：点角标 或 长按菜单「评价」（互斥由 useMemoryUI 保证）。
  */
 import { computed } from 'vue'
 import AppIcon from '@/components/base/AppIcon.vue'
 import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
 import { useMemoryUI } from './useMemoryUI'
-import { fenToYuan } from '@/utils/price'
+import { recordMetaLine } from '@/utils/recordMeta'
 import type { RecordOut } from '@/api'
 
 /** 宿主节点虚拟化：组件根直接参与卡片行布局（flex 子节点即 .record） */
@@ -22,10 +18,10 @@ defineOptions({ options: { virtualHost: true } })
 const props = withDefaults(
   defineProps<{
     record?: RecordOut
+    /** 辅助行文案（父级一次算好；缺省时组件按同一实现兜底） */
     meta?: string
-    loading?: boolean
   }>(),
-  { meta: '', loading: false },
+  { meta: '' },
 )
 
 const emit = defineEmits<{ (e: 'react', value: number): void }>()
@@ -33,25 +29,24 @@ const emit = defineEmits<{ (e: 'react', value: number): void }>()
 const { evaluatingId, openEval, closeEval, openMenu } = useMemoryUI()
 
 const isEvaluating = computed(() => evaluatingId.value === props.record?.id)
+const isRated = computed(() => props.record?.reaction != null)
 
-/** 计算显示的元信息：优先用 prop meta，其次用 record 兜底（档口 / 食堂 · 价格） */
-const renderMeta = computed<string>(() => {
-  if (props.meta) return props.meta
-  const { stallName, canteenName, price } = props.record ?? {}
-  const place = stallName || canteenName || ''
-  const yuan = price && price > 0 ? `${Number(fenToYuan(price))}元` : ''
-  if (place && yuan) return `${place} · ${yuan}`
-  return place || yuan
-})
+/** 右下角状态图标：已评 = 圆圈对勾，未评 = 圆圈点（同一形态、同一弱装饰样式） */
+const badgeIcon = computed(() => (isRated.value ? 'circle-check' : 'circle-dot'))
 
-/** 点右下星芒挂角 → 进入原位评价态（长按菜单「评价」为同一入口的第二条路径） */
+/** 辅助行：优先用 prop meta，缺省时按同一实现从 record 兜底（`食堂 · 档口 · N元`） */
+const renderMeta = computed<string>(() =>
+  props.meta || (props.record ? recordMetaLine(props.record) : ''),
+)
+
+/** 点右下角标 → 进入原位评价态（长按菜单「评价」为同一入口的第二条路径） */
 function onBadgeTap() {
-  if (props.loading || !props.record) return
+  if (!props.record) return
   openEval(props.record.id)
 }
 
 function onCardLongPress() {
-  if (props.loading || isEvaluating.value || !props.record) return
+  if (isEvaluating.value || !props.record) return
   openMenu(props.record.id)
 }
 
@@ -66,17 +61,7 @@ function onBlankTap() {
 </script>
 
 <template>
-  <view v-if="loading" class="record record--ph">
-    <view class="record__surface" />
-    <view class="record__content">
-      <view class="record__phLine record__phLine--name" />
-      <view class="record__photo" />
-      <view class="record__phLine record__phLine--meta" />
-    </view>
-    <view class="record__badge record__badge--ph" />
-  </view>
-
-  <view v-else class="record" @longpress="onCardLongPress">
+  <view class="record" @longpress="onCardLongPress">
     <!-- 不透明卡片表面：遮挡挂角重叠部分，使挂角呈「探出头」效果 -->
     <view class="record__surface" />
 
@@ -102,7 +87,8 @@ function onBlankTap() {
       </text>
     </view>
 
-    <!-- 右下：探出式星芒挂角（低透明度弱装饰外观；点按进入原位评价态，评价选项在卡片内展开） -->
+    <!-- 右下：探出式状态角标（已评 = 圆圈对勾 / 未评 = 圆圈点；低透明度弱装饰外观，
+         点按进入原位评价态，评价选项在卡片内展开） -->
     <view
       v-show="!isEvaluating"
       class="record__badge"
@@ -111,7 +97,7 @@ function onBlankTap() {
       aria-label="对该菜品进行评价"
       @tap.stop="onBadgeTap"
     >
-      <AppIcon name="sparkles" :size="200" tone="muted" />
+      <AppIcon :name="badgeIcon" :size="200" tone="muted" />
     </view>
 
     <!-- 评价激活态 B：原位面板（卡片底色，覆盖卡片，容器不变形） -->
@@ -128,7 +114,7 @@ function onBlankTap() {
               aria-label="为这道菜品打分：一般"
               @tap.stop="submit(1)"
             >
-              <AppIcon name="meh" :size="52" tone="default" />
+              <AppIcon name="meh" :size="64" tone="default" />
               <text class="record__evalLabel">一般</text>
             </view>
             <view
@@ -139,7 +125,7 @@ function onBlankTap() {
               aria-label="为这道菜品打分：不错"
               @tap.stop="submit(3)"
             >
-              <AppIcon name="smile" :size="52" tone="default" />
+              <AppIcon name="smile" :size="64" tone="default" />
               <text class="record__evalLabel">不错</text>
             </view>
             <view
@@ -150,7 +136,7 @@ function onBlankTap() {
               aria-label="为这道菜品打分：很棒"
               @tap.stop="submit(5)"
             >
-              <AppIcon name="laugh" :size="52" tone="primary" />
+              <AppIcon name="laugh" :size="64" tone="default" />
               <text class="record__evalLabel">很棒</text>
             </view>
           </view>
@@ -178,8 +164,8 @@ function onBlankTap() {
   position: absolute;
   inset: 0;
   z-index: 0;
+  /* 卡面无实线描边：靠极浅灰白底色 + 极弱阴影浮起 */
   background: var(--bg-card);
-  border: 1rpx solid var(--border-color);
   border-radius: var(--radius-card);
 }
 
@@ -192,7 +178,8 @@ function onBlankTap() {
   width: 100%;
   height: 100%;
   min-height: 0;
-  padding: var(--spacing-lg) var(--page-gutter) calc(var(--spacing-lg) + var(--spacing-md));
+  /* 卡片内距：上下 40rpx / 左右 32rpx —— 文字与图片四周留足呼吸位，不贴卡缘 */
+  padding: var(--spacing-xl) var(--page-gutter) var(--spacing-xl);
 }
 
 .record__name {
@@ -201,7 +188,8 @@ function onBlankTap() {
   overflow: hidden;
   font-family: var(--font-serif);
   font-size: var(--record-name-size);
-  font-weight: var(--weight-bold);
+  /* 标题「中等偏粗但不重」——衬线不用 bold，避免厚重压迫感 */
+  font-weight: var(--weight-medium);
   line-height: 1.3;
   color: var(--text-title);
   text-align: left;
@@ -239,19 +227,21 @@ function onBlankTap() {
   border-radius: var(--radius-circle);
 }
 
+/* 位置 · 价格：卡片左下角、单行、无衬线小字浅灰（对标参考图「30m cook time」的弱化辅助行） */
 .record__meta {
-  align-self: flex-end;
-  font-family: var(--font-serif);
+  align-self: flex-start;
+  font-family: var(--font-sans);
   font-size: var(--font-small);
   font-weight: var(--weight-regular);
+  letter-spacing: 0.02em;
   color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* 右下角探头 = 星芒挂角：单图标、低透明度弱装饰外观；卡片 overflow:hidden 裁切 ⇒ 偏移 -56rpx、
-   大半落卡外、仅右下角局部探入可见；露出部分即可点（进入原位评价态） */
+/* 右下角探头 = 状态角标：单图标、低透明度弱装饰外观、**正立角度**；卡片 overflow:hidden 裁切
+   ⇒ 偏移 -56rpx、仅右下角局部探入可见；露出部分即可点（进入原位评价态） */
 .record__badge {
   position: absolute;
   right: -56rpx;
@@ -263,22 +253,11 @@ function onBlankTap() {
   width: var(--record-badge-size);
   height: var(--record-badge-size);
   opacity: 0.25;
-  transform: rotate(-45deg);
   pointer-events: auto;
 }
 
 .record__badge--pressed {
   opacity: 0.55;
-}
-
-/* 骨架态：挂角占位 */
-.record__badge--ph {
-  right: -48rpx;
-  bottom: -48rpx;
-  width: var(--record-badge-ph-size);
-  height: var(--record-badge-ph-size);
-  background: var(--bg-placeholder);
-  border-radius: 50%;
 }
 
 /* 评价激活态 B：覆盖卡片的面板（卡片底色，非白底弹窗）—— 必须绝对定位覆盖，
@@ -349,21 +328,5 @@ function onBlankTap() {
   opacity: 0;
 }
 
-/* 加载骨架 */
-.record--ph {
-  pointer-events: none;
-}
-.record__phLine {
-  background: var(--bg-placeholder);
-  border-radius: var(--radius-xs);
-}
-.record__phLine--name {
-  width: 55%;
-  height: var(--record-name-size);
-}
-.record__phLine--meta {
-  width: 40%;
-  height: var(--font-small);
-}
 </style>
 

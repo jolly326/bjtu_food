@@ -1,6 +1,6 @@
-/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md）。
-   知行食记 运营端：纯白页面基底、轻拟物纸片卡片、衬线标题+无衬线正文、
-   低饱和暖橙主色 #B4531A（与学生端逐字一致）、大面积留白。 */
+/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md 与 docs/ui/client/Julienne风格指南.md）。
+   与学生端同源：纯白页面 + `#FAFAFA` 极浅灰白卡面、**卡片无实线描边**、双层极弱弥散阴影、
+   衬线标题（常规 / 中等字重，禁 bold）+ 无衬线正文、低饱和暖橙主色 #B4531A、大面积留白。 */
 
 /* 🔴 html:root（特异性 0-1-1）而非 :root（0-1-0）：即使按需引入的组件样式
    （如 element-plus base）在懒加载时晚于本文件注入 <head>，其自带的
@@ -14,92 +14,114 @@ html:root {
   --el-color-primary-light-8: #f0cdb4;
   --el-color-primary-light-9: #f7e2d4;
   --el-color-primary-dark-2: #8f4014;
-  /* 🔴 上列 light-3/5/7 与 dark-2、以及下方 --el-color-info / --el-border-color-light 由
-     Element Plus 组件内部消费（按钮 hover、弹层边框、MessageBox 图标等）—— 静态扫描不可见，
-     check:tokens 列为「零引用」属预期，按「EP 内部消费」保留，🔴 不得零消费即删 */
+  /* 🔴 light-3/5/7、dark-2 与下方 info / border-color-light 由 Element Plus 组件内部消费
+     （按钮 hover、弹层边框、MessageBox 图标等）—— 静态扫描不可见，check:tokens 列为
+     「零引用」属预期，按「EP 内部消费」保留，🔴 不得零消费即删 */
 
-  /* 功能色：保持 Element Plus 默认语义，仅饱和度微调避免与主色冲突 */
+  /* 功能色：低饱和语义色，避免与暖橙主色抢眼 */
   --el-color-success: #2e7d32;
-  --el-color-warning: #e67e22;
-  --el-color-danger: #c62828;
+  --el-color-warning: #c9761f;
+  --el-color-danger: #c0392b;
   --el-color-error: var(--el-color-danger);
-  --el-color-info: #1565c0;
+  --el-color-info: #4a6b8a;
+  /* 语义色浅底（标签 / 统计条；与学生端同档柔和度） */
+  --el-color-success-light-9: #eef4ee;
+  --el-color-warning-light-9: #fbf1e6;
+  --el-color-danger-light-9: #f9ecea;
 
-  /* ===== 页面基底：纯白 =====
-     （--el-bg-color-overlay / --el-fill-color-blank 已按「零消费即删」移除：与 EP 默认逐字同值） */
+  /* ===== 页面 / 卡面 ===== */
   --el-bg-color-page: #ffffff;
   --el-bg-color: #ffffff;
-  --el-fill-color-light: #f4ede3;
-  --el-fill-color-lighter: #f8f3ec;
-  --el-fill-color: #efe7db;
+  --el-bg-color-overlay: #ffffff;
+  /* 卡面：极浅灰白（与学生端 --bg-card 同值；卡片靠阴影浮起，不画描边） */
+  --web-bg-card: #fafafa;
+  --el-fill-color-light: #f7f5f2;
+  --el-fill-color-lighter: #fbfaf8;
+  --el-fill-color: #f1eeea;
 
-  /* ===== 暖调中性色 ===== */
-  --el-text-color-primary: #2e2a24;
-  --el-text-color-regular: #574f45;
-  --el-text-color-secondary: #8a7f72;
+  /* ===== 文字层级（与学生端同值：深棕标题 / 浅棕灰辅助） ===== */
+  --el-text-color-primary: #44382e;
+  --el-text-color-regular: #5c5349;
+  --el-text-color-secondary: #8a7c70;
   --el-text-color-placeholder: #b4a899;
 
-  /* ===== 边框：柔和暖灰 ===== */
-  --el-border-color: #e6dccf;
-  --el-border-color-light: #eee5d9;
-  --el-border-color-lighter: #f3ece2;
-  --el-border-color-extra-light: #f8f2ea;
+  /* ===== 边框：仅用于**控件**（输入框 / 下拉 / 次级按钮），卡片不画描边 ===== */
+  --el-border-color: #e8e3de;
+  --el-border-color-light: #efeae4;
+  --el-border-color-lighter: #f4f0eb;
+  --el-border-color-extra-light: #f8f5f1;
 
-  /* ===== 圆角与阴影：纸片质感 ===== */
+  /* ===== 圆角：卡片 16 / 控件 12 / 小件 8 / 胶囊 = 半高 ===== */
   --el-border-radius-base: 12px;
   --el-border-radius-large: 16px;
-  /* 小圆角（自建，非 EP 变量）：原 --el-border-radius-sm 冒用 el- 前缀，已更名 */
   --web-radius-sm: 8px;
-  --el-box-shadow-light: 0 10px 30px rgba(90, 70, 45, 0.08);
-  --el-box-shadow-elevated: 0 14px 38px rgba(90, 70, 45, 0.1); /* 悬浮纸片更重阴影 */
+  --web-radius-card: 16px;
+  --web-radius-pill: 999px;
 
-  /* ===== 衬线标题字体（知行食记 标志性排版）===== */
+  /* ===== 阴影：双层极弱弥散（与学生端 --shadow-card-stack 同气质） ===== */
+  --el-box-shadow-light: 0 4px 14px rgba(140, 120, 100, 0.06), 0 1px 4px rgba(140, 120, 100, 0.04);
+  --el-box-shadow-elevated:
+    0 12px 32px rgba(140, 120, 100, 0.1), 0 2px 8px rgba(140, 120, 100, 0.05);
+
+  /* ===== 间距节奏（留白优先，模块内 12–16 / 模块间 20–24） ===== */
+  --web-gap-tight: 8px;
+  --web-gap: 12px;
+  --web-gap-loose: 20px;
+  --web-page-pad: 24px;
+
+  /* ===== 衬线标题字体（知行食记 标志性排版） ===== */
   --web-font-serif:
     'Songti SC', 'Noto Serif SC', 'Source Han Serif SC', Georgia, 'Times New Roman', serif;
+  --web-font-sans:
+    -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei',
+    sans-serif;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  font-family: var(--web-font-sans);
   color: var(--el-text-color-primary);
   background: var(--el-bg-color-page);
+  -webkit-font-smoothing: antialiased;
 }
 
 #app {
   min-height: 100vh;
 }
 
-/* ===== 标题统一走衬线（h2 页面标题 / h3 弹窗标题天然命中）===== */
+/* ===== 标题统一走衬线：层级靠字号 + 颜色，字重不堆叠 ===== */
 h1,
 h2,
 h3 {
   font-family: var(--web-font-serif);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.01em;
 }
 
-/* ===== 内容区 = 悬浮纸片卡片（骨架布局 + BEM 子块一并收口，视图 scoped 不得再写同名块） ===== */
+/* ===== 内容区 = 悬浮纸片（无描边，靠 `#FAFAFA` 卡面 + 双层极弱阴影） ===== */
 #app .page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-large);
+  gap: var(--web-gap-loose);
+  padding: var(--web-page-pad);
+  background: var(--web-bg-card);
+  border-radius: var(--web-radius-card);
   box-shadow: var(--el-box-shadow-light);
 }
 
-/* 顶栏（标题 + 主操作）/ 底部分页栏 / 筛选区：全站同一形态（基线 §2.1） */
+/* 顶栏（标题 + 主操作）/ 筛选区 / 底部分页栏：全站同一形态 */
 #app .page__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--web-gap);
+  flex-wrap: wrap;
 }
 
 #app .page__title {
   margin: 0;
   font-size: 18px;
+  font-weight: 500;
   color: var(--el-text-color-primary);
 }
 
@@ -107,6 +129,8 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--web-gap);
+  flex-wrap: wrap;
 }
 
 #app .page__total {
@@ -117,7 +141,8 @@ h3 {
 #app .pager {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
 }
 
 #app .pager__cur {
@@ -127,34 +152,55 @@ h3 {
 
 #app .filters {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
 }
 
 #app .filters__select {
   height: 32px;
-  padding: 0 8px;
-  border: 1px solid var(--el-border-color);
+  padding: 0 10px;
+  border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
   color: var(--el-text-color-regular);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
 }
 
-/* ===== 基础控件形态（唯一收口）：按钮 / 列表卡片 / 概览统计卡 / 弹窗 / 遮罩 =====
-   🔴 各视图**不得**再写同名基础块（`.btn` / `.dialog` / `.mask` / `.list-card*` /
-   `.overview*` 的尺寸与盒模型一律在此维护），视图 scoped 只放页面私有差异。 */
+#app .filters__select:hover,
+#app .filters__select:focus {
+  border-color: var(--el-color-primary-light-5);
+}
+
+/* ===== 按钮：胶囊（圆角 = 半高）+ 轻量底色 / 细描边，按压仅透明度变化 ===== */
 #app .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--el-border-radius-base);
+  padding: 0 16px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--web-radius-pill);
   background: var(--el-bg-color);
   color: var(--el-text-color-regular);
   font-size: 13px;
   cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+#app .btn:hover {
+  border-color: var(--el-color-primary-light-5);
+  color: var(--el-color-primary);
+}
+
+#app .btn:active {
+  opacity: 0.7;
 }
 
 #app .btn:disabled {
@@ -168,31 +214,39 @@ h3 {
   color: #fff;
 }
 
-/* ===== 弹窗：纸片卡片 + 柔和阴影 + 暖色遮罩 ===== */
+#app .btn--primary:hover {
+  border-color: var(--el-color-primary-dark-2);
+  background: var(--el-color-primary-dark-2);
+  color: #fff;
+}
+
+/* ===== 弹窗：纸片 + 柔和阴影 + 暖色遮罩（无描边） ===== */
 #app .mask {
   position: fixed;
   inset: 0;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(46, 42, 36, 0.35);
+  padding: 16px;
+  background: rgba(46, 42, 36, 0.28);
 }
 
 #app .dialog {
-  width: 520px;
+  width: min(520px, 100%);
   max-height: 86vh;
   overflow: auto;
-  padding: 24px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-base);
+  padding: 28px;
+  border-radius: 20px;
   background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-light);
+  box-shadow: var(--el-box-shadow-elevated);
 }
 
-/* 弹窗内字段：标签在上（上距 14px / 下距 6px）+ 输入 34px；全站同一形态 */
+/* 弹窗内字段：标签在上 + 输入 34px，全站同一形态 */
 #app .dialog__title {
-  margin: 0 0 20px;
-  font-size: 16px;
+  margin: 0 0 var(--web-gap-loose);
+  font-size: 17px;
+  font-weight: 500;
   color: var(--el-text-color-primary);
 }
 
@@ -206,13 +260,19 @@ h3 {
 #app .dialog__input {
   width: 100%;
   height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--el-border-color);
+  padding: 0 12px;
+  border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
   color: var(--el-text-color-primary);
+  font-family: inherit;
   outline: none;
   box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+#app .dialog__input:focus {
+  border-color: var(--el-color-primary-light-5);
 }
 
 #app .dialog__hint {
@@ -224,15 +284,14 @@ h3 {
 #app .dialog__foot {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 24px;
+  gap: var(--web-gap-tight);
+  margin-top: var(--web-gap-loose);
 }
 
-/* ===== 长按操作浮层（底部纸片，见基线 §2.3；.mask 底边锚定变体） ===== */
+/* ===== 长按操作浮层（底部纸片） ===== */
 #app .mask--sheet {
   align-items: flex-end;
   justify-content: center;
-  /* 与屏幕底缘留间距悬浮（含安全区）不贴边；左右 12px 使浮层成内缩纸片 */
   padding: 0 12px calc(12px + env(safe-area-inset-bottom));
   z-index: 300;
 }
@@ -241,11 +300,10 @@ h3 {
   display: flex;
   flex-direction: column;
   width: min(420px, 100%);
-  padding: 8px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-large);
+  padding: 10px;
+  border-radius: 20px;
   background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-light);
+  box-shadow: var(--el-box-shadow-elevated);
 }
 
 #app .sheet__title {
@@ -257,13 +315,14 @@ h3 {
 }
 
 #app .sheet__row {
-  height: 44px;
+  height: 46px;
   border: none;
   border-radius: var(--el-border-radius-base);
   background: transparent;
   color: var(--el-text-color-primary);
   font-size: 14px;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 #app .sheet__row:hover {
@@ -287,47 +346,32 @@ h3 {
   text-align: center;
 }
 
-/* 窄屏无需单独规则：.sheet 宽度 min(420px, 100%) 自然收窄，间距由 .mask--sheet 统一提供 */
-
-/* ===== 次要按钮：暖橙描边式，透明底（知行食记 标志性）===== */
+/* ===== 次要按钮：暖橙细描边 + 透明底（品牌标志性） ===== */
 #app .btn--outline {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--el-color-primary);
-  border-radius: var(--web-radius-sm);
+  border-color: var(--el-color-primary);
   background: transparent;
   color: var(--el-color-primary);
-  font-size: 13px;
-  cursor: pointer;
 }
+
 #app .btn--outline:hover {
   background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
-#app .btn--outline:active {
-  background: var(--el-color-primary-light-8);
-}
+
 #app .btn--outline:disabled {
   border-color: var(--el-border-color-extra-light);
   color: var(--el-text-color-placeholder);
-  cursor: not-allowed;
+  background: transparent;
 }
 
-/* ===== 次要按钮小圆角（与主按钮区分，更轻盈）===== */
+/* ===== 小号按钮（列表卡片操作位） ===== */
 #app .btn--sm {
   height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: var(--web-radius-sm);
-  background: var(--el-bg-color);
-  color: var(--el-text-color-regular);
+  padding: 0 12px;
   font-size: 12px;
-  cursor: pointer;
-}
-#app .btn--sm:hover {
-  background: var(--el-fill-color-light);
 }
 
-/* ===== 圆形图片（海报 / 美食图圆形裁切，轻拟物纸片感）===== */
+/* ===== 圆形图片（海报 / 美食图圆形裁切） ===== */
 #app .img--round {
   border-radius: 50%;
   object-fit: cover;
@@ -339,31 +383,39 @@ h3 {
 }
 
 #app .login__card {
-  box-shadow: var(--el-box-shadow-light);
+  box-shadow: var(--el-box-shadow-elevated);
 }
 
-/* ===== 列表卡片容器：响应式栅格（宽屏一行多卡，窄屏自然单列） ===== */
+/* ===== 列表卡片：响应式栅格（宽屏一行多卡，窄屏自然单列） ===== */
 #app .list-card-wrap {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
-  gap: 8px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: var(--web-gap);
 }
 
 #app .list-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-base);
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--web-radius-card);
   background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
   /* 长按手势面：防按住时误触发文本选中（见基线 §2.3） */
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* 键盘可达（tabindex=0 卡片）：聚焦时主色描边 */
+#app .list-card:hover {
+  box-shadow: var(--el-box-shadow-elevated);
+  transform: translateY(-1px);
+}
+
+/* 键盘可达（tabindex=0 卡片）：聚焦时主色外环 */
 #app .list-card:focus-visible {
   outline: 2px solid var(--el-color-primary);
   outline-offset: 2px;
@@ -385,29 +437,30 @@ h3 {
 
 #app .list-card__titleText {
   font-size: 15px;
+  font-weight: 500;
   color: var(--el-text-color-primary);
 }
 
 #app .list-card__empty {
-  grid-column: 1 / -1; /* 空态横跨整行，不被栅格收窄 */
-  padding: 40px 14px;
+  grid-column: 1 / -1;
+  padding: 48px 16px;
   text-align: center;
   color: var(--el-text-color-placeholder);
 }
 
-/* ===== 列表卡片：操作列（仅纠错处理页处置动线，见基线 §2.3） ===== */
 #app .list-card__actions {
   display: flex;
   align-items: center;
+  gap: var(--web-gap-tight);
 }
 
-/* ===== 列表卡片：左置缩略图（无图占位同尺寸，列表不塌陷、行行等高） ===== */
+/* 左置缩略图：无图占位同尺寸，行行等高；圆角与卡片节奏统一 */
 #app .list-card__figure {
   flex-shrink: 0;
   width: 64px;
   height: 64px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--web-radius-sm);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-fill-color-lighter);
   object-fit: cover;
 }
 
@@ -415,24 +468,23 @@ h3 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--el-fill-color-lighter);
   color: var(--el-text-color-placeholder);
 }
 
-/* 海报列缩略图：3:4 竖版（仅海报管理页出图，见基线 §1.6） */
+/* 海报列缩略图：3:4 竖版 */
 #app .list-card__figure--poster {
   width: 48px;
   height: 64px;
-  border-radius: 4px;
+  border-radius: var(--web-radius-sm);
 }
 
-/* ===== 列表卡片：归属路径（三级弱化，体现 父 → 子 层级） ===== */
+/* 归属路径（三级弱化，体现 父 → 子 层级） */
 #app .list-card__path {
   font-size: 12px;
   color: var(--el-text-color-placeholder);
 }
 
-/* ===== 列表卡片：指标行（本页量化信息：价格 / 评分 / 计数 / 时间） ===== */
+/* 指标行（价格 / 评分 / 计数 / 时间） */
 #app .list-card__stats {
   display: flex;
   align-items: baseline;
@@ -444,14 +496,13 @@ h3 {
 
 #app .list-card__statValue {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--el-text-color-primary);
 }
 
-/* 价格随指标行左贴强调（卡面内容整体左对齐，见基线 §1.6） */
 #app .list-card__price {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--el-text-color-primary);
 }
 
@@ -469,9 +520,10 @@ h3 {
 /* ===== 状态 / 反应标签（基础形态全站收口；反应色变体留在评分数据页 scoped） ===== */
 #app .tag {
   display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
+  padding: 2px 10px;
+  border-radius: var(--web-radius-pill);
   font-size: 12px;
+  line-height: 18px;
 }
 
 #app .tag--on {
@@ -484,27 +536,28 @@ h3 {
   color: var(--el-text-color-secondary);
 }
 
-/* ===== 评分概览统计卡（评分数据页；四档位聚合，压在明细列表上方） ===== */
+/* ===== 评分概览统计卡（四档位聚合，压在明细列表上方） ===== */
 #app .overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--web-gap);
 }
 
 #app .overview__item {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 12px 14px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-base);
+  padding: 14px 16px;
+  border-radius: var(--el-border-radius-large);
   background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 #app .overview__label {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
@@ -514,8 +567,9 @@ h3 {
 }
 
 #app .overview__count {
-  font-size: 22px;
-  font-weight: 600;
+  font-family: var(--web-font-serif);
+  font-size: 24px;
+  font-weight: 500;
   line-height: 1;
   color: var(--el-text-color-primary);
 }
@@ -523,14 +577,14 @@ h3 {
 #app .overview__bar {
   height: 4px;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: var(--web-radius-pill);
   background: var(--el-fill-color);
 }
 
 #app .overview__barFill {
   display: block;
   height: 100%;
-  border-radius: 2px;
+  border-radius: var(--web-radius-pill);
   background: var(--el-color-primary);
 }
 
@@ -550,16 +604,41 @@ h3 {
   background: var(--el-text-color-placeholder);
 }
 
-/* ===== 手机端（≤640px）：弹窗近全宽 + 卡片纵排 + 操作换行到卡底右对齐 + 概览 2×2 ===== */
-@media (max-width: 640px) {
-  /* 弹窗窄屏近全宽（原散落 6 个视图的同名规则，收口于此） */
+/* ===== 响应式三档：≥1200 宽松 / 768–1199 紧凑 / ≤767 手机 ===== */
+@media (max-width: 1199px) {
+  #app .page {
+    padding: 20px;
+    gap: var(--web-gap);
+  }
+
+  #app .list-card-wrap {
+    grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  #app .overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  #app .page {
+    padding: 16px;
+    border-radius: var(--el-border-radius-base);
+  }
+
+  #app .page__title {
+    font-size: 17px;
+  }
+
   #app .dialog {
-    width: min(520px, 92vw);
-    margin: 0 4px;
+    padding: 20px;
+    border-radius: var(--el-border-radius-large);
   }
 
   #app .list-card {
-    flex-wrap: wrap;
+    padding: 14px;
   }
 
   #app .list-card__figure:not(.list-card__figure--poster) {
@@ -567,12 +646,8 @@ h3 {
     height: 48px;
   }
 
-  #app .list-card__actions {
-    flex-basis: 100%;
-    justify-content: flex-end;
-  }
-
-  #app .overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  #app .btn {
+    height: 34px;
+    padding: 0 14px;
   }
 }

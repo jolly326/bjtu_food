@@ -17,7 +17,7 @@
  * - 加载 / 空态：无卡片时上层渲染骨架卡 / 空态占位卡；流末尾 `finished` 时渲染 `end` 插槽。
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
-import AppIcon from '@/components/base/AppIcon.vue'
+import EmptyBlock from '@/components/base/EmptyBlock.vue'
 import DishSwipeCard from './DishSwipeCard.vue'
 import PaperCard from './PaperCard.vue'
 import { windowWidth } from '@/utils/safeArea'
@@ -30,15 +30,14 @@ defineOptions({ options: { virtualHost: true } })
 const props = withDefaults(
   defineProps<{
     cards: DishCardOut[]
-    loading?: boolean
     /** 本批卡片已全部划完 ⇒ 渲染 end 插槽（流末尾空态） */
     finished?: boolean
-    /** 正在提交的菜品 id（仅该卡按钮 loading） */
+    /** 正在提交的菜品 id（仅该卡按钮 loading；首屏加载由 PageLoading 承担） */
     submitting?: number | null
-    /** 限频退避中：顶层卡的「去品尝」不可点（docs/secur/S-03） */
+    /** 限频退避中：顶层卡的「加入记忆」不可点（docs/secur/S-03） */
     wantLocked?: boolean
   }>(),
-  { loading: false, finished: false, submitting: null, wantLocked: false },
+  { finished: false, submitting: null, wantLocked: false },
 )
 
 const emit = defineEmits<{
@@ -259,11 +258,7 @@ const backStyles = computed(() =>
         <template v-if="slot.level === 0">
           <slot v-if="finished" name="end" />
           <PaperCard v-else-if="!slot.card">
-            <view class="stack__empty">
-              <AppIcon class="stack__emptyIcon" name="dish" :size="64" tone="muted" />
-              <text class="stack__emptyTitle">暂无菜品推荐</text>
-              <text class="stack__emptyHint">等待食堂上新美食</text>
-            </view>
+            <EmptyBlock icon="dish" title="暂无菜品推荐" desc="等待食堂上新美食" />
           </PaperCard>
           <DishSwipeCard
             v-else
@@ -357,19 +352,4 @@ const backStyles = computed(() =>
 
 /* 空态占位卡：与栈卡同卡面（表面由 PaperCard 承担），内容居中纵向排布；
    语言与记忆页空态一致 —— 细线图标（弱化）+ 衬线标题 + 浅灰引导 */
-.stack__empty {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.stack__emptyIcon {
-  margin-bottom: var(--spacing-xs);
-  opacity: 0.55;
-}
 </style>

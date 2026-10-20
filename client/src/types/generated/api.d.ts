@@ -31,7 +31,7 @@ export interface paths {
     post: operations["create_record_my_records_post"];
   };
   "/my/records/{record_id}": {
-    /** 取消品尝 */
+    /** 删除饮食记录 */
     delete: operations["cancel_record_my_records__record_id__delete"];
     /** 三态评分 */
     patch: operations["react_record_my_records__record_id__patch"];
@@ -252,16 +252,11 @@ export interface components {
       /** Price */
       price: number;
       /** Imageurl */
-      imageUrl?: string | null;
-      /** Avgreaction */
-      avgReaction?: number | null;
+      imageUrl: string | null;
       /** Flavorlevel */
-      flavorLevel?: string | null;
-      /**
-       * Wanted
-       * @default false
-       */
-      wanted?: boolean;
+      flavorLevel: string | null;
+      /** Wanted */
+      wanted: boolean;
       /** Canteenname */
       canteenName: string;
       /** Stallname */
@@ -279,14 +274,12 @@ export interface components {
       canteenName: string;
       /** Stallname */
       stallName: string;
-      /** Optionid */
-      optionId: number;
       /** Optionname */
       optionName: string;
       /** Createdat */
       createdAt: string;
       /** Handledat */
-      handledAt?: string | null;
+      handledAt: string | null;
     };
     /** DishOut */
     DishOut: {
@@ -317,8 +310,6 @@ export interface components {
     DishRecordOut: {
       /** Id */
       id: number;
-      /** Dishid */
-      dishId: number;
       /** Dishname */
       dishName: string;
       /** Canteenname */
@@ -326,11 +317,11 @@ export interface components {
       /** Stallname */
       stallName: string;
       /** Reaction */
-      reaction?: number | null;
+      reaction: number | null;
       /** Wantedat */
       wantedAt: string;
       /** Reactedat */
-      reactedAt?: string | null;
+      reactedAt: string | null;
     };
     /** DishSaveIn */
     DishSaveIn: {
@@ -745,7 +736,10 @@ export interface components {
        */
       status?: string;
     };
-    /** ReactIn */
+    /**
+     * ReactIn
+     * @description 三态评分：5 喜欢 ｜ 3 一般 ｜ 1 不喜欢 ｜ **null = 清除评价**。
+     */
     ReactIn: {
       /** Reaction */
       reaction: number | null;
@@ -759,13 +753,13 @@ export interface components {
       /** Name */
       name: string;
       /** Imageurl */
-      imageUrl?: string | null;
+      imageUrl: string | null;
       /** Wantedat */
       wantedAt: string;
       /** Reaction */
-      reaction?: number | null;
+      reaction: number | null;
       /** Flavorlevel */
-      flavorLevel?: string | null;
+      flavorLevel: string | null;
       /** Canteenname */
       canteenName: string;
       /** Stallname */
@@ -885,7 +879,6 @@ export interface operations {
     parameters: {
       query?: {
         canteenId?: number | null;
-        page?: number | null;
         pageSize?: number | null;
       };
     };
@@ -951,7 +944,7 @@ export interface operations {
       };
     };
   };
-  /** 取消品尝 */
+  /** 删除饮食记录 */
   cancel_record_my_records__record_id__delete: {
     parameters: {
       path: {

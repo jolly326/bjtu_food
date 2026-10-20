@@ -8,6 +8,18 @@ import arrow_down__muted from '@/assets/icon-variants/arrow-down--muted.svg'
 import arrow_down__default__dark from '@/assets/icon-variants/arrow-down--default--dark.svg'
 import arrow_down__primary__dark from '@/assets/icon-variants/arrow-down--primary--dark.svg'
 import arrow_down__muted__dark from '@/assets/icon-variants/arrow-down--muted--dark.svg'
+import circle_check__default from '@/assets/icon-variants/circle-check--default.svg'
+import circle_check__primary from '@/assets/icon-variants/circle-check--primary.svg'
+import circle_check__muted from '@/assets/icon-variants/circle-check--muted.svg'
+import circle_check__default__dark from '@/assets/icon-variants/circle-check--default--dark.svg'
+import circle_check__primary__dark from '@/assets/icon-variants/circle-check--primary--dark.svg'
+import circle_check__muted__dark from '@/assets/icon-variants/circle-check--muted--dark.svg'
+import circle_dot__default from '@/assets/icon-variants/circle-dot--default.svg'
+import circle_dot__primary from '@/assets/icon-variants/circle-dot--primary.svg'
+import circle_dot__muted from '@/assets/icon-variants/circle-dot--muted.svg'
+import circle_dot__default__dark from '@/assets/icon-variants/circle-dot--default--dark.svg'
+import circle_dot__primary__dark from '@/assets/icon-variants/circle-dot--primary--dark.svg'
+import circle_dot__muted__dark from '@/assets/icon-variants/circle-dot--muted--dark.svg'
 import dish__default from '@/assets/icon-variants/dish--default.svg'
 import dish__primary from '@/assets/icon-variants/dish--primary.svg'
 import dish__muted from '@/assets/icon-variants/dish--muted.svg'
@@ -96,9 +108,9 @@ export const ICON_TONES = {
 
 /** 深色色调（data-theme="dark" 下生效） */
 export const ICON_TONES_DARK = {
-  "default": "#9C8F7C",
-  "primary": "#E07E38",
-  "muted": "#6E6455"
+  "default": "#CFCFCF",
+  "primary": "#F0995A",
+  "muted": "#8A8A8A"
 } as const
 
 export type IconTone = keyof typeof ICON_TONES
@@ -108,6 +120,12 @@ export const ICON_SRC: Record<string, string> = {
   "arrow-down--default": arrow_down__default,
   "arrow-down--primary": arrow_down__primary,
   "arrow-down--muted": arrow_down__muted,
+  "circle-check--default": circle_check__default,
+  "circle-check--primary": circle_check__primary,
+  "circle-check--muted": circle_check__muted,
+  "circle-dot--default": circle_dot__default,
+  "circle-dot--primary": circle_dot__primary,
+  "circle-dot--muted": circle_dot__muted,
   "dish--default": dish__default,
   "dish--primary": dish__primary,
   "dish--muted": dish__muted,
@@ -154,6 +172,12 @@ export const ICON_SRC_DARK: Record<string, string> = {
   "arrow-down--default--dark": arrow_down__default__dark,
   "arrow-down--primary--dark": arrow_down__primary__dark,
   "arrow-down--muted--dark": arrow_down__muted__dark,
+  "circle-check--default--dark": circle_check__default__dark,
+  "circle-check--primary--dark": circle_check__primary__dark,
+  "circle-check--muted--dark": circle_check__muted__dark,
+  "circle-dot--default--dark": circle_dot__default__dark,
+  "circle-dot--primary--dark": circle_dot__primary__dark,
+  "circle-dot--muted--dark": circle_dot__muted__dark,
   "dish--default--dark": dish__default__dark,
   "dish--primary--dark": dish__primary__dark,
   "dish--muted--dark": dish__muted__dark,
@@ -198,6 +222,8 @@ export const ICON_SRC_DARK: Record<string, string> = {
 /** 本次被源码引用并生成着色变体的图标键（+ empty 兜底） */
 export const ICON_KEYS = [
   "arrow-down",
+  "circle-check",
+  "circle-dot",
   "dish",
   "empty",
   "image-broken",

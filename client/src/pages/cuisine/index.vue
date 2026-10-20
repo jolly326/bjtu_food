@@ -151,7 +151,6 @@ onMounted(load)
     <DishCardStack
       v-else
       :cards="cards"
-      :loading="loading"
       :finished="finished"
       :submitting="submittingId"
       :want-locked="wantLocked"

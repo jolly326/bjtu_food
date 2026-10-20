@@ -102,22 +102,6 @@
             }
           },
           {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Page"
-            }
-          },
-          {
             "name": "pageSize",
             "in": "query",
             "required": false,
@@ -315,7 +299,7 @@
         "tags": [
           "record"
         ],
-        "summary": "取消品尝",
+        "summary": "删除饮食记录",
         "operationId": "cancel_record_my_records__record_id__delete",
         "security": [
           {
@@ -2002,6 +1986,7 @@
             "title": "Password"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "username",
@@ -2240,6 +2225,7 @@
             "title": "Name"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
@@ -2271,17 +2257,6 @@
             ],
             "title": "Imageurl"
           },
-          "avgReaction": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Avgreaction"
-          },
           "flavorLevel": {
             "anyOf": [
               {
@@ -2295,8 +2270,7 @@
           },
           "wanted": {
             "type": "boolean",
-            "title": "Wanted",
-            "default": false
+            "title": "Wanted"
           },
           "canteenName": {
             "type": "string",
@@ -2312,6 +2286,9 @@
           "id",
           "name",
           "price",
+          "imageUrl",
+          "flavorLevel",
+          "wanted",
           "canteenName",
           "stallName"
         ],
@@ -2340,10 +2317,6 @@
             "type": "string",
             "title": "Stallname"
           },
-          "optionId": {
-            "type": "integer",
-            "title": "Optionid"
-          },
           "optionName": {
             "type": "string",
             "title": "Optionname"
@@ -2371,9 +2344,9 @@
           "dishName",
           "canteenName",
           "stallName",
-          "optionId",
           "optionName",
-          "createdAt"
+          "createdAt",
+          "handledAt"
         ],
         "title": "DishIssueOut"
       },
@@ -2458,10 +2431,6 @@
             "type": "integer",
             "title": "Id"
           },
-          "dishId": {
-            "type": "integer",
-            "title": "Dishid"
-          },
           "dishName": {
             "type": "string",
             "title": "Dishname"
@@ -2504,11 +2473,12 @@
         "type": "object",
         "required": [
           "id",
-          "dishId",
           "dishName",
           "canteenName",
           "stallName",
-          "wantedAt"
+          "reaction",
+          "wantedAt",
+          "reactedAt"
         ],
         "title": "DishRecordOut"
       },
@@ -2543,6 +2513,7 @@
             "default": "on"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "stallId",
@@ -3183,6 +3154,7 @@
             "title": "Handled"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "handled"
@@ -3209,6 +3181,7 @@
             "title": "Optionid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "optionId"
@@ -3268,6 +3241,7 @@
             "title": "Name"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name"
@@ -3335,6 +3309,7 @@
             "default": "on"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "stallId",
@@ -3356,11 +3331,13 @@
             "title": "Reaction"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "reaction"
         ],
-        "title": "ReactIn"
+        "title": "ReactIn",
+        "description": "三态评分：5 喜欢 ｜ 3 一般 ｜ 1 不喜欢 ｜ **null = 清除评价**。"
       },
       "RecordOut": {
         "properties": {
@@ -3431,7 +3408,10 @@
           "id",
           "dishId",
           "name",
+          "imageUrl",
           "wantedAt",
+          "reaction",
+          "flavorLevel",
           "canteenName",
           "stallName",
           "price"
@@ -3536,6 +3516,7 @@
             "title": "Windowno"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "canteenId",
@@ -3603,6 +3584,7 @@
             "title": "Dishid"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "dishId"
@@ -3616,6 +3598,7 @@
             "title": "Code"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "code"

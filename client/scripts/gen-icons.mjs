@@ -23,8 +23,8 @@ const TS_OUT = join(ROOT, 'src', 'theme', 'icons.generated.ts')
 
 /** 浅色色调 -> 色值（与 docs/ui/client/图标资源.md 一致；取自 tokens 真源） */
 const TONES = { default: '#7F6A55', primary: '#B4531A', muted: '#B5A594' }
-/** 深色色调 -> 色值（与浅色组同档位、按深色底提亮） */
-const DARK_TONES = { default: '#9C8F7C', primary: '#E07E38', muted: '#6E6455' }
+/** 深色色调 -> 色值（中性灰阶，对齐 DeepSeek 对话页夜间模式：正文浅灰 / 主色暖橙提亮 / 弱化灰） */
+const DARK_TONES = { default: '#CFCFCF', primary: '#F0995A', muted: '#8A8A8A' }
 
 rmSync(OUT_DIR, { recursive: true, force: true })
 mkdirSync(OUT_DIR, { recursive: true })

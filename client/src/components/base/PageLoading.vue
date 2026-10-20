@@ -1,15 +1,11 @@
 <script setup lang="ts">
 /**
- * 页面级加载提示（Julienne 风格）。
- *
- * - 全屏固定，背景与页面同色（--bg-page），避免黑白遮罩突兀。
- * - 中间线性刷新图标（refresh-cw），暖橙黄主色，360ms 线性旋转。
- * - 下方衬线文案，默认「加载中」，可通过 props 覆盖。
- * - 深色模式自动适配（跟随页面根视图 data-theme）。
+ * 页面级加载提示（规格见 docs/ui/client/公共组件与形态基线.md §2.1.7）。
+ * 全屏同色底 + 居中 96rpx 线性图标（仅图标本体以 `--duration-spin` 匀速旋转，无外围圆环）。
  */
-defineOptions({ options: { virtualHost: true } })
-
 import AppIcon from './AppIcon.vue'
+
+defineOptions({ options: { virtualHost: true } })
 
 withDefaults(
   defineProps<{
@@ -22,8 +18,8 @@ withDefaults(
 
 <template>
   <view class="page-loading">
-    <view class="page-loading__ring">
-      <AppIcon name="refresh-cw" :size="44" tone="primary" />
+    <view class="page-loading__icon">
+      <AppIcon name="refresh-cw" :size="96" tone="primary" />
     </view>
     <text class="page-loading__text">{{ text }}</text>
   </view>
@@ -41,20 +37,14 @@ withDefaults(
   background: var(--bg-page);
 }
 
-.page-loading__ring {
+/* 仅图标本体旋转：无圆环、无描边、无底色 */
+.page-loading__icon {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: var(--page-loading-size);
-  height: var(--page-loading-size);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-pill);
-  animation: page-loading-rotate var(--duration-slow) linear infinite;
+  animation: page-loading-rotate var(--duration-spin) linear infinite;
 }
 
 .page-loading__text {
-  margin-top: var(--spacing-md);
+  margin-top: var(--spacing-lg);
   font-family: var(--font-serif);
   font-size: var(--font-body);
   font-weight: var(--weight-regular);

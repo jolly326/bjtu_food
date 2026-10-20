@@ -3,7 +3,7 @@
 端点（docs/api/client/records.md）：
     POST   /my/records          去品尝（幂等）
     PATCH  /my/records/{id}     三态评分（循环可改；null = 清除评价）
-    DELETE /my/records/{id}     取消品尝（仅未评分）
+    DELETE /my/records/{id}     删除记录（未评分 / 已评分均可，删后重算评价分）
     GET    /my/records          记忆清单（全量，按 wantedAt 降序）
 
 🔴 全部要求登录 + **归属校验**：非本人记录与「不存在」同一响应 4001。
@@ -85,7 +85,7 @@ def react_record(
     return ok(_out(record))
 
 
-@router.delete("/records/{record_id}", response_model=Envelope[None], summary="取消品尝")
+@router.delete("/records/{record_id}", response_model=Envelope[None], summary="删除饮食记录")
 def cancel_record(
     record_id: int,
     student_id: int = Depends(current_student_id),

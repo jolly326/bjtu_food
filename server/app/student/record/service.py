@@ -104,15 +104,19 @@ def react(session: Session, *, student_id: int, record_id: int, reaction: int | 
 
 
 def cancel(session: Session, *, student_id: int, record_id: int) -> None:
-    """取消品尝：物理删除，仅限未评分记录。"""
+    """删除一条饮食记录（物理删行；已评分的同样可删）。
+
+    🔴 已评分记录删行会改变群体评价 ⇒ 必须**同事务重算** `dish.avg_reaction` /
+    `reaction_count`（一人一菜一票：删掉最新一条后自动回退到该用户上一条有效评分）。
+    """
     record = repo.get_owned(session, student_id=student_id, record_id=record_id)
     if record is None:
         raise NotFound("记录不存在")
-    if record.reaction is not None:
-        raise BadRequest("已评分的记录不能取消")
 
+    dish_id = record.dish_id
     session.delete(record)
     session.flush()
+    recalc(session, dish_id)  # 🔴 同事务重算缓存列
 
 
 def list_mine(session: Session, *, student_id: int) -> list[RecordView]:

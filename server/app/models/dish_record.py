@@ -1,7 +1,8 @@
 """饮食记录（docs/schema/dish_record.md）——一行 = 一次「去品尝」+ 评分。
 
-🔴 无 updated_at；评分一经写入不可改；未评分记录可物理删除。
+🔴 无 updated_at；评分可反复改写（写入 `reaction` + `reacted_at`）；未评分记录可物理删除。
 🔴 一人一菜可多行（每次品尝一行）；「至多一条未评分记录」由应用层保证。
+🔴 评价分聚合**一人一菜一票**（取该用户该菜最新一次有效评分），聚合索引见 `idx_record_user_dish`。
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ class DishRecord(Base):
     __table_args__ = (
         Index("idx_record_user_wanted", "user_id", "wanted_at"),
         Index("idx_record_dish_reaction", "dish_id", "reaction"),
+        Index("idx_record_user_dish", "user_id", "dish_id", "reacted_at"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)

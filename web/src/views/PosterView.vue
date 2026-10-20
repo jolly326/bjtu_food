@@ -329,8 +329,7 @@ onMounted(async () => {
 .poster__thumb {
   width: 60px;
   height: 80px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 4px;
+  border-radius: var(--web-radius-sm);
   object-fit: cover;
 }
 .poster__empty {

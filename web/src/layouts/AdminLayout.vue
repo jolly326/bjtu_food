@@ -96,6 +96,7 @@ function onLogout() {
 }
 
 /* ===== 顶层导航栏 ===== */
+/* 顶栏：不画分割线，用一层极弱的底缘投影与内容区分离 */
 .layout__topbar {
   position: fixed;
   top: 0;
@@ -105,9 +106,10 @@ function onLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  gap: 12px;
+  padding: 0 var(--web-page-pad);
   background: var(--el-bg-color-page);
-  border-bottom: 1px solid var(--el-border-color-extra-light);
+  box-shadow: 0 1px 0 var(--el-border-color-extra-light);
   z-index: 200;
 }
 
@@ -120,7 +122,7 @@ function onLogout() {
 .brand__name {
   font-family: var(--web-font-serif);
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--el-text-color-primary);
 }
@@ -141,7 +143,7 @@ function onLogout() {
   flex: 1;
   min-width: 0;
   margin-top: 56px;
-  padding: 20px 20px 104px;
+  padding: var(--web-page-pad) var(--web-page-pad) 104px;
   overflow-y: auto;
 }
 
@@ -160,9 +162,8 @@ function onLogout() {
   justify-content: center; /* 坞内入口始终水平居中（窄屏见 safe center 兜底） */
   gap: 2px;
   padding: 6px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: var(--el-border-radius-large);
-  background: var(--el-bg-color);
+  border-radius: 20px;
+  background: var(--el-bg-color-overlay);
   box-shadow: var(--el-box-shadow-elevated);
 }
 
@@ -186,9 +187,9 @@ function onLogout() {
     color 0.15s ease;
 }
 
-/* 悬停放大上浮（macOS Dock 风） */
+/* 悬停：轻微上浮放大（幅度小、缓动柔和，不做夸张弹跳） */
 .dock__item:hover {
-  transform: translateY(-2px) scale(1.12);
+  transform: translateY(-1px) scale(1.06);
   background: var(--el-fill-color-light);
   color: var(--el-text-color-primary);
 }
@@ -240,13 +241,13 @@ function onLogout() {
   opacity: 1;
 }
 
-/* 分组分隔线（主数据组 ｜ 反馈组 ｜ 退出登录） */
+/* 分组分隔：不用实线，用一段浅色短竖条弱化分组 */
 .dock__sep {
   flex-shrink: 0;
   width: 1px;
-  height: 24px;
-  margin: 0 4px;
-  background: var(--el-border-color);
+  height: 20px;
+  margin: 0 5px;
+  background: var(--el-border-color-extra-light);
 }
 
 .dock__item--danger {
@@ -258,11 +259,22 @@ function onLogout() {
   background: var(--el-color-error-light-9);
 }
 
+/* 中屏（≤1024px）：内容区与顶栏内距收一档 */
+@media (max-width: 1024px) {
+  .layout__topbar {
+    padding: 0 20px;
+  }
+
+  .layout__main {
+    padding: 20px 20px 104px;
+  }
+}
+
 /* 窄屏（≤640px）：图标格收窄保证整坞一屏内**仍水平居中**（极窄屏 safe 兜底可横滚）；内容区收窄边距 */
 @media (max-width: 640px) {
   .layout__main {
     margin-top: 52px;
-    padding: 12px 12px 96px;
+    padding: 14px 14px 96px;
   }
   .layout__topbar {
     height: 52px;
