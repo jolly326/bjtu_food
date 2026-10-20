@@ -26,7 +26,11 @@ page {
   --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
-  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', serif;
+  /* 衬线族：按「真机实际装有的家族名」排序（iOS 命中 Songti SC / STSong；
+     Android 部分 ROM 命中 Noto Serif CJK SC；都没有时回退 generic serif，多数 Android 会退化成无衬线） */
+  --font-serif:
+    'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun',
+    serif;
   --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
 
   /* ===== 字号 ===== */
