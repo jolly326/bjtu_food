@@ -1,80 +1,82 @@
-/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md 与 docs/ui/client/Julienne风格指南.md）。
-   与学生端同源：纯白页面 + `#FAFAFA` 极浅灰白卡面、**卡片无实线描边**、双层极弱弥散阴影、
-   衬线标题（常规 / 中等字重，禁 bold）+ 无衬线正文、低饱和暖橙主色 #B4531A、大面积留白。 */
+/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md 与风格指南）。
+   与学生端同源的 **Q 版动森**：暖奶油页面底 + 奶白卡面、卡片无实线描边、
+   **贴纸式阴影**（实心错位 + 柔和外扩）、圆润厚实的大圆角、无衬线圆体、
+   Q 版暖橙主色 #FF8A4C、大面积留白。 */
 
 /* 🔴 html:root（特异性 0-1-1）而非 :root（0-1-0）：即使按需引入的组件样式
    （如 element-plus base）在懒加载时晚于本文件注入 <head>，其自带的
    `:root { --el-color-primary: #409eff }` 也无法覆盖此处的品牌变量（主题变蓝防线） */
 html:root {
-  /* ===== 品牌主色（与学生端 --color-primary 逐字一致） ===== */
-  --el-color-primary: #b4531a;
-  --el-color-primary-light-3: #c9753f;
-  --el-color-primary-light-5: #d99768;
-  --el-color-primary-light-7: #e9bb9c;
-  --el-color-primary-light-8: #f0cdb4;
-  --el-color-primary-light-9: #f7e2d4;
-  --el-color-primary-dark-2: #8f4014;
+  /* ===== 品牌主色（与学生端 --color-primary 逐字一致：Q 版暖橙） ===== */
+  --el-color-primary: #ff8a4c;
+  --el-color-primary-light-3: #ffa873;
+  --el-color-primary-light-5: #ffc09a;
+  --el-color-primary-light-7: #ffd8c0;
+  --el-color-primary-light-8: #ffe4d2;
+  --el-color-primary-light-9: #fff0e5;
+  --el-color-primary-dark-2: #e06a2e;
   /* 🔴 light-3/5/7、dark-2 与下方 info / border-color-light 由 Element Plus 组件内部消费
      （按钮 hover、弹层边框、MessageBox 图标等）—— 静态扫描不可见，check:tokens 列为
      「零引用」属预期，按「EP 内部消费」保留，🔴 不得零消费即删 */
 
-  /* 功能色：低饱和语义色，避免与暖橙主色抢眼 */
-  --el-color-success: #2e7d32;
-  --el-color-warning: #c9761f;
-  --el-color-danger: #c0392b;
+  /* 功能色：Q 版柔和语义色（叶绿 / 蜜黄 / 珊瑚红 / 天蓝） */
+  --el-color-success: #6bbf59;
+  --el-color-warning: #f0a93c;
+  --el-color-danger: #e8604c;
   --el-color-error: var(--el-color-danger);
-  --el-color-info: #4a6b8a;
-  /* 语义色浅底（标签 / 统计条；与学生端同档柔和度） */
-  --el-color-success-light-9: #eef4ee;
-  --el-color-warning-light-9: #fbf1e6;
-  --el-color-danger-light-9: #f9ecea;
+  --el-color-info: #7fb8d6;
+  /* 语义色浅底（标签 / 统计条） */
+  --el-color-success-light-9: #edf7ea;
+  --el-color-warning-light-9: #fdf3e3;
+  --el-color-danger-light-9: #fcedea;
 
-  /* ===== 页面 / 卡面 ===== */
-  --el-bg-color-page: #ffffff;
+  /* ===== 页面 / 卡面（暖奶油底 + 奶白卡） ===== */
+  --el-bg-color-page: #fff7e8;
   --el-bg-color: #ffffff;
   --el-bg-color-overlay: #ffffff;
-  /* 卡面：极浅灰白（与学生端 --bg-card 同值；卡片靠阴影浮起，不画描边） */
-  --web-bg-card: #fafafa;
-  --el-fill-color-light: #f7f5f2;
-  --el-fill-color-lighter: #fbfaf8;
-  --el-fill-color: #f1eeea;
+  /* 卡面：奶白（卡片靠贴纸阴影浮起，不画描边） */
+  --web-bg-card: #ffffff;
+  --el-fill-color-light: #f6eee1;
+  --el-fill-color-lighter: #fbf6ee;
+  --el-fill-color: #f1e7d6;
 
-  /* ===== 文字层级（与学生端同值：深棕标题 / 浅棕灰辅助） ===== */
-  --el-text-color-primary: #44382e;
-  --el-text-color-regular: #5c5349;
-  --el-text-color-secondary: #8a7c70;
-  --el-text-color-placeholder: #b4a899;
+  /* ===== 文字层级（暖棕阶，与学生端同值） ===== */
+  --el-text-color-primary: #5a3e2b;
+  --el-text-color-regular: #6b5140;
+  --el-text-color-secondary: #a08671;
+  --el-text-color-placeholder: #c9b49c;
 
   /* ===== 边框：仅用于**控件**（输入框 / 下拉 / 次级按钮），卡片不画描边 ===== */
-  --el-border-color: #e8e3de;
-  --el-border-color-light: #efeae4;
-  --el-border-color-lighter: #f4f0eb;
-  --el-border-color-extra-light: #f8f5f1;
+  --el-border-color: #efe0c8;
+  --el-border-color-light: #f4eada;
+  --el-border-color-lighter: #f8f2e9;
+  --el-border-color-extra-light: #fbf7f0;
 
-  /* ===== 圆角：卡片 16 / 控件 12 / 小件 8 / 胶囊 = 半高 ===== */
-  --el-border-radius-base: 12px;
-  --el-border-radius-large: 16px;
-  --web-radius-sm: 8px;
-  --web-radius-card: 16px;
+  /* ===== 圆角（Q 版：整体加大，圆润厚实） ===== */
+  --el-border-radius-base: 16px;
+  --el-border-radius-large: 22px;
+  --web-radius-sm: 12px;
+  --web-radius-card: 22px;
   --web-radius-pill: 999px;
 
-  /* ===== 阴影：双层极弱弥散（与学生端 --shadow-card-stack 同气质） ===== */
-  --el-box-shadow-light: 0 4px 14px rgba(140, 120, 100, 0.06), 0 1px 4px rgba(140, 120, 100, 0.04);
-  --el-box-shadow-elevated:
-    0 12px 32px rgba(140, 120, 100, 0.1), 0 2px 8px rgba(140, 120, 100, 0.05);
+  /* ===== 阴影（贴纸式：实心错位 + 柔和外扩） ===== */
+  --el-box-shadow-light: 0 4px 0 rgba(214, 178, 128, 0.28), 0 8px 18px rgba(190, 150, 100, 0.14);
+  --el-box-shadow-elevated: 0 8px 0 rgba(214, 178, 128, 0.3), 0 16px 32px rgba(190, 150, 100, 0.18);
+  --web-shadow-card: 0 4px 0 rgba(214, 178, 128, 0.28), 0 8px 18px rgba(190, 150, 100, 0.14);
 
-  /* ===== 间距节奏（留白优先，模块内 12–16 / 模块间 20–24） ===== */
-  --web-gap-tight: 8px;
-  --web-gap: 12px;
-  --web-gap-loose: 20px;
+  /* ===== 间距节奏（留白优先） ===== */
+  --web-gap-tight: 10px;
+  --web-gap: 14px;
+  --web-gap-loose: 22px;
   --web-page-pad: 24px;
 
-  /* ===== 衬线标题字体（知行食记 标志性排版） ===== */
-  --web-font-serif:
-    'Songti SC', 'Noto Serif SC', 'Source Han Serif SC', Georgia, 'Times New Roman', serif;
+  /* ===== 字体（Q 版：一律系统无衬线圆体，不引入自定义字体） ===== */
   --web-font-sans:
-    -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei',
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'Helvetica Neue',
+    'Microsoft YaHei', sans-serif;
+
+  /* ===== 动效（Q 弹：带过冲的弹性缓动） ===== */
+  --web-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 body {
@@ -89,16 +91,16 @@ body {
   min-height: 100vh;
 }
 
-/* ===== 标题统一走衬线：层级靠字号 + 颜色，字重不堆叠 ===== */
+/* ===== 标题统一走无衬线圆体（Q 版）：层级靠字号 + 颜色，字重不堆叠 ===== */
 h1,
 h2,
 h3 {
-  font-family: var(--web-font-serif);
+  font-family: var(--web-font-sans);
   font-weight: 500;
   letter-spacing: 0.01em;
 }
 
-/* ===== 内容区 = 悬浮纸片（无描边，靠 `#FAFAFA` 卡面 + 双层极弱阴影） ===== */
+/* ===== 内容区 = 悬浮卡片（无描边，靠奶白卡面 + 贴纸阴影） ===== */
 #app .page {
   display: flex;
   flex-direction: column;
@@ -467,20 +469,13 @@ h3 {
   color: var(--el-text-color-placeholder);
 }
 
-/* 海报列缩略图：3:4 竖版 */
-#app .list-card__figure--poster {
-  width: 48px;
-  height: 64px;
-  border-radius: var(--web-radius-sm);
-}
-
 /* 归属路径（三级弱化，体现 父 → 子 层级） */
 #app .list-card__path {
   font-size: 12px;
   color: var(--el-text-color-placeholder);
 }
 
-/* 指标行（价格 / 评分 / 计数 / 时间） */
+/* 指标行（价格 / 点赞数 / 计数 / 时间） */
 #app .list-card__stats {
   display: flex;
   align-items: baseline;
@@ -502,7 +497,7 @@ h3 {
   color: var(--el-text-color-primary);
 }
 
-#app .list-card__rating {
+#app .list-card__like {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -513,7 +508,7 @@ h3 {
   opacity: 0.55;
 }
 
-/* ===== 状态 / 反应标签（基础形态全站收口；反应色变体留在评分数据页 scoped） ===== */
+/* ===== 状态标签（基础形态全站收口） ===== */
 #app .tag {
   display: inline-block;
   padding: 2px 10px;
@@ -532,75 +527,7 @@ h3 {
   color: var(--el-text-color-secondary);
 }
 
-/* ===== 评分概览统计卡（四档位聚合，压在明细列表上方） ===== */
-#app .overview {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--web-gap);
-}
-
-#app .overview__item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
-  border-radius: var(--el-border-radius-large);
-  background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-light);
-}
-
-#app .overview__label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-#app .overview__pct {
-  color: var(--el-text-color-placeholder);
-}
-
-#app .overview__count {
-  font-family: var(--web-font-serif);
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1;
-  color: var(--el-text-color-primary);
-}
-
-#app .overview__bar {
-  height: 4px;
-  overflow: hidden;
-  border-radius: var(--web-radius-pill);
-  background: var(--el-fill-color);
-}
-
-#app .overview__barFill {
-  display: block;
-  height: 100%;
-  border-radius: var(--web-radius-pill);
-  background: var(--el-color-primary);
-}
-
-#app .overview__barFill--5 {
-  background: var(--el-color-success);
-}
-
-#app .overview__barFill--3 {
-  background: var(--el-color-warning);
-}
-
-#app .overview__barFill--1 {
-  background: var(--el-color-danger);
-}
-
-#app .overview__barFill--none {
-  background: var(--el-text-color-placeholder);
-}
-
-/* ===== 响应式：≥1200 宽松 / 900–1199 收紧 / ≤900 概览折半 / ≤767 手机触控 / ≤640 窄屏纵排 =====
+/* ===== 响应式：≥1200 宽松 / 900–1199 收紧 / ≤767 手机触控 / ≤640 窄屏纵排 =====
    手机档口径（收口 theme.css，页面不另写）：
    - 触控尺寸：主按钮 40px、弹窗输入 44px、筛选下拉 40/44px、长按浮层行 46px（基础值已达标）
    - 输入类字号 16px —— iOS 聚焦输入框 <16px 会强制缩放视口，此为移动端防跳关键
@@ -613,12 +540,6 @@ h3 {
 
   #app .list-card-wrap {
     grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  #app .overview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -650,7 +571,7 @@ h3 {
     padding: 14px;
   }
 
-  #app .list-card__figure:not(.list-card__figure--poster) {
+  #app .list-card__figure {
     width: 48px;
     height: 48px;
   }

@@ -1,4 +1,4 @@
-"""档口（docs/schema/stall.md）——菜品位置归属；海报见 Poster（poster 表）。floor 是两端常量受控字典。"""
+"""档口（docs/schema/stall.md）——菜品位置归属。floor 是两端常量受控字典。"""
 
 from __future__ import annotations
 

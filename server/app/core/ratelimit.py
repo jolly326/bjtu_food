@@ -27,9 +27,7 @@ class Rule:
 
 
 # ---------- 规则表（docs/secur/S-03 的「限频矩阵」） ----------
-RULE_WANT = Rule(30, 3600)          # POST /my/records（去品尝）
-RULE_REACT = Rule(60, 3600)         # PATCH /my/records/{id}（评分）
-RULE_UNWANT = Rule(30, 3600)        # DELETE /my/records/{id}（取消）
+RULE_LIKE = Rule(60, 3600)          # POST /dishes/{id}/likes（两态点赞 toggle）
 RULE_ISSUE = Rule(10, 3600)         # POST /dishes/{id}/issues（纠错）
 RULE_READ_ACCOUNT = Rule(300, 3600)  # 读端点（账号维度，四个读端点共享同一配额）
 RULE_READ_IP = Rule(60, 60)         # 全局 IP 兜底（HTTP 层中间件）

@@ -2,7 +2,7 @@
 
 * **同一食堂下** ``name`` 唯一（应用层保证，无 DB 唯一索引）
 * ``floor`` 是**两端常量**受控字典（值即汉字），服务端按同一清单校验
-* 🔴 有下属菜品时**拒绝删除**；海报已独立成 ``poster`` 表（A4），删档口时由外键级联清理
+* 🔴 有下属菜品时**拒绝删除**
 """
 
 from __future__ import annotations
@@ -89,7 +89,6 @@ def delete(session: Session, *, stall_id: int) -> None:
     if dish_count:
         raise BadRequest("该档口下仍有菜品，请先清空菜品")
 
-    # 海报随外键 ON DELETE CASCADE 连带清理（海报不构成删除阻力）
     session.delete(stall)
     session.flush()
 

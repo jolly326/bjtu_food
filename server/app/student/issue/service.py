@@ -1,4 +1,4 @@
-"""issue 域业务规则（docs/func/client/B3-菜品纠错.md、docs/schema/dish_issue.md）。
+"""issue 域业务规则（docs/func/client/B1-菜品纠错.md、docs/schema/dish_issue.md）。
 
 关键口径：
 * 一条提交 = 一个选项（无文字、无图片）

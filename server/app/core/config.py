@@ -111,7 +111,7 @@ def is_production() -> bool:
 def require_cos_domain() -> str:
     """取图片访问域名；未配置直接拒绝启动。
 
-    🔴 出参图片契约是**绝对 URL**（docs/schema/poster.md、dish.md），
+    🔴 出参图片契约是**绝对 URL**（docs/schema/dish.md），
     因此 ``COS_DOMAIN`` 是必填项：宁可启动失败，也不产出相对路径。
     """
     domain = settings.cos_domain.strip().rstrip("/")

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 图标唯一实现（口径见 docs/ui/client/公共组件与形态基线.md §1.8、资源清单 docs/ui/client/图标资源.md）。
- * 资源 = **下载的 Lucide 官方 SVG**（lucide-static · ISC），几何**不自行绘制**。
+ * 资源 = **下载的 Phosphor 官方 SVG**（Bold / Fill 字重 · MIT），几何**不自行绘制**。
  * 微信 `<image>` 支持 SVG 文件但不支持运行时换色 ⇒ 由 `scripts/gen-icons.mjs` 按色调 × 主题预生成着色变体，
  * 本组件随当前主题取对应组（浅色组 / 深色组）。
  */

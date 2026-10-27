@@ -6,7 +6,7 @@
     PUT    /admin/dishes/{id}                          修改
     DELETE /admin/dishes/{id}                          删除（连带清理记录与纠错）
 
-🔴 ``avgReaction`` / ``reactionCount`` 是**派生缓存列**，只读出参、不可写入。
+🔴 ``likeCount`` 是**派生缓存列**，只读出参、不可写入。
 """
 
 from __future__ import annotations
@@ -41,8 +41,7 @@ class DishOut(OutModel):
     price: int
     image_url: str | None = None
     status: str
-    avg_reaction: float | None = None
-    reaction_count: int
+    like_count: int
     updated_at: str
 
 
@@ -56,8 +55,7 @@ def _to_out(row) -> DishOut:
         price=row.price,
         image_url=row.image,
         status=row.status,
-        avg_reaction=row.avg_reaction,
-        reaction_count=row.reaction_count,
+        like_count=row.like_count,
         updated_at=row.updated_at,
     )
 

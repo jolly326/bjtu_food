@@ -9,10 +9,8 @@
 | 文档 | 覆盖端点 | 消费方 |
 |---|---|---|
 | [auth.md](./auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
-| [posters.md](./posters.md) | `GET /posters` | 海报页 |
-| [dishes.md](./dishes.md) | `GET /dishes` | 美味页 |
-| [canteens.md](./canteens.md) | `GET /canteens` | 食堂筛选 |
-| [records.md](./records.md) | `GET /my/records` · `POST /my/records` · `PATCH /my/records/{id}` · `DELETE /my/records/{id}` | 记忆 · 去品尝 · 评分 · 删除记录 |
+| [dishes.md](./dishes.md) | `GET /dishes` · `POST /dishes/{id}/likes` | 美食地图页 |
+| [canteens.md](./canteens.md) | `GET /canteens` | （本期无筛选项，端点保留备用） |
 | [issues.md](./issues.md) | `GET /dish-issue-options` · `POST /dishes/{id}/issues` | 菜品纠错 |
 
 > 通用约定（信封 / 分页 / 错误码 / 金额 / 时间）→ [`../README.md`](../README.md)

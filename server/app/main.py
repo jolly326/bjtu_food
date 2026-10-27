@@ -28,8 +28,6 @@ from app.admin.dish.router import router as admin_dish_router
 from app.admin.image.router import router as admin_image_router
 from app.admin.issue.router import router as admin_issue_router
 from app.admin.option.router import router as admin_option_router
-from app.admin.poster.router import router as admin_poster_router
-from app.admin.record.router import router as admin_record_router
 from app.admin.stall.router import router as admin_stall_router
 from app.core.config import is_production, require_cos_domain, settings
 from app.core.db import engine
@@ -47,8 +45,6 @@ from app.student.auth.router import router as auth_router
 from app.student.canteen.router import router as canteen_router
 from app.student.dish.router import router as dish_router
 from app.student.issue.router import router as issue_router
-from app.student.poster.router import router as poster_router
-from app.student.record.router import router as record_router
 
 logger = logging.getLogger(__name__)
 
@@ -235,8 +231,6 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(canteen_router)
     app.include_router(dish_router)
-    app.include_router(poster_router)
-    app.include_router(record_router)
     app.include_router(issue_router)
 
     # ---- 运营端 ----
@@ -246,8 +240,6 @@ def create_app() -> FastAPI:
     app.include_router(admin_image_router)
     app.include_router(admin_issue_router)
     app.include_router(admin_option_router)
-    app.include_router(admin_poster_router)
-    app.include_router(admin_record_router)
     app.include_router(admin_stall_router)
 
     @app.get("/healthz", summary="探活")

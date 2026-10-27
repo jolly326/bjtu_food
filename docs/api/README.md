@@ -12,10 +12,8 @@
 | 文档 | 覆盖端点 | 消费方 |
 |---|---|---|
 | [client/auth.md](./client/auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
-| [client/posters.md](./client/posters.md) | `GET /posters` | 海报页 |
-| [client/dishes.md](./client/dishes.md) | `GET /dishes` | 美味页 |
-| [client/canteens.md](./client/canteens.md) | `GET /canteens` | 食堂筛选 |
-| [client/records.md](./client/records.md) | `GET /my/records` · `POST /my/records` · `PATCH /my/records/{id}` · `DELETE /my/records/{id}` | 记忆 · 去品尝 · 评分 · 删除记录 |
+| [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/{id}/likes` | 美食地图页 |
+| [client/canteens.md](./client/canteens.md) | `GET /canteens` | （本期无筛选项，端点保留备用） |
 | [client/issues.md](./client/issues.md) | `GET /dish-issue-options` · `POST /dishes/{id}/issues` | 菜品纠错 |
 
 ### 运营端（`web/`）
@@ -25,9 +23,7 @@
 | [web/auth.md](./web/auth.md) | 登录与 `/admin/**` 的 `Authorization: Bearer` 鉴权 |
 | [web/canteens.md](./web/canteens.md) | `/admin/canteens*` |
 | [web/stalls.md](./web/stalls.md) | `/admin/stalls*` |
-| [web/posters.md](./web/posters.md) | `/admin/posters*` |
 | [web/dishes.md](./web/dishes.md) | `/admin/dishes*` |
-| [web/records.md](./web/records.md) | `/admin/dish-records*`（评分数据） |
 | [web/issues.md](./web/issues.md) | `/admin/dish-issues*` · `/admin/dish-issue-options*` |
 | [web/images.md](./web/images.md) | `POST /admin/images` |
 
@@ -131,7 +127,7 @@
 | 数组字段**恒为数组** | 无数据时返回 `[]`，**不为 null** |
 | 有意可空的字段 | 逐字段在资源文档中标「可空 = 是」并说明 `null` 的语义 |
 
-**有意可空字段（逐条登记）**：`flavorLevel`（**仅菜品卡 `DishCardOut` 下发**；`null` = **待评**：投票人数 < 3；记录出参 `RecordOut` 不携带该字段 —— 记忆卡不展示评级）；运营端 `avgReaction`（`null` = **零评分**，与「评分为 0」语义不同）。
+**有意可空字段（逐条登记）**：本阶段无「有意可空」展示字段 —— 点赞数 `likeCount` 恒非空（默认 0），`liked` 由登录态判定（恒非空）。
 
 ---
 

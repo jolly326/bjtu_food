@@ -14,7 +14,6 @@ export type StallOut = StallBody & {
   id: number
   canteenName: string
   dishCount: number
-  posterCount: number
   updatedAt: string
 }
 
@@ -29,37 +28,9 @@ export type DishOut = DishBody & {
   id: number
   stallName: string
   canteenName: string
-  avgReaction: number | null
-  reactionCount: number
+  /** 点赞数：只读派生缓存列 = COUNT(dish_rating.liked = 1) */
+  likeCount: number
   updatedAt: string
-}
-
-export type PosterBody = {
-  /** 档口**可选**：不传 ⇒ 海报不关联档口（纯运营内容） */
-  stallId?: number | null
-  imageUrl: string
-  sort?: number | null
-  status: string
-}
-export type PosterOut = {
-  id: number
-  stallId: number | null
-  stallName: string
-  canteenName: string
-  imageUrl: string
-  sort: number
-  status: string
-  updatedAt: string
-}
-
-export type RecordOut = {
-  id: number
-  dishName: string
-  canteenName: string
-  stallName: string
-  reaction: number | null
-  wantedAt: string
-  reactedAt: string | null
 }
 
 export type IssueOut = {

@@ -23,8 +23,7 @@
 | `price` | number | 否 | 现价，**单位「分」** |
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 未上传 |
 | `status` | string | 否 | `on` 在售 / `off` 已下架 |
-| `avgReaction` | number | **是** | 平均评价度（**只读**缓存列）；`null` = 零评分 |
-| `reactionCount` | number | 否 | 投票人数（**只读**缓存列，一人一菜一票） |
+| `likeCount` | number | 否 | **点赞数**（**只读**缓存列）；= `COUNT(dish_rating.liked = 1)` |
 | `updatedAt` | string | 否 | 更新时间 |
 
 ## `POST /admin/dishes`
@@ -48,8 +47,8 @@
 | 项 | 口径 |
 |---|---|
 | 行为 | 物理删除 |
-| 🔴 **引用即禁删** | 存在**学生记忆**（`dish_record`）或**纠错**（`dish_issue`）⇒ `400`「该菜品已有学生记忆或纠错记录，无法删除，请改用『下架』」—— 学生记忆不可随菜品蒸发；`ON DELETE CASCADE` 仅作兜底，正常路径不可达 |
+| 🔴 **引用即禁删** | 存在**学生点赞**（`dish_rating`）或**纠错**（`dish_issue`）⇒ `400`「该菜品已有学生点赞或纠错记录，无法删除，请改用『下架』」—— 学生数据不可随菜品蒸发；`ON DELETE CASCADE` 仅作兜底，正常路径不可达 |
 | 错误码 | `400` 存在引用 ｜ `4001` 菜品不存在 |
 
-> **`avgReaction` / `reactionCount` 是派生缓存列** —— 由用户评分驱动重算，**不可通过本接口直接修改**（见 [`schema/dish.md`](../../schema/dish.md) 的派生清单）。
+> **`likeCount` 是派生缓存列** —— 由用户点赞驱动重算，**不可通过本接口直接修改**（见 [`schema/dish.md`](../../schema/dish.md) 的派生清单）。
 > **下架**（`status = 'off'`）对公开接口**等价于不存在**；**无「售罄 / 今日供应」状态**。

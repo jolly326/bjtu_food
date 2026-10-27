@@ -14,10 +14,11 @@
 
 提交菜品纠错（🔑 需登录）。
 
+- **入口**：美食地图点磁贴唤起底部弹窗 → 展开纠错选项（见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-菜品纠错.md)）。
 - **入参**：`{ optionId }` —— **只有一个字段**；缺少 / 不存在 ⇒ `400`
 - **归属**：提交人取自登录态，**禁止前端传入**
 - **去重**：同一人 + 同一菜 + 同一选项的**未处理**记录幂等复用，不新增
 - **出参**：`data: null`
 - **错误码**：`400` 参数非法 ｜ `4001` 菜品不存在 / 已下架 ｜ `429` 命中限频
 
-> 列定义见 [`schema/dish_issue.md`](../../schema/dish_issue.md) · 业务规则见 [`func/client/B3`](../../func/client/B-轻量反馈/B3-菜品纠错.md) · 管理端见 [`api/web/issues.md`](../web/issues.md)。
+> 列定义见 [`schema/dish_issue.md`](../../schema/dish_issue.md) · 业务规则见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-菜品纠错.md) · 管理端见 [`api/web/issues.md`](../web/issues.md)。

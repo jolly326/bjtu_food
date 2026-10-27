@@ -1,15 +1,16 @@
 /* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
-   口径见 docs/ui/client/设计变量.md；改值只改这里，再同步文档。 */
+   口径见 docs/ui/client/设计变量.md；改值只改这里，再同步文档。
+
+   形状语言 = Q 版动森：**块越大越圆**，圆角整体比常规设计大一档；
+   动效 = Q 弹（`--ease-bounce` 带过冲的弹性缓动），用于磁贴点按 / 弹窗升起 / 点赞反馈。 */
 
 page {
-  /* ===== 圆角 ===== */
-  --radius-xs: 10rpx;
-  --radius-btn: 32rpx;
-  /* 全站卡片统一大圆角（美味卡族 / 记忆卡 / 风物海报卡） */
-  --radius-card: 32rpx;
-  /* 海报卡圆角（风物页专属卡形态；与全站卡片统一） */
-  --radius-card-stack: 32rpx;
-  --radius-modal: 40rpx;
+  /* ===== 圆角（Q 版：整体加大，圆润厚实）===== */
+  --radius-xs: 16rpx;
+  --radius-btn: 44rpx;
+  /* 全站卡片统一大圆角（美食地图磁贴 / 弹窗面板） */
+  --radius-card: 44rpx;
+  --radius-modal: 56rpx;
   --radius-pill: 999rpx;
   --radius-circle: 50%;
 
@@ -22,86 +23,42 @@ page {
   --spacing-lg: 32rpx;
   --spacing-xl: 40rpx;
   --spacing-2xl: 48rpx;
-  /* 全站页面左右统一边距（风物 / 美味 / 记忆共用；各模块左侧基准线均以此为齐） */
+  /* 全站页面左右统一边距（弹窗面板与页面内容共用） */
   --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
-  /* 衬线族：按「真机实际装有的家族名」排序（iOS 命中 Songti SC / STSong；
-     Android 部分 ROM 命中 Noto Serif CJK SC；都没有时回退 generic serif，多数 Android 会退化成无衬线） */
-  --font-serif:
-    'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun',
-    serif;
-  --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+  /* Q 版动森：标题与正文一律走**系统无衬线圆体**（不引入自定义字体文件）；
+     iOS 命中 -apple-system / PingFang SC（圆润），Android 命中系统默认 sans */
+  --font-sans: -apple-system, 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', system-ui, sans-serif;
 
   /* ===== 字号 ===== */
-  /* 页头大标题专用档（美味页标题、记忆页标题） */
   --font-hero: 64rpx;
   --font-display: 48rpx;
   --font-title: 40rpx;
   --font-h2: 36rpx;
   --font-h3: 32rpx;
-  --font-body: 26rpx;
-  --font-subtitle: 24rpx;
+  --font-body: 28rpx;
+  --font-subtitle: 26rpx;
   --font-small: 22rpx;
 
-  /* ===== 字重（三档封顶：禁 bold / heavy，靠字号与颜色立层级） ===== */
+  /* ===== 字重（三档封顶：Q 版靠字号与颜色立层级，不靠加粗）===== */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
 
-  /* ===== 动效 ===== */
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 360ms;
-  /* 加载旋转：一圈 2s 匀速（慢速克制，不做高速转圈） */
+  /* ===== 动效（Q 弹）===== */
+  --duration-fast: 140ms;
+  --duration-base: 240ms;
+  --duration-slow: 420ms;
+  /* 加载旋转：一圈 2s 匀速（慢速克制） */
   --duration-spin: 2000ms;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* 过冲弹性：点按 / 弹窗升起 / 点赞反馈的「Q 弹」缓动 */
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ===== 层级 ===== */
-  --z-tabbar: 100;
   --z-sheet: 2000;
 
   /* ===== 高度 ===== */
-  --tabbar-height: 116rpx;
-  --tabbar-gap: 20rpx;
-  --tap-target-size: 88rpx;
-
-  /* ===== 结构尺寸 ===== */
-  /* 美味页圆形菜品图：占卡片横向主体，封顶后不再纵向拉伸 */
-  --dish-photo-size: 480rpx;
-  /* 美味页卡片族（PaperCard / DishSwipeCard / WantButton） */
-  --dish-card-radius: 32rpx;
-  /* 卡片上下内边距：加大至 80rpx，四周留白充裕 */
-  --dish-card-pad-y: 80rpx;
-  /* 卡片左右内边距：60rpx */
-  --dish-card-pad-x: 60rpx;
-  /* 卡片菜名：大号衬线（卡内一级标题） */
-  --dish-name-size: 44rpx;
-  /* 卡片左上装饰大字（菜品名首字，衬线浅灰；对标参考图 `01` 的视觉分量） */
-  --dish-decor-letter: 280rpx;
-  /* 胶囊按钮：内容撑起，圆角加大至 48rpx，描边减细 */
-  --want-btn-border: 1rpx;
-  --want-btn-border-color: #d4b9a4;
-  --want-btn-radius: 48rpx;
-  --want-btn-font: 30rpx;
-  /* 记忆卡：竖版圆角卡（顶部菜名 + 价格 + 中部圆形大图 + 底部位置行） */
-  --record-photo-size: 340rpx;
-  --record-card-width: 480rpx;
-  --record-card-height: 600rpx;
-  /* 记忆卡菜名字号（卡内一级标题） */
-  --record-name-size: 44rpx;
-  /* 记忆卡右下探出状态角标：本体边长 */
-  --record-badge-size: 200rpx;
-  /* 记忆卡原位评价面板选中项底色 */
-  --eval-active-bg: rgba(180, 83, 26, 0.12);
-  /* 流末尾结束态：动作图标框边长（方框，图标居中；非卡片） */
-  --flowend-icon-box: 120rpx;
-  /* 删除二次确认弹窗宽度 */
-  --sheet-dialog-width: 560rpx;
-  /* 全局页头标题左右对称内距：把标题文字收进「明暗切换钮 ↔ 微信胶囊」之间的安全区（对称内距不改变水平居中） */
-  --header-title-inset: 100rpx;
-  /* 三 tab 页 hero 插槽盒（风物问候语 / 美味·记忆标题块）统一高度与上下内距：
-     上下内距 --spacing-md(24rpx)×2 + 双行标题块内容（标题 76.8 + 标题日期间距 16 + 日期 26.4 ≈ 119rpx）
-     ≈ 167rpx，取 176rpx 留余量，切 tab 时下方内容区起点一致 */
-  --hero-box-height: 176rpx;
+  --tap-target-size: 96rpx;
 }

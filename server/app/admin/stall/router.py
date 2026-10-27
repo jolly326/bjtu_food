@@ -4,7 +4,7 @@
     GET    /admin/stalls?canteenId=   分页
     POST   /admin/stalls               新建
     PUT    /admin/stalls/{id}          修改
-    DELETE /admin/stalls/{id}          删除（有下属菜品时拒绝；海报级联清理）
+    DELETE /admin/stalls/{id}          删除（有下属菜品时拒绝）
 """
 
 from __future__ import annotations
@@ -37,7 +37,6 @@ class StallOut(OutModel):
     floor: str | None = None
     window_no: str | None = None
     dish_count: int
-    poster_count: int
     updated_at: str
 
 
@@ -50,7 +49,6 @@ def _to_out(row) -> StallOut:
         floor=row.floor,
         window_no=row.window_no,
         dish_count=row.dish_count,
-        poster_count=row.poster_count,
         updated_at=row.updated_at,
     )
 
