@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+from fastapi import Request
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -29,16 +30,17 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
-def get_session() -> Iterator[Session]:
-    """FastAPI 依赖：请求级会话——正常结束提交，异常回滚。
+def get_session(request: Request) -> Iterator[Session]:
+    """FastAPI 依赖：请求级会话——写请求提交，读请求不提交。
 
-    写端点（新建 / 修改 / 删除）依赖本语义落库；只读端点 commit 空事务无副作用。
-    若不在这里提交，``session.close()`` 会回滚未提交事务 ⇒ 写操作假成功。
+    写端点（POST / PUT / PATCH / DELETE）依赖本语义落库；GET 为只读，
+    跳过空事务提交（``close()`` 会回滚未提交的只读事务）。
     """
     session = SessionLocal()
     try:
         yield session
-        session.commit()
+        if request.method != "GET":
+            session.commit()
     except Exception:
         session.rollback()
         raise

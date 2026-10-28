@@ -32,7 +32,7 @@ def _seed(session: Session, *, with_issue: bool) -> int:
             User(id=1, openid="o1"),
             Canteen(id=1, name="学一食堂"),
             Stall(id=1, canteen_id=1, name="川味小炒"),
-            Dish(id=9, stall_id=1, name="辣子鸡", price=1800, status="on"),
+            Dish(id=9, stall_id=1, name="辣子鸡", status="on"),
         ]
     )
     if with_issue:

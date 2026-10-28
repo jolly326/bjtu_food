@@ -1,6 +1,6 @@
 # dish — 菜品
 
-**用途**：菜品主体 —— 美食地图磁贴的取数来源（大图 / 名称 / 价格 / 位置 / 点赞数）。
+**用途**：菜品主体 —— 美食地图磁贴的取数来源（大图 / 名称 / 位置 / 点赞数）。
 
 ## 列定义
 
@@ -9,7 +9,6 @@
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 菜品 ID |
 | `stall_id` | BIGINT | NO | 无 | KEY | 所属档口；**必填、无默认值**（磁贴位置联表用） |
 | `name` | VARCHAR(64) | NO | `''` | | 菜品名称 |
-| `price` | INT | NO | 0 | | **现价，单位「分」**；唯一价格数据源 |
 | `image` | VARCHAR(255) | YES | NULL | | **菜品大图**（相对路径，**单张**） |
 | `status` | VARCHAR(32) | NO | `'on'` | KEY | 上架状态：`on` 在售 / `off` 已下架 |
 | `like_count` | INT | NO | 0 | | **点赞数缓存列** = `COUNT(dish_rating.liked = 1)`（群体热度） |
@@ -45,7 +44,7 @@
 | `attributes` | 无详情页、无属性筛选；描述维度体系整体不引入 |
 | `category_id` | 筛选维度只有**食堂**（运营端），学生端不做种类筛选 |
 | `images`（多图） | 磁贴只需一张大图 |
-| `original_price` | 磁贴 / 弹窗只显示现价，无折扣展示 |
+| `original_price` | 无折扣 / 划线价需求 |
 | `avg_reaction` / 风味评级相关列 | 不落库 —— 群体指标统一走 `dish.like_count`（点赞数），不另存风味评级 |
 
 ## 关联

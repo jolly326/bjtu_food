@@ -5,7 +5,7 @@
  * SVG 的 `fill="currentColor"` ⇒ 颜色继承所在元素的 `color`，无需为每个色调另备资源。
  * 图标与尺寸口径见 docs/ui/web/公共组件与形态基线.md。
  */
-import { computed } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -17,19 +17,49 @@ const props = withDefaults(
   { size: 16 },
 )
 
-const raw = import.meta.glob('../assets/icons/*.svg', {
-  eager: true,
+/** 按需加载：每个图标独立 chunk，首次使用时才拉取；加载结果缓存 */
+const loaders = import.meta.glob('../assets/icons/*.svg', {
   query: '?raw',
   import: 'default',
-}) as Record<string, string>
+}) as Record<string, () => Promise<string>>
 
-const svg = computed(() => raw[`../assets/icons/${props.name}.svg`] ?? '')
+const cache = new Map<string, string>()
+const svg = ref('')
+const FALLBACK_KEY = '../assets/icons/question.svg'
+
+async function loadSvg(key: string): Promise<string> {
+  const load = loaders[key]
+  if (!load) return ''
+  try {
+    return await load()
+  } catch {
+    return ''
+  }
+}
+
+watchEffect(() => {
+  const key = `../assets/icons/${props.name}.svg`
+  const cached = cache.get(key)
+  if (cached !== undefined) {
+    svg.value = cached
+    return
+  }
+  svg.value = ''
+  void (async () => {
+    let text = await loadSvg(key)
+    // 加载失败回退到兜底图标，避免导航出现空白
+    if (!text) text = await loadSvg(FALLBACK_KEY)
+    cache.set(key, text)
+    // 加载期间 name 可能已变，仅当仍是当前图标时写入
+    if (key === `../assets/icons/${props.name}.svg`) svg.value = text
+  })()
+})
 
 const box = computed(() => ({ width: `${props.size}px`, height: `${props.size}px` }))
 </script>
 
 <template>
-  <span class="app-icon" :style="box" v-html="svg" />
+  <span class="app-icon" :style="box" aria-hidden="true" v-html="svg" />
 </template>
 
 <style scoped>

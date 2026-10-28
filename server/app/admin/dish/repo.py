@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.formatters import format_dt
 from app.core.storage import to_absolute
 from app.models import Canteen, Dish, Stall
 
@@ -20,7 +21,6 @@ class DishRow:
     stall_name: str
     canteen_name: str
     name: str
-    price: int
     image: str | None
     status: str
     like_count: int
@@ -34,11 +34,10 @@ def _to_row(dish: Dish, stall_name: str, canteen_name: str) -> DishRow:
         stall_name=stall_name,
         canteen_name=canteen_name,
         name=dish.name,
-        price=dish.price,
         image=to_absolute(dish.image),
         status=dish.status,
         like_count=dish.like_count,
-        updated_at=dish.updated_at.strftime("%Y-%m-%d %H:%M:%S") if dish.updated_at else "",
+        updated_at=format_dt(dish.updated_at) or "",
     )
 
 
@@ -78,7 +77,17 @@ def list_page(
     if status is not None:
         stmt = stmt.where(Dish.status == status)
 
-    total = session.scalar(select(func.count()).select_from(stmt.subquery()))
+    count_stmt = select(func.count(Dish.id)).select_from(Dish).join(
+        Stall, Stall.id == Dish.stall_id
+    )
+    if stall_id is not None:
+        count_stmt = count_stmt.where(Dish.stall_id == stall_id)
+    if canteen_id is not None:
+        count_stmt = count_stmt.where(Stall.canteen_id == canteen_id)
+    if status is not None:
+        count_stmt = count_stmt.where(Dish.status == status)
+    total = session.scalar(count_stmt)
+
     pairs = session.execute(stmt.offset((page - 1) * size).limit(size)).all()
     return [_to_row(d, s, c) for d, s, c in pairs], int(total or 0)
 

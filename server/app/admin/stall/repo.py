@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.formatters import format_dt
 from app.models import Canteen, Dish, Stall
 
 
@@ -33,7 +34,7 @@ def _to_row(stall: Stall, canteen_name: str, dish_count: int) -> StallRow:
         floor=stall.floor,
         window_no=stall.window_no,
         dish_count=dish_count,
-        updated_at=stall.updated_at.strftime("%Y-%m-%d %H:%M:%S") if stall.updated_at else "",
+        updated_at=format_dt(stall.updated_at) or "",
     )
 
 
@@ -78,10 +79,16 @@ def list_page(
         select(func.count()).select_from(stmt.order_by(None).subquery())
     )
     pairs = session.execute(stmt.offset((page - 1) * size).limit(size)).all()
-
-    dish_counts = dict(
-        session.execute(select(Dish.stall_id, func.count()).group_by(Dish.stall_id)).all()
-    )
+    ids = [stall.id for stall, _ in pairs]
+    dish_counts: dict[int, int] = {}
+    if ids:
+        dish_counts = dict(
+            session.execute(
+                select(Dish.stall_id, func.count())
+                .where(Dish.stall_id.in_(ids))
+                .group_by(Dish.stall_id)
+            ).all()
+        )
     return [
         _to_row(stall, canteen_name, int(dish_counts.get(stall.id, 0)))
         for stall, canteen_name in pairs

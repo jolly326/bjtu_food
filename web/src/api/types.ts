@@ -20,7 +20,6 @@ export type StallOut = StallBody & {
 export type DishBody = {
   stallId: number
   name: string
-  price: number
   imageUrl?: string | null
   status: string
 }

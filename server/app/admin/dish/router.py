@@ -27,7 +27,6 @@ router = APIRouter(prefix="/admin/dishes", tags=["admin-dish"])
 class DishSaveIn(InModel):
     stall_id: int
     name: str
-    price: int
     image_url: str | None = None
     status: str = "on"
 
@@ -38,7 +37,6 @@ class DishOut(OutModel):
     stall_name: str
     canteen_name: str
     name: str
-    price: int
     image_url: str | None = None
     status: str
     like_count: int
@@ -52,7 +50,6 @@ def _to_out(row) -> DishOut:
         stall_name=row.stall_name,
         canteen_name=row.canteen_name,
         name=row.name,
-        price=row.price,
         image_url=row.image,
         status=row.status,
         like_count=row.like_count,

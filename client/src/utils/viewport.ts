@@ -34,3 +34,9 @@ function read(): WindowSize {
 export function windowSize(): WindowSize {
   return (cached ??= read())
 }
+
+/** 重新读取并刷新缓存（窗口尺寸变化时调用） */
+export function refreshWindowSize(): WindowSize {
+  cached = read()
+  return cached
+}

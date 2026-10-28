@@ -12,7 +12,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.admin.canteen import repo
+from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
+from app.core.formatters import format_dt
 from app.models import Canteen, Stall
 
 
@@ -29,17 +31,25 @@ def _to_row(canteen: Canteen, stall_count: int) -> CanteenRow:
         id=canteen.id,
         name=canteen.name,
         stall_count=stall_count,
-        updated_at=canteen.updated_at.strftime("%Y-%m-%d %H:%M:%S") if canteen.updated_at else "",
+        updated_at=format_dt(canteen.updated_at) or "",
     )
 
 
 def list_page(session: Session, *, page: int, size: int) -> tuple[list[CanteenRow], int]:
     total = session.scalar(select(func.count()).select_from(Canteen)) or 0
     stmt = select(Canteen).order_by(Canteen.id).offset((page - 1) * size).limit(size)
-    counts = dict(
-        session.execute(select(Stall.canteen_id, func.count()).group_by(Stall.canteen_id)).all()
-    )
-    return [_to_row(c, int(counts.get(c.id, 0))) for c in session.scalars(stmt)], int(total)
+    canteens = list(session.scalars(stmt))
+    ids = [c.id for c in canteens]
+    counts: dict[int, int] = {}
+    if ids:
+        counts = dict(
+            session.execute(
+                select(Stall.canteen_id, func.count())
+                .where(Stall.canteen_id.in_(ids))
+                .group_by(Stall.canteen_id)
+            ).all()
+        )
+    return [_to_row(c, int(counts.get(c.id, 0))) for c in canteens], int(total)
 
 
 def create(session: Session, *, name: str) -> CanteenRow:
@@ -52,6 +62,7 @@ def create(session: Session, *, name: str) -> CanteenRow:
     canteen = Canteen(name=name)
     session.add(canteen)
     session.flush()
+    invalidate("student:dishes")
     return _to_row(canteen, 0)
 
 
@@ -70,6 +81,7 @@ def update(session: Session, *, canteen_id: int, name: str) -> CanteenRow:
 
     canteen.name = name
     session.flush()
+    invalidate("student:dishes")
     stall_count = session.scalar(
         select(func.count()).select_from(Stall).where(Stall.canteen_id == canteen.id)
     )
@@ -89,3 +101,4 @@ def delete(session: Session, *, canteen_id: int) -> None:
 
     session.delete(canteen)
     session.flush()
+    invalidate("student:dishes")

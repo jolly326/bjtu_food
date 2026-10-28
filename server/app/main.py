@@ -92,9 +92,10 @@ def _preflight() -> None:
 
 
 def _harden[R: Response](response: R) -> R:
-    """安全响应头：禁 MIME 嗅探 + 响应不入中间缓存（docs/secur/S-04 §三）。"""
+    """安全响应头：禁 MIME 嗅探；默认不缓存，端点显式声明的 Cache-Control 优先。"""
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Cache-Control"] = "no-store"
+    if "cache-control" not in response.headers:
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 

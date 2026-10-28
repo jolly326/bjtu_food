@@ -79,6 +79,29 @@
         ],
         "summary": "美食地图全量在售菜品",
         "operationId": "list_dishes_dishes_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-None-Match"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -89,13 +112,18 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/dishes/{dish_id}/likes": {
@@ -1680,10 +1708,6 @@
             "type": "string",
             "title": "Name"
           },
-          "price": {
-            "type": "integer",
-            "title": "Price"
-          },
           "imageUrl": {
             "anyOf": [
               {
@@ -1715,7 +1739,6 @@
           "stallName",
           "canteenName",
           "name",
-          "price",
           "status",
           "likeCount",
           "updatedAt"
@@ -1731,10 +1754,6 @@
           "name": {
             "type": "string",
             "title": "Name"
-          },
-          "price": {
-            "type": "integer",
-            "title": "Price"
           },
           "imageUrl": {
             "anyOf": [
@@ -1757,8 +1776,7 @@
         "type": "object",
         "required": [
           "stallId",
-          "name",
-          "price"
+          "name"
         ],
         "title": "DishSaveIn"
       },
@@ -1771,10 +1789,6 @@
           "name": {
             "type": "string",
             "title": "Name"
-          },
-          "price": {
-            "type": "integer",
-            "title": "Price"
           },
           "imageUrl": {
             "anyOf": [
@@ -1802,18 +1816,29 @@
           "stallName": {
             "type": "string",
             "title": "Stallname"
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor"
           }
         },
         "type": "object",
         "required": [
           "id",
           "name",
-          "price",
           "imageUrl",
           "likeCount",
           "liked",
           "canteenName",
-          "stallName"
+          "stallName",
+          "floor"
         ],
         "title": "DishVO",
         "description": "美食地图磁贴出参（docs/api/client/dishes.md 的 DishVO）。"

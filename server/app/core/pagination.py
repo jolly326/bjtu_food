@@ -19,10 +19,6 @@ class Page:
     page: int
     size: int
 
-    @property
-    def offset(self) -> int:
-        return (self.page - 1) * self.size
-
 
 def normalize_page(page: int | None, size: int | None, *, default_size: int = DEFAULT_PAGE_SIZE) -> Page:
     """把请求参数收敛为合法分页（page >= 1，1 <= size <= 50）。"""

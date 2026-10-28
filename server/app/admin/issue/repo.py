@@ -8,6 +8,7 @@ from typing import cast
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.formatters import format_dt
 from app.models import Canteen, Dish, DishIssue, DishIssueOption, Stall
 
 
@@ -24,10 +25,6 @@ class IssueRow:
     handled_at: str | None
 
 
-def _fmt(value) -> str | None:
-    return value.strftime("%Y-%m-%d %H:%M:%S") if value else None
-
-
 def _to_row(
     issue: DishIssue, dish_name: str, canteen_name: str, stall_name: str, option_name: str
 ) -> IssueRow:
@@ -39,8 +36,8 @@ def _to_row(
         stall_name=stall_name,
         option_id=issue.option_id,
         option_name=option_name,
-        created_at=_fmt(issue.created_at) or "",
-        handled_at=_fmt(issue.handled_at),
+        created_at=format_dt(issue.created_at) or "",
+        handled_at=format_dt(issue.handled_at),
     )
 
 
@@ -77,6 +74,14 @@ def list_page(
     if dish_id is not None:
         stmt = stmt.where(DishIssue.dish_id == dish_id)
 
-    total = session.scalar(select(func.count()).select_from(stmt.subquery()))
+    count_stmt = select(func.count(DishIssue.id))
+    if handled is not None:
+        count_stmt = count_stmt.where(
+            DishIssue.handled_at.is_(None) if not handled else DishIssue.handled_at.is_not(None)
+        )
+    if dish_id is not None:
+        count_stmt = count_stmt.where(DishIssue.dish_id == dish_id)
+    total = session.scalar(count_stmt)
+
     rows = session.execute(stmt.offset((page - 1) * size).limit(size)).all()
     return [_to_row(*cast("tuple", row)) for row in rows], int(total or 0)

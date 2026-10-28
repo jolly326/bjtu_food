@@ -43,8 +43,8 @@ html:root {
   /* ===== 文字层级（暖棕阶，与学生端同值） ===== */
   --el-text-color-primary: #5a3e2b;
   --el-text-color-regular: #6b5140;
-  --el-text-color-secondary: #a08671;
-  --el-text-color-placeholder: #c9b49c;
+  --el-text-color-secondary: #7a6049;
+  --el-text-color-placeholder: #8a7057;
 
   /* ===== 边框：仅用于**控件**（输入框 / 下拉 / 次级按钮），卡片不画描边 ===== */
   --el-border-color: #efe0c8;
@@ -491,12 +491,6 @@ h3 {
   color: var(--el-text-color-primary);
 }
 
-#app .list-card__price {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--el-text-color-primary);
-}
-
 #app .list-card__like {
   display: inline-flex;
   align-items: center;
@@ -718,5 +712,17 @@ h3 {
   #app input {
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* ===== 尊重 reduced-motion：关闭位移 / 缩放类过渡与循环动画 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

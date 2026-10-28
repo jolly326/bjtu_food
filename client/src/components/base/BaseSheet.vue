@@ -12,8 +12,10 @@ withDefaults(
   defineProps<{
     modelValue: boolean
     title?: string
+    /** 是否显示变暗蒙版；`false` 时背景透明、仍保留点空白关闭（轻焦点） */
+    mask?: boolean
   }>(),
-  { title: '' },
+  { title: '', mask: true },
 )
 
 const emit = defineEmits<{
@@ -41,7 +43,7 @@ function close() {
 
 <template>
   <view v-if="modelValue" class="sheet">
-    <view class="sheet__scrim" @tap="close" />
+    <view class="sheet__scrim" :class="{ 'sheet__scrim--clear': !mask }" @tap="close" />
     <view class="sheet__panel">
       <view class="sheet__handle" @touchstart="onDragStart" @touchend="onDragEnd">
         <view class="sheet__grabber" />
@@ -73,6 +75,11 @@ function close() {
   background: var(--overlay-scrim);
 }
 
+/* 无蒙版：背景透明（不变暗、不加滤镜），仍保留点击空白关闭 */
+.sheet__scrim--clear {
+  background: transparent;
+}
+
 .sheet__panel {
   position: absolute;
   left: 0;
@@ -85,7 +92,8 @@ function close() {
   background: var(--overlay-panel-bg);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
   box-shadow: var(--shadow-modal);
-  animation: sheet-rise var(--duration-slow) var(--ease-bounce);
+  /* 底边固定：位移动画不能用带过冲的 bounce，否则最高点会抬离底边露出页面背景 */
+  animation: sheet-rise var(--duration-slow) var(--ease-out);
 }
 
 .sheet__handle {
@@ -96,8 +104,8 @@ function close() {
 }
 
 .sheet__grabber {
-  width: 72rpx;
-  height: 8rpx;
+  width: var(--tap-target-size);
+  height: calc(var(--spacing-sm) - var(--spacing-2xs));
   background: var(--border-bold);
   border-radius: var(--radius-pill);
 }

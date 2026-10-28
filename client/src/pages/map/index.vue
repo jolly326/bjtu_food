@@ -2,16 +2,17 @@
 /**
  * 美食地图（单页全屏）—— 设计稿 docs/ui/client/美食地图.md；功能规则 docs/func/client/A1、B1、B2。
  *
- * 进入即拉取全量在售菜品并随机散布；点磁贴唤起底部弹窗看详情、两态点赞与纠错。
+ * 进入即拉取全量在售菜品并按错位方格密铺；点磁贴唤起底部弹窗看详情、两态点赞与纠错。
  * 空态不处理（零在售时画布留白），不做下拉刷新。
  */
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 import { dishApi, issueApi } from '@/api'
 import type { DishVO, IssueOptionOut } from '@/api'
 import PageLoading from '@/components/base/PageLoading.vue'
 import RetryBlock from '@/components/base/RetryBlock.vue'
 import { uniqueById } from '@/utils/dishBatch'
+import { abortAllRequests, isAbortedRequest } from '@/utils/request'
 import { useTheme } from '@/utils/theme'
 import DishSheet from './components/DishSheet.vue'
 import FoodMap from './components/FoodMap.vue'
@@ -32,7 +33,9 @@ async function load(): Promise<void> {
     const [list, issueOptions] = await Promise.all([dishApi.list(), issueApi.options()])
     dishes.value = uniqueById(list)
     options.value = issueOptions
-  } catch {
+  } catch (error) {
+    // 页面卸载主动取消不落错误态
+    if (isAbortedRequest(error)) return
     failed.value = true
   } finally {
     loading.value = false
@@ -52,6 +55,7 @@ function onDishChange(payload: { id: number; likeCount: number; liked: boolean }
 }
 
 onMounted(load)
+onUnmounted(abortAllRequests)
 </script>
 
 <template>

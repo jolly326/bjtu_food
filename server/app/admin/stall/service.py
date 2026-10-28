@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.admin.stall import repo
 from app.admin.stall.repo import StallRow
+from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
 from app.models import Canteen, Dish, Stall
 
@@ -56,6 +57,7 @@ def create(session: Session, *, payload) -> StallRow:
     )
     session.add(stall)
     session.flush()
+    invalidate("student:dishes")
     return _reload(session, stall.id)
 
 
@@ -75,6 +77,7 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
     stall.floor = payload.floor
     stall.window_no = payload.window_no
     session.flush()
+    invalidate("student:dishes")
     return _reload(session, stall.id)
 
 
@@ -91,6 +94,7 @@ def delete(session: Session, *, stall_id: int) -> None:
 
     session.delete(stall)
     session.flush()
+    invalidate("student:dishes")
 
 
 def _reload(session: Session, stall_id: int) -> StallRow:

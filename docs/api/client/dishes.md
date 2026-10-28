@@ -4,14 +4,15 @@
 
 ## `GET /dishes`
 
-🔑 需登录 —— 美食地图的全量在售菜品（端上随机散布、可平移缩放）。
+🔑 需登录 —— 美食地图的全量在售菜品（端上错位密铺、可平移缩放）。
 
 | 项 | 口径 |
 |---|---|
 | 入参 | 无（不做食堂筛选 / 分页） |
 | 出参 | `DishVO[]` —— **全量在售菜品**（地图全量铺放，不做分页） |
 | 过滤 | 仅 `status = 'on'`（在售） |
-| 排序 | 服务端**不排序**（随机散布由端上完成）；可按任意顺序下发 |
+| 排序 | 服务端**不排序**（错位密铺由端上完成）；可按任意顺序下发 |
+| 缓存 | 响应带 `ETag` + `Cache-Control: private, max-age=30`；端上带 `If-None-Match` 可命中 `304`。全量在售菜品服务端短 TTL 缓存 30s，**点赞 / 后台写操作后立即失效**，TTL 仅作兜底 |
 | 错误码 | `401` 未登录 |
 
 **`DishVO`**
@@ -20,12 +21,12 @@
 |---|---|---|---|
 | `id` | number | 否 | 菜品 ID |
 | `name` | string | 否 | 菜品名称 |
-| `price` | number | 否 | 现价，**单位「分」** |
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 该菜未配图 |
 | `likeCount` | number | 否 | **群体点赞数** = `COUNT(dish_rating.liked = 1)` |
 | `liked` | boolean | 否 | 当前用户是否已赞（取登录态，禁止前端传入） |
 | `canteenName` | string | 否 | 食堂名（位置） |
 | `stallName` | string | 否 | 档口名（位置） |
+| `floor` | string | **是** | 楼层（受控字典：负一层…四层），位置展示用 |
 
 > 列定义见 [`schema/dish.md`](../../schema/dish.md) · 业务规则见 [`func/client/A1`](../../func/client/A-浏览与发现/A1-美食地图.md) · 点赞口径见 [`func/client/B1`](../../func/client/B-轻量反馈/B1-点赞反馈.md)。
 
