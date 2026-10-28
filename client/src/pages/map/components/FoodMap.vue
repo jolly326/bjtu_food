@@ -403,7 +403,14 @@ onBeforeUnmount(stopAnimation)
     @touchcancel="onTouchEnd"
   >
     <view class="map__world" :style="worldStyle">
-      <view v-for="tile in tiles" :key="tile.dish.id" class="tile" :style="tileStyle(tile)">
+      <view
+        v-for="tile in tiles"
+        :key="tile.dish.id"
+        class="tile"
+        :style="tileStyle(tile)"
+        hover-class="tile--pressed"
+        hover-stay-time="80"
+      >
         <image
           v-if="tile.dish.imageUrl && !failedIds.has(tile.dish.id)"
           class="tile__img"
@@ -443,6 +450,12 @@ onBeforeUnmount(stopAnimation)
   border-radius: var(--radius-card);
   background: var(--bg-card);
   box-shadow: var(--shadow-card-stack);
+  /* Q 弹：点按缩放反馈（过冲缓动） */
+  transition: transform var(--duration-fast) var(--ease-bounce);
+}
+
+.tile--pressed {
+  transform: scale(0.94);
 }
 
 .tile__img {

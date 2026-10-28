@@ -49,7 +49,7 @@
 ### 点赞口径
 
 - **两态点赞**（抖音式）：每用户每菜**仅可点赞一次**，再次点击 = **取消点赞**（toggle）；不区分程度。
-- **点赞真源** = [`dish_rating`](../../schema/dish_rating.md)（UNIQUE(user_id, dish_id) 单行，`liked` 布尔；`null` = 未赞）。
+- **点赞真源** = [`dish_rating`](../../schema/dish_rating.md)（UNIQUE(user_id, dish_id) 单行，`liked` 布尔；`liked = 0` = 未赞）。
 - **群体指标 = 点赞数** = `COUNT(liked = 1)`；菜品磁贴 / 弹窗展示该数值，**不设等级、五档、状态**。
 - 🔴 **零点赞**：展示「0」或「暂无」，**不得兜底成非零值** —— 兜底会凭空抬高热度并污染排序。
 - **粒度**：一人一菜一行；改赞 = 覆盖本行 `liked`；取消 = 置 `liked = 0`（或删行）；同事务重算 `dish` 点赞数缓存。
