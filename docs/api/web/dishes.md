@@ -20,7 +20,6 @@
 | `stallName` | string | 否 | 档口名 |
 | `canteenName` | string | 否 | 食堂名（位置链路展示） |
 | `name` | string | 否 | 菜品名称 |
-| `price` | number | 否 | 现价，**单位「分」** |
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 未上传 |
 | `status` | string | 否 | `on` 在售 / `off` 已下架 |
 | `likeCount` | number | 否 | **点赞数**（**只读**缓存列）；= `COUNT(dish_rating.liked = 1)` |
@@ -30,9 +29,9 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `{ stallId, name, price, imageUrl?, status? }` —— `status` 缺省 `on` |
+| 入参 | `{ stallId, name, imageUrl?, status? }` —— `status` 缺省 `on` |
 | 出参 | `DishAdminVO` |
-| 错误码 | `400` `stallId` / `name` / `price` 缺失或非法 ｜ 同档口下同名已存在 ｜ `4001` 档口不存在 |
+| 错误码 | `400` `stallId` / `name` 缺失或非法 ｜ 同档口下同名已存在 ｜ `4001` 档口不存在 |
 
 ## `PUT /admin/dishes/{id}`
 

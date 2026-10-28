@@ -216,8 +216,6 @@ export interface components {
       canteenName: string;
       /** Name */
       name: string;
-      /** Price */
-      price: number;
       /** Imageurl */
       imageUrl?: string | null;
       /** Status */
@@ -233,8 +231,6 @@ export interface components {
       stallId: number;
       /** Name */
       name: string;
-      /** Price */
-      price: number;
       /** Imageurl */
       imageUrl?: string | null;
       /**
@@ -252,8 +248,6 @@ export interface components {
       id: number;
       /** Name */
       name: string;
-      /** Price */
-      price: number;
       /** Imageurl */
       imageUrl: string | null;
       /** Likecount */
@@ -264,6 +258,8 @@ export interface components {
       canteenName: string;
       /** Stallname */
       stallName: string;
+      /** Floor */
+      floor: string | null;
     };
     /** Envelope[AdminCanteenOut] */
     Envelope_AdminCanteenOut_: {
@@ -667,11 +663,22 @@ export interface operations {
   };
   /** 美食地图全量在售菜品 */
   list_dishes_dishes_get: {
+    parameters: {
+      header?: {
+        "If-None-Match"?: string | null;
+      };
+    };
     responses: {
       /** @description Successful Response */
       200: {
         content: {
           "application/json": components["schemas"]["Envelope_list_DishVO__"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

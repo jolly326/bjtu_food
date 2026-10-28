@@ -2,20 +2,28 @@
 /**
  * 美食地图画布（设计稿 docs/ui/client/美食地图.md；功能规则 docs/func/client/A1-美食地图.md）。
  *
- * - 2D 内容包围盒：磁贴按洗牌后的顺序落在抖动网格上（随机散布、无成簇 / 权重）；
+ * - 2D 内容包围盒：磁贴按洗牌后的顺序落在**错位方格**上（固定网格 + 每载入随机分配，无成簇 / 权重）；
  * - 单指拖拽平移（松手惯性），双指捏合缩放（以双指中点为锚），越界弹性收敛；
  * - 点击判定：位移与时长都在阈值内才命中磁贴 —— 命中通过 `pick` 交给页面唤起弹窗。
  */
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import type { DishVO } from '@/api'
 import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
-import { windowSize } from '@/utils/viewport'
+import { thumbUrl } from '@/utils/image'
+import {
+  buildGridIndex,
+  buildStaggeredLayout,
+  cullTiles,
+  hitTestGrid,
+  type GridIndex,
+  type TileBox,
+} from '@/utils/mapLayout'
+import { refreshWindowSize, windowSize } from '@/utils/viewport'
 
-/** 磁贴边长（rpx）、网格步长（rpx）、随机抖动幅度（rpx） */
-const TILE_RPX = 220
+/** 磁贴边长（rpx）、网格步长（rpx）—— 放大磁贴、收紧间距，视觉更饱满 */
+const TILE_RPX = 240
 const CELL_RPX = 300
-const JITTER_RPX = 46
 /** 缩放范围 */
 const MIN_SCALE = 0.55
 const MAX_SCALE = 3
@@ -28,17 +36,14 @@ const RUBBER = 0.35
 const FRICTION = 0.92
 const MIN_SPEED = 0.12
 
-interface Tile {
+interface Tile extends TileBox {
   dish: DishVO
-  x: number
-  y: number
-  size: number
 }
 
 const props = defineProps<{ dishes: DishVO[] }>()
 const emit = defineEmits<{ (e: 'pick', dish: DishVO): void }>()
 
-const viewport = windowSize()
+const viewport = reactive(windowSize())
 
 const worldW = ref(0)
 const worldH = ref(0)
@@ -47,6 +52,20 @@ const ty = ref(0)
 const scale = ref(1)
 const tiles = ref<Tile[]>([])
 const failedIds = reactive(new Set<number>())
+
+/** 网格索引：按中心点把磁贴落格，点击命中从 O(N) 降到常数级 */
+let gridIndex: GridIndex<Tile> | null = null
+
+/** 视口裁剪：仅渲染「视口外扩半屏」内的磁贴，DOM 数量与可视区挂钩 */
+const visibleTiles = computed<Tile[]>(() =>
+  cullTiles(tiles.value, {
+    width: viewport.width,
+    height: viewport.height,
+    tx: tx.value,
+    ty: ty.value,
+    scale: scale.value,
+  }),
+)
 
 const worldStyle = computed(() => ({
   width: `${worldW.value}px`,
@@ -93,13 +112,20 @@ function bounds() {
   return { minX, maxX, minY, maxY }
 }
 
-/** 重建布局并随机落点（每次进入 / 数据刷新都重新洗牌） */
+/**
+ * 重建布局：**错位方格密铺**。
+ *
+ * - 固定网格结构（行优先），奇偶行水平错开半格形成砖墙式密铺；
+ * - 每次载入把菜品随机映射到固定格子（`shuffled`）—— 结构可预测、落点每次新鲜；
+ * - 首屏居中于世界几何中心，进入即见地图中心区。
+ */
 function rebuild(): void {
   stopAnimation()
   const list = shuffled(props.dishes)
   failedIds.clear()
   if (!list.length) {
     tiles.value = []
+    gridIndex = null
     worldW.value = 0
     worldH.value = 0
     return
@@ -107,30 +133,21 @@ function rebuild(): void {
 
   const tile = rpx(TILE_RPX)
   const cell = rpx(CELL_RPX)
-  const jitter = rpx(JITTER_RPX)
-  const cols = Math.max(1, Math.ceil(Math.sqrt(list.length)))
-  const rows = Math.ceil(list.length / cols)
-  worldW.value = cols * cell
-  worldH.value = rows * cell
+  const layout = buildStaggeredLayout(list.length, tile, cell)
+  worldW.value = layout.worldW
+  worldH.value = layout.worldH
 
-  tiles.value = list.map((dish, index) => {
-    const col = index % cols
-    const row = Math.floor(index / cols)
-    const jitterX = (Math.random() - 0.5) * 2 * jitter
-    const jitterY = (Math.random() - 0.5) * 2 * jitter
-    return {
-      dish,
-      x: col * cell + (cell - tile) / 2 + jitterX,
-      y: row * cell + (cell - tile) / 2 + jitterY,
-      size: tile,
-    }
-  })
+  tiles.value = list.map((dish, index) => ({
+    dish,
+    ...layout.boxes[index]!,
+  }))
+  gridIndex = buildGridIndex(tiles.value, cell)
 
   scale.value = 1
-  // 首屏随机落点：在世界内随机取一点居中，再收敛到合法边界
+  // 首屏落在世界几何中心，并显式收敛到合法边界（极端尺寸/窗口变化下也不越界）
   const b = bounds()
-  tx.value = clamp(viewport.width / 2 - Math.random() * worldW.value, b.minX, b.maxX)
-  ty.value = clamp(viewport.height / 2 - Math.random() * worldH.value, b.minY, b.maxY)
+  tx.value = clamp((viewport.width - worldW.value) / 2, b.minX, b.maxX)
+  ty.value = clamp((viewport.height - worldH.value) / 2, b.minY, b.maxY)
 }
 
 watch(() => props.dishes, rebuild, { immediate: true })
@@ -154,7 +171,15 @@ let lastY = 0
 let lastAt = 0
 let speedX = 0
 let speedY = 0
-let timer: ReturnType<typeof setTimeout> | null = null
+/** 帧调度：有 rAF 用 rAF（H5），小程序无全局 rAF 时回退 setTimeout */
+type FrameHandle = number | ReturnType<typeof setTimeout>
+let frame: FrameHandle | null = null
+const requestFrame = (cb: () => void): FrameHandle =>
+  typeof requestAnimationFrame === 'function' ? requestAnimationFrame(cb) : setTimeout(cb, 16)
+const cancelFrame = (handle: FrameHandle): void => {
+  if (typeof requestAnimationFrame === 'function') cancelAnimationFrame(handle as number)
+  else clearTimeout(handle as ReturnType<typeof setTimeout>)
+}
 
 const reduceMotion = (() => {
   try {
@@ -172,9 +197,9 @@ function now(): number {
 }
 
 function stopAnimation(): void {
-  if (timer != null) {
-    clearTimeout(timer)
-    timer = null
+  if (frame != null) {
+    cancelFrame(frame)
+    frame = null
   }
 }
 
@@ -193,6 +218,7 @@ function rubber(nx: number, ny: number): void {
 /** 弹性收敛到合法边界（duration = 0 即时） */
 function settle(duration: number): void {
   stopAnimation()
+  if (reduceMotion) duration = 0
   const b = bounds()
   const targetX = clamp(tx.value, b.minX, b.maxX)
   const targetY = clamp(ty.value, b.minY, b.maxY)
@@ -209,7 +235,7 @@ function settle(duration: number): void {
     const eased = 1 - (1 - progress) ** 3
     tx.value = fromX + (targetX - fromX) * eased
     ty.value = fromY + (targetY - fromY) * eased
-    timer = progress < 1 ? setTimeout(tick, 16) : null
+    frame = progress < 1 ? requestFrame(tick) : null
   }
   tick()
 }
@@ -241,10 +267,10 @@ function inertia(): void {
     tx.value = nx
     ty.value = ny
     if (Math.abs(vx) < MIN_SPEED && Math.abs(vy) < MIN_SPEED) {
-      timer = null
+      frame = null
       return
     }
-    timer = setTimeout(step, 16)
+    frame = requestFrame(step)
   }
   step()
 }
@@ -338,20 +364,10 @@ function onTouchMove(event: TouchEvent): void {
 }
 
 function hitTest(x: number, y: number): DishVO | null {
+  if (!gridIndex) return null
   const worldX = (x - tx.value) / scale.value
   const worldY = (y - ty.value) / scale.value
-  for (let i = tiles.value.length - 1; i >= 0; i--) {
-    const tile = tiles.value[i]
-    if (
-      worldX >= tile.x &&
-      worldX <= tile.x + tile.size &&
-      worldY >= tile.y &&
-      worldY <= tile.y + tile.size
-    ) {
-      return tile.dish
-    }
-  }
-  return null
+  return hitTestGrid(gridIndex, worldX, worldY)?.dish ?? null
 }
 
 function onTouchEnd(event: TouchEvent): void {
@@ -391,7 +407,25 @@ function onImageError(id: number): void {
   failedIds.add(id)
 }
 
-onBeforeUnmount(stopAnimation)
+/** 窗口尺寸变化：刷新缓存并重建布局（磁贴尺寸随之重算） */
+let resizeTimer: ReturnType<typeof setTimeout> | null = null
+function handleResize(): void {
+  if (resizeTimer != null) clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    Object.assign(viewport, refreshWindowSize())
+    rebuild()
+  }, 120)
+}
+
+onMounted(() => {
+  uni.onWindowResize(handleResize)
+})
+
+onBeforeUnmount(() => {
+  stopAnimation()
+  if (resizeTimer != null) clearTimeout(resizeTimer)
+  uni.offWindowResize(handleResize)
+})
 </script>
 
 <template>
@@ -404,18 +438,19 @@ onBeforeUnmount(stopAnimation)
   >
     <view class="map__world" :style="worldStyle">
       <view
-        v-for="tile in tiles"
+        v-for="tile in visibleTiles"
         :key="tile.dish.id"
-        class="tile"
+        class="map__tile"
         :style="tileStyle(tile)"
-        hover-class="tile--pressed"
+        hover-class="map__tile--pressed"
         hover-stay-time="80"
       >
         <image
           v-if="tile.dish.imageUrl && !failedIds.has(tile.dish.id)"
-          class="tile__img"
-          :src="tile.dish.imageUrl"
+          class="map__tile-img"
+          :src="thumbUrl(tile.dish.imageUrl)"
           mode="aspectFill"
+          lazy-load
           @error="onImageError(tile.dish.id)"
         />
         <ImagePlaceholder v-else bare />
@@ -444,7 +479,7 @@ onBeforeUnmount(stopAnimation)
   will-change: transform;
 }
 
-.tile {
+.map__tile {
   position: absolute;
   overflow: hidden;
   border-radius: var(--radius-card);
@@ -454,11 +489,11 @@ onBeforeUnmount(stopAnimation)
   transition: transform var(--duration-fast) var(--ease-bounce);
 }
 
-.tile--pressed {
+.map__tile--pressed {
   transform: scale(0.94);
 }
 
-.tile__img {
+.map__tile-img {
   display: block;
   width: 100%;
   height: 100%;

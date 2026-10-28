@@ -8,6 +8,8 @@
  */
 import { onMounted, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
+import ListError from '@/components/ListError.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { usePagedList } from '@/composables/usePagedList'
 import { dishApi, issueApi, type DishOut } from '@/api'
 
@@ -21,7 +23,7 @@ const ISSUE_SCAN_SIZE = 50
 const flagged = ref<Set<number>>(new Set())
 
 /** 分页状态机：翻页 / 加载态 / 末页空回退单点收口（见基线 §2.3「分页」） */
-const { rows, total, page, loading, hasNext, load, go } = usePagedList<DishOut>((p) =>
+const { rows, total, page, loading, error, hasNext, load, go } = usePagedList<DishOut>((p) =>
   dishApi.list({ page: p }),
 )
 
@@ -66,13 +68,11 @@ onMounted(async () => {
       </div>
     </div>
 
+    <ListError v-if="error" :message="error" @retry="load" />
+
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
-      <div class="pager">
-        <button class="btn" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
-        <span class="pager__cur">{{ page }}</span>
-        <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
-      </div>
+      <PaginationBar :page="page" :has-next="hasNext" @prev="go(page - 1)" @next="go(page + 1)" />
     </footer>
   </section>
 </template>

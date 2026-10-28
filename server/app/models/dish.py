@@ -23,7 +23,6 @@ class Dish(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     stall_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     name: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
-    price: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     image: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="on")
     # 点赞数缓存列 = COUNT(dish_rating.liked = 1)；点赞 / 取消后同事务重算

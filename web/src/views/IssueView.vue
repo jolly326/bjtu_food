@@ -9,6 +9,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import CardActionSheet from '@/components/CardActionSheet.vue'
+import ListError from '@/components/ListError.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
+import { fetchAllPages } from '@/composables/useOptions'
 import { usePagedList } from '@/composables/usePagedList'
 import { useCardActions, type CardAction } from '@/composables/useCardMenu'
 import { dishApi, issueApi, type IssueOut } from '@/api'
@@ -23,17 +26,18 @@ const filter = reactive({
 })
 
 async function loadDishes() {
-  const res = await dishApi.list({ page: 1, pageSize: 50 })
-  dishes.value = res.records.map((d) => ({ id: d.id, name: d.name }))
+  const list = await fetchAllPages((page, pageSize) => dishApi.list({ page, pageSize }))
+  dishes.value = list.map((d) => ({ id: d.id, name: d.name }))
 }
 
 /** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
-const { rows, total, page, loading, hasNext, load, go, reload } = usePagedList<IssueOut>((p) =>
-  issueApi.list({
-    handled: filter.handled,
-    dishId: filter.dishId,
-    page: p,
-  }),
+const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<IssueOut>(
+  (p) =>
+    issueApi.list({
+      handled: filter.handled,
+      dishId: filter.dishId,
+      page: p,
+    }),
 )
 
 /** 一键直达：跳菜品管理并自动打开该菜编辑弹窗 */
@@ -140,13 +144,11 @@ onMounted(async () => {
       </div>
     </div>
 
+    <ListError v-if="error" :message="error" @retry="load" />
+
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
-      <div class="pager">
-        <button class="btn" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
-        <span class="pager__cur">{{ page }}</span>
-        <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
-      </div>
+      <PaginationBar :page="page" :has-next="hasNext" @prev="go(page - 1)" @next="go(page + 1)" />
     </footer>
 
     <!-- 卡片长按浮层：去改菜品 / 标记已处理 / 撤销（与主数据五页同一组件） -->

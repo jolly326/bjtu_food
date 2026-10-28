@@ -1,7 +1,6 @@
 """运营端菜品业务规则（docs/func/web/A3-菜品管理.md、docs/schema/dish.md）。
 
 * **同一档口下** ``name`` 唯一（应用层保证）
-* ``price`` 一律以**分**存取
 * 🔴 ``like_count`` 只读，**本域不写**
 * 🔴 删除**引用即禁删**：存在学生记忆或纠错 ⇒ `400` 引导改用「下架」（CASCADE 仅为兜底，正常路径不可达）
 """
@@ -13,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.admin.dish import repo
 from app.admin.dish.repo import DishRow
+from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
 from app.models import Dish, DishIssue, Stall
@@ -23,8 +23,6 @@ VALID_STATUS = frozenset({"on", "off"})
 def _validate(payload) -> None:
     if not (payload.name or "").strip():
         raise BadRequest("菜品名称不能为空")
-    if payload.price is None or payload.price < 0:
-        raise BadRequest("价格不合法（单位：分）")
     if payload.status not in VALID_STATUS:
         raise BadRequest("状态只能取 on（在售）/ off（已下架）")
 
@@ -56,12 +54,12 @@ def create(session: Session, *, payload) -> DishRow:
     dish = Dish(
         stall_id=payload.stall_id,
         name=payload.name.strip(),
-        price=payload.price,
         image=to_relative(payload.image_url),
         status=payload.status,
     )
     session.add(dish)
     session.flush()
+    invalidate("student:dishes")
     return _reload(session, dish.id)
 
 
@@ -82,10 +80,10 @@ def update(session: Session, *, dish_id: int, payload) -> DishRow:
 
     dish.stall_id = payload.stall_id
     dish.name = payload.name.strip()
-    dish.price = payload.price
     dish.image = to_relative(payload.image_url)
     dish.status = payload.status
     session.flush()
+    invalidate("student:dishes")
     return _reload(session, dish.id)
 
 
@@ -101,6 +99,7 @@ def delete(session: Session, *, dish_id: int) -> None:
         raise BadRequest("该菜品已有学生纠错记录，无法删除，请改用「下架」")
     session.delete(dish)
     session.flush()
+    invalidate("student:dishes")
 
 
 def _reload(session: Session, dish_id: int) -> DishRow:

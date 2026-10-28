@@ -6,7 +6,7 @@
  */
 import { ref } from 'vue'
 
-export type ThemeMode = 'light' | 'dark'
+type ThemeMode = 'light' | 'dark'
 
 /** storage 持久化键 */
 const STORAGE_KEY = 'theme'

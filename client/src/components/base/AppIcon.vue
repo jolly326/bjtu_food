@@ -29,7 +29,13 @@ const src = computed(() => iconSrc(props.name, props.tone, theme.value === 'dark
 </script>
 
 <template>
-  <image class="icon" :src="src" :style="{ width: size + 'rpx', height: size + 'rpx' }" mode="aspectFit" />
+  <image
+    class="icon"
+    :src="src"
+    :style="{ width: size + 'rpx', height: size + 'rpx' }"
+    mode="aspectFit"
+    aria-hidden="true"
+  />
 </template>
 
 <style lang="scss" scoped>

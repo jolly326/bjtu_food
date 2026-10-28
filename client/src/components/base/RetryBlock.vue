@@ -12,7 +12,13 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
 </script>
 
 <template>
-  <view class="retry" hover-class="retry--pressed" @tap="emit('retry')">
+  <view
+    class="retry"
+    hover-class="retry--pressed"
+    aria-role="button"
+    aria-label="加载失败，点击重试"
+    @tap="emit('retry')"
+  >
     <AppIcon name="warning-circle" :size="44" tone="default" />
     <text class="retry__title">加载失败</text>
     <text class="retry__subtitle">点此重试</text>

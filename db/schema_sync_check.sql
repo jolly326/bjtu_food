@@ -12,7 +12,7 @@
 --   ③ 列定义     -> 与 docs/schema/*.md 的「列定义」逐列一致
 --   ④ 索引       -> 与 docs/schema/*.md 的「索引」一致（含外键自动索引）
 --   ⑤ 外键       -> 名称 / 引用关系 / 级联规则与文档一致
---   ⑥ 选项种子   -> 5 条
+--   ⑥ 选项种子   -> 3 条
 -- ============================================================
 
 SELECT '=== (1) 缺失的表（期望 8 张；应 0 行）===' AS check_item;
@@ -82,7 +82,7 @@ WHERE k.TABLE_SCHEMA = DATABASE()
 ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME;
 
 
-SELECT '=== (6) 纠错选项种子（期望 5 条）===' AS check_item;
+SELECT '=== (6) 纠错选项种子（期望 3 条）===' AS check_item;
 
 SELECT id, name, updated_at
 FROM dish_issue_option

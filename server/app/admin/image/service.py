@@ -11,6 +11,7 @@ import uuid
 
 from app.core.config import settings
 from app.core.errors import BadRequest, InternalError
+from app.core.storage import to_absolute
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_BYTES = 5 * 1024 * 1024
@@ -69,4 +70,4 @@ def store(*, filename: str, content_type: str, content: bytes) -> str:
     except Exception as exc:
         raise InternalError("图片上传失败，请稍后重试") from exc
 
-    return f"https://{settings.cos_bucket}.cos.{settings.cos_region}.myqcloud.com/{key}"
+    return to_absolute(key) or ""

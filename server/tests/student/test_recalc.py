@@ -26,7 +26,7 @@ def session() -> Iterator[Session]:
 
 
 def _dish(session: Session, dish_id: int = 1) -> Dish:
-    dish = Dish(id=dish_id, stall_id=1, name="测试菜", price=1000)
+    dish = Dish(id=dish_id, stall_id=1, name="测试菜")
     session.add(dish)
     session.flush()
     return dish

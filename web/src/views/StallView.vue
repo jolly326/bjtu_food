@@ -8,6 +8,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import CardActionSheet from '@/components/CardActionSheet.vue'
 import { useCardMenu } from '@/composables/useCardMenu'
+import ListError from '@/components/ListError.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { usePagedList } from '@/composables/usePagedList'
 import { canteenApi, stallApi, type StallBody, type StallOut } from '@/api'
 
@@ -38,8 +40,8 @@ async function loadCanteens() {
 }
 
 /** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
-const { rows, total, page, loading, hasNext, load, go, reload } = usePagedList<StallOut>((p) =>
-  stallApi.list({ canteenId: filter.canteenId, page: p }),
+const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<StallOut>(
+  (p) => stallApi.list({ canteenId: filter.canteenId, page: p }),
 )
 
 function onCreate() {
@@ -169,13 +171,11 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
       </div>
     </div>
 
+    <ListError v-if="error" :message="error" @retry="load" />
+
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
-      <div class="pager">
-        <button class="btn" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
-        <span class="pager__cur">{{ page }}</span>
-        <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
-      </div>
+      <PaginationBar :page="page" :has-next="hasNext" @prev="go(page - 1)" @next="go(page + 1)" />
     </footer>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">

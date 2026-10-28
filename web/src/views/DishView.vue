@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
  * 菜品管理（设计稿 docs/ui/web/菜品管理.md；业务规则 docs/func/web/A3）。
- * 价格以「分」存取、界面按「元」展示（转换只在 utils/money）。
  * likeCount 是只读派生列（点赞数 = COUNT(dish_rating.liked = 1)）。
  */
 import { onMounted, reactive, ref } from 'vue'
@@ -9,10 +8,12 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import CardActionSheet from '@/components/CardActionSheet.vue'
+import ListError from '@/components/ListError.vue'
+import PaginationBar from '@/components/PaginationBar.vue'
 import { useCardMenu } from '@/composables/useCardMenu'
+import { fetchAllPages } from '@/composables/useOptions'
 import { usePagedList } from '@/composables/usePagedList'
 import { canteenApi, dishApi, stallApi, upload, type DishBody, type DishOut } from '@/api'
-import { fenToYuan, yuanToFen } from '@/utils/money'
 
 const route = useRoute()
 
@@ -29,7 +30,6 @@ const dialog = reactive({
   id: 0,
   stallId: undefined as number | undefined,
   name: '',
-  priceYuan: '',
   imageUrl: '',
   status: 'on',
   uploading: false,
@@ -46,32 +46,31 @@ function likeText(row: DishOut): string {
 const filterStalls = reactive({ items: [] as typeof stalls.value })
 
 async function loadCanteens() {
-  const res = await canteenApi.list(1, 50)
-  canteens.value = res.records
+  canteens.value = await fetchAllPages((page, pageSize) => canteenApi.list(page, pageSize))
 }
 
-/** 选择器一次性取全量档口（接口 pageSize 上限 50） */
+/** 选择器取全量档口：逐页拉取，避免 pageSize=50 冒充全量导致漏项 */
 async function loadStalls(canteenId?: number) {
-  const res = await stallApi.list({ canteenId, pageSize: 50 })
-  stalls.value = res.records as typeof stalls.value
-  filterStalls.items = res.records as typeof stalls.value
+  const list = await fetchAllPages((page, pageSize) => stallApi.list({ canteenId, page, pageSize }))
+  stalls.value = list as typeof stalls.value
+  filterStalls.items = list as typeof stalls.value
 }
 
 /** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
-const { rows, total, page, loading, hasNext, load, go, reload } = usePagedList<DishOut>((p) =>
-  dishApi.list({
-    stallId: filter.stallId,
-    canteenId: filter.canteenId,
-    status: filter.status || undefined,
-    page: p,
-  }),
+const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<DishOut>(
+  (p) =>
+    dishApi.list({
+      stallId: filter.stallId,
+      canteenId: filter.canteenId,
+      status: filter.status || undefined,
+      page: p,
+    }),
 )
 
 function onCreate() {
   dialog.id = 0
   dialog.stallId = undefined
   dialog.name = ''
-  dialog.priceYuan = ''
   dialog.imageUrl = ''
   dialog.status = 'on'
   dialog.visible = true
@@ -81,7 +80,6 @@ function onEdit(row: DishOut) {
   dialog.id = row.id
   dialog.stallId = row.stallId
   dialog.name = row.name
-  dialog.priceYuan = fenToYuan(row.price)
   dialog.imageUrl = row.imageUrl ?? ''
   dialog.status = row.status
   dialog.visible = true
@@ -112,16 +110,9 @@ async function onSave() {
     ElMessage.warning('菜品名称不能为空')
     return
   }
-  const price = yuanToFen(dialog.priceYuan)
-  if (!Number.isFinite(price)) {
-    ElMessage.warning('价格不合法')
-    return
-  }
-
   const body: DishBody = {
     stallId: dialog.stallId,
     name: dialog.name.trim(),
-    price,
     imageUrl: dialog.imageUrl || null,
     status: dialog.status,
   }
@@ -173,9 +164,7 @@ function onFilterCanteenChange() {
 }
 
 onMounted(async () => {
-  await loadCanteens()
-  await loadStalls()
-  await load()
+  await Promise.all([loadCanteens(), loadStalls(), load()])
 
   // 从「纠错处理」点「去改菜品」直达：自动打开该菜的编辑弹窗
   const dishId = Number(route.query.dishId)
@@ -259,7 +248,6 @@ onMounted(async () => {
               <AppIcon name="heart" :size="12" />
               {{ likeText(row) }}
             </span>
-            <span class="list-card__price">¥{{ fenToYuan(row.price) }}</span>
           </div>
         </div>
       </div>
@@ -268,13 +256,11 @@ onMounted(async () => {
       </div>
     </div>
 
+    <ListError v-if="error" :message="error" @retry="load" />
+
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
-      <div class="pager">
-        <button class="btn" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
-        <span class="pager__cur">{{ page }}</span>
-        <button class="btn" :disabled="!hasNext" @click="go(page + 1)">下一页</button>
-      </div>
+      <PaginationBar :page="page" :has-next="hasNext" @prev="go(page - 1)" @next="go(page + 1)" />
     </footer>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
@@ -291,15 +277,6 @@ onMounted(async () => {
 
         <label class="dialog__label" for="dish-name">名称</label>
         <input id="dish-name" v-model="dialog.name" class="dialog__input" type="text" />
-
-        <label class="dialog__label" for="dish-price">价格（元）</label>
-        <input
-          id="dish-price"
-          v-model="dialog.priceYuan"
-          class="dialog__input"
-          type="text"
-          placeholder="12.00"
-        />
 
         <label class="dialog__label" for="dish-image">菜品大图</label>
         <div class="photo">

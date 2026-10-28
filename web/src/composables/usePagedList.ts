@@ -18,11 +18,14 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
   const total = ref(0)
   const page = ref(1)
   const loading = ref(false)
+  /** 最近一次加载失败的原因（空 = 无错误；供页面展示持久错误块 + 重试） */
+  const error = ref('')
   /** 还有下一页（`page * PAGE_SIZE < total`） */
   const hasNext = computed(() => page.value * PAGE_SIZE < total.value)
 
   async function load(): Promise<void> {
     loading.value = true
+    error.value = ''
     try {
       const res = await fetchPage(page.value)
       // 末页删空自动回退：本页查空且不在第 1 页 ⇒ 回退一页重查（每跳至少 -1，终止于第 1 页）
@@ -33,7 +36,8 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
       rows.value = res.records
       total.value = res.total
     } catch (e) {
-      ElMessage.error((e as Error).message)
+      error.value = (e as Error).message
+      ElMessage.error(error.value)
     } finally {
       loading.value = false
     }
@@ -51,5 +55,5 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
     return load()
   }
 
-  return { rows, total, page, loading, hasNext, load, go, reload }
+  return { rows, total, page, loading, error, hasNext, load, go, reload }
 }
