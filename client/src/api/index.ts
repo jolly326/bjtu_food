@@ -5,9 +5,6 @@
  * 不手写 DTO；字段口径见 docs/api/。
  */
 
-export { canteenApi } from './canteen'
 export { dishApi } from './dish'
 export { issueApi } from './issue'
-export { posterApi } from './poster'
-export { recordApi } from './record'
-export type { CanteenOut, DishCardOut, IssueOptionOut, PosterOut, RecordOut } from './types'
+export type { DishLikeOut, DishVO, IssueOptionOut } from './types'

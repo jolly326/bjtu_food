@@ -1,4 +1,4 @@
-"""auth 域业务规则（docs/func/client/C1-openid 静默识别.md）。"""
+"""auth 域业务规则（docs/func/client/C1-openid静默识别.md）。"""
 
 from __future__ import annotations
 

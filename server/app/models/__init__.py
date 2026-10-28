@@ -16,8 +16,6 @@ from app.models.dish import Dish
 from app.models.dish_issue import DishIssue
 from app.models.dish_issue_option import DishIssueOption
 from app.models.dish_rating import DishRating
-from app.models.dish_record import DishRecord
-from app.models.poster import Poster
 from app.models.stall import Stall
 from app.models.user import User
 
@@ -29,8 +27,6 @@ __all__ = [
     "DishIssue",
     "DishIssueOption",
     "DishRating",
-    "DishRecord",
-    "Poster",
     "Stall",
     "User",
 ]

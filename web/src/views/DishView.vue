@@ -2,7 +2,7 @@
 /**
  * 菜品管理（设计稿 docs/ui/web/菜品管理.md；业务规则 docs/func/web/A3）。
  * 价格以「分」存取、界面按「元」展示（转换只在 utils/money）。
- * avgReaction / reactionCount 是只读派生列。
+ * likeCount 是只读派生列（点赞数 = COUNT(dish_rating.liked = 1)）。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -37,11 +37,9 @@ const dialog = reactive({
 
 const saving = ref(false)
 
-/** 指标行评分文案：无评分显示「暂无评分」 */
-function ratingText(row: DishOut): string {
-  return row.reactionCount > 0 && row.avgReaction != null
-    ? `${row.avgReaction.toFixed(1)} · ${row.reactionCount} 人评`
-    : '暂无评分'
+/** 指标行点赞数文案（派生缓存列，只读） */
+function likeText(row: DishOut): string {
+  return `${row.likeCount} 人赞`
 }
 
 /** 筛选用的档口：随食堂联动，未选食堂时列全部 */
@@ -144,11 +142,15 @@ async function onSave() {
 
 async function onRemove(row: DishOut) {
   try {
-    await ElMessageBox.confirm('删除后不可恢复。该菜的饮食记录与纠错记录将一并删除。', '确认删除', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      '删除后不可恢复。若该菜已有学生纠错记录，删除会被拒绝（请先改用下架）。',
+      '确认删除',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      },
+    )
   } catch {
     return
   }
@@ -253,9 +255,9 @@ onMounted(async () => {
           </div>
           <div class="list-card__path">{{ row.canteenName }} · {{ row.stallName }}</div>
           <div class="list-card__stats">
-            <span class="list-card__rating">
-              <AppIcon name="star" :size="12" />
-              {{ ratingText(row) }}
+            <span class="list-card__like">
+              <AppIcon name="heart" :size="12" />
+              {{ likeText(row) }}
             </span>
             <span class="list-card__price">¥{{ fenToYuan(row.price) }}</span>
           </div>
@@ -300,16 +302,16 @@ onMounted(async () => {
         />
 
         <label class="dialog__label" for="dish-image">菜品大图</label>
-        <div class="poster">
+        <div class="photo">
           <img
             v-if="dialog.imageUrl"
             v-zoomimg
             :src="dialog.imageUrl"
-            class="poster__thumb img--round"
+            class="photo__thumb img--round"
             alt="菜品图"
           />
-          <span v-else class="poster__empty">未上传</span>
-          <div class="poster__ops">
+          <span v-else class="photo__empty">未上传</span>
+          <div class="photo__ops">
             <label class="btn btn--sm">
               {{ dialog.uploading ? '上传中…' : '上传图片' }}
               <input id="dish-image" type="file" accept="image/*" hidden @change="onPickImage" />
@@ -347,22 +349,22 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.poster {
+.photo {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 /* 圆形裁切由 .img--round 提供（见 theme.css） */
-.poster__thumb {
+.photo__thumb {
   width: 80px;
   height: 80px;
   border: 1px solid var(--el-border-color-lighter);
 }
-.poster__empty {
+.photo__empty {
   font-size: 13px;
   color: var(--el-text-color-placeholder);
 }
-.poster__ops {
+.photo__ops {
   display: flex;
   gap: 8px;
 }

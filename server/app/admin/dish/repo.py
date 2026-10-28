@@ -23,8 +23,7 @@ class DishRow:
     price: int
     image: str | None
     status: str
-    avg_reaction: float | None
-    reaction_count: int
+    like_count: int
     updated_at: str
 
 
@@ -38,8 +37,7 @@ def _to_row(dish: Dish, stall_name: str, canteen_name: str) -> DishRow:
         price=dish.price,
         image=to_absolute(dish.image),
         status=dish.status,
-        avg_reaction=float(dish.avg_reaction) if dish.avg_reaction is not None else None,
-        reaction_count=dish.reaction_count,
+        like_count=dish.like_count,
         updated_at=dish.updated_at.strftime("%Y-%m-%d %H:%M:%S") if dish.updated_at else "",
     )
 

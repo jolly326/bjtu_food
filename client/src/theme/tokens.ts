@@ -5,97 +5,79 @@
  * （变量名以 `generated-colors.css` 为准，逐键一致）。
  * 双主题：`COLOR_MAP` = 浅色组（默认，挂 `page`）；`DARK_COLOR_MAP` = 深色组
  * （挂页面根视图 `view[data-theme="dark"]`，级联整棵子树；机制见 docs/ui/client/设计变量.md §1.2）。
- * 浅色组：`--bg-page = #FFFFFF`（纯白页面底）、`--bg-card = #FAFAFA`；主色 `#B4531A`（暖橙）。
- * 深色组：中性灰阶（DeepSeek 对话页夜间模式）—— `bg #1E1E1E` / `card #262626` / 主色仍为品牌暖橙。
- * 消费清单见 docs/ui/client/设计变量.md；零消费的键不登记。
+ *
+ * 风格 = **Q 版动森**（暖奶油底 / 圆润厚实 / 软糖质感）：
+ * 浅色组 `--bg-page = #FFF7E8`（暖奶油）、卡片奶白、主色暖橙 `#FF8A4C`；
+ * 深色组为暖棕夜色（不是中性灰）—— 夜里的岛屿也要暖。
  */
 
 export const COLOR_MAP = {
-  /* ===== 主色（暖橙黄）===== */
-  primary: '#B4531A',
-  'primary-text': '#B4531A',
-  'brown-deep': '#7B4F2A',
-  'primary-soft': '#FFF3D6',
+  /* ===== 主色（Q 版暖橙，动森「Nook 橙」语汇）===== */
+  primary: '#FF8A4C',
+  'primary-text': '#E8722F',
+  'brown-deep': '#8A5A2B',
+  'primary-soft': '#FFE3C7',
 
-  /* ===== 文字五档（深棕标题 + 深炭灰正文 + 浅棕灰辅助 + 弱化）===== */
-  'text-title': '#44382e',
-  'text-body': '#3D3A35',
-  'text-tertiary': '#8a7c70',
-  'text-secondary': '#888888',
-  'text-placeholder': '#C4BEB5',
-  /* 装饰大字（卡片左上首字水印）：极浅暖灰，直接显色、只作氛围、不抢主体 */
-  'text-decor': '#E6DECD',
+  /* ===== 文字（暖棕阶，非中性灰）===== */
+  'text-title': '#5A3E2B',
+  'text-body': '#6B5140',
+  'text-tertiary': '#A08671',
+  'text-secondary': '#B39C85',
+  'text-placeholder': '#C9B49C',
   /* 主色底（按钮 / 弹窗主操作）上的文字色 */
   'text-on-primary': '#FFFFFF',
 
   /* ===== 背景 / 边框 ===== */
-  /* 页面底色：纯白 */
-  'bg-page': '#FFFFFF',
-  /* 卡片底色：与页面同色（纯白）—— 层次只由弱阴影与描边承担 */
-  'bg-card': '#FAFAFA',
-  'bg-placeholder': '#F2EBE1',
-  'border-color': '#E8E3DE',
-  'border-bold': '#CBC5BE',
+  /* 页面底色：暖奶油 */
+  'bg-page': '#FFF7E8',
+  /* 卡片底色：奶白，比页面亮一档 */
+  'bg-card': '#FFFFFF',
+  'bg-placeholder': '#F3E7D3',
+  'border-color': '#EFE0C8',
+  'border-bold': '#E2CDAB',
 
-  /* ===== 阴影 / 遮罩 ===== */
-  /* 卡片族统一：两层柔和浅阴影，模拟纸片明显悬浮（纸张感：比旧版更立的投影，仍无硬边） */
-  'shadow-card-stack': '0 14rpx 36rpx rgba(140, 120, 100, 0.11), 0 4rpx 12rpx rgba(140, 120, 100, 0.06)',
-  /* 堆叠后方层阴影：透明度继续降低，实现上浮景深（中层 / 下层两档） */
-  'shadow-card-back': '0 6rpx 16rpx rgba(140, 120, 100, 0.04), 0 1rpx 6rpx rgba(140, 120, 100, 0.02)',
-  'shadow-card-back-far': '0 4rpx 12rpx rgba(140, 120, 100, 0.025), 0 1rpx 4rpx rgba(140, 120, 100, 0.015)',
-  /* 弹层：极弱双层弥散（暖灰），禁高对比硬阴影 */
-  'shadow-modal': '0 16rpx 44rpx rgba(140, 120, 100, 0.12), 0 2rpx 10rpx rgba(140, 120, 100, 0.06)',
-  /* 内阴影：纸片卡顶部吊孔「打孔下沉」的层级感 */
-  'shadow-inset': 'inset 0 2rpx 6rpx rgba(68, 56, 46, 0.16)',
-  'overlay-scrim': 'rgba(0, 0, 0, 0.4)',
-  'overlay-panel-bg': '#FFFFFF',
+  /* ===== 阴影 / 遮罩（Q 版「贴纸」质感：实心错位 + 柔和外扩）===== */
+  'shadow-card-stack': '0 8rpx 0 rgba(214,178,128,0.35), 0 12rpx 24rpx rgba(190,150,100,0.18)',
+  'shadow-modal': '0 -6rpx 0 rgba(214,178,128,0.28), 0 -12rpx 32rpx rgba(190,150,100,0.22)',
+  'overlay-scrim': 'rgba(90,62,43,0.32)',
+  'overlay-panel-bg': '#FFFDF7',
 } as const
 
 /**
- * 深色组（**中性灰阶**，对齐 DeepSeek 对话网页端夜间模式：无蓝紫倾向的纯灰底 + 浅灰字；
- * 键与浅色组完全一致，仅换值）。
+ * 深色组（**暖棕夜色**，Q 版动森的夜间岛屿：深可可底 + 奶油字；主色提亮为晚霞橙）。
  *
- * 取值映射（DeepSeek chat dark → 本项目 token）：
- * 页面底 ≈ #1E1E1E → --bg-page ｜ 面板 / 卡片 ≈ #262626 → --bg-card
- * 悬停 / 占位 ≈ #2F2F2F → --bg-placeholder ｜ 正文 #ECECEC → --text-title
- * 次要 ≈ #A0A0A0 → --text-tertiary ｜ 弱化 ≈ #8A8A8A → --text-secondary
- * 边框 rgba(255,255,255,.10) → --border-color ｜ .18 → --border-bold
- *
- * 🔴 主色仍是品牌暖橙（暗底提亮），**不引入蓝紫**；层级由色阶（page → card → placeholder）承担。
+ * 取值映射：
+ * 页面底 `#2A231C`（可可）｜ 卡片 `#372E25` ｜ 占位 `#443A2F`
+ * 标题奶油 `#F7EBD9` ｜ 正文 `#E8D9C4` ｜ 次要 `#BCA892`
+ * 主色晚霞橙 `#FFA76B` ｜ 文字色 `#FFC79B`
  */
 export const DARK_COLOR_MAP = {
-  /* ===== 主色（品牌暖橙，暗底提亮保对比）===== */
-  primary: '#E07E38',
-  'primary-text': '#F0995A',
-  'brown-deep': '#A3A3A3',
-  'primary-soft': '#3A2A1E',
+  /* ===== 主色（暗底提亮：晚霞橙）===== */
+  primary: '#FFA76B',
+  'primary-text': '#FFC79B',
+  'brown-deep': '#C8AC8E',
+  'primary-soft': '#4A3826',
 
-  /* ===== 文字五档（中性浅灰标题 + 正文 + 次要 + 弱化）===== */
-  'text-title': '#ECECEC',
-  'text-body': '#CFCFCF',
-  'text-tertiary': '#A0A0A0',
-  'text-secondary': '#8A8A8A',
-  'text-placeholder': '#6B6B6B',
-  /* 装饰大字（卡片左上首字水印）：深底上用深中性灰，保持极弱存在感 */
-  'text-decor': '#3A3A3A',
-  'text-on-primary': '#FFFFFF',
+  /* ===== 文字（奶油阶）===== */
+  'text-title': '#F7EBD9',
+  'text-body': '#E8D9C4',
+  'text-tertiary': '#BCA892',
+  'text-secondary': '#A08D78',
+  'text-placeholder': '#7E6C59',
+  'text-on-primary': '#3A2A1A',
 
-  /* ===== 背景 / 边框（中性灰色阶：页面 → 卡片 → 占位）===== */
-  'bg-page': '#1E1E1E',
-  'bg-card': '#262626',
-  'bg-placeholder': '#2F2F2F',
-  'border-color': 'rgba(255, 255, 255, 0.1)',
-  'border-bold': 'rgba(255, 255, 255, 0.18)',
+  /* ===== 背景 / 边框 ===== */
+  'bg-page': '#2A231C',
+  'bg-card': '#372E25',
+  'bg-placeholder': '#443A2F',
+  'border-color': 'rgba(255,255,255,0.14)',
+  'border-bold': 'rgba(255,255,255,0.24)',
 
-  /* ===== 阴影 / 遮罩（纯黑压深语义）===== */
-  'shadow-card-stack': '0 8rpx 24rpx rgba(0, 0, 0, 0.35)',
-  /* 堆叠后方层阴影：深底下继续压深（两档） */
-  'shadow-card-back': '0 6rpx 16rpx rgba(0, 0, 0, 0.26)',
-  'shadow-card-back-far': '0 4rpx 12rpx rgba(0, 0, 0, 0.18)',
-  'shadow-modal': '0 -8rpx 32rpx rgba(0, 0, 0, 0.5)',
-  'shadow-inset': 'inset 0 2rpx 6rpx rgba(0, 0, 0, 0.5)',
-  'overlay-scrim': 'rgba(0, 0, 0, 0.6)',
-  'overlay-panel-bg': '#262626',
+  /* ===== 阴影 / 遮罩（深色下压深，保留贴纸错位的「厚」）===== */
+  'shadow-card-stack': '0 8rpx 0 rgba(0,0,0,0.32), 0 12rpx 24rpx rgba(0,0,0,0.28)',
+  'shadow-modal': '0 -6rpx 0 rgba(0,0,0,0.30), 0 -12rpx 32rpx rgba(0,0,0,0.34)',
+  'overlay-scrim': 'rgba(0,0,0,0.55)',
+  'overlay-panel-bg': '#372E25',
 } as const
 
 export type ColorToken = keyof typeof COLOR_MAP

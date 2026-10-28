@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 底部弹层（口径见 docs/ui/client/公共组件与形态基线.md §2.1.4）。
- * 本项目用法：记忆页长按菜单（反馈 / 删除记忆 / 取消）与纠错表单，由 MemoryActionsSheet 复用。
+ * 本项目用法：美食地图点磁贴唤起菜品弹窗（DishSheet），承载详情 / 点赞 / 纠错。
  */
 import { ref } from 'vue'
 
@@ -42,12 +42,10 @@ function close() {
 <template>
   <view v-if="modelValue" class="sheet">
     <view class="sheet__scrim" @tap="close" />
-    <view
-      class="sheet__panel"
-      @touchstart="onDragStart"
-      @touchend="onDragEnd"
-    >
-      <view class="sheet__grabber" />
+    <view class="sheet__panel">
+      <view class="sheet__handle" @touchstart="onDragStart" @touchend="onDragEnd">
+        <view class="sheet__grabber" />
+      </view>
       <view v-if="title" class="sheet__title">{{ title }}</view>
       <view class="sheet__body">
         <slot />
@@ -59,13 +57,19 @@ function close() {
 <style lang="scss" scoped>
 .sheet {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: var(--z-sheet);
 }
 
 .sheet__scrim {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background: var(--overlay-scrim);
 }
 
@@ -75,23 +79,32 @@ function close() {
   right: 0;
   bottom: 0;
   padding: var(--spacing-md) var(--page-gutter) calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--overlay-panel-bg);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
   box-shadow: var(--shadow-modal);
-  animation: slide-up var(--duration-slow) var(--ease-out);
+  animation: sheet-rise var(--duration-slow) var(--ease-bounce);
+}
+
+.sheet__handle {
+  display: flex;
+  justify-content: center;
+  padding: var(--spacing-sm) 0;
+  margin-bottom: var(--spacing-xs);
 }
 
 .sheet__grabber {
   width: 72rpx;
   height: 8rpx;
-  margin: 0 auto var(--spacing-md);
   background: var(--border-bold);
   border-radius: var(--radius-pill);
 }
 
 .sheet__title {
   margin-bottom: var(--spacing-md);
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-size: var(--font-subtitle);
   font-weight: var(--weight-regular);
   color: var(--text-title);
@@ -102,12 +115,19 @@ function close() {
   flex-direction: column;
 }
 
-@keyframes slide-up {
+/* Q 弹升起：配合 --ease-bounce 的过冲，面板会略微冲过头再回落（动森式的「弹」） */
+@keyframes sheet-rise {
   from {
     transform: translateY(100%);
   }
   to {
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet__panel {
+    animation: none;
   }
 }
 </style>

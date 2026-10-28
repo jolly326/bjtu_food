@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 档口管理（设计稿 docs/ui/web/档口管理.md；业务规则 docs/func/web/A2）。
- * 楼层受控字典（两端常量）；海报独立维护见「海报管理」（A4，/posters）。
+ * 楼层受控字典（两端常量，与后端校验清单逐字一致）。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -161,7 +161,6 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
           <div class="list-card__stats">
             <span v-if="locText(row)" class="list-card__stat">{{ locText(row) }}</span>
             <span class="list-card__stat">{{ row.dishCount }} 道菜</span>
-            <span class="list-card__stat">{{ row.posterCount }} 张海报</span>
           </div>
         </div>
       </div>

@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from app.core import config
 from app.core.errors import CODE_BAD_REQUEST, CODE_RATE_LIMITED, CODE_UNAUTHORIZED
-from app.core.ratelimit import RULE_REACT, limiter
+from app.core.ratelimit import RULE_LIKE, limiter
 from app.core.security import STUDENT, create_token
 from app.main import app
 
@@ -56,13 +56,6 @@ def test_malformed_token_returns_401(client: TestClient) -> None:
     assert resp.json()["code"] == CODE_UNAUTHORIZED
 
 
-def test_invalid_reaction_returns_400(client: TestClient) -> None:
-    """三态取值 5/3/1；其它值 400（校验先于数据访问）。"""
-    for value in (0, 2, 4, 9):
-        resp = client.patch("/my/records/1", json={"reaction": value}, headers=_auth())
-        assert resp.json()["code"] == CODE_BAD_REQUEST
-
-
 def test_missing_option_id_returns_400(client: TestClient) -> None:
     resp = client.post("/dishes/1/issues", json={}, headers=_auth())
     assert resp.json()["code"] == CODE_BAD_REQUEST
@@ -70,36 +63,24 @@ def test_missing_option_id_returns_400(client: TestClient) -> None:
 
 def test_extra_identity_field_returns_400(client: TestClient) -> None:
     """请求体带 userId 一类身份字段 ⇒ 参数非法（docs/secur/S-02）。"""
-    resp = client.post("/my/records", json={"dishId": 1, "userId": 2}, headers=_auth())
+    resp = client.post("/dishes/1/issues", json={"optionId": 1, "userId": 2}, headers=_auth())
     assert resp.json()["code"] == CODE_BAD_REQUEST
 
 
-def test_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_like_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """超过阈值的第 N+1 次请求返回 429 + 可等待秒数。"""
-    # 让业务层返回假记录，专注验证限频横切
-    from types import SimpleNamespace
+    from app.student.dish import service as dish_service
 
-    from app.student.record import service as record_service
-
-    fake_record = SimpleNamespace(
-        id=1,
-        dish_id=1,
-        name="测试菜",
-        image_url=None,
-        wanted_at="2026-01-01 00:00:00",
-        reaction=5,
-        flavor_level="S",
-        off_shelf=False,
-        canteen_name="学一食堂",
-        stall_name="川味小炒",
-        price=1200,
+    monkeypatch.setattr(
+        dish_service,
+        "toggle_like",
+        lambda *_args, **_kwargs: dish_service.DishLikeOut(id=1, like_count=1, liked=True),
     )
-    monkeypatch.setattr(record_service, "react", lambda *_args, **_kwargs: fake_record)
 
     headers = _auth(user_id=424242)
     last = None
-    for _ in range(RULE_REACT.limit + 1):
-        last = client.patch("/my/records/1", json={"reaction": 5}, headers=headers)
+    for _ in range(RULE_LIKE.limit + 1):
+        last = client.post("/dishes/1/likes", headers=headers)
 
     assert last is not None
     assert last.json()["code"] == CODE_RATE_LIMITED

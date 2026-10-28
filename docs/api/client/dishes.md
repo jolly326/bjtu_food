@@ -4,17 +4,17 @@
 
 ## `GET /dishes`
 
-🔑 需登录 —— 食单页的扑克卡片序列。
+🔑 需登录 —— 美食地图的全量在售菜品（端上随机散布、可平移缩放）。
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `canteenId`（可选，食堂筛选）· `pageSize` |
-| 出参 | `PageResult<DishCardVO>` |
-| 排序 | **加权随机** —— 权重取自 `avg_reaction`（评价越高越易出现）；零评分菜按**基线权重**参与 |
-| 过滤 | 仅 `status = 'on'`（在售）的菜品 |
-| 错误码 | `400` 参数非法（`canteenId` 不存在） |
+| 入参 | 无（不做食堂筛选 / 分页） |
+| 出参 | `DishVO[]` —— **全量在售菜品**（地图全量铺放，不做分页） |
+| 过滤 | 仅 `status = 'on'`（在售） |
+| 排序 | 服务端**不排序**（随机散布由端上完成）；可按任意顺序下发 |
+| 错误码 | `401` 未登录 |
 
-**`DishCardVO`**
+**`DishVO`**
 
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
@@ -22,10 +22,24 @@
 | `name` | string | 否 | 菜品名称 |
 | `price` | number | 否 | 现价，**单位「分」** |
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 该菜未配图 |
-| `flavorLevel` | string | **是** | **群体风味评级**字母：`S` / `A` / `B` / `C` / `D`；**`null` = 待评**（投票人数 < 3）—— 美味卡**右上「风味评级 / 档位词」**据此渲染；判定口径见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-评分反馈.md) |
-| `wanted` | boolean | 否 | 当前用户对该菜**是否已有未评分记录**（决定「去品尝」按钮是否为已标记态） |
+| `likeCount` | number | 否 | **群体点赞数** = `COUNT(dish_rating.liked = 1)` |
+| `liked` | boolean | 否 | 当前用户是否已赞（取登录态，禁止前端传入） |
 | `canteenName` | string | 否 | 食堂名（位置） |
 | `stallName` | string | 否 | 档口名（位置） |
 
-> ⚠️ **分页与随机**：每次请求按加权随机**重掷**，不保证跨页不重不漏 —— 扑克卡片是「随便看看」场景，端上不作全量遍历假设。
-> 列定义见 [`schema/dish.md`](../../schema/dish.md) · 业务规则见 [`func/client/A2`](../../func/client/A-浏览与发现/A2-美味.md) · 评分口径见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-评分反馈.md)。
+> 列定义见 [`schema/dish.md`](../../schema/dish.md) · 业务规则见 [`func/client/A1`](../../func/client/A-浏览与发现/A1-美食地图.md) · 点赞口径见 [`func/client/B1`](../../func/client/B-轻量反馈/B1-点赞反馈.md)。
+
+## `POST /dishes/{id}/likes`
+
+🔑 需登录 —— **两态点赞 toggle**（抖音式）：已赞 ⇒ 取消，未赞 ⇒ 点赞。
+
+| 项 | 口径 |
+|---|---|
+| 入参 | 无（`{id}` 路径参数） |
+| 行为 | 该行不存在 ⇒ INSERT（`liked = 1`）；已存在 ⇒ 置 `liked = 0`（取消）；同事务重算 `dish.like_count` |
+| 出参 | `{ id, likeCount, liked }` —— `likeCount` 为该菜**最新点赞数**，`liked` 为当前用户**操作后**状态 |
+| 归属 | 只能操作本人点赞；用户取自登录态，**禁止前端传入** |
+| 频控 | 限频（见 [`secur/S-03`](../../secur/S-03-限频与接口防护.md)） |
+| 错误码 | `4001` 菜品不存在 / 已下架 ｜ `429` 命中限频 |
+
+> 点赞真源见 [`schema/dish_rating.md`](../../schema/dish_rating.md) · 业务规则见 [`func/client/B1`](../../func/client/B-轻量反馈/B1-点赞反馈.md)。

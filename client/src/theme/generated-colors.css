@@ -1,79 +1,62 @@
 /* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。
    双主题：浅色组挂 page（默认）；深色组挂页面根视图 view[data-theme="dark"]，
-   变量定义在该元素上 ⇒ 作用于其自身与整棵子树（机制见 docs/ui/client/设计变量.md §1.2）。 */
+   变量定义在该元素上 ⇒ 作用于其自身与整棵子树（机制见 docs/ui/client/设计变量.md §1.2）。
+   风格 = Q 版动森：暖奶油底 / 圆润厚实 / 软糖质感。 */
 page {
-  /* ===== 主色 ===== */
-  --color-primary: #B4531A;
-  --color-primary-text: #B4531A;
-  --color-brown-deep: #7B4F2A;
-  --color-primary-soft: #FFF3D6;
+  /* ===== 主色（Q 版暖橙）===== */
+  --color-primary: #FF8A4C;
+  --color-primary-text: #E8722F;
+  --color-brown-deep: #8A5A2B;
+  --color-primary-soft: #FFE3C7;
 
-  /* ===== 文字五档（深棕标题 + 深炭灰正文 + 浅棕灰辅助）===== */
-  --text-title: #44382e;
-  --text-body: #3D3A35;
-  --text-tertiary: #8a7c70;
-  --text-secondary: #888888;
-  --text-placeholder: #C4BEB5;
-  /* 装饰大字（卡片左上首字水印）：极浅暖灰，只作氛围、不抢主体 */
-  --text-decor: #E6DECD;
-  /* 主色底（按钮 / 弹窗主操作）上的文字色 */
+  /* ===== 文字（暖棕阶）===== */
+  --text-title: #5A3E2B;
+  --text-body: #6B5140;
+  --text-tertiary: #A08671;
+  --text-secondary: #B39C85;
+  --text-placeholder: #C9B49C;
   --text-on-primary: #FFFFFF;
 
   /* ===== 背景 / 边框 ===== */
-  /* 页面底色：纯白 */
-  --bg-page: #FFFFFF;
-  /* 卡片底色：与页面同色（纯白）—— 层次只由弱阴影与描边承担 */
-  --bg-card: #FAFAFA;
-  --bg-placeholder: #F2EBE1;
-  --border-color: #E8E3DE;
-  --border-bold: #CBC5BE;
+  --bg-page: #FFF7E8;
+  --bg-card: #FFFFFF;
+  --bg-placeholder: #F3E7D3;
+  --border-color: #EFE0C8;
+  --border-bold: #E2CDAB;
 
-  /* ===== 阴影 / 遮罩 ===== */
-  /* 卡片族统一：两层极淡软阴影，模拟轻微悬浮，没有硬边 */
-  --shadow-card-stack: 0 14rpx 36rpx rgba(140,120,100,0.11), 0 4rpx 12rpx rgba(140,120,100,0.06);
-  /* 堆叠后方层阴影：透明度继续降低，实现上浮景深（中层 / 下层两档） */
-  --shadow-card-back: 0 6rpx 16rpx rgba(140, 120, 100, 0.04), 0 1rpx 6rpx rgba(140, 120, 100, 0.02);
-  --shadow-card-back-far: 0 4rpx 12rpx rgba(140, 120, 100, 0.025), 0 1rpx 4rpx rgba(140, 120, 100, 0.015);
-  --shadow-modal: 0 16rpx 44rpx rgba(140, 120, 100, 0.12), 0 2rpx 10rpx rgba(140, 120, 100, 0.06);
-  /* 内阴影：纸片卡顶部吊孔「打孔下沉」的层级感 */
-  --shadow-inset: inset 0 2rpx 6rpx rgba(68, 56, 46, 0.16);
-  --overlay-scrim: rgba(0, 0, 0, 0.4);
-  --overlay-panel-bg: #FFFFFF;
+  /* ===== 阴影 / 遮罩（贴纸质感：实心错位 + 柔和外扩）===== */
+  --shadow-card-stack: 0 8rpx 0 rgba(214,178,128,0.35), 0 12rpx 24rpx rgba(190,150,100,0.18);
+  --shadow-modal: 0 -6rpx 0 rgba(214,178,128,0.28), 0 -12rpx 32rpx rgba(190,150,100,0.22);
+  --overlay-scrim: rgba(90,62,43,0.32);
+  --overlay-panel-bg: #FFFDF7;
 }
 
-/* ===== 深色组：与浅色组同键换值（页面根视图挂 data-theme="dark"）
-   中性灰阶，对齐 DeepSeek 对话网页端夜间模式：bg #1E1E1E / card #262626 /
-   text #ECECEC / muted #A0A0A0 / border rgba(255,255,255,.10)；主色仍为品牌暖橙 ===== */
+/* ===== 深色组（暖棕夜色：可可底 + 奶油字，主色提亮为晚霞橙）===== */
 view[data-theme='dark'] {
-  /* ===== 主色（品牌暖橙，暗底提亮） ===== */
-  --color-primary: #E07E38;
-  --color-primary-text: #F0995A;
-  --color-brown-deep: #A3A3A3;
-  --color-primary-soft: #3A2A1E;
+  /* ===== 主色 ===== */
+  --color-primary: #FFA76B;
+  --color-primary-text: #FFC79B;
+  --color-brown-deep: #C8AC8E;
+  --color-primary-soft: #4A3826;
 
-  /* ===== 文字四档 ===== */
-  --text-title: #ECECEC;
-  --text-body: #CFCFCF;
-  --text-tertiary: #A0A0A0;
-  --text-placeholder: #6B6B6B;
-  --text-secondary: #8A8A8A;
-  --text-decor: #3A3A3A;
-  --text-on-primary: #FFFFFF;
+  /* ===== 文字（奶油阶）===== */
+  --text-title: #F7EBD9;
+  --text-body: #E8D9C4;
+  --text-tertiary: #BCA892;
+  --text-secondary: #A08D78;
+  --text-placeholder: #7E6C59;
+  --text-on-primary: #3A2A1A;
 
-  /* ===== 背景 / 边框（中性灰色阶：页面 → 卡片 → 占位） ===== */
-  --bg-page: #1E1E1E;
-  --bg-card: #262626;
-  --bg-placeholder: #2F2F2F;
-  --border-color: rgba(255, 255, 255, 0.1);
-  --border-bold: rgba(255, 255, 255, 0.18);
+  /* ===== 背景 / 边框 ===== */
+  --bg-page: #2A231C;
+  --bg-card: #372E25;
+  --bg-placeholder: #443A2F;
+  --border-color: rgba(255, 255, 255, 0.14);
+  --border-bold: rgba(255, 255, 255, 0.24);
 
-  /* ===== 阴影 / 遮罩（纯黑压深语义） ===== */
-  --shadow-card-stack: 0 8rpx 24rpx rgba(0, 0, 0, 0.35);
-  /* 堆叠后方层阴影：深底下继续压深（中层 / 下层两档） */
-  --shadow-card-back: 0 6rpx 16rpx rgba(0, 0, 0, 0.26);
-  --shadow-card-back-far: 0 4rpx 12rpx rgba(0, 0, 0, 0.18);
-  --shadow-modal: 0 -8rpx 32rpx rgba(0, 0, 0, 0.5);
-  --shadow-inset: inset 0 2rpx 6rpx rgba(0, 0, 0, 0.5);
-  --overlay-scrim: rgba(0, 0, 0, 0.6);
-  --overlay-panel-bg: #262626;
+  /* ===== 阴影 / 遮罩 ===== */
+  --shadow-card-stack: 0 8rpx 0 rgba(0,0,0,0.32), 0 12rpx 24rpx rgba(0,0,0,0.28);
+  --shadow-modal: 0 -6rpx 0 rgba(0,0,0,0.30), 0 -12rpx 32rpx rgba(0,0,0,0.34);
+  --overlay-scrim: rgba(0,0,0,0.55);
+  --overlay-panel-bg: #372E25;
 }

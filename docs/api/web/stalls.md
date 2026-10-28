@@ -22,7 +22,6 @@
 | `floor` | string | **是** | 楼层（受控字典） |
 | `windowNo` | string | **是** | 窗口号 |
 | `dishCount` | number | 否 | 菜品数（只读统计） |
-| `posterCount` | number | 否 | 海报数（只读统计，含已下架；增删改在 [posters](./posters.md)） |
 | `updatedAt` | string | 否 | 更新时间 |
 
 ## `POST /admin/stalls`
@@ -49,5 +48,5 @@
 | 🔴 边界 | **该档口下仍有菜品时拒绝** |
 | 错误码 | `400` 存在下属菜品 ｜ `4001` 档口不存在 |
 
-> **海报不挂在本接口** —— 独立为 [`posters`](./posters.md)（一档口多张、固定序、上下架）；删档口时其海报随外键 `ON DELETE CASCADE` 一并清理（**不阻塞**删除，仅菜品构成删除阻力）。
+> **档口的菜品构成删除阻力**：删档口时仅其下属菜品阻塞删除，其余关联随外键 `ON DELETE CASCADE` 清理。
 > **`floor` 是受控字典**（值即汉字 `负一层`…`四层`），取值由服务端校验。

@@ -14,7 +14,7 @@ vi.mock('@/api/request', () => ({
   clearToken: vi.fn(),
 }))
 
-import { canteenApi, dishApi, issueApi, optionApi, recordApi, stallApi } from '@/api'
+import { canteenApi, dishApi, issueApi, optionApi, stallApi } from '@/api'
 import { http } from '@/api/request'
 
 describe('运营端 API 封装', () => {
@@ -31,11 +31,6 @@ describe('运营端 API 封装', () => {
   it('dish list 带三重筛选', async () => {
     await dishApi.list({ stallId: 5, status: 'on', page: 1 })
     expect(http.get).toHaveBeenCalledWith('/admin/dishes?stallId=5&status=on&page=1')
-  })
-
-  it('record list 的 reaction=none 原样传递', async () => {
-    await recordApi.list({ reaction: 'none', page: 1 })
-    expect(http.get).toHaveBeenCalledWith('/admin/dish-records?reaction=none&page=1')
   })
 
   it('issue list 默认传 handled=false', async () => {

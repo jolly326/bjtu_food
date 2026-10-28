@@ -4,7 +4,7 @@
 
 ## `GET /canteens`
 
-🔑 需登录 —— 美味页右上角食堂筛选的选项来源。
+🔑 需登录 —— 食堂字典（食堂 / 档口位置上下文）。
 
 | 项 | 口径 |
 |---|---|
@@ -19,4 +19,4 @@
 | `id` | number | 否 | 食堂 ID（端上回传 `canteenId`） |
 | `name` | string | 否 | 食堂名称 |
 
-> 列定义见 [`schema/canteen.md`](../../schema/canteen.md) · 业务规则见 [`func/client/A3`](../../func/client/A-浏览与发现/A3-食堂筛选.md)。
+> 列定义见 [`schema/canteen.md`](../../schema/canteen.md)。

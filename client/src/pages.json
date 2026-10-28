@@ -1,39 +1,14 @@
 {
   "pages": [
     {
-      "path": "pages/scenery/index",
+      "path": "pages/map/index",
       "style": {
         "navigationStyle": "custom",
-        "enablePullDownRefresh": false
-      }
-    },
-    {
-      "path": "pages/cuisine/index",
-      "style": {
-        "navigationStyle": "custom",
-        "enablePullDownRefresh": false
-      }
-    },
-    {
-      "path": "pages/memory/index",
-      "style": {
-        "navigationStyle": "custom",
-        "enablePullDownRefresh": false
+        "enablePullDownRefresh": false,
+        "disableScroll": true
       }
     }
   ],
-  "tabBar": {
-    "custom": true,
-    "color": "#8a7c70",
-    "selectedColor": "#B4531A",
-    "backgroundColor": "#FFFFFF",
-    "borderStyle": "white",
-    "list": [
-      { "pagePath": "pages/scenery/index", "text": "风物" },
-      { "pagePath": "pages/cuisine/index", "text": "美味" },
-      { "pagePath": "pages/memory/index", "text": "记忆" }
-    ]
-  },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "知行食记",

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * 运营端布局（知行食记 · 运营端）：
- * - 顶层固定导航栏：品牌名 知行食记（衬线）+ 日期；右侧操作员用户名文本（弱化，非按钮）
+ * - 顶层固定导航栏：品牌名 知行食记（无衬线圆体）+ 日期；右侧操作员用户名文本（弱化，非按钮）
  * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.3）：
- *   七个功能入口（主数据组 ｜ 反馈组，分组分隔线）+ 分隔线 + 退出登录；
+ *   六个功能入口（主数据组 ｜ 反馈组，分组分隔线）+ 分隔线 + 退出登录；
  *   悬停放大上浮 + 名称气泡、激活项主色 + 圆点指示；桌面 / 移动同构（无隐藏态）
  * - 内容区（滚动）：底部留白让出应用坞，防遮挡
  */
@@ -26,12 +26,11 @@ type DockItem = {
 }
 
 const MENUS: DockItem[] = [
-  { path: '/canteens', label: '食堂', icon: 'building-2', sep: false },
-  { path: '/stalls', label: '档口', icon: 'store', sep: false },
-  { path: '/dishes', label: '菜品', icon: 'dish', sep: false },
-  { path: '/posters', label: '海报', icon: 'image', sep: false },
-  { path: '/records', label: '评分数据', icon: 'star', sep: true },
-  { path: '/issues', label: '纠错处理', icon: 'report', sep: false },
+  { path: '/canteens', label: '食堂', icon: 'buildings', sep: false },
+  { path: '/stalls', label: '档口', icon: 'storefront', sep: false },
+  { path: '/dishes', label: '菜品', icon: 'fork-knife', sep: false },
+  { path: '/feedback', label: '反馈数据', icon: 'heart', sep: true },
+  { path: '/issues', label: '纠错处理', icon: 'flag', sep: false },
   { path: '/options', label: '纠错选项', icon: 'list-checks', sep: false },
 ]
 
@@ -86,7 +85,7 @@ function onLogout() {
           aria-label="退出登录"
           @click="onLogout"
         >
-          <AppIcon name="log-out" :size="22" />
+          <AppIcon name="sign-out" :size="22" />
         </button>
       </div>
     </nav>
@@ -128,7 +127,7 @@ function onLogout() {
 
 .brand__name {
   flex-shrink: 0;
-  font-family: var(--web-font-serif);
+  font-family: var(--web-font-sans);
   font-size: 20px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -144,7 +143,7 @@ function onLogout() {
   white-space: nowrap;
 }
 
-/* 操作员用户名文本（非按钮，Julienne 极简：纯文本弱化即可）；
+/* 操作员用户名文本（非按钮，Q 版动森：纯文本弱化即可）；
    窄屏时品牌名优先，用户名超长收缩省略，顶栏不产生横向溢出 */
 .topbar__user {
   min-width: 0;
@@ -179,7 +178,7 @@ function onLogout() {
   justify-content: center; /* 坞内入口始终水平居中（窄屏见 safe center 兜底） */
   gap: 2px;
   padding: 6px;
-  border-radius: 20px;
+  border-radius: 26px;
   background: var(--el-bg-color-overlay);
   box-shadow: var(--el-box-shadow-elevated);
 }
@@ -199,14 +198,14 @@ function onLogout() {
   cursor: pointer;
   transform-origin: center bottom;
   transition:
-    transform 0.15s ease,
+    transform 0.18s var(--web-ease-bounce),
     background 0.15s ease,
     color 0.15s ease;
 }
 
-/* 悬停：轻微上浮放大（幅度小、缓动柔和，不做夸张弹跳） */
+/* 悬停：Q 弹上浮放大（过冲缓动，动森式的「弹一下」） */
 .dock__item:hover {
-  transform: translateY(-1px) scale(1.06);
+  transform: translateY(-2px) scale(1.1);
   background: var(--el-fill-color-light);
   color: var(--el-text-color-primary);
 }
@@ -325,7 +324,7 @@ function onLogout() {
   }
 }
 
-/* 触屏（无 hover 指针）：点按后 hover 态会「粘滞」，一律还原；名称气泡改为激活项常显 */
+/* 触屏（无 hover 指针）：点按后 hover 态会「粘滞」，一律还原；名称气泡在激活项常显 */
 @media (hover: none) {
   .dock__item:hover {
     transform: none;
@@ -338,7 +337,7 @@ function onLogout() {
     background: transparent;
     color: var(--el-text-color-secondary);
   }
-  /* 气泡不再依赖 hover（防粘滞），激活项常显名称，弥补触屏无悬停的图标识别 */
+  /* 气泡独立于 hover（防粘滞）：激活项常显名称，弥补触屏无悬停的图标识别 */
   .dock__item:hover::after {
     opacity: 0;
     transform: translateX(-50%) translateY(4px);

@@ -2,7 +2,8 @@
 /**
  * 由**下载的 SVG 资源**生成着色变体与取址模块。
  *
- *   源：`client/src/assets/icons/*.svg`（Lucide 官方资源，见 docs/ui/client/图标资源.md）
+ *   源：`client/src/assets/icons/*.svg`（Phosphor 官方资源，MIT，见 docs/ui/client/图标资源.md。
+ *       取 **Bold** 字重（圆润粗描边，Q 版动森风）；点赞选中态另取 **Fill** 字重 `heart-fill`）
  *   产物：`client/src/assets/icon-variants/<key>--<tone>.svg`（浅色组）
  *         `client/src/assets/icon-variants/<key>--<tone>--dark.svg`（深色组）
  *         + 同名 TS 取址模块
@@ -22,9 +23,9 @@ const OUT_DIR = join(ROOT, 'src', 'assets', 'icon-variants')
 const TS_OUT = join(ROOT, 'src', 'theme', 'icons.generated.ts')
 
 /** 浅色色调 -> 色值（与 docs/ui/client/图标资源.md 一致；取自 tokens 真源） */
-const TONES = { default: '#7F6A55', primary: '#B4531A', muted: '#B5A594' }
-/** 深色色调 -> 色值（中性灰阶，对齐 DeepSeek 对话页夜间模式：正文浅灰 / 主色暖橙提亮 / 弱化灰） */
-const DARK_TONES = { default: '#CFCFCF', primary: '#F0995A', muted: '#8A8A8A' }
+const TONES = { default: '#8A5A2B', primary: '#FF8A4C', muted: '#C9B49C' }
+/** 深色色调 -> 色值（暖棕夜色：正文奶油 / 主色晚霞橙 / 弱化暖灰） */
+const DARK_TONES = { default: '#E8D9C4', primary: '#FFA76B', muted: '#A08D78' }
 
 rmSync(OUT_DIR, { recursive: true, force: true })
 mkdirSync(OUT_DIR, { recursive: true })
@@ -51,7 +52,7 @@ function walk(dir, out = []) {
   return out
 }
 
-const used = new Set(['empty'])
+const used = new Set(['question'])
 for (const file of walk(SRC_ROOT)) {
   if (file === GENERATED_TS) continue
   const text = readFileSync(file, 'utf8')
@@ -68,8 +69,15 @@ for (const file of walk(SRC_ROOT)) {
 const generateFiles = files.filter((f) => used.has(f.slice(0, -4)))
 const generateKeys = generateFiles.map((f) => f.slice(0, -4))
 
-/** 把单个源 SVG 烘焙成指定色调的变体文件，返回 import 语句与条目 */
+/**
+ * 把单个源 SVG 烘焙成指定色调的变体文件，返回 import 语句与条目。
+ *
+ * Phosphor 是**填充式**图形（字重烘焙进路径），故变体以 `fill` 着色而非 `stroke`；
+ * 微信 `<image>` 不支持运行时换色（`currentColor` 会落到黑色），必须按色调预生成。
+ */
 function bake(key, raw, tone, color, isDark) {
+  const openTag = raw.match(/<svg[^>]*>/)?.[0] ?? ''
+  const viewBox = openTag.match(/viewBox="([^"]+)"/)?.[1] ?? '0 0 256 256'
   const m = raw.match(/<svg[^>]*>([\s\S]*)<\/svg>/)
   const body = (m ? m[1] : '').replace(/\s+/g, ' ').trim()
   if (!body) {
@@ -77,9 +85,8 @@ function bake(key, raw, tone, color, isDark) {
     return null
   }
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" ` +
-    `fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" ` +
-    `preserveAspectRatio="none">${body}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="${viewBox}" ` +
+    `fill="${color}">${body}</svg>`
   const variant = `${key}--${tone}${isDark ? '--dark' : ''}`
   writeFileSync(join(OUT_DIR, `${variant}.svg`), svg, 'utf8')
   const ident = variant.replace(/[^a-zA-Z0-9]/g, '_')
@@ -148,7 +155,7 @@ export type IconKey = (typeof ICON_KEYS)[number]
 
 /** 取图标资产地址；未知键回退 empty；dark = 取深色色调组 */
 export function iconSrc(key: string, tone: IconTone, dark = false): string {
-  const safe = (ICON_KEYS as readonly string[]).includes(key) ? key : 'empty'
+  const safe = (ICON_KEYS as readonly string[]).includes(key) ? key : 'question'
   const table = dark ? ICON_SRC_DARK : ICON_SRC
   return table[\`\${safe}--\${tone}\${dark ? '--dark' : ''}\`]
 }

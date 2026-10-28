@@ -93,7 +93,7 @@ async function onSubmit() {
 
 .login__title {
   margin: 0 0 24px;
-  font-family: var(--web-font-serif);
+  font-family: var(--web-font-sans);
   font-size: 20px;
   font-weight: 500;
   text-align: center;

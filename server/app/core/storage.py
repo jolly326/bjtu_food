@@ -1,6 +1,6 @@
 """图片路径工具：库内**相对路径** <-> 出参**绝对 URL**。
 
-口径（docs/schema/poster.md、dish.md）：库内一律存相对路径；出参转绝对 URL。
+口径（docs/schema/dish.md）：库内一律存相对路径；出参转绝对 URL。
 """
 
 from __future__ import annotations
