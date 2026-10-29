@@ -26,9 +26,9 @@ type DockItem = {
 }
 
 const MENUS: DockItem[] = [
-  { path: '/canteens', label: '食堂', icon: 'buildings', sep: false },
-  { path: '/stalls', label: '档口', icon: 'storefront', sep: false },
-  { path: '/dishes', label: '菜品', icon: 'fork-knife', sep: false },
+  { path: '/canteens', label: '食堂', icon: 'building', sep: false },
+  { path: '/stalls', label: '档口', icon: 'store', sep: false },
+  { path: '/dishes', label: '菜品', icon: 'food', sep: false },
   { path: '/issues', label: '纠错处理', icon: 'flag', sep: true },
 ]
 
@@ -83,7 +83,7 @@ function onLogout() {
           aria-label="退出登录"
           @click="onLogout"
         >
-          <AppIcon name="sign-out" :size="22" />
+          <AppIcon name="exit" :size="22" />
         </button>
       </div>
     </nav>

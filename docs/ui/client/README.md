@@ -40,7 +40,7 @@
   - `pages/map/components/FeedbackPanel.vue`：纠错选项分页
   - `pages/map/components/ConfirmBubble.vue`：轻确认气泡
   - `pages/map/components/SheetToast.vue`：成功提示
-  - `pages/map/components/FoodMap.vue`：画布、错位方格、缩放、点击判定
+  - `pages/map/components/FoodMap.vue`：画布、规整网格、缩放、点击判定
   - `pages/map/components/SheetPill.vue`：复用胶囊按钮
   - `pages/map/components/DishSheet.vue`：组合器（只组装子组件，不持有业务状态）
 - **目录结构**：`components/`（跨页公共件）· `pages/map/components/`（页面私有件）· `theme/`（设计变量与图标）· `hooks/` · `utils/` · `constants.ts` · `types/generated/api.d.ts`

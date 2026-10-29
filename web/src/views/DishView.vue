@@ -235,7 +235,7 @@ onMounted(async () => {
           {{ batchMode ? '退出批量' : '批量' }}
         </button>
         <button class="btn btn--primary" @click="onCreate">
-          <AppIcon name="plus" :size="16" />新建
+          <AppIcon name="add" :size="16" />新建
         </button>
       </div>
     </header>
@@ -338,7 +338,7 @@ onMounted(async () => {
           class="list-card__figure list-card__figure--ph"
           aria-hidden="true"
         >
-          <AppIcon name="image-broken" :size="20" />
+          <AppIcon name="image" :size="20" />
         </span>
         <div class="list-card__main">
           <div class="list-card__title">

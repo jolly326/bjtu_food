@@ -212,7 +212,7 @@ onMounted(async () => {
           </button>
         </div>
         <button v-if="tab === 'options'" class="btn btn--primary" @click="onOptionCreate">
-          <AppIcon name="plus" :size="16" />新建选项
+          <AppIcon name="add" :size="16" />新建选项
         </button>
       </div>
     </header>

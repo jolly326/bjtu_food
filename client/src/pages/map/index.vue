@@ -11,16 +11,11 @@ import { dishApi, issueApi } from '@/api'
 import type { DishVO, IssueOptionOut } from '@/api'
 import PageLoading from '@/components/PageLoading.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
-import { topSafeArea } from '@/utils/safeArea'
-import { windowSize } from '@/utils/viewport'
 import { uniqueById } from '@/utils/dishBatch'
 import { abortAllRequests, isAbortedRequest } from '@/utils/request'
 import { useTheme } from '@/theme'
 import DishSheet from './components/DishSheet.vue'
 import FoodMap from './components/FoodMap.vue'
-
-/** 顶部安全区（状态栏 + 胶囊）：画布内容起始避让，依赖窗口宽读一次即可 */
-const safeTop = topSafeArea(windowSize().width).total
 
 const theme = useTheme()
 
@@ -64,7 +59,7 @@ onUnmounted(abortAllRequests)
 </script>
 
 <template>
-  <view class="map-page" :data-theme="theme" :style="{ paddingTop: `${safeTop}px` }">
+  <view class="map-page" :data-theme="theme">
     <view class="map-page__body">
       <PageLoading v-if="loading" />
       <RetryBlock v-else-if="failed" @retry="load" />
@@ -76,7 +71,8 @@ onUnmounted(abortAllRequests)
 
 <style lang="scss" scoped>
 /* 页面底色唯一承载处是 `page{}`（styles/global.scss），此处 SHALL NOT 重复声明（基线 §1.1）；
-   顶部 `padding-top` 让画布避开状态栏与右上角胶囊（见 utils/safeArea.ts） */
+   🔴 无顶栏 / 无 header：整屏即内容区，**_map-page_ 铺满视口且不做顶部避让** —— 加载块与失败块
+   因此能在「整屏」内垂直居中（`.map-page__body` 撑满，`StatusBlock` flex:1 居中）。 */
 .map-page {
   position: fixed;
   top: 0;

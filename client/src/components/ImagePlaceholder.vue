@@ -19,7 +19,7 @@ withDefaults(
 
 <template>
   <view class="ph" :class="{ 'ph--bare': bare }">
-    <AppIcon name="image-broken" :size="size" />
+    <AppIcon name="image" :size="size" />
   </view>
 </template>
 

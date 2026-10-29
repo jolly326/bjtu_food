@@ -1,7 +1,12 @@
 """应用配置。
 
-变量真源是 ``server/.env``（已 gitignore）。本地开发可在 ``server/.env.local`` 写差异项，
-后者在 ``.env`` 之后加载、覆盖前者；进程环境变量优先级最高（云端控制台注入即生效）。
+环境文件按运行档位选择（路径锚定 ``server/``，与启动时的工作目录无关）：
+
+* ``development``（缺省）⇒ ``server/.env.development`` + ``server/.env.local``（后者覆盖前者）
+* ``production``         ⇒ ``server/.env.production``
+
+档位由 ``APP_PROFILE`` 决定；进程环境变量优先级**最高** —— 生产容器不携带任何
+``.env*`` 文件，凭据一律由云托管控制台注入。
 
 数据库连接接受两组等价变量名，任填一套即可：
 
@@ -13,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote
@@ -24,16 +30,29 @@ DEFAULT_DB_NAME = "bjtu_food"
 # 环境文件锚定到 server/，与启动时的工作目录无关
 _SERVER_DIR = Path(__file__).resolve().parents[2]
 
+# APP_PROFILE 视为生产档位的取值
+_PRODUCTION_PROFILES = {"prod", "production"}
+
+
+def env_files() -> tuple[str, ...]:
+    """按 ``APP_PROFILE`` 返回要加载的环境文件（缺省 = 开发档位）。
+
+    文件不存在时由 pydantic-settings 静默跳过 —— 生产镜像不含任何 ``.env*``，
+    因此生产实际只吃进程环境变量。
+    """
+    profile = (os.getenv("APP_PROFILE") or "development").strip().lower()
+    if profile in _PRODUCTION_PROFILES:
+        return (str(_SERVER_DIR / ".env.production"),)
+    return (
+        str(_SERVER_DIR / ".env.development"),
+        str(_SERVER_DIR / ".env.local"),
+    )
+
 
 class Settings(BaseSettings):
     """环境变量 -> 配置对象（字段名即环境变量名，大小写不敏感）。"""
 
     model_config = SettingsConfigDict(
-        env_file=(
-            str(_SERVER_DIR / ".env"),
-            str(_SERVER_DIR.parent / ".env"),
-            str(_SERVER_DIR / ".env.local"),
-        ),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -108,7 +127,7 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings(_env_file=env_files())
 
 
 settings = get_settings()

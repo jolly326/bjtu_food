@@ -76,7 +76,7 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
             :aria-label="likeLabel"
             @tap.stop="emit('toggleLike')"
           >
-            <AppIcon :name="dish.liked ? 'heart-fill' : 'heart'" :size="40" />
+            <AppIcon :name="dish.liked ? 'heart-on' : 'heart'" :size="40" />
             <text class="like__count">{{ displayCount }}</text>
           </view>
         </view>
@@ -287,6 +287,7 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
   transform: translateY(-50%);
 }
 
+/* 两态用不同图标文件区分：heart 空心轮廓 / heart-on 实心黑 */
 .like--pressed {
   opacity: 0.7;
 }

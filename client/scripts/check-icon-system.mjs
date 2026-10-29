@@ -54,7 +54,7 @@ function walk(dir, out = []) {
 const files = walk(SRC)
 
 // ---- 1. 提取图标键表（真源 = 下载的 SVG 资源目录，见 docs/ui/client/图标资源.md）----
-const appIconPath = join(SRC, 'components', 'base', 'AppIcon.vue')
+const appIconPath = join(SRC, 'components', 'AppIcon.vue')
 const ICON_DIR = join(SRC, 'assets', 'icons')
 const iconKeys = new Set(
   readdirSync(ICON_DIR)

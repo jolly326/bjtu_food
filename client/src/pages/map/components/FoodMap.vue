@@ -2,7 +2,7 @@
 /**
  * 美食地图画布（设计稿 docs/ui/client/美食地图.md；功能规则 docs/func/client/A1-美食地图.md）。
  *
- * - 2D 内容包围盒：磁贴按洗牌后的顺序落在**均匀错位方格**上（固定网格行优先、奇偶行错开半格；每载入随机映射到格子，无成簇 / 权重）；
+ * - 2D 内容包围盒：磁贴按洗牌后的顺序落在**规整网格**上（固定行列逐行铺满、无行间错位；每载入随机映射到格子，无成簇 / 权重）；
  * - 单指拖拽平移（松手惯性），双指捏合缩放（以双指中点为锚），越界弹性收敛；
  * - 点击判定：位移与时长都在阈值内才命中磁贴 —— 命中通过 `pick` 交给页面唤起弹窗。
  */
@@ -22,7 +22,7 @@ import {
 } from '@/utils/mapMotion'
 import {
   buildGridIndex,
-  buildStaggeredLayout,
+  buildGridLayout,
   cullTiles,
   hitTestGrid,
   type GridIndex,
@@ -90,7 +90,7 @@ function bounds() {
  * 重建布局：**错位方格密铺**。
  *
  * - 固定网格结构（行优先），奇偶行水平错开半格形成砖墙式密铺；
- * - 每次载入把菜品随机映射到固定格子（`shuffled`）—— 均匀错位、结构可预测、落点每次新鲜；
+ * - 每次载入把菜品随机映射到固定格子（`shuffled`）—— 规整网格、结构可预测、落点每次新鲜；
  * - 首屏居中于世界几何中心，进入即见地图中心区。
  */
 function rebuild(): void {
@@ -107,7 +107,7 @@ function rebuild(): void {
 
   const tile = rpxToPx(MAP.TILE_RPX, viewport.width)
   const cell = rpxToPx(MAP.CELL_RPX, viewport.width)
-  const layout = buildStaggeredLayout(list.length, tile, cell)
+  const layout = buildGridLayout(list.length, tile, cell)
   worldW.value = layout.worldW
   worldH.value = layout.worldH
 

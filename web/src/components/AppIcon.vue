@@ -9,7 +9,7 @@ import { computed, ref, watchEffect } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    /** 图标键（对应 `assets/icons/<name>.svg`，如 plus / sign-out / image-broken） */
+    /** 图标键（对应 `assets/icons/<name>.svg`，如 add / exit / image） */
     name: string
     /** 边长（px） */
     size?: number

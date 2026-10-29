@@ -17,7 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    TZ=Asia/Shanghai
+    TZ=Asia/Shanghai \
+    APP_PROFILE=production
 
 COPY app ./app
 

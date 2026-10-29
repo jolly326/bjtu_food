@@ -85,7 +85,7 @@ onMounted(load)
     <header class="page__bar">
       <h2 class="page__title">食堂管理</h2>
       <button class="btn btn--primary" @click="onCreate">
-        <AppIcon name="plus" :size="16" />新建
+        <AppIcon name="add" :size="16" />新建
       </button>
     </header>
 
