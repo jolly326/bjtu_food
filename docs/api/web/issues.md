@@ -9,7 +9,7 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `handled?`（缺省 `false` = **未处理**）· `dishId?` · `page` / `pageSize`（默认 20，上限 50） |
+| 入参 | `handled?`（`false` 未处理 / `true` 已处理 / **缺省 = 全部不过滤**）· `dishId?` · `page` / `pageSize`（默认 20，上限 50） |
 | 出参 | `AdminPageResult<DishIssueVO>` |
 | 排序 | **该菜当前待处理纠错条数降序** → `createdAt` 降序（被多人反馈的菜顶到最前） |
 

@@ -10,11 +10,9 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
-import CardActionSheet from '@/components/CardActionSheet.vue'
 import DishEditDialog from '@/components/DishEditDialog.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { useCardMenu } from '@/composables/useCardMenu'
 import { fetchAllPages } from '@/composables/useOptions'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
 import { canteenApi, dishApi, stallApi, type DishOut } from '@/api'
@@ -77,7 +75,8 @@ function onEdit(row: DishOut) {
   editVisible.value = true
 }
 
-async function onRemove(row: DishOut) {
+/** 删除入口在编辑界面内（卡面无操作按钮、无卡片浮层） */
+async function onRemove(id: number) {
   try {
     await ElMessageBox.confirm(
       '删除后不可恢复。若该菜已有学生纠错记录，删除会被拒绝（请先改用下架）。',
@@ -92,16 +91,14 @@ async function onRemove(row: DishOut) {
     return
   }
   try {
-    await dishApi.remove(row.id)
+    await dishApi.remove(id)
     ElMessage.success('已删除')
+    editVisible.value = false
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
 }
-
-/** 点击浮层（编辑 / 删除）：卡面无操作按钮 */
-const cardMenu = useCardMenu<DishOut>({ onEdit, onRemove })
 
 function onFilterCanteenChange() {
   filter.stallId = undefined
@@ -312,9 +309,11 @@ onMounted(async () => {
           'list-card--checked': batchMode && selected.has(row.id),
         }"
         :tabindex="batchMode ? -1 : 0"
-        :aria-haspopup="batchMode ? undefined : 'menu'"
-        v-bind="batchMode ? {} : cardMenu.openAttrs(row, { title: row.name })"
-        @click="batchMode ? toggleSelect(row) : undefined"
+        :role="batchMode ? undefined : 'button'"
+        :aria-label="batchMode ? undefined : `编辑 ${row.name}`"
+        @click="batchMode ? toggleSelect(row) : onEdit(row)"
+        @keydown.enter.prevent="batchMode ? undefined : onEdit(row)"
+        @keydown.space.prevent="batchMode ? undefined : onEdit(row)"
       >
         <input
           v-if="batchMode"
@@ -325,21 +324,19 @@ onMounted(async () => {
           @click.stop
           @change="toggleSelect(row)"
         />
-        <img
-          v-else-if="row.imageUrl"
-          v-zoomimg
-          :src="row.imageUrl"
-          class="list-card__figure"
-          :alt="row.name"
-          loading="lazy"
-        />
-        <span
-          v-else-if="!batchMode"
-          class="list-card__figure list-card__figure--ph"
-          aria-hidden="true"
-        >
-          <AppIcon name="image" :size="20" />
-        </span>
+        <template v-else>
+          <img
+            v-if="row.imageUrl"
+            v-zoomimg
+            :src="row.imageUrl"
+            class="list-card__cover"
+            :alt="row.name"
+            loading="lazy"
+          />
+          <span v-else class="list-card__cover list-card__cover--ph" aria-hidden="true">
+            <AppIcon name="image" :size="28" />
+          </span>
+        </template>
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
@@ -398,15 +395,12 @@ onMounted(async () => {
       </div>
     </div>
 
-    <DishEditDialog v-model="editVisible" :dish="editing" :stalls="stalls" @saved="load" />
-
-    <CardActionSheet
-      v-model="cardMenu.open"
-      :title="cardMenu.title"
-      :remove-disabled="cardMenu.removeDisabled"
-      :remove-hint="cardMenu.removeHint"
-      @edit="cardMenu.pickEdit"
-      @remove="cardMenu.pickRemove"
+    <DishEditDialog
+      v-model="editVisible"
+      :dish="editing"
+      :stalls="stalls"
+      @saved="load"
+      @remove="onRemove"
     />
   </section>
 </template>

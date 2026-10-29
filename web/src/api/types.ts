@@ -2,17 +2,28 @@
 
 export type Page<T> = { records: T[]; total: number }
 
-export type CanteenOut = { id: number; name: string; stallCount: number; updatedAt: string }
+export type CanteenOut = {
+  id: number
+  name: string
+  /** 状态：`true` 正常 / `false` 已停用 */
+  activate: boolean
+  stallCount: number
+  updatedAt: string
+}
 
 export type StallBody = {
   canteenId: number
   name: string
+  /** 状态：入参可选（缺省 `true`）；出参必填，见 `StallOut` */
+  activate?: boolean
   floor?: string | null
   windowNo?: string | null
 }
 export type StallOut = StallBody & {
   id: number
   canteenName: string
+  /** 状态：`true` 正常 / `false` 已停用（出参必填） */
+  activate: boolean
   dishCount: number
   updatedAt: string
 }

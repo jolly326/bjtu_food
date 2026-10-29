@@ -1,7 +1,7 @@
 """运营端纠错处置（docs/func/web/B-反馈与纠错/B1-纠错查看与选项字典.md、docs/api/web/issues.md）。
 
 端点：
-    GET   /admin/dish-issues?handled=&dishId=   分页（默认只查未处理）
+    GET   /admin/dish-issues?handled=&dishId=   分页（handled=false 未处理 / true 已处理 / 缺省 None = 全部）
     PATCH /admin/dish-issues/{id}                { handled: true|false }（可撤销误标）
 
 🔴 本域只标记「看过了」—— **不修改菜品**、**不给学生回执**、**不删除提交行**。
@@ -40,7 +40,7 @@ class DishIssueOut(OutModel):
 
 @router.get("/dish-issues", response_model=Envelope[AdminPageResult[DishIssueOut]], summary="纠错列表")
 def list_issues(
-    handled: bool | None = Query(default=False),
+    handled: bool | None = Query(default=None),
     dish_id: int | None = Query(default=None, alias="dishId"),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),

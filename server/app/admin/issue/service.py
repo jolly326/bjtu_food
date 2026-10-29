@@ -1,6 +1,6 @@
 """运营端纠错处置业务规则（docs/func/web/B-反馈与纠错/B1-纠错查看与选项字典.md、docs/schema/dish_issue.md）。
 
-* 列表**默认只查未处理**（handled=false）⇒ 规模 = 待办量
+* 列表按 handled 过滤（false 未处理 / true 已处理 / None = 全部不过滤）；运营端默认传 false ⇒ 规模 = 待办量
 * 标记处理写 ``handledAt``；``handled=false`` 清空（撤销误标）
 * 🔴 不修改菜品、不给学生回执、不删除提交行
 """

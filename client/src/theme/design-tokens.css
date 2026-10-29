@@ -23,9 +23,11 @@ page {
   --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
-  /* Q 版动森：标题与正文一律走**系统无衬线圆体**（不引入自定义字体文件）；
-     iOS 命中 -apple-system / PingFang SC（圆润），Android 命中系统默认 sans */
-  --font-sans: -apple-system, 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', system-ui, sans-serif;
+  /* Q 版动森：优先**系统圆体**（Yuanti SC / 幼圆），命中即得手写松弛感；
+     iOS 若无圆体回退 PingFang SC（本身圆润），Android 回退系统 sans */
+  --font-sans: 'Yuanti SC', 'YouYuan', 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC',
+    system-ui, sans-serif;
+
 
   /* ===== 字号（零消费即删：只保留实际消费的档位）===== */
   --font-title: 40rpx;
@@ -53,4 +55,7 @@ page {
 
   /* ===== 高度 ===== */
   --tap-target-size: 96rpx;
+  /* Sheet 三段骨架高度：信息页 / 纠错页强同步（虚线固定在中线的前提） */
+  --sheet-block-top: calc(var(--tap-target-size) + var(--spacing-lg));
+  --sheet-block-bottom: calc(var(--tap-target-size) * 2 / 3);
 }

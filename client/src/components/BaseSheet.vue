@@ -137,17 +137,19 @@ function close() {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  padding: var(--spacing-md) var(--page-gutter) calc(var(--spacing-lg) + env(safe-area-inset-bottom));
-  max-height: 88vh;
+  /* 底边向下延伸一段：让 --ease-bounce 的向上过冲有内容垫着，避免露出页面背景 */
+  bottom: calc(-1 * var(--spacing-2xl));
+  padding: 0 0 calc(var(--spacing-lg) + var(--spacing-2xl) + env(safe-area-inset-bottom));
+  max-height: 92vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--overlay-panel-bg);
   border-top: 1rpx solid var(--border-color);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
-  /* 底边固定：位移动画不能用带过冲的 bounce，否则最高点会抬离底边露出页面背景 */
-  animation: sheet-rise var(--duration-slow) var(--ease-out);
+  /* 果冻升起：带过冲的回弹曲线，底边延伸段吸收过冲 */
+  animation: sheet-rise var(--duration-slow) var(--ease-bounce);
   transition: transform var(--duration-base) var(--ease-out);
+  transform-origin: bottom center;
   will-change: transform;
 }
 
@@ -156,18 +158,19 @@ function close() {
   transition: none;
 }
 
+/* 顶部压痕：把手区高度 = 顶部 gap，压痕在其中垂直居中 */
 .sheet__handle {
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: var(--spacing-sm) 0;
-  margin-bottom: var(--spacing-xs);
+  height: var(--spacing-lg);
   touch-action: none;
 }
 
 .sheet__grabber {
-  width: var(--tap-target-size);
-  height: calc(var(--spacing-sm) - var(--spacing-2xs));
-  background: var(--border-bold);
+  width: calc(var(--spacing-2xl) + var(--spacing-lg));
+  height: var(--spacing-xs);
+  background: var(--border-color);
   border-radius: var(--radius-pill);
 }
 

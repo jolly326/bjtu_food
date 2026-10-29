@@ -5,6 +5,8 @@
  * 键名与 `src/assets/icons/<key>.svg` 一致；只引入学生端实际消费的键。
  * 署名：Icons by Streamline (https://streamlinehq.com), licensed under CC BY 4.0.
  */
+import check from '@/assets/icons/check.svg'
+import chevron from '@/assets/icons/chevron.svg'
 import heart from '@/assets/icons/heart.svg'
 import heartOn from '@/assets/icons/heart-on.svg'
 import help from '@/assets/icons/help.svg'
@@ -14,6 +16,8 @@ import warning from '@/assets/icons/warning.svg'
 
 /** 图标键 -> 打包器资产地址 */
 export const ICONS = {
+  check,
+  chevron,
   heart,
   'heart-on': heartOn,
   help,

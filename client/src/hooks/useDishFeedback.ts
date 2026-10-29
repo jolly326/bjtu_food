@@ -12,10 +12,9 @@ import { useCooldown, cooldownFrom } from '@/utils/backoff'
 import { hasSubmitted, markSubmitted } from '@/utils/issueLocal'
 
 export interface UseDishFeedbackOptions {
-  dish: DishVO | null
+  /** 🔴 必须用 getter：组件常驻时 setup 阶段 `dish` 还是 null，快照会导致点赞/提交静默失效 */
+  dish: () => DishVO | null
   onLikeChange?: (payload: { id: number; likeCount: number; liked: boolean }) => void
-  /** 纠错提交成功后的回调（弹层收起等由组件自行处理） */
-  onIssueSubmit?: () => void
 }
 
 function toast(title: string): void {
@@ -23,7 +22,7 @@ function toast(title: string): void {
 }
 
 export function useDishFeedback(options: UseDishFeedbackOptions) {
-  const { dish, onLikeChange, onIssueSubmit } = options
+  const { dish: getDish, onLikeChange } = options
 
   const likeCount = ref(0)
   const liked = ref(false)
@@ -35,6 +34,7 @@ export function useDishFeedback(options: UseDishFeedbackOptions) {
 
   /** 两态点赞 toggle（冷却时轻提示）；返回点赞后的状态，供组件触发 Q 弹 */
   async function toggleLike(): Promise<boolean> {
+    const dish = getDish()
     if (!dish || likeBusy.value) return liked.value
     if (likeCooling.value) {
       toast(`操作过于频繁，请 ${likeLeft.value} 秒后再试`)
@@ -68,6 +68,7 @@ export function useDishFeedback(options: UseDishFeedbackOptions) {
 
   /** 提交纠错：本地已提交过的组合直接软提示并阻断（后端不做去重幂等） */
   async function submitIssue(optionId: number): Promise<boolean> {
+    const dish = getDish()
     if (!dish || issueBusy.value) return false
     if (hasSubmitted(dish.id, optionId)) {
       toast('这条反馈你已经提交过啦')
@@ -82,8 +83,7 @@ export function useDishFeedback(options: UseDishFeedbackOptions) {
     try {
       await issueApi.submit(dish.id, optionId)
       markSubmitted(dish.id, optionId)
-      toast('已提交，感谢反馈')
-      onIssueSubmit?.()
+      // 成功态由 FeedbackPanel 在 Sheet 内展示，这里不弹任何 toast
       return true
     } catch (error) {
       const wait = cooldownFrom('issue', error)

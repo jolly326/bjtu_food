@@ -6,14 +6,6 @@
 export const SHEET = {
   /** 反馈选项每页显示数量 */
   FEEDBACK_PAGE_SIZE: 3,
-  /** 长按确认选项的按压时长（ms） */
-  PRESS_MS: 140,
-  /** 取消确认的淡出时长（ms） */
-  CONFIRM_FADE_MS: 160,
-  /** 成功提示保持时长（ms） */
-  SUCCESS_HOLD_MS: 1200,
-  /** 成功提示淡出时长（ms） */
-  SUCCESS_FADE_MS: 180,
   /** 点赞弹簧动画时长（ms） */
   POP_MS: 240,
 } as const;

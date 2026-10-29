@@ -6,8 +6,6 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
-import CardActionSheet from '@/components/CardActionSheet.vue'
-import { useCardMenu } from '@/composables/useCardMenu'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
@@ -23,6 +21,7 @@ const dialog = reactive({
   id: 0,
   canteenId: undefined as number | undefined,
   name: '',
+  activate: true,
   floor: '',
   windowNo: '',
 })
@@ -48,6 +47,7 @@ function onCreate() {
   dialog.id = 0
   dialog.canteenId = undefined
   dialog.name = ''
+  dialog.activate = true
   dialog.floor = ''
   dialog.windowNo = ''
   dialog.visible = true
@@ -57,6 +57,7 @@ function onEdit(row: StallOut) {
   dialog.id = row.id
   dialog.canteenId = row.canteenId
   dialog.name = row.name
+  dialog.activate = row.activate
   dialog.floor = row.floor ?? ''
   dialog.windowNo = row.windowNo ?? ''
   dialog.visible = true
@@ -79,6 +80,7 @@ async function onSave() {
   const body: StallBody = {
     canteenId: dialog.canteenId,
     name: dialog.name.trim(),
+    activate: dialog.activate,
     floor: dialog.floor || null,
     windowNo: dialog.windowNo.trim() || null,
   }
@@ -97,7 +99,9 @@ async function onSave() {
   }
 }
 
-async function onRemove(row: StallOut) {
+/** 删除入口在编辑界面内（卡面无操作按钮、无卡片浮层） */
+async function onRemove() {
+  if (!dialog.id) return
   try {
     await ElMessageBox.confirm('删除后不可恢复。若该档口下仍有菜品，删除会被拒绝。', '确认删除', {
       type: 'warning',
@@ -108,8 +112,9 @@ async function onRemove(row: StallOut) {
     return
   }
   try {
-    await stallApi.remove(row.id)
+    await stallApi.remove(dialog.id)
     ElMessage.success('已删除')
+    dialog.visible = false
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
@@ -120,9 +125,6 @@ onMounted(async () => {
   await loadCanteens()
   await load()
 })
-
-/** 点击浮层（编辑 / 删除）：卡面无操作按钮 */
-const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
 </script>
 
 <template>
@@ -152,12 +154,18 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
         :key="row.id"
         class="list-card"
         tabindex="0"
-        aria-haspopup="menu"
-        v-bind="cardMenu.openAttrs(row, { title: row.name })"
+        role="button"
+        :aria-label="`编辑 ${row.name}`"
+        @click="onEdit(row)"
+        @keydown.enter.prevent="onEdit(row)"
+        @keydown.space.prevent="onEdit(row)"
       >
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
+            <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
+              {{ row.activate ? '正常' : '已停用' }}
+            </span>
           </div>
           <div class="list-card__path">{{ row.canteenName }}</div>
           <div class="list-card__stats">
@@ -207,7 +215,15 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
         <label class="dialog__label" for="stall-window">窗口号</label>
         <input id="stall-window" v-model="dialog.windowNo" class="dialog__input" type="text" />
 
+        <label class="dialog__label" for="stall-activate">状态</label>
+        <select id="stall-activate" v-model="dialog.activate" class="dialog__input">
+          <option :value="true">正常</option>
+          <option :value="false">已停用</option>
+        </select>
+
         <footer class="dialog__foot">
+          <button v-if="dialog.id" class="btn btn--danger" @click="onRemove">删除</button>
+          <span class="dialog__spacer" />
           <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
           <button class="btn btn--primary" :disabled="saving" @click="onSave">
             {{ saving ? '保存中…' : '保存' }}
@@ -215,14 +231,5 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
         </footer>
       </div>
     </div>
-
-    <CardActionSheet
-      v-model="cardMenu.open"
-      :title="cardMenu.title"
-      :remove-disabled="cardMenu.removeDisabled"
-      :remove-hint="cardMenu.removeHint"
-      @edit="cardMenu.pickEdit"
-      @remove="cardMenu.pickRemove"
-    />
   </section>
 </template>

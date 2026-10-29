@@ -31,7 +31,7 @@ html:root {
   --el-color-danger-light-9: #fcedea;
 
   /* ===== 页面 / 卡面（暖奶油底 + 奶白卡） ===== */
-  --el-bg-color-page: #fff7e8;
+  --el-bg-color-page: #fffaf3;
   --el-bg-color: #ffffff;
   --el-bg-color-overlay: #ffffff;
   /* 卡面：奶白（卡片靠贴纸阴影浮起，不画描边） */
@@ -41,7 +41,7 @@ html:root {
   --el-fill-color: #f1e7d6;
 
   /* ===== 文字层级（暖棕阶，与学生端同值） ===== */
-  --el-text-color-primary: #5a3e2b;
+  --el-text-color-primary: #44382e;
   --el-text-color-regular: #6b5140;
   --el-text-color-secondary: #7a6049;
   --el-text-color-placeholder: #8a7057;
@@ -347,6 +347,11 @@ h3 {
   margin-top: var(--web-gap-loose);
 }
 
+/* 编辑界面内的删除靠左、取消 / 保存靠右 */
+#app .dialog__spacer {
+  flex: 1;
+}
+
 /* ===== 长按操作浮层（底部贴纸） ===== */
 #app .mask--sheet {
   align-items: flex-end;
@@ -425,6 +430,18 @@ h3 {
 }
 
 /* ===== 小号按钮（列表卡片操作位） ===== */
+/* 危险操作（编辑界面内的删除）：弱化红描边，不做实心警示块 */
+#app .btn--danger {
+  border-color: var(--el-color-danger);
+  background: transparent;
+  color: var(--el-color-danger);
+}
+
+#app .btn--danger:hover {
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+}
+
 #app .btn--sm {
   height: 28px;
   padding: 0 12px;
@@ -454,11 +471,11 @@ h3 {
 }
 
 #app .list-card {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 16px 18px;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
   border-radius: var(--web-radius-card);
   background: var(--el-bg-color);
   box-shadow: var(--el-box-shadow-light);
@@ -486,6 +503,8 @@ h3 {
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  /* 内边距收在信息区：图区满宽贴顶，由卡片圆角裁切 */
+  padding: 14px 16px 16px;
 }
 
 #app .list-card__title {
@@ -508,18 +527,18 @@ h3 {
   color: var(--el-text-color-placeholder);
 }
 
-/* 左置缩略图：无图占位同尺寸，行行等高；圆角与卡片节奏统一 */
-#app .list-card__figure {
-  flex-shrink: 0;
-  width: 64px;
-  height: 64px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-fill-color-lighter);
+/* 图区（上）：满宽贴顶，16:9 —— 高度恒小于宽度；由卡片圆角裁切。无图数据不渲染本块 */
+#app .list-card__cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
+  background: var(--el-fill-color-lighter);
 }
 
-#app .list-card__figure--ph {
-  display: inline-flex;
+/* 无图占位：与图区同形，占位图标居中（图标 stroke 为 currentColor，跟随本块 color） */
+#app .list-card__cover--ph {
+  display: flex;
   align-items: center;
   justify-content: center;
   color: var(--el-text-color-placeholder);
@@ -568,8 +587,12 @@ h3 {
   outline-offset: 2px;
 }
 
+/* 批量勾选：卡片已纵排，勾选框浮在右上角，不占图区/信息区的纵向节奏 */
 #app .list-card__check {
-  flex-shrink: 0;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
   width: 18px;
   height: 18px;
   margin: 0;
@@ -698,13 +721,8 @@ h3 {
     flex: 1;
   }
 
-  #app .list-card {
-    padding: 14px;
-  }
-
-  #app .list-card__figure {
-    width: 48px;
-    height: 48px;
+  #app .list-card__main {
+    padding: 12px 14px 14px;
   }
 
   #app .btn {

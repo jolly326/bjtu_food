@@ -16,7 +16,7 @@ import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { fetchAllPages } from '@/composables/useOptions'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
-import { useCardActions, useCardMenu, type CardAction } from '@/composables/useCardMenu'
+import { useCardActions, type CardAction } from '@/composables/useCardMenu'
 import {
   dishApi,
   issueApi,
@@ -113,7 +113,7 @@ const cardMenu = useCardActions<IssueOut>((row, key) => {
 
 const options = ref<OptionOut[]>([])
 const optionsLoading = ref(false)
-const optionDialog = reactive({ visible: false, id: 0, name: '' })
+const optionDialog = reactive({ visible: false, id: 0, name: '', refCount: 0 })
 const optionSaving = ref(false)
 
 async function loadOptions() {
@@ -130,12 +130,14 @@ async function loadOptions() {
 function onOptionCreate() {
   optionDialog.id = 0
   optionDialog.name = ''
+  optionDialog.refCount = 0
   optionDialog.visible = true
 }
 
 function onOptionEdit(row: OptionOut) {
   optionDialog.id = row.id
   optionDialog.name = row.name
+  optionDialog.refCount = row.refCount
   optionDialog.visible = true
 }
 
@@ -158,10 +160,11 @@ async function onOptionSave() {
   }
 }
 
-async function onOptionRemove(row: OptionOut) {
-  if (row.refCount > 0) return
+/** 删除入口在编辑界面内（被引用 refCount > 0 时禁删） */
+async function onOptionRemove() {
+  if (!optionDialog.id || optionDialog.refCount > 0) return
   try {
-    await ElMessageBox.confirm(`删除后学生端将不再出现「${row.name}」。`, '确认删除', {
+    await ElMessageBox.confirm(`删除后学生端将不再出现「${optionDialog.name}」。`, '确认删除', {
       type: 'warning',
       confirmButtonText: '删除',
       cancelButtonText: '取消',
@@ -170,16 +173,14 @@ async function onOptionRemove(row: OptionOut) {
     return
   }
   try {
-    await optionApi.remove(row.id)
+    await optionApi.remove(optionDialog.id)
     ElMessage.success('已删除')
+    optionDialog.visible = false
     await loadOptions()
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
 }
-
-/** 点击浮层（编辑 / 删除）：被引用（refCount > 0）时浮层内删除置灰并注明原因 */
-const optionMenu = useCardMenu<OptionOut>({ onEdit: onOptionEdit, onRemove: onOptionRemove })
 
 onMounted(async () => {
   await Promise.all([loadDishes(), loadStalls(), load(), loadOptions()])
@@ -297,15 +298,11 @@ onMounted(async () => {
           :key="row.id"
           class="list-card"
           tabindex="0"
-          aria-haspopup="menu"
-          v-bind="
-            optionMenu.openAttrs(row, {
-              title: row.name,
-              removeDisabled: row.refCount > 0,
-              removeHint:
-                row.refCount > 0 ? `已被 ${row.refCount} 条纠错引用，无法删除` : undefined,
-            })
-          "
+          role="button"
+          :aria-label="`编辑 ${row.name}`"
+          @click="onOptionEdit(row)"
+          @keydown.enter.prevent="onOptionEdit(row)"
+          @keydown.space.prevent="onOptionEdit(row)"
         >
           <div class="list-card__main">
             <h3 class="list-card__title">
@@ -329,7 +326,19 @@ onMounted(async () => {
         <label class="dialog__label" for="option-name">选项文案</label>
         <input id="option-name" v-model="optionDialog.name" class="dialog__input" type="text" />
         <p class="dialog__hint">改名后全站生效（含历史记录的中文翻译）。</p>
+        <p v-if="optionDialog.id && optionDialog.refCount > 0" class="dialog__hint">
+          已被 {{ optionDialog.refCount }} 条纠错引用，无法删除。
+        </p>
         <footer class="dialog__foot">
+          <button
+            v-if="optionDialog.id"
+            class="btn btn--danger"
+            :disabled="optionDialog.refCount > 0"
+            @click="onOptionRemove"
+          >
+            删除
+          </button>
+          <span class="dialog__spacer" />
           <button class="btn btn--outline" @click="optionDialog.visible = false">取消</button>
           <button class="btn btn--primary" :disabled="optionSaving" @click="onOptionSave">
             {{ optionSaving ? '保存中…' : '保存' }}
@@ -357,16 +366,6 @@ onMounted(async () => {
           void loadDishes()
         }
       "
-    />
-
-    <!-- 选项点击浮层：编辑 / 删除 -->
-    <CardActionSheet
-      v-model="optionMenu.open"
-      :title="optionMenu.title"
-      :remove-disabled="optionMenu.removeDisabled"
-      :remove-hint="optionMenu.removeHint"
-      @edit="optionMenu.pickEdit"
-      @remove="optionMenu.pickRemove"
     />
   </section>
 </template>

@@ -32,15 +32,13 @@ export const COLOR_MAP = {
   'bg-card': '#FFFDF7',
   'bg-placeholder': '#F3E7D3',
   'border-color': '#E6D8C6',
-  'border-bold': '#D9C7B2',
+
 
   /* ===== 遮罩（无阴影：层级靠底色 / 描边 / 圆角区分）===== */
   'overlay-scrim': 'rgba(90,62,43,0.32)',
   'overlay-panel-bg': '#FFFAF3',
   'overlay-sheet-scrim': 'rgba(255,250,243,0.72)',
-  'sheet-pill-bg': '#F9E9D8',
   /* 主操作胶囊：杏色加深一档 */
-  'sheet-pill-bg-strong': '#F3DDC8',
   /* 胶囊 / 气泡描边：深棕 */
   'sheet-pill-border': '#44382E',
   'sheet-divider': '#D9C7B2',
@@ -70,14 +68,12 @@ export const DARK_COLOR_MAP = {
   'bg-card': '#354758',
   'bg-placeholder': '#3E5265',
   'border-color': 'rgba(237,239,242,0.22)',
-  'border-bold': 'rgba(237,239,242,0.34)',
+
 
   /* ===== 遮罩 ===== */
   'overlay-scrim': 'rgba(12,18,24,0.55)',
   'overlay-panel-bg': '#354758',
   'overlay-sheet-scrim': 'rgba(43,58,74,0.72)',
-  'sheet-pill-bg': '#3E5265',
-  'sheet-pill-bg-strong': '#4E6275',
   /* 暗底上深棕描边不可见 ⇒ 提亮为冷调奶白描边 */
   'sheet-pill-border': 'rgba(237,239,242,0.55)',
   'sheet-divider': 'rgba(237,239,242,0.22)',

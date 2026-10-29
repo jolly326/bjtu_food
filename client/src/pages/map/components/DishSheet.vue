@@ -1,9 +1,11 @@
 <script setup lang="ts">
 /**
  * 菜品底部弹窗（组合器）。
- * 结构：DishInfo（菜品信息/点赞） ↔ FeedbackPanel（纠错选项/分页） → ConfirmBubble（轻确认）→ SheetToast（成功提示）。
+ *
+ * 结构：固定菜品大图 + 横向滑动区（信息页 ↔ 纠错页）。
+ * 纠错页在 **Sheet 内部**完成 pick → confirm → success 三态闭环，不弹独立确认框、不加深色遮罩。
+ * 🔴 虚线全程固定、两个滑块的两块高度一致 ⇒ 切换/换态时虚线位置不动。
  * 业务状态由 useDishFeedback 统一管理，定时器由 useTimers 统一清理。
- * 只保留按钮操作，不使用左右横滑；大图不参与切换。
  */
 import { computed, ref, watch } from 'vue'
 
@@ -11,12 +13,11 @@ import { useDishFeedback, useTimers } from '@/hooks'
 
 import type { DishVO, IssueOptionOut } from '@/api'
 import BaseSheet from '@/components/BaseSheet.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
 import { SHEET } from '@/constants'
-import ConfirmBubble from './ConfirmBubble.vue'
 import DishInfo from './DishInfo.vue'
 import FeedbackPanel from './FeedbackPanel.vue'
-import SheetToast from './SheetToast.vue'
-
+import type { FeedbackStage } from './FeedbackPanel.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -34,109 +35,73 @@ const open = computed({
   set: (value: boolean) => emit('update:modelValue', value),
 })
 
+/** 纠错页当前态：选择 → 确认 → 成功（成功为单向收尾） */
 const feedbackOpen = ref(false)
-const confirmOption = ref<IssueOptionOut | null>(null)
-const confirmLeaving = ref(false)
-const successVisible = ref(false)
-const successLeaving = ref(false)
+const feedbackStage = ref<FeedbackStage>('pick')
+const selectedOption = ref<IssueOptionOut | null>(null)
 const popping = ref(false)
+/** 大图加载失败：切菜时重置 */
+const imgFailed = ref(false)
 
 const {
   likeBusy,
   likeCooling,
   issueBusy,
-  issueCooling,
   toggleLike,
   submitIssue,
   syncFromDish,
 } = useDishFeedback({
-  dish: props.dish,
+  dish: () => props.dish,
   onLikeChange: (payload) => {
     emit('change', payload)
-  },
-  onIssueSubmit: () => {
-    confirmOption.value = null
   },
 })
 
 const { setTimer, clearAll } = useTimers()
 
-const feedbackDisabled = computed(
-  () => issueBusy.value || issueCooling.value || successVisible.value,
-)
-
-function resetFeedbackState(): void {
-  feedbackOpen.value = false
-  confirmOption.value = null
-  confirmLeaving.value = false
-  successVisible.value = false
-  successLeaving.value = false
-}
-
 watch(
   () => [props.modelValue, props.dish] as const,
   ([visible, dish]) => {
     if (!visible || !dish) {
-      resetFeedbackState()
+      backToInfo()
       clearAll()
       return
     }
+    imgFailed.value = false
     syncFromDish(dish)
-    resetFeedbackState()
+    backToInfo()
   },
   { immediate: true },
 )
 
 function openFeedback(): void {
-  if (successVisible.value) return
-  confirmOption.value = null
-  confirmLeaving.value = false
-  successLeaving.value = false
+  feedbackStage.value = 'pick'
+  selectedOption.value = null
   feedbackOpen.value = true
 }
 
-function closeFeedback(): void {
+function pickOption(option: IssueOptionOut): void {
+  selectedOption.value = option
+  feedbackStage.value = 'confirm'
+}
+
+function cancelPick(): void {
+  selectedOption.value = null
+  feedbackStage.value = 'pick'
+}
+
+/** 返回：滑回菜品信息页（Sheet 保持打开） */
+function backToInfo(): void {
+  selectedOption.value = null
+  feedbackStage.value = 'pick'
   feedbackOpen.value = false
 }
 
-function pickOption(option: IssueOptionOut): void {
-  if (feedbackDisabled.value || confirmOption.value) return
-  // 先按压回弹，再淡入确认气泡（时长见 SHEET.PRESS_MS）
-  setTimer(() => {
-    confirmOption.value = option
-  }, SHEET.PRESS_MS)
-}
-
-function cancelConfirm(): void {
-  if (issueBusy.value || confirmLeaving.value) return
-  confirmLeaving.value = true
-  setTimer(() => {
-    confirmOption.value = null
-    confirmLeaving.value = false
-  }, SHEET.CONFIRM_FADE_MS)
-}
-
 async function confirmSubmit(): Promise<void> {
-  const option = confirmOption.value
-  if (!option || issueBusy.value || confirmLeaving.value) return
+  const option = selectedOption.value
+  if (!option || issueBusy.value) return
   const ok = await submitIssue(option.id)
-  if (!ok) return
-  confirmLeaving.value = false
-  confirmOption.value = null
-  startSuccess()
-}
-
-function startSuccess(): void {
-  successVisible.value = true
-  successLeaving.value = false
-  setTimer(() => {
-    successLeaving.value = true
-    setTimer(() => {
-      successVisible.value = false
-      successLeaving.value = false
-      resetFeedbackState()
-    }, SHEET.SUCCESS_FADE_MS)
-  }, SHEET.SUCCESS_HOLD_MS)
+  if (ok) feedbackStage.value = 'success'
 }
 
 function playPop(): void {
@@ -158,37 +123,125 @@ function onToggleLike(): void {
 
 <template>
   <BaseSheet v-model="open" :mask="false">
-    <DishInfo
-      :dish="dish"
-      :like-busy="likeBusy"
-      :like-cooling="likeCooling"
-      :popping="popping"
-      @toggle-like="onToggleLike"
-      @open-feedback="openFeedback"
-    />
+    <!-- 菜品大图：固定不滑动；圆角与弹层顶角同半径 -->
+    <view class="dish-hero">
+      <image
+        v-if="dish?.imageUrl && !imgFailed"
+        class="dish-hero__img"
+        :src="dish.imageUrl"
+        mode="aspectFill"
+        @error="imgFailed = true"
+      />
+      <view v-else class="dish-hero__empty">
+        <ImagePlaceholder />
+      </view>
+    </view>
 
-    <FeedbackPanel
-      v-if="feedbackOpen"
-      :options="options"
-      :disabled="feedbackDisabled"
-      @pick-option="pickOption"
-      @close-feedback="closeFeedback"
-    />
+    <!-- 信息 / 纠错：横向滑动（两页等高，切换不改变弹层高度） -->
+    <view class="dish-slider">
+      <view
+        class="dish-slider__track"
+        :style="{ transform: feedbackOpen ? 'translateX(-100%)' : 'translateX(0)' }"
+      >
+        <view class="dish-slider__page">
+          <DishInfo
+            :dish="dish"
+            :like-busy="likeBusy"
+            :like-cooling="likeCooling"
+            :popping="popping"
+            @toggle-like="onToggleLike"
+            @open-feedback="openFeedback"
+          />
+        </view>
+
+        <view class="dish-slider__page" :aria-hidden="!feedbackOpen">
+          <FeedbackPanel
+            :options="options"
+            :stage="feedbackStage"
+            :selected="selectedOption"
+            :busy="issueBusy"
+            @pick="pickOption"
+            @cancel="cancelPick"
+            @confirm="confirmSubmit"
+            @back="backToInfo"
+          />
+        </view>
+      </view>
+    </view>
   </BaseSheet>
-
-  <!-- 轻确认气泡：奶米底、细棕描边、奶色遮罩 -->
-  <ConfirmBubble
-    :visible="confirmOption !== null"
-    :leaving="confirmLeaving"
-    :busy="issueBusy"
-    @submit="confirmSubmit"
-    @cancel="cancelConfirm"
-  />
-
-  <!-- 成功提示：奶米底、细棕描边、无图标 -->
-  <SheetToast
-    :visible="successVisible"
-    :leaving="successLeaving"
-    message="反馈已提交"
-  />
 </template>
+
+<style lang="scss" scoped>
+/* 大图：圆角矩形，与弹层边缘留等距 gap；圆角与弹层顶角同半径 ⇒ 同心圆弧 */
+.dish-hero {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 auto; /* 图片区不参与纵向压缩 */
+  margin: 0 var(--spacing-lg) var(--spacing-xs);
+  padding-bottom: 62%;
+  overflow: hidden;
+  background: var(--bg-placeholder);
+  border: 1rpx solid var(--border-color);
+  border-radius: var(--radius-modal);
+}
+
+.dish-hero__img {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dish-hero__empty {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 滑动视口：flex 容器高度取两页中较高者 ⇒ 切换时弹层高度不变（不用 grid，小程序兼容性更好） */
+.dish-slider {
+  flex: 0 0 auto; /* 滑块区也不参与压缩，避免与图片互相挤 */
+  overflow: hidden;
+}
+
+/* 轮播轨：宽 100%，两页各占 100% 并排，靠位移切换（比 width:200% + 50% 在小程序里更稳） */
+.dish-slider__track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  width: 100%;
+  transition: transform var(--duration-slow) var(--ease-out);
+  will-change: transform;
+}
+
+/* 每个滑块固定为「上块 / 虚线 / 下块」三段且高度写死：
+   两页同高、上下两块等分 ⇒ 虚线垂直居中，切换时位置完全一致。
+   左右 padding 与图片 gap 相同 ⇒ 文本左边缘与图片卡片左边缘对齐 */
+.dish-slider__page {
+  box-sizing: border-box;
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: 100%;
+  width: 100%;
+  min-width: 0;
+  /* 🔴 不用 flex 纵向分配：小程序里父高由内容决定时 `flex:1` 不分配空间，
+     会让两块内容贴在一起。改为自然流 + 各块自身 min-height 对齐。 */
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dish-slider__track {
+    transition: none;
+  }
+}
+</style>

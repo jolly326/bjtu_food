@@ -20,6 +20,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   saved: []
+  /** 删除入口在编辑界面内：上抛 id，二次确认与删除由视图侧收口 */
+  remove: [id: number]
 }>()
 
 const dialog = reactive({
@@ -135,6 +137,10 @@ async function onSave() {
       </select>
 
       <footer class="dialog__foot">
+        <button v-if="dialog.id" class="btn btn--danger" @click="emit('remove', dialog.id)">
+          删除
+        </button>
+        <span class="dialog__spacer" />
         <button class="btn btn--outline" @click="emit('update:modelValue', false)">取消</button>
         <button class="btn btn--primary" :disabled="saving" @click="onSave">
           {{ saving ? '保存中…' : '保存' }}

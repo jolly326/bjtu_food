@@ -71,7 +71,7 @@ function onLogout() {
             :aria-label="item.label"
           >
             <AppIcon :name="item.icon" :size="22" />
-            <span class="dock__dot" />
+            <span class="dock__bar" />
           </router-link>
         </template>
 
@@ -161,24 +161,31 @@ function onLogout() {
   overflow-y: auto;
 }
 
-/* ===== 底部应用坞（Dock 式全局导航：悬浮胶囊居中，见基线 §2.3）===== */
+/* ===== 底部应用坞（Dock 式全局导航：常驻水平居中，见基线 §2.3）===== */
+/* 🔴 left:0 + right:0 + flex 居中（不依赖 translateX(-50%)）：
+   视口宽度变化（滚动条出现 / 消失）时坞不产生横向位移，始终水平居中 */
 .layout__dock {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: calc(12px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  /* 容器横跨整屏但自身不吃事件，避免遮挡内容点击 */
+  pointer-events: none;
   z-index: 150;
 }
 
 .dock__wrap {
   display: flex;
   align-items: center;
-  justify-content: center; /* 坞内入口始终水平居中（窄屏见 safe center 兜底） */
   gap: 2px;
   padding: 6px;
   border-radius: 26px;
   background: var(--el-bg-color-overlay);
   box-shadow: var(--el-box-shadow-elevated);
+  /* 坞本体恢复点击 */
+  pointer-events: auto;
 }
 
 .dock__item {
@@ -239,19 +246,21 @@ function onLogout() {
   color: var(--el-color-primary);
 }
 
-.dock__dot {
+/* 激活指示：底部小横条（宽 > 高）—— 区别于「运行中」圆点语义 */
+.dock__bar {
   position: absolute;
   bottom: 3px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+  width: 16px;
+  height: 3px;
+  border-radius: var(--web-radius-pill);
   background: var(--el-color-primary);
   opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.dock__item--on .dock__dot {
+.dock__item--on .dock__bar {
   opacity: 1;
 }
 
@@ -295,12 +304,10 @@ function onLogout() {
     padding: 0 12px;
   }
   .layout__dock {
-    /* 维持基座的 left:50% + translateX(-50%) 居中，仅收窄底距；底缘让出系统手势条 */
+    /* 居中由基座的 left:0 + right:0 + flex 保证，窄屏仅收窄底距 */
     bottom: calc(8px + env(safe-area-inset-bottom));
   }
   .dock__wrap {
-    justify-content: center;
-    justify-content: safe center; /* 溢出时退化为起点对齐，保证首项可滚达（不支持 safe 的浏览器回退上一行） */
     gap: 0;
     padding: 4px 6px;
     max-width: calc(100vw - 16px);

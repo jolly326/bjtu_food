@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 运营端图标：与学生端同源的 **Streamline Plump（Flat）单色棕描边 SVG**（`assets/icons`，13 枚，CC BY 4.0；
+ * 运营端图标：与学生端同源的 **Streamline Plump（Flat）单色描边 SVG**（`assets/icons`，15 枚，CC BY 4.0；
  * 🔴「零消费即删」—— 新增前先全仓查引用，无消费的不入库，见 docs/ui/web/设计变量.md §2.4）。
- * SVG 使用显式 `stroke` ⇒ 直接注入渲染，无需运行时换色。
+ * SVG 的 `stroke` / `fill` 一律 `currentColor` ⇒ 图标跟随宿主 `color` 上色（激活态主色、占位态弱化色）。
  * 图标与尺寸口径见 docs/ui/web/公共组件与形态基线.md。
  */
 import { computed, ref, watchEffect } from 'vue'
@@ -25,7 +25,7 @@ const loaders = import.meta.glob('../assets/icons/*.svg', {
 
 const cache = new Map<string, string>()
 const svg = ref('')
-const FALLBACK_KEY = '../assets/icons/question.svg'
+const FALLBACK_KEY = '../assets/icons/help.svg'
 
 async function loadSvg(key: string): Promise<string> {
   const load = loaders[key]
