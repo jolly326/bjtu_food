@@ -15,6 +15,6 @@
     "768px"
   ],
   "files": {
-    "src/components/base/BaseSheet.vue": ["8rpx", "72rpx"]
+    "src/components/BaseSheet.vue": ["8rpx", "72rpx"]
   }
 }

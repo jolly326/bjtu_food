@@ -25,6 +25,7 @@ router = APIRouter(prefix="/admin/stalls", tags=["admin-stall"])
 class StallSaveIn(InModel):
     canteen_id: int
     name: str
+    activate: bool = True
     floor: str | None = None
     window_no: str | None = None
 
@@ -34,6 +35,7 @@ class StallOut(OutModel):
     canteen_id: int
     canteen_name: str
     name: str
+    activate: bool
     floor: str | None = None
     window_no: str | None = None
     dish_count: int
@@ -46,6 +48,7 @@ def _to_out(row) -> StallOut:
         canteen_id=row.canteen_id,
         canteen_name=row.canteen_name,
         name=row.name,
+        activate=row.activate,
         floor=row.floor,
         window_no=row.window_no,
         dish_count=row.dish_count,

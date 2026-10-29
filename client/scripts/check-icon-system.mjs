@@ -2,14 +2,12 @@
  * 图标体系门禁 —— 保证「全站同一套图标 + 统一尺寸档位」不漂移。
  *
  * 校验项（任一不通过即退出码 1）：
- *  1. **单一来源**：`AppIcon` 的 `ICONS` 表是唯一图标真源；全仓不得出现内联 `<svg>`、
+ *  1. **单一来源**：`src/theme/icons.ts` 的 `ICONS` 表是唯一图标真源；全仓不得出现内联 `<svg>`、
  *     图标字体（`@font-face` / `iconfont`）、emoji 图标、以 `content:'+'` 充当图标的写法。
  *  2. **图标键已登记**：`<AppIcon name="…">` 的**静态字面量**名必须在 `ICONS` 键表内
- *     （否则运行时会静默回退到 `empty` 兜底图标，肉眼难发现）。
+ *     （否则运行时会静默回退到 `question` 兜底图标，肉眼难发现）。
  *  3. **尺寸档位合规**：`size` 数值必须落在 `docs/ui/client/公共组件与形态基线.md` §1.8
  *     登记的档位表内，或落在「按宿主盒对齐」的例外档（`HOST_BOX_SIZES`）。
- *  4. **颜色为实色**：`color` 不得为 `currentColor` / `var(...)` —— SVG data-uri 是独立文档，
- *     两者都会被回退成兜底近黑。
  *
  * 动态名（`:name="expr"`）无法静态判定，只做提示不失败；其合法性由对应数据源单测覆盖。
  *
@@ -38,9 +36,6 @@ const HOST_BOX_SIZES = new Set([30, 52, 56, 60, 120, 200])
  * 与 AppIcon 键表同名的none/success 不参与图标键校验。
  */
 const SHOW_TOAST_ICONS = new Set(['none', 'success', 'error', 'loading'])
-
-/** 预生成色调（与 scripts/gen-icons.mjs、docs/ui/client/图标资源.md 一致） */
-const TONES = new Set(['default', 'primary', 'muted'])
 
 const errors = []
 const warns = []
@@ -98,7 +93,7 @@ for (const file of files) {
     // name：静态字面量必须已登记。前置 `:` 是 `:name` 绑定（不是静态名）⇒ 负向前瞻排除
     const nameStatic = tag.body.match(/(?<![:\w-])name="([a-z-]+)"/)
     if (nameStatic) {
-      if (!iconKeys.has(nameStatic[1])) fail(file, at, `图标键 "${nameStatic[1]}" 未在 AppIcon ICONS 表登记`)
+      if (!iconKeys.has(nameStatic[1])) fail(file, at, `图标键 "${nameStatic[1]}" 未在 icons.ts 的 ICONS 表登记`)
     } else if (/:name=/.test(tag.body)) {
       warns.push(`${relative(ROOT, file)}:${at}  动态图标名（需由数据源单测保证合法）：${tag.body.match(/:name="([^"]*)"/)?.[1] ?? ''}`)
     }
@@ -113,11 +108,6 @@ for (const file of files) {
       }
     }
 
-    // tone：必须落在预生成着色变体表（见 docs/ui/client/图标资源.md）
-    const toneStatic = tag.body.match(/(?<![:\w-])tone="([a-z]+)"/)
-    if (toneStatic && !TONES.has(toneStatic[1])) {
-      fail(file, at, `tone="${toneStatic[1]}" 不在预生成色调表（${[...TONES].join('/')}）`)
-    }
   })
 }
 
@@ -143,7 +133,7 @@ for (const file of files) {
     // 校验独立出现的 icon: / icon= 赋值（负向前瞻排除带前缀的 toastIcon / fieldIcon 等其它标识符）
     for (const m of line.matchAll(/(?<![A-Za-z])icon\s*[:=]\s*'([a-z][a-z-]*)'/g)) {
       if (SHOW_TOAST_ICONS.has(m[1])) continue
-      if (!iconKeys.has(m[1])) fail(file, i + 1, `数据源里的图标名 "${m[1]}" 未在 ICONS 表登记`)
+      if (!iconKeys.has(m[1])) fail(file, i + 1, `数据源里的图标名 "${m[1]}" 未在 icons.ts 的 ICONS 表登记`)
     }
     for (const m of line.matchAll(/'([a-z][a-z-]*)'/g)) {
       // 只看像图标键的 token：命中 ICONS 视为已登记；不在 ICONS 且长得像图标语义的一律拦下
@@ -161,8 +151,8 @@ for (const file of files) {
     if (new RegExp(`name="\\s*${k}"|'${k}'|"${k}"`).test(src)) consumed.add(k)
   }
 }
-// empty 是未知图标名的兜底回退目标（由 AppIcon 内部引用，非模板消费）
-consumed.add('empty')
+// question 是未知图标名的兜底回退目标（由 AppIcon 内部引用，非模板消费）
+consumed.add('question')
 const unused = [...iconKeys].filter((k) => !consumed.has(k))
 if (unused.length) {
   warns.push(
@@ -171,7 +161,7 @@ if (unused.length) {
 }
 
 // ---- 输出 ----
-console.log(`[图标体系] 图标键 ${iconKeys.size} 个（业务 ${iconKeys.size - 1} + 兜底 empty）`)
+console.log(`[图标体系] 图标键 ${iconKeys.size} 个`)
 console.log(`[图标体系] AppIcon 使用点 ${usageCount} 处；尺寸档 ${[...usedSizes].sort((a, b) => a - b).join('/')}`)
 if (warns.length) {
   console.log(`[图标体系] 动态图标名 ${warns.length} 处（不失败，需数据源单测覆盖）：`)
@@ -182,4 +172,4 @@ if (errors.length) {
   for (const e of errors) console.error(`  · ${e}`)
   process.exit(1)
 }
-console.log('✓ 图标体系一致：单一来源 / 图标键已登记 / 尺寸档合规 / 颜色实色')
+console.log('✓ 图标体系一致：单一来源 / 图标键已登记 / 尺寸档合规')

@@ -559,19 +559,19 @@
             }
           },
           {
-            "name": "status",
+            "name": "activate",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "boolean"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Status"
+              "title": "Activate"
             }
           },
           {
@@ -588,6 +588,25 @@
                 }
               ],
               "title": "Page"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "description": "名称模糊匹配",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name",
+              "maxLength": 64,
+              "minLength": 1
             }
           },
           {
@@ -1647,6 +1666,10 @@
               }
             ],
             "title": "Handledat"
+          },
+          "dishFeedbackCount": {
+            "title": "Dishfeedbackcount",
+            "type": "integer"
           }
         },
         "type": "object",
@@ -1658,7 +1681,8 @@
           "stallName",
           "optionName",
           "createdAt",
-          "handledAt"
+          "handledAt",
+          "dishFeedbackCount"
         ],
         "title": "DishIssueOut"
       },
@@ -1719,10 +1743,6 @@
             ],
             "title": "Imageurl"
           },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
           "likeCount": {
             "type": "integer",
             "title": "Likecount"
@@ -1730,6 +1750,10 @@
           "updatedAt": {
             "type": "string",
             "title": "Updatedat"
+          },
+          "activate": {
+            "title": "Activate",
+            "type": "boolean"
           }
         },
         "type": "object",
@@ -1739,7 +1763,7 @@
           "stallName",
           "canteenName",
           "name",
-          "status",
+          "activate",
           "likeCount",
           "updatedAt"
         ],
@@ -1766,10 +1790,10 @@
             ],
             "title": "Imageurl"
           },
-          "status": {
-            "type": "string",
-            "title": "Status",
-            "default": "on"
+          "activate": {
+            "default": true,
+            "title": "Activate",
+            "type": "boolean"
           }
         },
         "additionalProperties": false,

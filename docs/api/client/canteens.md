@@ -18,5 +18,6 @@
 |---|---|---|---|
 | `id` | number | 否 | 食堂 ID（端上回传 `canteenId`） |
 | `name` | string | 否 | 食堂名称 |
+| `activate` | boolean | 否 | 食堂状态：`true` 正常 / `false` 已停用 |
 
 > 列定义见 [`schema/canteen.md`](../../schema/canteen.md)。

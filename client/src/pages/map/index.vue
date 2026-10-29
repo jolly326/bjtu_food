@@ -9,13 +9,18 @@ import { onMounted, onUnmounted, ref } from 'vue'
 
 import { dishApi, issueApi } from '@/api'
 import type { DishVO, IssueOptionOut } from '@/api'
-import PageLoading from '@/components/base/PageLoading.vue'
-import RetryBlock from '@/components/base/RetryBlock.vue'
+import PageLoading from '@/components/PageLoading.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
+import { topSafeArea } from '@/utils/safeArea'
+import { windowSize } from '@/utils/viewport'
 import { uniqueById } from '@/utils/dishBatch'
 import { abortAllRequests, isAbortedRequest } from '@/utils/request'
-import { useTheme } from '@/utils/theme'
+import { useTheme } from '@/theme'
 import DishSheet from './components/DishSheet.vue'
 import FoodMap from './components/FoodMap.vue'
+
+/** 顶部安全区（状态栏 + 胶囊）：画布内容起始避让，依赖窗口宽读一次即可 */
+const safeTop = topSafeArea(windowSize().width).total
 
 const theme = useTheme()
 
@@ -59,15 +64,19 @@ onUnmounted(abortAllRequests)
 </script>
 
 <template>
-  <view class="map-page" :data-theme="theme">
-    <PageLoading v-if="loading" />
-    <RetryBlock v-else-if="failed" @retry="load" />
-    <FoodMap v-else :dishes="dishes" @pick="openSheet" />
+  <view class="map-page" :data-theme="theme" :style="{ paddingTop: `${safeTop}px` }">
+    <view class="map-page__body">
+      <PageLoading v-if="loading" />
+      <RetryBlock v-else-if="failed" @retry="load" />
+      <FoodMap v-else :dishes="dishes" @pick="openSheet" />
+    </view>
     <DishSheet v-model="sheetOpen" :dish="selected" :options="options" @change="onDishChange" />
   </view>
 </template>
 
 <style lang="scss" scoped>
+/* 页面底色唯一承载处是 `page{}`（styles/global.scss），此处 SHALL NOT 重复声明（基线 §1.1）；
+   顶部 `padding-top` 让画布避开状态栏与右上角胶囊（见 utils/safeArea.ts） */
 .map-page {
   position: fixed;
   top: 0;
@@ -75,8 +84,17 @@ onUnmounted(abortAllRequests)
   bottom: 0;
   left: 0;
   display: flex;
+  box-sizing: border-box;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-page);
+}
+
+/* 画布 / 加载 / 失败块的内容区：撑满剩余高度，并作为 FoodMap 绝对定位的包含块 */
+.map-page__body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
 }
 </style>

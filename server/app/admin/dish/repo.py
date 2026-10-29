@@ -22,7 +22,7 @@ class DishRow:
     canteen_name: str
     name: str
     image: str | None
-    status: str
+    activate: bool
     like_count: int
     updated_at: str
 
@@ -35,7 +35,7 @@ def _to_row(dish: Dish, stall_name: str, canteen_name: str) -> DishRow:
         canteen_name=canteen_name,
         name=dish.name,
         image=to_absolute(dish.image),
-        status=dish.status,
+        activate=dish.activate,
         like_count=dish.like_count,
         updated_at=format_dt(dish.updated_at) or "",
     )
@@ -60,7 +60,8 @@ def list_page(
     *,
     stall_id: int | None,
     canteen_id: int | None,
-    status: str | None,
+    activate: bool | None,
+    name: str | None,
     page: int,
     size: int,
 ) -> tuple[list[DishRow], int]:
@@ -74,8 +75,10 @@ def list_page(
         stmt = stmt.where(Dish.stall_id == stall_id)
     if canteen_id is not None:
         stmt = stmt.where(Stall.canteen_id == canteen_id)
-    if status is not None:
-        stmt = stmt.where(Dish.status == status)
+    if activate is not None:
+        stmt = stmt.where(Dish.activate == activate)
+    if name:
+        stmt = stmt.where(Dish.name.like(f"%{name}%"))
 
     count_stmt = select(func.count(Dish.id)).select_from(Dish).join(
         Stall, Stall.id == Dish.stall_id
@@ -84,8 +87,10 @@ def list_page(
         count_stmt = count_stmt.where(Dish.stall_id == stall_id)
     if canteen_id is not None:
         count_stmt = count_stmt.where(Stall.canteen_id == canteen_id)
-    if status is not None:
-        count_stmt = count_stmt.where(Dish.status == status)
+    if activate is not None:
+        count_stmt = count_stmt.where(Dish.activate == activate)
+    if name:
+        count_stmt = count_stmt.where(Dish.name.like(f"%{name}%"))
     total = session.scalar(count_stmt)
 
     pairs = session.execute(stmt.offset((page - 1) * size).limit(size)).all()

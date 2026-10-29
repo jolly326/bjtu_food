@@ -23,8 +23,25 @@
 | 区块 | 口径 |
 |---|---|
 | 顶部安全区 | `max(statusBarHeight, env(safe-area-inset-top))`（画布内容起始避让） |
-| 主内容区 | 全屏 `DishMap` 画布（`flex: 1` + `min-height: 0`） |
+| 主内容区 | 全屏 `FoodMap` 画布（`flex: 1` + `min-height: 0`） |
 | 底部弹窗层 | `DishSheet`（点磁贴唤起，见 [美食地图.md](./美食地图.md) §3） |
-| 页面底色 | `--bg-page` = **`#FFFFFF`**（纯白，🔴 全站统一；单页沉浸） |
+| 页面底色 | `--bg-page` = **`#FFFAF3`**（奶米纸色，🔴 全站统一；单页沉浸） |
 
 > 🔴 **视觉语言（Q 版动森（圆润厚实 · 轻拟物））见 [公共组件与形态基线.md](./公共组件与形态基线.md) §0** —— 所有页面 / 组件严格遵循；页面级视觉取值见 [设计变量.md](./设计变量.md)，跨页形态口径与组件规格见 [公共组件与形态基线.md](./公共组件与形态基线.md)。**页面稿只写「本页用法」，不复述基线规格。**
+
+---
+
+## 客户端架构说明（优化版）
+
+- **单页面**：仅 `pages/map/index.vue`
+- **组件拆分**：
+  - `components/`：AppIcon、BaseSheet、ImagePlaceholder、PageLoading、RetryBlock 等跨页公共组件
+  - `pages/map/components/DishInfo.vue`：菜品信息、点赞、纠错入口
+  - `pages/map/components/FeedbackPanel.vue`：纠错选项分页
+  - `pages/map/components/ConfirmBubble.vue`：轻确认气泡
+  - `pages/map/components/SheetToast.vue`：成功提示
+  - `pages/map/components/FoodMap.vue`：画布、错位方格、缩放、点击判定
+  - `pages/map/components/SheetPill.vue`：复用胶囊按钮
+  - `pages/map/components/DishSheet.vue`：组合器（只组装子组件，不持有业务状态）
+- **目录结构**：`components/`（跨页公共件）· `pages/map/components/`（页面私有件）· `theme/`（设计变量与图标）· `hooks/` · `utils/` · `constants.ts` · `types/generated/api.d.ts`
+- **架构原则**：单一责任、魔法数字集中于 `constants.ts`、动画 / 定时器统一清理、契约真源（docs 优先）

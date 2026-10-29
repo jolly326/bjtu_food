@@ -25,6 +25,8 @@ def _validate(payload) -> None:
         raise BadRequest("档口名称不能为空")
     if payload.floor and payload.floor not in FLOOR_VALUES:
         raise BadRequest("楼层取值不合法")
+    if not isinstance(payload.activate, bool):
+        raise BadRequest("activate 必须为布尔值")
 
 
 def _ensure_name_unique(
@@ -52,6 +54,7 @@ def create(session: Session, *, payload) -> StallRow:
     stall = Stall(
         canteen_id=payload.canteen_id,
         name=payload.name.strip(),
+        activate=payload.activate,
         floor=payload.floor,
         window_no=payload.window_no,
     )
@@ -74,6 +77,18 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
 
     stall.canteen_id = payload.canteen_id
     stall.name = payload.name.strip()
+
+    if not payload.activate:
+        # RESTRICT：停用档口前，子级须无启用中的菜品
+        active_dish_count = session.scalar(
+            select(func.count()).select_from(Dish).where(
+                Dish.stall_id == stall.id, Dish.activate == True
+            )
+        )
+        if active_dish_count:
+            raise BadRequest("该档口下仍有启用中的菜品，请先停用菜品")
+
+    stall.activate = payload.activate
     stall.floor = payload.floor
     stall.window_no = payload.window_no
     session.flush()

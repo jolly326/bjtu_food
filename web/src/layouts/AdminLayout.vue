@@ -3,7 +3,7 @@
  * 运营端布局（知行食记 · 运营端）：
  * - 顶层固定导航栏：品牌名 知行食记（无衬线圆体）+ 日期；右侧操作员用户名文本（弱化，非按钮）
  * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.3）：
- *   六个功能入口（主数据组 ｜ 反馈组，分组分隔线）+ 分隔线 + 退出登录；
+ *   四个功能入口（主数据组：食堂 / 档口 / 菜品 ｜ 反馈组：纠错处理，分组分隔线）+ 分隔线 + 退出登录；
  *   悬停放大上浮 + 名称气泡、激活项主色 + 圆点指示；桌面 / 移动同构（无隐藏态）
  * - 内容区（滚动）：底部留白让出应用坞，防遮挡
  */
@@ -29,9 +29,7 @@ const MENUS: DockItem[] = [
   { path: '/canteens', label: '食堂', icon: 'buildings', sep: false },
   { path: '/stalls', label: '档口', icon: 'storefront', sep: false },
   { path: '/dishes', label: '菜品', icon: 'fork-knife', sep: false },
-  { path: '/feedback', label: '反馈数据', icon: 'heart', sep: true },
-  { path: '/issues', label: '纠错处理', icon: 'flag', sep: false },
-  { path: '/options', label: '纠错选项', icon: 'list-checks', sep: false },
+  { path: '/issues', label: '纠错处理', icon: 'flag', sep: true },
 ]
 
 const now = computed(() => {

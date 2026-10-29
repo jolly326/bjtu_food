@@ -1,6 +1,9 @@
 """应用配置。
 
-变量真源是 ``server/.env``（已 gitignore）。数据库连接接受两组等价变量名，任填一套即可：
+变量真源是 ``server/.env``（已 gitignore）。本地开发可在 ``server/.env.local`` 写差异项，
+后者在 ``.env`` 之后加载、覆盖前者；进程环境变量优先级最高（云端控制台注入即生效）。
+
+数据库连接接受两组等价变量名，任填一套即可：
 
 * ``DATABASE_URL`` / ``DATABASE_USER`` / ``DATABASE_PASSWORD``
 * ``SPRING_DATASOURCE_URL`` / ``SPRING_DATASOURCE_USERNAME`` / ``SPRING_DATASOURCE_PASSWORD``
@@ -11,18 +14,26 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import quote
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_DB_NAME = "bjtu_food"
 
+# 环境文件锚定到 server/，与启动时的工作目录无关
+_SERVER_DIR = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
     """环境变量 -> 配置对象（字段名即环境变量名，大小写不敏感）。"""
 
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=(
+            str(_SERVER_DIR / ".env"),
+            str(_SERVER_DIR.parent / ".env"),
+            str(_SERVER_DIR / ".env.local"),
+        ),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,

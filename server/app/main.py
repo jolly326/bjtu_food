@@ -10,6 +10,13 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):
+    # 以脚本方式直接执行时 sys.path 只有脚本所在目录（app/），`app.*` 绝对导入无从解析 ⇒ 补上 server 根。
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -251,3 +258,20 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+
+if __name__ == "__main__":
+    # 脚本方式直接启动（等价 `uvicorn app.main:app`）：单 worker —— 限频计数在进程内（docs/secur/S-03）。
+    import os
+
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        # 脚本形态面向本地开发：默认只监听回环；容器形态的 0.0.0.0 由 Dockerfile 的 CMD 显式给出
+        host=os.environ.get("HOST", "127.0.0.1"),
+        # 本地统一 8000（与 client/.env.development、docs 的本地启动命令一致）；容器由 CMD 传 $PORT
+        port=int(os.environ.get("PORT", "8000")),
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+    )

@@ -13,18 +13,17 @@ def list_options(session: Session) -> list[DishIssueOption]:
     return list(session.scalars(stmt))
 
 
-def find_unhandled(
+def exists_any(
     session: Session, *, student_id: int, dish_id: int, option_id: int
-) -> DishIssue | None:
-    """同人 + 同菜 + 同选项的**未处理**记录（用于幂等）。"""
+) -> bool:
+    """同人 + 同菜 + 同选项是否存在任意提交记录（仅用于统计，不做去重）。"""
     stmt = (
-        select(DishIssue)
+        select(DishIssue.id)
         .where(
             DishIssue.user_id == student_id,
             DishIssue.dish_id == dish_id,
             DishIssue.option_id == option_id,
-            DishIssue.handled_at.is_(None),
         )
         .limit(1)
     )
-    return session.scalar(stmt)
+    return session.scalar(stmt) is not None

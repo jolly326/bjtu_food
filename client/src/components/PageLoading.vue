@@ -7,10 +7,10 @@
  * - **主题跟随全局**：根节点自带 `data-theme`（`useTheme` 模块级单例），
  *   首屏加载时夜间模式同样生效。
  * - 居中「旋转图标 + 无衬线圆体文案」，规格**对齐空态块**：图标 64rpx `muted`（🔴 不上主题色、低透明度），
- *   文案 `--font-h2` 无衬线圆体 regular；图标本体以 `--duration-spin` 匀速旋转（无外围圆环），并叠加轻微 Q 弹呼吸。
+ *   文案 `--font-h2` 无衬线圆体 regular；图标本体以 `--duration-spin` 匀速旋转（无外围圆环）。
  */
 import AppIcon from './AppIcon.vue'
-import { useTheme } from '@/utils/theme'
+import { useTheme } from '@/theme'
 
 defineOptions({ options: { virtualHost: true } })
 
@@ -28,7 +28,7 @@ withDefaults(
 <template>
   <view class="page-loading" :data-theme="theme">
     <view class="page-loading__icon">
-      <AppIcon name="arrows-clockwise" :size="64" tone="muted" />
+      <AppIcon name="arrows-clockwise" :size="64" />
     </view>
     <text class="page-loading__text">{{ text }}</text>
   </view>
@@ -46,15 +46,14 @@ withDefaults(
   min-height: 0;
 }
 
-/* 外层做 Q 弹呼吸（缩放过冲），内部图标本体旋转（见 :deep）；两者叠加不死板 */
+/* 只有图标本体匀速旋转 —— 不叠额外的呼吸 / 缩放动效（基线 §2.1.7） */
 .page-loading__icon {
   display: flex;
   margin-bottom: var(--spacing-xs);
   opacity: 0.55;
-  animation: page-loading-bob 1.6s var(--ease-bounce) infinite;
 }
 
-.page-loading__icon :deep(.app-icon) {
+.page-loading__icon :deep(.icon) {
   animation: page-loading-rotate var(--duration-spin) linear infinite;
 }
 
@@ -77,19 +76,8 @@ withDefaults(
   }
 }
 
-@keyframes page-loading-bob {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-}
-
-/* 🔴 尊重 reduced-motion：旋转与呼吸一并关闭 */
+/* 🔴 尊重 reduced-motion：旋转一并关闭 */
 @media (prefers-reduced-motion: reduce) {
-  .page-loading__icon,
   .page-loading__icon :deep(.icon) {
     animation: none;
   }

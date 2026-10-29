@@ -10,7 +10,7 @@ import CardActionSheet from '@/components/CardActionSheet.vue'
 import { useCardMenu } from '@/composables/useCardMenu'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { usePagedList } from '@/composables/usePagedList'
+import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
 import { canteenApi, stallApi, type StallBody, type StallOut } from '@/api'
 
 const FLOORS = ['负一层', '一层', '二层', '三层', '四层']
@@ -121,7 +121,7 @@ onMounted(async () => {
   await load()
 })
 
-/** 长按浮层（编辑 / 删除）：卡面无操作按钮 */
+/** 点击浮层（编辑 / 删除）：卡面无操作按钮 */
 const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
 </script>
 
@@ -135,15 +135,15 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
     </header>
 
     <div class="filters">
-      <select
+      <el-select
         v-model="filter.canteenId"
         class="filters__select"
-        aria-label="按食堂筛选"
+        placeholder="全部食堂"
+        clearable
         @change="reload"
       >
-        <option :value="undefined">全部食堂</option>
-        <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
-      </select>
+        <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
+      </el-select>
     </div>
 
     <div class="list-card-wrap">
@@ -153,7 +153,7 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
         class="list-card"
         tabindex="0"
         aria-haspopup="menu"
-        v-bind="cardMenu.pressAttrs(row, { title: row.name })"
+        v-bind="cardMenu.openAttrs(row, { title: row.name })"
       >
         <div class="list-card__main">
           <div class="list-card__title">
@@ -175,7 +175,14 @@ const cardMenu = useCardMenu<StallOut>({ onEdit, onRemove })
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
-      <PaginationBar :page="page" :has-next="hasNext" @prev="go(page - 1)" @next="go(page + 1)" />
+      <PaginationBar
+        :page="page"
+        :has-next="hasNext"
+        :total-pages="Math.ceil(total / PAGE_SIZE)"
+        @prev="go(page - 1)"
+        @next="go(page + 1)"
+        @go="go"
+      />
     </footer>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">

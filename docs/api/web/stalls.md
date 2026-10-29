@@ -19,6 +19,7 @@
 | `canteenId` | number | 否 | 所属食堂 |
 | `canteenName` | string | 否 | 所属食堂名 |
 | `name` | string | 否 | 档口名称 |
+| `activate` | boolean | 否 | 档口状态：`true` 正常 / `false` 已停用 |
 | `floor` | string | **是** | 楼层（受控字典） |
 | `windowNo` | string | **是** | 窗口号 |
 | `dishCount` | number | 否 | 菜品数（只读统计） |
@@ -28,7 +29,7 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `{ canteenId, name, floor?, windowNo? }` |
+| 入参 | `{ canteenId, name, activate?, floor?, windowNo? }` —— `activate` 缺省 `true` |
 | 出参 | `StallVO` |
 | 错误码 | `400` `canteenId` / `name` 缺失 ｜ **同食堂下同名已存在** ｜ `4001` 食堂不存在 |
 
@@ -38,7 +39,7 @@
 |---|---|
 | 入参 | 同 `POST` |
 | 出参 | `StallVO` |
-| 错误码 | `400` 同食堂下同名已存在 ｜ `4001` 档口不存在 |
+| 错误码 | `400` 同食堂下同名已存在 / 停用时存在启用中的菜品 ｜ `4001` 档口不存在 |
 
 ## `DELETE /admin/stalls/{id}`
 

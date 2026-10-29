@@ -12,15 +12,16 @@
  * 的错误、不自动重试；信封 `{code,message,data}` 中 `code !== 200` 视为业务失败。
  */
 
+import { REQUEST, STORAGE } from '@/constants'
 import { CODE_RATE_LIMITED, parseRetrySeconds } from './backoff'
 
-const TOKEN_KEY = 'student_token'
+const TOKEN_KEY = STORAGE.STUDENT_TOKEN
 const TCB_ENV = ((import.meta.env.VITE_TCB_ENV as string | undefined) ?? '').trim()
 const TCB_SERVICE = ((import.meta.env.VITE_TCB_SERVICE as string | undefined) ?? '').trim()
 const BASE_URL = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').trim()
 
 /** 请求超时（毫秒）：避免慢请求悬挂 */
-const REQUEST_TIMEOUT_MS = 15000
+const REQUEST_TIMEOUT_MS = REQUEST.TIMEOUT_MS
 
 /** 是否走云调用（配了环境 ID 即启用） */
 const USE_CLOUD = Boolean(TCB_ENV)
@@ -32,10 +33,24 @@ function devError(...args: unknown[]): void {
   if (IS_DEV) console.error(...args)
 }
 
-if (!USE_CLOUD && !BASE_URL) {
-  devError(
-    '[request] 既未配置 VITE_TCB_ENV（云调用）也未配置 VITE_API_BASE_URL（直连），请求无法发出',
-  )
+if (IS_DEV) {
+  // 构建期内联：环境一旦配置错，页面首请求失败前先看这条日志就能定位（本地 / 云端两套 env 见 client/.env.*）
+  if (USE_CLOUD) {
+    console.info(`[request] 通道 = 云调用 wx.cloud.callContainer（env=${TCB_ENV}，服务=${TCB_SERVICE || '默认'}）`)
+  } else if (BASE_URL) {
+    console.info(`[request] 通道 = 直连 ${BASE_URL}`)
+    if (BASE_URL.startsWith('http://')) {
+      devError(
+        '[request] 直连地址是 http：仅可用于开发者工具（勾「不校验合法域名」）与真机调试，' +
+          '模拟器请填 127.0.0.1、真机请填本机局域网 IP —— 体验版 / 正式版一律不可下发',
+      )
+    }
+  } else {
+    devError(
+      '[request] 既未配置 VITE_TCB_ENV（云调用）也未配置 VITE_API_BASE_URL（直连），请求无法发出 —— ' +
+        '检查 client/.env.development（本地）与 client/.env.production（云端）是否存在并被当前 mode 命中',
+    )
+  }
 }
 
 type Envelope<T> = { code: number; message: string; data: T | null }

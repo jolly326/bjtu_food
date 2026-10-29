@@ -1,4 +1,4 @@
-"""运营端纠错处置（docs/func/web/B2-纠错查看.md、docs/api/web/issues.md）。
+"""运营端纠错处置（docs/func/web/B-反馈与纠错/B1-纠错查看与选项字典.md、docs/api/web/issues.md）。
 
 端点：
     GET   /admin/dish-issues?handled=&dishId=   分页（默认只查未处理）
@@ -35,6 +35,7 @@ class DishIssueOut(OutModel):
     option_name: str
     created_at: str
     handled_at: str | None
+    dish_feedback_count: int
 
 
 @router.get("/dish-issues", response_model=Envelope[AdminPageResult[DishIssueOut]], summary="纠错列表")
@@ -61,6 +62,7 @@ def list_issues(
                 option_name=r.option_name,
                 created_at=r.created_at,
                 handled_at=r.handled_at,
+                dish_feedback_count=r.dish_feedback_count,
             )
             for r in rows
         ],

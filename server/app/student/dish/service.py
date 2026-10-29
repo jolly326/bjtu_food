@@ -61,7 +61,7 @@ def list_for_map(session: Session, *, student_id: int) -> list[DishVO]:
 def toggle_like(session: Session, *, student_id: int, dish_id: int) -> DishLikeOut:
     """两态点赞 toggle（docs/func/client/B1-点赞反馈.md）。"""
     dish = session.get(Dish, dish_id)
-    if dish is None or dish.status != "on":
+    if dish is None or dish.activate != True:
         raise NotFound("菜品不存在或已下架")
     liked, like_count = repo.toggle_like(session, student_id=student_id, dish_id=dish_id)
     # 点赞数变化后使全量菜品缓存失效，避免二次进入地图看到旧计数

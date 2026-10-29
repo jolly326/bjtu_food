@@ -9,6 +9,7 @@
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 档口 ID |
 | `canteen_id` | BIGINT | NO | 无 | KEY, FK→canteen | 所属食堂；**必填、无默认值**（不用 `0` 占位） |
 | `name` | VARCHAR(32) | NO | `''` | | 档口名称 |
+| `activate` | BOOLEAN | NO | `TRUE` | | 档口状态：`TRUE` 正常 / `FALSE` 已停用 |
 | `floor` | VARCHAR(8) | YES | NULL | | 楼层（受控字典，值即汉字：`负一层`…`四层`） |
 | `window_no` | VARCHAR(16) | YES | NULL | | 窗口号 |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参） |
@@ -40,8 +41,7 @@
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
 | N→1 | `canteen.id` | 所属食堂 | 无级联（外键 `fk_stall_canteen`） |
-| 1→n | `dish.stall_id` | 该档口的菜品 | **无外键**（档口有独立维护语义，见 [dish.md](./dish.md)） |
-| 1→n | `dish.stall_id` | 该档口的菜品 | **无外键**（档口有独立维护语义，见 [dish.md](./dish.md)） |
+| 1→n | `dish.stall_id` | 该档口的菜品 | **`ON DELETE RESTRICT`**（有菜品引用的档口不能删除） |
 
 ## 注意事项
 

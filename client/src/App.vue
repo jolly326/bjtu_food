@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 全局入口：样式挂载 + 主题初始化（读取持久化的明暗选择）
 import { onLaunch } from '@dcloudio/uni-app'
-import { initTheme } from '@/utils/theme'
+import { initTheme } from '@/theme'
 
 onLaunch(initTheme)
 </script>

@@ -21,7 +21,8 @@ export type DishBody = {
   stallId: number
   name: string
   imageUrl?: string | null
-  status: string
+  /** 上架状态：true 在售 / false 已下架（列名 activate，见 schema/dish.md） */
+  activate: boolean
 }
 export type DishOut = DishBody & {
   id: number
@@ -41,6 +42,8 @@ export type IssueOut = {
   optionName: string
   createdAt: string
   handledAt: string | null
+  /** 该菜当前待处理纠错条数（服务端聚合；列表按它降序优先） */
+  dishFeedbackCount: number
 }
 
 export type OptionOut = { id: number; name: string; refCount: number; updatedAt: string }

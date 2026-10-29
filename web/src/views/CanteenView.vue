@@ -10,7 +10,7 @@ import CardActionSheet from '@/components/CardActionSheet.vue'
 import { useCardMenu } from '@/composables/useCardMenu'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { usePagedList } from '@/composables/usePagedList'
+import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
 import { canteenApi, type CanteenOut } from '@/api'
 
 const dialog = reactive({ visible: false, id: 0 as number, name: '' })
@@ -74,7 +74,7 @@ async function onRemove(row: CanteenOut) {
   }
 }
 
-/** 长按浮层（编辑 / 删除）：卡面无操作按钮 */
+/** 点击浮层（编辑 / 删除）：卡面无操作按钮 */
 const cardMenu = useCardMenu<CanteenOut>({ onEdit, onRemove })
 
 onMounted(load)
@@ -96,7 +96,7 @@ onMounted(load)
         class="list-card"
         tabindex="0"
         aria-haspopup="menu"
-        v-bind="cardMenu.pressAttrs(row, { title: row.name })"
+        v-bind="cardMenu.openAttrs(row, { title: row.name })"
       >
         <div class="list-card__main">
           <h3 class="list-card__title">
@@ -116,7 +116,13 @@ onMounted(load)
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
-      <PaginationBar :page="page" :has-next="hasNext" @prev="go(page - 1)" @next="go(page + 1)" />
+      <PaginationBar
+        :page="page"
+        :has-next="hasNext"
+        :total-pages="Math.ceil(total / PAGE_SIZE)"
+        @prev="go(page - 1)"
+        @next="go(page + 1)"
+      />
     </footer>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">

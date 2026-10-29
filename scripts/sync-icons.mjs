@@ -1,7 +1,7 @@
 /**
  * 图标同步：把学生端 `client/src/assets/icons/*.svg` 同步到运营端 `web/src/assets/icons/`。
  *
- * 两端图标同源（Phosphor 精选子集），避免手工双改导致漂移。
+ * 两端图标同源（Streamline Plump · Flat 单色棕描边子集），避免手工双改导致漂移。
  * 用法：node scripts/sync-icons.mjs
  */
 import { copyFileSync, mkdirSync, readdirSync } from 'node:fs'

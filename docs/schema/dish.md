@@ -7,10 +7,10 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 菜品 ID |
-| `stall_id` | BIGINT | NO | 无 | KEY | 所属档口；**必填、无默认值**（磁贴位置联表用） |
+| `stall_id` | BIGINT | NO | 无 | KEY, FK→stall | 所属档口；**必填、无默认值**（磁贴位置联表用；`ON DELETE RESTRICT`） |
 | `name` | VARCHAR(64) | NO | `''` | | 菜品名称 |
 | `image` | VARCHAR(255) | YES | NULL | | **菜品大图**（相对路径，**单张**） |
-| `status` | VARCHAR(32) | NO | `'on'` | KEY | 上架状态：`on` 在售 / `off` 已下架 |
+| `activate` | BOOLEAN | NO | `TRUE` | KEY | 上架状态：`TRUE` 在售 / `FALSE` 已下架 |
 | `like_count` | INT | NO | 0 | | **点赞数缓存列** = `COUNT(dish_rating.liked = 1)`（群体热度） |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参） |
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | `PRIMARY` | `id` | 主键 | — |
 | `idx_dish_stall` | `stall_id` | 普通 | 按档口取菜品（管理端）与位置联表 |
-| `idx_dish_status` | `status` | 普通 | 公开列表「只查在售」的过滤（`WHERE status='on'`） |
+| `idx_dish_activate` | `activate` | 普通 | 公开列表「只查在售」的过滤（`WHERE activate = TRUE`） |
 
 ## 关键设计
 
@@ -30,7 +30,7 @@
 
 | 项 | 说明 |
 |---|---|
-| 口径 | 🔴 **聚合真源 = [dish_rating](./dish_rating.md)（一人一菜一行）** —— `like_count` = `COUNT(liked = 1)` |
+| 口径 | 🔴 **聚合真源 = [dish_rating](./dish_rating.md)（一人一菜一行）** —— `like_count` = `COUNT(liked = TRUE)` |
 | 维护方 | 点赞 / 取消后**同事务同步重算** |
 | 零点赞 | `like_count = 0`（不兜底成非零值，避免污染排序 / 展示） |
 
@@ -51,12 +51,12 @@
 
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
-| N→1 | `stall.id` | 所属档口 | **无外键** |
+| N→1 | `stall.id` | 所属档口 | **`ON DELETE RESTRICT`**（有菜品引用的档口不能删除） |
 | 1→n | `dish_rating.dish_id` | 该菜品的点赞（真源） | 见 [dish_rating.md](./dish_rating.md) |
 
 ## 注意事项
 
 - `image` 存**相对路径**，出参经路径工具转绝对 URL。
-- `status = 'off'`（下架）对公开接口**等价于不存在**。
+- `activate = FALSE`（下架）对公开接口**等价于不存在**。
 - `name` 在**同一档口下**的唯一性由**应用层**保证（无 DB 唯一索引）。
 - 无「售罄 / 今日供应」状态（一期不做）。

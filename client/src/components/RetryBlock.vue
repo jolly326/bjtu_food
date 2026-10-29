@@ -19,9 +19,8 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
     aria-label="加载失败，点击重试"
     @tap="emit('retry')"
   >
-    <AppIcon name="warning-circle" :size="44" tone="default" />
+    <AppIcon name="warning-circle" :size="44" />
     <text class="retry__title">加载失败</text>
-    <text class="retry__subtitle">点此重试</text>
   </view>
 </template>
 
@@ -32,6 +31,7 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
   gap: var(--spacing-xs);
   padding: var(--spacing-xl) var(--spacing-lg);
 }
@@ -41,13 +41,10 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
 }
 
 .retry__title {
+  font-family: var(--font-sans);
   font-size: var(--font-body);
   font-weight: var(--weight-semibold);
+  line-height: 1.2;
   color: var(--text-body);
-}
-
-.retry__subtitle {
-  font-size: var(--font-small);
-  color: var(--text-tertiary);
 }
 </style>

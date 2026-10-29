@@ -1,15 +1,15 @@
 <script setup lang="ts">
 /**
- * 运营端图标：与学生端同源的 **Phosphor 精选子集**（`assets/icons`，当前 10 枚，MIT；
+ * 运营端图标：与学生端同源的 **Streamline Plump（Flat）单色棕描边 SVG**（`assets/icons`，13 枚，CC BY 4.0；
  * 🔴「零消费即删」—— 新增前先全仓查引用，无消费的不入库，见 docs/ui/web/设计变量.md §2.4）。
- * SVG 的 `fill="currentColor"` ⇒ 颜色继承所在元素的 `color`，无需为每个色调另备资源。
+ * SVG 使用显式 `stroke` ⇒ 直接注入渲染，无需运行时换色。
  * 图标与尺寸口径见 docs/ui/web/公共组件与形态基线.md。
  */
 import { computed, ref, watchEffect } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    /** 图标键（对应 `assets/icons/<name>.svg`，如 plus / pencil / trash-2） */
+    /** 图标键（对应 `assets/icons/<name>.svg`，如 plus / sign-out / image-broken） */
     name: string
     /** 边长（px） */
     size?: number
@@ -69,7 +69,6 @@ const box = computed(() => ({ width: `${props.size}px`, height: `${props.size}px
   align-items: center;
   justify-content: center;
   line-height: 0;
-  color: inherit;
 }
 
 .app-icon :deep(svg) {

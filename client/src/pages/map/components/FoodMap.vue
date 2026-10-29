@@ -2,15 +2,24 @@
 /**
  * 美食地图画布（设计稿 docs/ui/client/美食地图.md；功能规则 docs/func/client/A1-美食地图.md）。
  *
- * - 2D 内容包围盒：磁贴按洗牌后的顺序落在**错位方格**上（固定网格 + 每载入随机分配，无成簇 / 权重）；
+ * - 2D 内容包围盒：磁贴按洗牌后的顺序落在**均匀错位方格**上（固定网格行优先、奇偶行错开半格；每载入随机映射到格子，无成簇 / 权重）；
  * - 单指拖拽平移（松手惯性），双指捏合缩放（以双指中点为锚），越界弹性收敛；
  * - 点击判定：位移与时长都在阈值内才命中磁贴 —— 命中通过 `pick` 交给页面唤起弹窗。
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import type { DishVO } from '@/api'
-import ImagePlaceholder from '@/components/base/ImagePlaceholder.vue'
+import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
+import { MAP, REQUEST } from '@/constants'
 import { thumbUrl } from '@/utils/image'
+import {
+  cancelFrame,
+  clamp,
+  prefersReducedMotion,
+  requestFrame,
+  shuffled,
+  type FrameHandle,
+} from '@/utils/mapMotion'
 import {
   buildGridIndex,
   buildStaggeredLayout,
@@ -19,22 +28,7 @@ import {
   type GridIndex,
   type TileBox,
 } from '@/utils/mapLayout'
-import { refreshWindowSize, windowSize } from '@/utils/viewport'
-
-/** 磁贴边长（rpx）、网格步长（rpx）—— 放大磁贴、收紧间距，视觉更饱满 */
-const TILE_RPX = 240
-const CELL_RPX = 300
-/** 缩放范围 */
-const MIN_SCALE = 0.55
-const MAX_SCALE = 3
-/** 点击判定阈值 */
-const TAP_MOVE_PX = 8
-const TAP_DURATION_MS = 320
-/** 越界橡皮筋系数（越小越硬） */
-const RUBBER = 0.35
-/** 惯性衰减 */
-const FRICTION = 0.92
-const MIN_SPEED = 0.12
+import { refreshWindowSize, rpxToPx, windowSize } from '@/utils/viewport'
 
 interface Tile extends TileBox {
   dish: DishVO
@@ -82,26 +76,6 @@ function tileStyle(tile: Tile) {
   }
 }
 
-/** rpx → px（以窗口宽为基准） */
-function rpx(value: number): number {
-  return (value * viewport.width) / 750
-}
-
-function shuffled<T>(list: readonly T[]): T[] {
-  const out = [...list]
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const tmp = out[i]
-    out[i] = out[j]
-    out[j] = tmp
-  }
-  return out
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
-}
-
 function bounds() {
   const w = worldW.value * scale.value
   const h = worldH.value * scale.value
@@ -116,7 +90,7 @@ function bounds() {
  * 重建布局：**错位方格密铺**。
  *
  * - 固定网格结构（行优先），奇偶行水平错开半格形成砖墙式密铺；
- * - 每次载入把菜品随机映射到固定格子（`shuffled`）—— 结构可预测、落点每次新鲜；
+ * - 每次载入把菜品随机映射到固定格子（`shuffled`）—— 均匀错位、结构可预测、落点每次新鲜；
  * - 首屏居中于世界几何中心，进入即见地图中心区。
  */
 function rebuild(): void {
@@ -131,8 +105,8 @@ function rebuild(): void {
     return
   }
 
-  const tile = rpx(TILE_RPX)
-  const cell = rpx(CELL_RPX)
+  const tile = rpxToPx(MAP.TILE_RPX, viewport.width)
+  const cell = rpxToPx(MAP.CELL_RPX, viewport.width)
   const layout = buildStaggeredLayout(list.length, tile, cell)
   worldW.value = layout.worldW
   worldH.value = layout.worldH
@@ -171,26 +145,11 @@ let lastY = 0
 let lastAt = 0
 let speedX = 0
 let speedY = 0
-/** 帧调度：有 rAF 用 rAF（H5），小程序无全局 rAF 时回退 setTimeout */
-type FrameHandle = number | ReturnType<typeof setTimeout>
+/** 当前进行中的动画帧（同一时刻只有一个：平移 / 惯性 / 弹性收敛互斥） */
 let frame: FrameHandle | null = null
-const requestFrame = (cb: () => void): FrameHandle =>
-  typeof requestAnimationFrame === 'function' ? requestAnimationFrame(cb) : setTimeout(cb, 16)
-const cancelFrame = (handle: FrameHandle): void => {
-  if (typeof requestAnimationFrame === 'function') cancelAnimationFrame(handle as number)
-  else clearTimeout(handle as ReturnType<typeof setTimeout>)
-}
 
-const reduceMotion = (() => {
-  try {
-    const host = globalThis as unknown as {
-      wx?: { getSystemSetting?: () => { reduceMotion?: boolean } }
-    }
-    return host.wx?.getSystemSetting?.().reduceMotion === true
-  } catch {
-    return false
-  }
-})()
+/** 是否跳过非位移动画（系统「减少动态效果」开启 ⇒ 惯性 / 弹性一律即时到位） */
+const reduceMotion = prefersReducedMotion()
 
 function now(): number {
   return Date.now()
@@ -203,14 +162,23 @@ function stopAnimation(): void {
   }
 }
 
+/**
+ * 软边界阻尼：越界越深、跟手比例越低 —— 位移按指数收敛到 `RUBBER * RUBBER_TRAVEL`，
+ * 抵达饱和区后增量趋于 0（画布几乎不动）；🔴 不做硬停、不做瞬移回位（美食地图.md §5）。
+ */
+function rubberResist(overshoot: number): number {
+  const travel = MAP.RUBBER_TRAVEL
+  return Math.sign(overshoot) * travel * MAP.RUBBER * (1 - Math.exp(-Math.abs(overshoot) / travel))
+}
+
 function rubber(nx: number, ny: number): void {
   const b = bounds()
   let x = nx
   let y = ny
-  if (nx < b.minX) x = b.minX - (b.minX - nx) * RUBBER
-  else if (nx > b.maxX) x = b.maxX + (nx - b.maxX) * RUBBER
-  if (ny < b.minY) y = b.minY - (b.minY - ny) * RUBBER
-  else if (ny > b.maxY) y = b.maxY + (ny - b.maxY) * RUBBER
+  if (nx < b.minX) x = b.minX + rubberResist(nx - b.minX)
+  else if (nx > b.maxX) x = b.maxX + rubberResist(nx - b.maxX)
+  if (ny < b.minY) y = b.minY + rubberResist(ny - b.minY)
+  else if (ny > b.maxY) y = b.maxY + rubberResist(ny - b.maxY)
   tx.value = x
   ty.value = y
 }
@@ -247,26 +215,26 @@ function inertia(): void {
   }
   let vx = speedX
   let vy = speedY
-  if (Math.abs(vx) < MIN_SPEED && Math.abs(vy) < MIN_SPEED) {
-    settle(220)
+  if (Math.abs(vx) < MAP.MIN_SPEED && Math.abs(vy) < MAP.MIN_SPEED) {
+    settle(MAP.SETTLE_MS)
     return
   }
   stopAnimation()
   const step = () => {
-    vx *= FRICTION
-    vy *= FRICTION
+    vx *= MAP.FRICTION
+    vy *= MAP.FRICTION
     const b = bounds()
     const nx = tx.value + vx
     const ny = ty.value + vy
     if (nx < b.minX || nx > b.maxX || ny < b.minY || ny > b.maxY) {
       tx.value = nx
       ty.value = ny
-      settle(200)
+      settle(MAP.EDGE_SETTLE_MS)
       return
     }
     tx.value = nx
     ty.value = ny
-    if (Math.abs(vx) < MIN_SPEED && Math.abs(vy) < MIN_SPEED) {
+    if (Math.abs(vx) < MAP.MIN_SPEED && Math.abs(vy) < MAP.MIN_SPEED) {
       frame = null
       return
     }
@@ -322,7 +290,7 @@ function onTouchMove(event: TouchEvent): void {
     if (mode !== 'pinch') beginPinch(event.touches)
     const a = event.touches[0]
     const b = event.touches[1]
-    const next = clamp(pinchScale * (distance(a, b) / pinchDist), MIN_SCALE, MAX_SCALE)
+    const next = clamp(pinchScale * (distance(a, b) / pinchDist), MAP.MIN_SCALE, MAP.MAX_SCALE)
     const midX = (a.clientX + b.clientX) / 2
     const midY = (a.clientY + b.clientY) / 2
     scale.value = next
@@ -348,7 +316,7 @@ function onTouchMove(event: TouchEvent): void {
   }
 
   const point = pointOf(event.touches[0])
-  if (Math.abs(point.x - startX) > TAP_MOVE_PX || Math.abs(point.y - startY) > TAP_MOVE_PX) {
+  if (Math.abs(point.x - startX) > MAP.TAP_MOVE_PX || Math.abs(point.y - startY) > MAP.TAP_MOVE_PX) {
     moved = true
   }
   rubber(startTx + (point.x - startX), startTy + (point.y - startY))
@@ -392,7 +360,7 @@ function onTouchEnd(event: TouchEvent): void {
   const wasPan = mode === 'pan'
   const point = event.changedTouches[0]
   mode = 'none'
-  if (wasPan && !moved && now() - startAt <= TAP_DURATION_MS && point) {
+  if (wasPan && !moved && now() - startAt <= MAP.TAP_DURATION_MS && point) {
     const dish = hitTest(point.clientX, point.clientY)
     if (dish) {
       emit('pick', dish)
@@ -400,7 +368,7 @@ function onTouchEnd(event: TouchEvent): void {
     }
   }
   if (wasPan) inertia()
-  else settle(200)
+  else settle(MAP.EDGE_SETTLE_MS)
 }
 
 function onImageError(id: number): void {
@@ -414,7 +382,7 @@ function handleResize(): void {
   resizeTimer = setTimeout(() => {
     Object.assign(viewport, refreshWindowSize())
     rebuild()
-  }, 120)
+  }, REQUEST.RESIZE_DEBOUNCE_MS)
 }
 
 onMounted(() => {
@@ -467,7 +435,6 @@ onBeforeUnmount(() => {
   bottom: 0;
   left: 0;
   overflow: hidden;
-  background: var(--bg-page);
   touch-action: none;
 }
 
@@ -481,16 +448,17 @@ onBeforeUnmount(() => {
 
 .map__tile {
   position: absolute;
+  box-sizing: border-box;
   overflow: hidden;
+  border: 1rpx solid var(--border-color);
   border-radius: var(--radius-card);
   background: var(--bg-card);
-  box-shadow: var(--shadow-card-stack);
   /* Q 弹：点按缩放反馈（过冲缓动） */
   transition: transform var(--duration-fast) var(--ease-bounce);
 }
 
 .map__tile--pressed {
-  transform: scale(0.94);
+  transform: scale(0.96);
 }
 
 .map__tile-img {

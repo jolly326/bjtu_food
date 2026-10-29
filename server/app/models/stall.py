@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -16,6 +16,7 @@ class Stall(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     canteen_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("canteen.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(32), nullable=False, server_default="")
+    activate: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     floor: Mapped[str | None] = mapped_column(String(8), nullable=True)
     window_no: Mapped[str | None] = mapped_column(String(16), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(

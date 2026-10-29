@@ -37,11 +37,24 @@
 
 | 端 | 通道 | 配置 |
 |---|---|---|
-| 小程序（`client/`） | **云调用（默认推荐）** `wx.cloud.callContainer` —— 真机**免域名白名单** | `client/.env.*` 的 `VITE_TCB_ENV`（云托管环境 ID）+ 可选 `VITE_TCB_SERVICE` |
-| 小程序（回退） | 直连 `uni.request` | `VITE_API_BASE_URL` = 服务域名本身（真机须配 request 合法域名） |
+| 小程序 · 本地开发 | 直连 `uni.request` → 本机后端 | `client/.env.development` 的 `VITE_API_BASE_URL`（`http://127.0.0.1:8000`；真机预览用个人 `client/.env.development.local` 覆盖为本机局域网 IP） |
+| 小程序 · 云上 / 发布 | **云调用（推荐）** `wx.cloud.callContainer` —— 真机**免域名白名单** | `client/.env.production` 的 `VITE_TCB_ENV`（云托管环境 ID）+ 可选 `VITE_TCB_SERVICE` |
+| 小程序 · 云上（回退） | 直连 `uni.request` | `client/.env.production` 的 `VITE_API_BASE_URL`（https 域名；体验版 / 正式版须已 ICP 备案并登记 request 合法域名） |
 | 运营端（`web/`） | 浏览器直连 | `web/.env.*` 的 `VITE_API_BASE_URL` |
 
-🔴 小程序端**同时配置**时以云调用为准（`client/src/utils/request.ts::USE_CLOUD`）。部署口径见 [`secur/S-04`](../secur/S-04-凭据与部署边界.md) §二。
+🔴 小程序端**同时配置**时以云调用为准（`client/src/utils/request.ts::USE_CLOUD`）；同一份 env 内两者都存在时，`VITE_TCB_ENV` 非空即走云调用。
+
+**两套环境怎么切**（环境变量在**构建期内联**，改完必须重新编译，见 `client/vite.config.ts` 的显式 `define`）：
+
+| 场景 | 命令 | Vite mode | 读到的 env |
+|---|---|---|---|
+| 本地开发（模拟器 / 真机调试，连本机后端） | `npm run dev:mp-weixin` | development | `.env.development`（个人差别值放 `.env.development.local`，不入库） |
+| 本地编译 + 云端数据（不改动代码排查云上问题） | `npm run dev:mp-weixin:cloud` | production | `.env.production` |
+| 发布构建（体验版 / 正式版） | `npm run build:mp-weixin` | production | `.env.production` |
+
+> 开发者工具本地调试须勾选：详情 → 本地设置 → **「不校验合法域名、web-view、TLS 以及 HTTPS 证书」**，否则 `http://` 直连会被拦。
+> 模拟器里 `127.0.0.1` 就是本机；**真机预览 / 真机调试时 `127.0.0.1` 指的是手机自己**，必须把地址换成电脑的局域网 IP，并放行该端口入站。
+> 体验版 / 正式版不接受 http 直连，一律走 https 已备案域名或云调用（见 [`secur/S-04`](../secur/S-04-凭据与部署边界.md) §二）。
 
 ### 响应信封 `Result<T>`
 

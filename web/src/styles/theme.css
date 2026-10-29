@@ -127,6 +127,14 @@ h3 {
   color: var(--el-text-color-primary);
 }
 
+/* 顶栏右侧操作组（多按钮时统一间距） */
+#app .page__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
+}
+
 #app .page__foot {
   display: flex;
   align-items: center;
@@ -152,14 +160,15 @@ h3 {
   color: var(--el-text-color-regular);
 }
 
-#app .filters {
-  display: flex;
+/* 跳页：数字输入 + 跳转按钮（宽屏效率档） */
+#app .pager__jump {
+  display: inline-flex;
   align-items: center;
   gap: var(--web-gap-tight);
-  flex-wrap: wrap;
 }
 
-#app .filters__select {
+#app .pager__jumpInput {
+  width: 56px;
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color-light);
@@ -168,7 +177,54 @@ h3 {
   color: var(--el-text-color-regular);
   font-size: 13px;
   outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+#app .pager__jumpInput::-webkit-outer-spin-button,
+#app .pager__jumpInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#app .pager__jumpInput:focus {
+  border-color: var(--el-color-primary-light-5);
+}
+
+#app .pager__total {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+#app .filters {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
+}
+
+/* 名称搜索框（原生 input，筛选区唯一非 EP 控件） */
+#app .filters__search {
+  height: 32px;
+  width: 180px;
+  padding: 0 10px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  outline: none;
   transition: border-color 0.15s ease;
+}
+
+#app .filters__search:hover,
+#app .filters__search:focus {
+  border-color: var(--el-color-primary-light-5);
+}
+
+/* Element Plus 筛选下拉（el-select）：统一宽度与高度 */
+#app .filters__select {
+  width: 150px;
 }
 
 #app .filters__select:hover,
@@ -409,7 +465,7 @@ h3 {
   transition:
     box-shadow 0.18s ease,
     transform 0.18s ease;
-  /* 长按手势面：防按住时误触发文本选中（见基线 §2.3） */
+  /* 点击手势面：防点按时误触发文本选中（见基线 §2.3） */
   -webkit-user-select: none;
   user-select: none;
 }
@@ -500,6 +556,87 @@ h3 {
 /* 已处理 / 失效态整卡弱化（纠错处理页） */
 #app .list-card--dim {
   opacity: 0.55;
+}
+
+/* ===== 多选模式（菜品管理批量操作）===== */
+#app .list-card--selectable {
+  cursor: pointer;
+}
+
+#app .list-card--checked {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+#app .list-card__check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--el-color-primary);
+  cursor: pointer;
+}
+
+/* ===== 批量操作条（多选模式顶部）===== */
+#app .batch-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap);
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--web-radius-card);
+  background: var(--el-fill-color-lighter);
+}
+
+#app .batch-bar__all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+}
+
+#app .batch-bar__count {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+#app .batch-bar__ops {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* ===== 页内分段切换（纠错处理页：待办 / 选项字典）===== */
+#app .seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--web-radius-pill);
+  background: var(--el-fill-color-lighter);
+}
+
+#app .seg__item {
+  height: 28px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--web-radius-pill);
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+#app .seg__item--on {
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 /* ===== 状态标签（基础形态全站收口） ===== */

@@ -24,11 +24,13 @@ router = APIRouter(prefix="/admin/canteens", tags=["admin-canteen"])
 
 class CanteenSaveIn(InModel):
     name: str
+    activate: bool = True
 
 
 class AdminCanteenOut(OutModel):
     id: int
     name: str
+    activate: bool
     stall_count: int
     updated_at: str
 
@@ -44,7 +46,9 @@ def list_canteens(
     rows, total = service.list_page(session, page=paging.page, size=paging.size)
     return page_ok(
         [
-            AdminCanteenOut(id=r.id, name=r.name, stall_count=r.stall_count, updated_at=r.updated_at)
+            AdminCanteenOut(
+                id=r.id, name=r.name, activate=r.activate, stall_count=r.stall_count, updated_at=r.updated_at
+            )
             for r in rows
         ],
         total=total,
@@ -57,7 +61,7 @@ def create_canteen(
     admin_id: int = Depends(current_admin_id),
     session: Session = Depends(get_session),
 ) -> Envelope[AdminCanteenOut]:
-    return ok(service.create(session, name=payload.name))
+    return ok(service.create(session, name=payload.name, activate=payload.activate))
 
 
 @router.put("/{canteen_id}", response_model=Envelope[AdminCanteenOut], summary="修改食堂")
@@ -67,7 +71,14 @@ def update_canteen(
     admin_id: int = Depends(current_admin_id),
     session: Session = Depends(get_session),
 ) -> Envelope[AdminCanteenOut]:
-    return ok(service.update(session, canteen_id=canteen_id, name=payload.name))
+    return ok(
+        service.update(
+            session,
+            canteen_id=canteen_id,
+            name=payload.name,
+            activate=payload.activate,
+        )
+    )
 
 
 @router.delete("/{canteen_id}", response_model=Envelope[None], summary="删除食堂")

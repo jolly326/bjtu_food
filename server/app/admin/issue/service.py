@@ -1,4 +1,4 @@
-"""运营端纠错处置业务规则（docs/func/web/B2-纠错查看.md、docs/schema/dish_issue.md）。
+"""运营端纠错处置业务规则（docs/func/web/B-反馈与纠错/B1-纠错查看与选项字典.md、docs/schema/dish_issue.md）。
 
 * 列表**默认只查未处理**（handled=false）⇒ 规模 = 待办量
 * 标记处理写 ``handledAt``；``handled=false`` 清空（撤销误标）

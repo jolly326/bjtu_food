@@ -40,3 +40,8 @@ export function refreshWindowSize(): WindowSize {
   cached = read()
   return cached
 }
+
+/** rpx → px：以窗口宽为基准（750rpx = 屏宽） */
+export function rpxToPx(value: number, screenWidth: number): number {
+  return (value * screenWidth) / 750
+}

@@ -1,14 +1,12 @@
 <script setup lang="ts">
 /**
  * 图标唯一实现（口径见 docs/ui/client/公共组件与形态基线.md §1.8、资源清单 docs/ui/client/图标资源.md）。
- * 资源 = **下载的 Phosphor 官方 SVG**（Bold / Fill 字重 · MIT），几何**不自行绘制**。
- * 微信 `<image>` 支持 SVG 文件但不支持运行时换色 ⇒ 由 `scripts/gen-icons.mjs` 按色调 × 主题预生成着色变体，
- * 本组件随当前主题取对应组（浅色组 / 深色组）。
+ * 资源 = **Streamline Plump（Flat）单色棕描边 SVG**（CC BY 4.0），几何**不自行绘制**。
+ * 描边色以显式 `stroke` 落盘，微信 `<image>` 直接渲染，不做运行时换色。
  */
 import { computed } from 'vue'
 
-import { iconSrc, type IconTone } from '@/theme/icons.generated'
-import { useTheme } from '@/utils/theme'
+import { iconSrc } from '@/theme/icons'
 
 /** 宿主节点虚拟化：组件根（image）直接参与宿主 flex 布局 */
 defineOptions({ options: { virtualHost: true } })
@@ -17,15 +15,11 @@ const props = withDefaults(
   defineProps<{
     name: string
     size?: number
-    /** 色调（= 预生成的着色变体），取值见 icons.generated.ts */
-    tone?: IconTone
   }>(),
-  { size: 28, tone: 'default' },
+  { size: 28 },
 )
 
-const theme = useTheme()
-
-const src = computed(() => iconSrc(props.name, props.tone, theme.value === 'dark'))
+const src = computed(() => iconSrc(props.name))
 </script>
 
 <template>
