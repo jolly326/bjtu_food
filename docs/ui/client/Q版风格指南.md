@@ -92,7 +92,7 @@
 | 菜名（弹窗主标题）、加载态文案 | **无衬线圆体** `--font-sans` |
 | 食堂·档口等**参数型元信息**、按钮文案、弹层选项、引导小字 | **无衬线圆体** `--font-sans` |
 
-> **字体落地**：动森同款圆体（M PLUS Rounded 1c / 思源圆体）需经 `wx.loadFontFace` 远程加载，受**域名白名单 + 中文字体包体**限制 —— 端上用**系统圆体**（`--font-sans`：`-apple-system` / `PingFang SC` / `HarmonyOS Sans SC`）命中圆润字形，**不引入自定义字体文件**（取舍见 [`docs/README.md`](../../README.md)「已知取舍」）。
+> **字体落地**：动森同款圆体（M PLUS Rounded 1c / 思源圆体）需经 `wx.loadFontFace` 远程加载，受**域名白名单 + 中文字体包体**限制 —— 端上用**系统圆体**（`--font-sans`：`-apple-system` / `PingFang SC` / `HarmonyOS Sans SC`）命中圆润字形，**不引入自定义字体文件**（取舍见 [`docs/README.md`](../../INDEX.md)「已知取舍」）。
 
 ### 3.3 字号梯度（封闭标度，禁止自造）
 

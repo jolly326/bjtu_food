@@ -1,6 +1,6 @@
 # 运营端接口 · 菜品纠错
 
-> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../README.md)。
+> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../CONVENTIONS.md)。
 > 列定义见 [`schema/dish_issue.md`](../../schema/dish_issue.md) · [`schema/dish_issue_option.md`](../../schema/dish_issue_option.md) · 业务规则见 [`func/client/B2`](../../func/client/B-轻量反馈/B2-菜品纠错.md)。
 
 ## 纠错提交

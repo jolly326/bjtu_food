@@ -61,12 +61,12 @@ admin（独立账号体系，与 user 无关）
 
 ## 库级约束的边界（由应用层承担的部分）
 
-> 本库刻意少用外键与唯一索引，也不依赖 `CHECK`（约束统一由应用层承担）—— 下列约束**不在 DB 层**。
+> 本库不依赖 `CHECK`，**字典类命名去重 / 值域**约束统一由应用层承担 —— 下列约束**不在 DB 层**。
+> 实体间 N→1 引用一律在 DB 层建外键（清单见各表文档「关联 / 索引」）：删档口受 `fk_dish_stall` 的 `RESTRICT` 保护 —— 有菜品引用时不可删。
 
 | 边界 | 清单 | 为何不在 DB 层 |
 |---|---|---|
-| **无外键的引用关系** | `dish.stall_id` | 档口是管理端维护的实体，有独立的合并 / 清理语义 |
-| **由应用层保证的唯一性** | 同一用户对同一菜品的**点赞行**至多一条（`dish_rating`，`UNIQUE(user_id, dish_id)`）；`canteen.name`；`stall.name`（同食堂下）；`dish.name`（同档口下） | 字典类命名去重 |
+| **由应用层保证的唯一性** | `canteen.name`；`stall.name`（同食堂下）；`dish.name`（同档口下） | 字典类命名去重 |
 | **可空列不作哨兵** | `dish_issue.handled_at = NULL` = 未处理；未赞 = **`dish_rating` 无行或 `liked = 0`**（非 NULL 哨兵） | 用 `NULL` / 缺行表达「尚未发生」 |
 | **枚举值域** | `dish.activate`（`TRUE` / `FALSE`） | 布尔值，应用层校验 |
 | **受控字典不在库内** | `stall.floor`（值即汉字：`负一层`…`四层`） | 低频封闭枚举；新增 / 改名需「先迁移数据、再改两端」 |
@@ -76,5 +76,5 @@ admin（独立账号体系，与 user 无关）
 1. **先改本目录对应表文档**（列 / 索引 / 约束）—— 文档是唯一真源
 2. **再在数据库执行**对应 `ALTER` / `CREATE`（**直连远程库**，显式使用 `server/.env.production` 的 `DATABASE_URL`；`server/.env.development` 连本地开发库）
 3. 两边必须一致；发现不一致时**以数据库实况为准并立即回写文档**
-4. 若涉及出参字段 → 同步 [`api/`](../api/README.md)
+4. 若涉及出参字段 → 同步 [`api/`](../api/CONVENTIONS.md)
 5. 🔴 **改数据必须带派生列重算**：任何影响 `dish_rating` 的直连库写（`INSERT` / `UPDATE` / `DELETE`），**必须同时重算受影响菜品的 `dish.like_count`**

@@ -33,6 +33,11 @@ function devError(...args: unknown[]): void {
   if (IS_DEV) console.error(...args)
 }
 
+/** 传输层致命失败日志：任何构建都输出——否则生产环境静默吞掉网络错误，用户无感知 */
+function logError(...args: unknown[]): void {
+  console.error(...args)
+}
+
 if (IS_DEV) {
   // 构建期内联：环境一旦配置错，页面首请求失败前先看这条日志就能定位（本地 / 云端两套 env 见 client/.env.*）
   if (USE_CLOUD) {
@@ -163,7 +168,7 @@ function transport(
         reject(abortedError())
         return
       }
-      devError('[request] 请求失败', method, path, message || err)
+      logError('[request] 请求失败', method, path, message || err)
       reject(new Error(`网络异常: ${message || 'unknown'}`))
     }
 
@@ -189,7 +194,7 @@ function transport(
           fail: onFail,
         })
       } catch (error) {
-        devError('[request] 云调用初始化失败', error)
+        logError('[request] 云调用初始化失败', error)
         reject(new Error('云调用不可用：请确认小程序已开通云开发并绑定该云托管环境'))
       }
       return
@@ -228,7 +233,7 @@ function unwrap<T>(res: TransportResult): T {
     }
     throw bizError(body.code, body.message || '请求失败')
   }
-  devError('[request] 非 200 响应', res.statusCode, res.data)
+  logError('[request] 非 200 响应', res.statusCode, res.data)
   throw new Error(`网络异常(${res.statusCode})`)
 }
 

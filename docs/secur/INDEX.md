@@ -1,7 +1,7 @@
 # secur — 安全设计真源
 
 > 本目录是项目**安全设计的唯一真源**（威胁面 / 鉴权 / 防护机制 / 凭据与部署边界）。
-> 与其它真源的分工：接口契约见 [`api/`](../api/README.md)；库表见 [`schema/`](../schema/README.md)；业务规则见 [`func/client/`](../func/client/README.md) 与 [`func/web/`](../func/web/README.md)。
+> 与其它真源的分工：接口契约见 [`api/`](../api/CONVENTIONS.md)；库表见 [`schema/`](../schema/CONVENTIONS.md)；业务规则见 [`func/client/`](../func/client/约定与红线.md) 与 [`func/web/`](../func/web/约定与红线.md)。
 
 ## 篇目
 

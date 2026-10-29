@@ -228,7 +228,7 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
   transform: translateY(-50%);
 }
 
-/* 两态用不同图标文件区分：heart 空心轮廓 / heart-on 实心黑 */
+/* 两态用不同图标文件区分：heart 暖橙空心轮廓 / heart-on 珊瑚红实心（点赞激活态）*/
 .like--pressed {
   opacity: 0.7;
 }

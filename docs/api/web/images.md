@@ -1,6 +1,6 @@
 # 运营端接口 · 图片
 
-> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../README.md)。
+> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../CONVENTIONS.md)。
 
 ## `POST /admin/images`
 
@@ -14,4 +14,4 @@
 | 用途 | 菜品大图（[dishes](./dishes.md)） |
 | 错误码 | `400` 类型 / 大小不合规 ｜ `401` 未登录 |
 
-> **学生端无上传端点** —— 学生侧无文字与图片 UGC（见 [`func/client/README.md`](../../func/client/README.md) 的「合规与不做的事」）。
+> **学生端无上传端点** —— 学生侧无文字与图片 UGC（见 [`func/client/README.md`](../../func/client/约定与红线.md) 的「合规与不做的事」）。

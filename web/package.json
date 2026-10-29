@@ -11,7 +11,6 @@
         "build-only": "vite build --mode production",
         "type-check": "vue-tsc --build",
         "check:tokens": "node scripts/check-tokens.mjs",
-        "sync:icons": "node ../scripts/sync-icons.mjs",
         "test": "vitest run",
         "test:watch": "vitest",
         "verify": "npm run check:tokens && npm run test && eslint . && npm run type-check && prettier --check src/ && npm run build-only",

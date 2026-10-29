@@ -69,7 +69,7 @@ pip install -r server/requirements.txt -r server/requirements-dev.txt
 
 ### 2. 初始化数据库
 
-> **本仓库不维护初始化脚本。** 库结构唯一真源 = [`docs/schema/`](./docs/schema/README.md)。
+> **本仓库不维护初始化脚本。** 库结构唯一真源 = [`docs/schema/`](docs/schema/CONVENTIONS.md)。
 
 ```bash
 # 建库建表：按 docs/schema/ 各表文档的「列定义 / 索引」逐表 CREATE TABLE
@@ -139,14 +139,14 @@ npm run verify && npm run build:mp-weixin   # 发布构建（连云端）
 | 文档 | 说明 |
 |---|---|
 | [ENVIRONMENT](ENVIRONMENT.md) | **三端开发与生产环境**（环境变量 / 依赖 / 启动 / 打包 / 排错） |
-| [项目总览与文档树](docs/README.md) | 产品定位 · 分层边界 · 技术栈 · 变更流程 |
-| [功能设计（学生端）](docs/func/client/README.md) | 美食地图 / 点赞 / 纠错的业务规则 + 项目约定与红线 |
-| [功能设计（运营端）](docs/func/web/README.md) | 食堂 / 档口 / 菜品 / 反馈 / 纠错 / 登录 |
-| [接口契约](docs/api/README.md) | 端点 / 入参 / 出参 / 错误码（通用约定在最前） |
-| [数据库设计](docs/schema/README.md) | 9 张表的列 / 索引 / 约束（**库结构唯一真源**） |
-| [UI 设计（学生端）](docs/ui/client/README.md) | 单页设计稿 + 公共组件与形态基线 + 设计变量 |
-| [UI 设计（运营端）](docs/ui/web/README.md) | 列表 + 弹窗范式 + 公共组件基线 |
-| [安全设计](docs/secur/README.md) | 身份凭证 · 鉴权与归属 · 限频 · 凭据与部署边界 |
+| [项目总览与文档树](docs/INDEX.md) | 产品定位 · 分层边界 · 技术栈 · 变更流程 |
+| [功能设计（学生端）](docs/func/client/约定与红线.md) | 美食地图 / 点赞 / 纠错的业务规则 + 项目约定与红线 |
+| [功能设计（运营端）](docs/func/web/约定与红线.md) | 食堂 / 档口 / 菜品 / 反馈 / 纠错 / 登录 |
+| [接口契约](docs/api/CONVENTIONS.md) | 端点 / 入参 / 出参 / 错误码（通用约定在最前） |
+| [数据库设计](docs/schema/CONVENTIONS.md) | 8 张表的列 / 索引 / 约束（**库结构唯一真源**） |
+| [UI 设计（学生端）](docs/ui/client/INDEX.md) | 单页设计稿 + 公共组件与形态基线 + 设计变量 |
+| [UI 设计（运营端）](docs/ui/web/INDEX.md) | 列表 + 弹窗范式 + 公共组件基线 |
+| [安全设计](docs/secur/INDEX.md) | 身份凭证 · 鉴权与归属 · 限频 · 凭据与部署边界 |
 
 ## 贡献指南
 

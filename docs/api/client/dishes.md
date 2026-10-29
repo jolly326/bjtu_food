@@ -1,6 +1,6 @@
 # 学生端接口 · 食单
 
-> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../README.md)。
+> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../CONVENTIONS.md)。
 
 ## `GET /dishes`
 

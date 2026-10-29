@@ -1,6 +1,6 @@
 """菜品（docs/schema/dish.md）——like_count 是物化缓存列（点赞数）。
 
-🔴 ``stall_id`` **无外键**（档口有独立维护语义：删档口前必须清空菜品）。
+🔴 ``stall_id`` 外键 → ``stall.id``，``ON DELETE RESTRICT``：有菜品引用的档口不可删除（删前须清空菜品）。
 """
 
 from __future__ import annotations
