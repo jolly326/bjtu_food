@@ -17,14 +17,11 @@ from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
 from app.models import Dish, DishIssue, Stall
 
-VALID_STATUS = frozenset({"on", "off"})
-
-
 def _validate(payload) -> None:
     if not (payload.name or "").strip():
         raise BadRequest("菜品名称不能为空")
-    if payload.status not in VALID_STATUS:
-        raise BadRequest("状态只能取 on（在售）/ off（已下架）")
+    if not isinstance(payload.activate, bool):
+        raise BadRequest("activate 必须为布尔值")
 
 
 def list_page(
@@ -32,12 +29,19 @@ def list_page(
     *,
     stall_id: int | None,
     canteen_id: int | None,
-    status: str | None,
+    activate: bool | None,
+    name: str | None,
     page: int,
     size: int,
 ) -> tuple[list[DishRow], int]:
     return repo.list_page(
-        session, stall_id=stall_id, canteen_id=canteen_id, status=status, page=page, size=size
+        session,
+        stall_id=stall_id,
+        canteen_id=canteen_id,
+        activate=activate,
+        name=name,
+        page=page,
+        size=size,
     )
 
 
@@ -55,7 +59,7 @@ def create(session: Session, *, payload) -> DishRow:
         stall_id=payload.stall_id,
         name=payload.name.strip(),
         image=to_relative(payload.image_url),
-        status=payload.status,
+        activate=payload.activate,
     )
     session.add(dish)
     session.flush()
@@ -81,7 +85,7 @@ def update(session: Session, *, dish_id: int, payload) -> DishRow:
     dish.stall_id = payload.stall_id
     dish.name = payload.name.strip()
     dish.image = to_relative(payload.image_url)
-    dish.status = payload.status
+    dish.activate = payload.activate
     session.flush()
     invalidate("student:dishes")
     return _reload(session, dish.id)

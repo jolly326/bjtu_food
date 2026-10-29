@@ -9,9 +9,9 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `handled?`（缺省 `false` = **未处理**）· `dishId?` · `page` / `pageSize`（默认 20，上限 50） |
+| 入参 | `handled?`（`false` 未处理 / `true` 已处理 / **缺省 = 全部不过滤**）· `dishId?` · `page` / `pageSize`（默认 20，上限 50） |
 | 出参 | `AdminPageResult<DishIssueVO>` |
-| 排序 | 按 `createdAt` 降序 |
+| 排序 | **该菜当前待处理纠错条数降序** → `createdAt` 降序（被多人反馈的菜顶到最前） |
 
 **`DishIssueVO`**
 
@@ -25,6 +25,7 @@
 | `optionName` | string | 否 | 错误类型中文（字典翻译） |
 | `createdAt` | string | 否 | 提交时间 |
 | `handledAt` | string | **是** | 标记已处理的时间；`null` = 未处理 |
+| `dishFeedbackCount` | number | 否 | 该菜**当前待处理**纠错条数（服务端聚合；列表排序与严重度提示用） |
 
 ### `PATCH /admin/dish-issues/{id}`
 

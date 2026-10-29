@@ -1,7 +1,7 @@
 """运营端菜品管理（docs/func/web/A3-菜品管理.md、docs/api/web/dishes.md）。
 
 端点：
-    GET    /admin/dishes?stallId=&canteenId=&status=   分页
+    GET    /admin/dishes?stallId=&canteenId=&activate=&name=   分页（name 为名称模糊匹配）
     POST   /admin/dishes                               新建
     PUT    /admin/dishes/{id}                          修改
     DELETE /admin/dishes/{id}                          删除（连带清理记录与纠错）
@@ -28,7 +28,7 @@ class DishSaveIn(InModel):
     stall_id: int
     name: str
     image_url: str | None = None
-    status: str = "on"
+    activate: bool = True
 
 
 class DishOut(OutModel):
@@ -38,7 +38,7 @@ class DishOut(OutModel):
     canteen_name: str
     name: str
     image_url: str | None = None
-    status: str
+    activate: bool
     like_count: int
     updated_at: str
 
@@ -51,7 +51,7 @@ def _to_out(row) -> DishOut:
         canteen_name=row.canteen_name,
         name=row.name,
         image_url=row.image,
-        status=row.status,
+        activate=row.activate,
         like_count=row.like_count,
         updated_at=row.updated_at,
     )
@@ -61,7 +61,8 @@ def _to_out(row) -> DishOut:
 def list_dishes(
     stall_id: int | None = Query(default=None, alias="stallId"),
     canteen_id: int | None = Query(default=None, alias="canteenId"),
-    status: str | None = Query(default=None),
+    activate: bool | None = Query(default=None),
+    name: str | None = Query(default=None, min_length=1, max_length=64, description="名称模糊匹配"),
     page: int | None = Query(default=None),
     page_size: int | None = Query(default=None, alias="pageSize"),
     admin_id: int = Depends(current_admin_id),
@@ -72,7 +73,8 @@ def list_dishes(
         session,
         stall_id=stall_id,
         canteen_id=canteen_id,
-        status=status,
+        activate=activate,
+        name=name,
         page=paging.page,
         size=paging.size,
     )

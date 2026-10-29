@@ -8,6 +8,7 @@
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 食堂 ID |
 | `name` | VARCHAR(32) | NO | `''` | | 食堂名称 |
+| `activate` | BOOLEAN | NO | `TRUE` | | 食堂状态：`TRUE` 正常 / `FALSE` 已停用 |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参） |
 
 ## 索引

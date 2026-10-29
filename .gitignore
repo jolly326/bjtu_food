@@ -36,12 +36,14 @@ project.private.config.json
 
 # Environment files
 # 仓库只提交占位模板（*.example）与不含凭据的公开基址；真实环境文件一律不入库。
-# client/.env.development 与 client/.env.production 只含公开的云托管 API 地址（无密钥），必须入库。
+# client / web 两套 `.env.development` + `.env.production` 只含公开的后端地址（无密钥），必须入库。
 .env
 .env.*
 !.env.example
 !client/.env.development
 !client/.env.production
+!web/.env.development
+!web/.env.production
 
 # ---------- 凭据 / 密钥类文件（兜底防误提交） ----------
 *.pem
@@ -83,8 +85,6 @@ openspec/
 *.sln
 *.sw?
 
-# ---------- 构建期生成的图标着色变体（client/scripts/gen-icons.mjs 产出） ----------
-client/src/assets/icon-variants/
 
 # ---------- 构建 / 校验的临时产物 ----------
 *.err

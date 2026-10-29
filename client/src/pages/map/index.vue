@@ -9,11 +9,11 @@ import { onMounted, onUnmounted, ref } from 'vue'
 
 import { dishApi, issueApi } from '@/api'
 import type { DishVO, IssueOptionOut } from '@/api'
-import PageLoading from '@/components/base/PageLoading.vue'
-import RetryBlock from '@/components/base/RetryBlock.vue'
+import PageLoading from '@/components/PageLoading.vue'
+import RetryBlock from '@/components/RetryBlock.vue'
 import { uniqueById } from '@/utils/dishBatch'
 import { abortAllRequests, isAbortedRequest } from '@/utils/request'
-import { useTheme } from '@/utils/theme'
+import { useTheme } from '@/theme'
 import DishSheet from './components/DishSheet.vue'
 import FoodMap from './components/FoodMap.vue'
 
@@ -60,14 +60,19 @@ onUnmounted(abortAllRequests)
 
 <template>
   <view class="map-page" :data-theme="theme">
-    <PageLoading v-if="loading" />
-    <RetryBlock v-else-if="failed" @retry="load" />
-    <FoodMap v-else :dishes="dishes" @pick="openSheet" />
+    <view class="map-page__body">
+      <PageLoading v-if="loading" />
+      <RetryBlock v-else-if="failed" @retry="load" />
+      <FoodMap v-else :dishes="dishes" @pick="openSheet" />
+    </view>
     <DishSheet v-model="sheetOpen" :dish="selected" :options="options" @change="onDishChange" />
   </view>
 </template>
 
 <style lang="scss" scoped>
+/* 页面底色唯一承载处是 `page{}`（styles/global.scss），此处 SHALL NOT 重复声明（基线 §1.1）；
+   🔴 无顶栏 / 无 header：整屏即内容区，**_map-page_ 铺满视口且不做顶部避让** —— 加载块与失败块
+   因此能在「整屏」内垂直居中（`.map-page__body` 撑满，`StatusBlock` flex:1 居中）。 */
 .map-page {
   position: fixed;
   top: 0;
@@ -75,8 +80,17 @@ onUnmounted(abortAllRequests)
   bottom: 0;
   left: 0;
   display: flex;
+  box-sizing: border-box;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-page);
+}
+
+/* 画布 / 加载 / 失败块的内容区：撑满剩余高度，并作为 FoodMap 绝对定位的包含块 */
+.map-page__body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
 }
 </style>

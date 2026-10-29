@@ -31,7 +31,7 @@ html:root {
   --el-color-danger-light-9: #fcedea;
 
   /* ===== 页面 / 卡面（暖奶油底 + 奶白卡） ===== */
-  --el-bg-color-page: #fff7e8;
+  --el-bg-color-page: #fffaf3;
   --el-bg-color: #ffffff;
   --el-bg-color-overlay: #ffffff;
   /* 卡面：奶白（卡片靠贴纸阴影浮起，不画描边） */
@@ -41,7 +41,7 @@ html:root {
   --el-fill-color: #f1e7d6;
 
   /* ===== 文字层级（暖棕阶，与学生端同值） ===== */
-  --el-text-color-primary: #5a3e2b;
+  --el-text-color-primary: #44382e;
   --el-text-color-regular: #6b5140;
   --el-text-color-secondary: #7a6049;
   --el-text-color-placeholder: #8a7057;
@@ -127,6 +127,14 @@ h3 {
   color: var(--el-text-color-primary);
 }
 
+/* 顶栏右侧操作组（多按钮时统一间距） */
+#app .page__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
+}
+
 #app .page__foot {
   display: flex;
   align-items: center;
@@ -152,14 +160,15 @@ h3 {
   color: var(--el-text-color-regular);
 }
 
-#app .filters {
-  display: flex;
+/* 跳页：数字输入 + 跳转按钮（宽屏效率档） */
+#app .pager__jump {
+  display: inline-flex;
   align-items: center;
   gap: var(--web-gap-tight);
-  flex-wrap: wrap;
 }
 
-#app .filters__select {
+#app .pager__jumpInput {
+  width: 56px;
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color-light);
@@ -168,7 +177,54 @@ h3 {
   color: var(--el-text-color-regular);
   font-size: 13px;
   outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+#app .pager__jumpInput::-webkit-outer-spin-button,
+#app .pager__jumpInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#app .pager__jumpInput:focus {
+  border-color: var(--el-color-primary-light-5);
+}
+
+#app .pager__total {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+#app .filters {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
+}
+
+/* 名称搜索框（原生 input，筛选区唯一非 EP 控件） */
+#app .filters__search {
+  height: 32px;
+  width: 180px;
+  padding: 0 10px;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-bg-color);
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+  outline: none;
   transition: border-color 0.15s ease;
+}
+
+#app .filters__search:hover,
+#app .filters__search:focus {
+  border-color: var(--el-color-primary-light-5);
+}
+
+/* Element Plus 筛选下拉（el-select）：统一宽度与高度 */
+#app .filters__select {
+  width: 150px;
 }
 
 #app .filters__select:hover,
@@ -291,6 +347,11 @@ h3 {
   margin-top: var(--web-gap-loose);
 }
 
+/* 编辑界面内的删除靠左、取消 / 保存靠右 */
+#app .dialog__spacer {
+  flex: 1;
+}
+
 /* ===== 长按操作浮层（底部贴纸） ===== */
 #app .mask--sheet {
   align-items: flex-end;
@@ -369,6 +430,18 @@ h3 {
 }
 
 /* ===== 小号按钮（列表卡片操作位） ===== */
+/* 危险操作（编辑界面内的删除）：弱化红描边，不做实心警示块 */
+#app .btn--danger {
+  border-color: var(--el-color-danger);
+  background: transparent;
+  color: var(--el-color-danger);
+}
+
+#app .btn--danger:hover {
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger);
+}
+
 #app .btn--sm {
   height: 28px;
   padding: 0 12px;
@@ -398,18 +471,18 @@ h3 {
 }
 
 #app .list-card {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 16px 18px;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
   border-radius: var(--web-radius-card);
   background: var(--el-bg-color);
   box-shadow: var(--el-box-shadow-light);
   transition:
     box-shadow 0.18s ease,
     transform 0.18s ease;
-  /* 长按手势面：防按住时误触发文本选中（见基线 §2.3） */
+  /* 点击手势面：防点按时误触发文本选中（见基线 §2.3） */
   -webkit-user-select: none;
   user-select: none;
 }
@@ -430,6 +503,8 @@ h3 {
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+  /* 内边距收在信息区：图区满宽贴顶，由卡片圆角裁切 */
+  padding: 14px 16px 16px;
 }
 
 #app .list-card__title {
@@ -452,18 +527,18 @@ h3 {
   color: var(--el-text-color-placeholder);
 }
 
-/* 左置缩略图：无图占位同尺寸，行行等高；圆角与卡片节奏统一 */
-#app .list-card__figure {
-  flex-shrink: 0;
-  width: 64px;
-  height: 64px;
-  border-radius: var(--el-border-radius-base);
-  background: var(--el-fill-color-lighter);
+/* 图区（上）：满宽贴顶，16:9 —— 高度恒小于宽度；由卡片圆角裁切。无图数据不渲染本块 */
+#app .list-card__cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
+  background: var(--el-fill-color-lighter);
 }
 
-#app .list-card__figure--ph {
-  display: inline-flex;
+/* 无图占位：与图区同形，占位图标居中（图标 stroke 为 currentColor，跟随本块 color） */
+#app .list-card__cover--ph {
+  display: flex;
   align-items: center;
   justify-content: center;
   color: var(--el-text-color-placeholder);
@@ -500,6 +575,91 @@ h3 {
 /* 已处理 / 失效态整卡弱化（纠错处理页） */
 #app .list-card--dim {
   opacity: 0.55;
+}
+
+/* ===== 多选模式（菜品管理批量操作）===== */
+#app .list-card--selectable {
+  cursor: pointer;
+}
+
+#app .list-card--checked {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+/* 批量勾选：卡片已纵排，勾选框浮在右上角，不占图区/信息区的纵向节奏 */
+#app .list-card__check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--el-color-primary);
+  cursor: pointer;
+}
+
+/* ===== 批量操作条（多选模式顶部）===== */
+#app .batch-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap);
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--web-radius-card);
+  background: var(--el-fill-color-lighter);
+}
+
+#app .batch-bar__all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+}
+
+#app .batch-bar__count {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+
+#app .batch-bar__ops {
+  display: flex;
+  align-items: center;
+  gap: var(--web-gap-tight);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* ===== 页内分段切换（纠错处理页：待办 / 选项字典）===== */
+#app .seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--web-radius-pill);
+  background: var(--el-fill-color-lighter);
+}
+
+#app .seg__item {
+  height: 28px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--web-radius-pill);
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+#app .seg__item--on {
+  background: var(--el-bg-color);
+  color: var(--el-color-primary);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 /* ===== 状态标签（基础形态全站收口） ===== */
@@ -561,13 +721,8 @@ h3 {
     flex: 1;
   }
 
-  #app .list-card {
-    padding: 14px;
-  }
-
-  #app .list-card__figure {
-    width: 48px;
-    height: 48px;
+  #app .list-card__main {
+    padding: 12px 14px 14px;
   }
 
   #app .btn {

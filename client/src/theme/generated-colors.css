@@ -1,62 +1,54 @@
 /* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。
    双主题：浅色组挂 page（默认）；深色组挂页面根视图 view[data-theme="dark"]，
    变量定义在该元素上 ⇒ 作用于其自身与整棵子树（机制见 docs/ui/client/设计变量.md §1.2）。
-   风格 = Q 版动森：暖奶油底 / 圆润厚实 / 软糖质感。 */
+   风格 = 动森风移动端：奶米纸色 / 深棕 / 浅杏胶囊 / 柔和弥散。 */
 page {
-  /* ===== 主色（Q 版暖橙）===== */
+  /* ===== 主色（暖橙保留给非 sheet 的品牌 CTA；品牌保留 token，不按「零消费即删」删除）===== */
   --color-primary: #FF8A4C;
-  --color-primary-text: #E8722F;
-  --color-brown-deep: #8A5A2B;
-  --color-primary-soft: #FFE3C7;
 
-  /* ===== 文字（暖棕阶）===== */
-  --text-title: #5A3E2B;
-  --text-body: #6B5140;
-  --text-tertiary: #7A6049;
-  --text-secondary: #80674F;
-  --text-placeholder: #C9B49C;
-  --text-on-primary: #FFFFFF;
+  /* ===== 文字（规范深棕 / 可读浅棕阶）===== */
+  --text-title: #44382E;
+  --text-body: #75665A;
+  --color-muted: #8C7B6B;
+  --text-disabled: #B8A99C;
 
   /* ===== 背景 / 边框 ===== */
-  --bg-page: #FFF7E8;
-  --bg-card: #FFFFFF;
+  --bg-page: #FFFAF3;
+  --bg-card: #FFFDF7;
   --bg-placeholder: #F3E7D3;
-  --border-color: #EFE0C8;
-  --border-bold: #E2CDAB;
+  --border-color: #E6D8C6;
 
-  /* ===== 阴影 / 遮罩（贴纸质感：实心错位 + 柔和外扩）===== */
-  --shadow-card-stack: 0 8rpx 0 rgba(214,178,128,0.35), 0 12rpx 24rpx rgba(190,150,100,0.18);
-  --shadow-modal: 0 -6rpx 0 rgba(214,178,128,0.28), 0 -12rpx 32rpx rgba(190,150,100,0.22);
+
+  /* ===== 遮罩（无阴影：层级靠底色 / 描边 / 圆角区分）===== */
   --overlay-scrim: rgba(90,62,43,0.32);
-  --overlay-panel-bg: #FFFDF7;
+  --overlay-panel-bg: #FFFAF3;
+  --overlay-sheet-scrim: rgba(255,250,243,0.72);
+  --sheet-pill-border: #44382E;
+  --sheet-divider: #D9C7B2;
 }
 
-/* ===== 深色组（暖棕夜色：可可底 + 奶油字，主色提亮为晚霞橙）===== */
+/* ===== 深色组（低饱和夜色：深灰蓝底 + 冷调奶白字，主色提亮为晚霞橙）===== */
 view[data-theme='dark'] {
   /* ===== 主色 ===== */
   --color-primary: #FFA76B;
-  --color-primary-text: #FFC79B;
-  --color-brown-deep: #C8AC8E;
-  --color-primary-soft: #4A3826;
 
-  /* ===== 文字（奶油阶）===== */
-  --text-title: #F7EBD9;
-  --text-body: #E8D9C4;
-  --text-tertiary: #BCA892;
-  --text-secondary: #A08D78;
-  --text-placeholder: #7E6C59;
-  --text-on-primary: #3A2A1A;
+  /* ===== 文字（冷调奶白阶）===== */
+  --text-title: #EDEFF2;
+  --text-body: #C9D0D6;
+  --color-muted: #A8B2BA;
+  --text-disabled: #7C8A96;
 
   /* ===== 背景 / 边框 ===== */
-  --bg-page: #2A231C;
-  --bg-card: #372E25;
-  --bg-placeholder: #443A2F;
-  --border-color: rgba(255, 255, 255, 0.14);
-  --border-bold: rgba(255, 255, 255, 0.24);
+  --bg-page: #2B3A4A;
+  --bg-card: #354758;
+  --bg-placeholder: #3E5265;
+  --border-color: rgba(237,239,242,0.22);
 
-  /* ===== 阴影 / 遮罩 ===== */
-  --shadow-card-stack: 0 8rpx 0 rgba(0,0,0,0.32), 0 12rpx 24rpx rgba(0,0,0,0.28);
-  --shadow-modal: 0 -6rpx 0 rgba(0,0,0,0.30), 0 -12rpx 32rpx rgba(0,0,0,0.34);
-  --overlay-scrim: rgba(0,0,0,0.55);
-  --overlay-panel-bg: #372E25;
+
+  /* ===== 遮罩 ===== */
+  --overlay-scrim: rgba(12,18,24,0.55);
+  --overlay-panel-bg: #354758;
+  --overlay-sheet-scrim: rgba(43,58,74,0.72);
+  --sheet-pill-border: rgba(237,239,242,0.55);
+  --sheet-divider: rgba(237,239,242,0.22);
 }

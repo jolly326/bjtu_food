@@ -19,6 +19,7 @@ class StallRow:
     canteen_id: int
     canteen_name: str
     name: str
+    activate: bool
     floor: str | None
     window_no: str | None
     dish_count: int
@@ -31,6 +32,7 @@ def _to_row(stall: Stall, canteen_name: str, dish_count: int) -> StallRow:
         canteen_id=stall.canteen_id,
         canteen_name=canteen_name,
         name=stall.name,
+        activate=stall.activate,
         floor=stall.floor,
         window_no=stall.window_no,
         dish_count=dish_count,

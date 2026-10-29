@@ -191,6 +191,8 @@ export interface components {
       createdAt: string;
       /** Handledat */
       handledAt: string | null;
+      /** Dishfeedbackcount */
+      dishFeedbackCount: number;
     };
     /**
      * DishLikeOut
@@ -218,12 +220,12 @@ export interface components {
       name: string;
       /** Imageurl */
       imageUrl?: string | null;
-      /** Status */
-      status: string;
       /** Likecount */
       likeCount: number;
       /** Updatedat */
       updatedAt: string;
+      /** Activate */
+      activate: boolean;
     };
     /** DishSaveIn */
     DishSaveIn: {
@@ -234,10 +236,10 @@ export interface components {
       /** Imageurl */
       imageUrl?: string | null;
       /**
-       * Status
-       * @default on
+       * Activate
+       * @default true
        */
-      status?: string;
+      activate?: boolean;
     };
     /**
      * DishVO
@@ -865,8 +867,10 @@ export interface operations {
       query?: {
         stallId?: number | null;
         canteenId?: number | null;
-        status?: string | null;
+        activate?: boolean | null;
         page?: number | null;
+        /** @description 名称模糊匹配 */
+        name?: string | null;
         pageSize?: number | null;
       };
     };

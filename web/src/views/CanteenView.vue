@@ -6,14 +6,12 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
-import CardActionSheet from '@/components/CardActionSheet.vue'
-import { useCardMenu } from '@/composables/useCardMenu'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { usePagedList } from '@/composables/usePagedList'
+import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
 import { canteenApi, type CanteenOut } from '@/api'
 
-const dialog = reactive({ visible: false, id: 0 as number, name: '' })
+const dialog = reactive({ visible: false, id: 0 as number, name: '', activate: true })
 const saving = ref(false)
 
 /** 分页状态机：翻页 / 加载态 / 末页删空回退单点收口（见基线 §2.3「分页」） */
@@ -24,12 +22,14 @@ const { rows, total, page, loading, error, hasNext, load, go } = usePagedList<Ca
 function onCreate() {
   dialog.id = 0
   dialog.name = ''
+  dialog.activate = true
   dialog.visible = true
 }
 
 function onEdit(row: CanteenOut) {
   dialog.id = row.id
   dialog.name = row.name
+  dialog.activate = row.activate
   dialog.visible = true
 }
 
@@ -40,10 +40,11 @@ async function onSave() {
   }
   saving.value = true
   try {
+    const body = { name: dialog.name.trim(), activate: dialog.activate }
     if (dialog.id) {
-      await canteenApi.update(dialog.id, dialog.name.trim())
+      await canteenApi.update(dialog.id, body)
     } else {
-      await canteenApi.create(dialog.name.trim())
+      await canteenApi.create(body)
     }
     ElMessage.success('已保存')
     dialog.visible = false
@@ -55,7 +56,9 @@ async function onSave() {
   }
 }
 
-async function onRemove(row: CanteenOut) {
+/** 删除入口在编辑界面内（卡面无操作按钮、无卡片浮层） */
+async function onRemove() {
+  if (!dialog.id) return
   try {
     await ElMessageBox.confirm('删除后不可恢复。若该食堂下仍有档口，删除会被拒绝。', '确认删除', {
       type: 'warning',
@@ -66,16 +69,14 @@ async function onRemove(row: CanteenOut) {
     return
   }
   try {
-    await canteenApi.remove(row.id)
+    await canteenApi.remove(dialog.id)
     ElMessage.success('已删除')
+    dialog.visible = false
     await load() /* 末页删空自动回退由 usePagedList 单点处理 */
   } catch (e) {
     ElMessage.error((e as Error).message)
   }
 }
-
-/** 长按浮层（编辑 / 删除）：卡面无操作按钮 */
-const cardMenu = useCardMenu<CanteenOut>({ onEdit, onRemove })
 
 onMounted(load)
 </script>
@@ -85,7 +86,7 @@ onMounted(load)
     <header class="page__bar">
       <h2 class="page__title">食堂管理</h2>
       <button class="btn btn--primary" @click="onCreate">
-        <AppIcon name="plus" :size="16" />新建
+        <AppIcon name="add" :size="16" />新建
       </button>
     </header>
 
@@ -95,12 +96,18 @@ onMounted(load)
         :key="row.id"
         class="list-card"
         tabindex="0"
-        aria-haspopup="menu"
-        v-bind="cardMenu.pressAttrs(row, { title: row.name })"
+        role="button"
+        :aria-label="`编辑 ${row.name}`"
+        @click="onEdit(row)"
+        @keydown.enter.prevent="onEdit(row)"
+        @keydown.space.prevent="onEdit(row)"
       >
         <div class="list-card__main">
           <h3 class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
+            <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
+              {{ row.activate ? '正常' : '已停用' }}
+            </span>
           </h3>
           <div class="list-card__stats">
             <span class="list-card__stat">{{ row.stallCount }} 个档口</span>
@@ -116,7 +123,13 @@ onMounted(load)
 
     <footer class="page__foot">
       <span class="page__total">共 {{ total }} 条</span>
-      <PaginationBar :page="page" :has-next="hasNext" @prev="go(page - 1)" @next="go(page + 1)" />
+      <PaginationBar
+        :page="page"
+        :has-next="hasNext"
+        :total-pages="Math.ceil(total / PAGE_SIZE)"
+        @prev="go(page - 1)"
+        @next="go(page + 1)"
+      />
     </footer>
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
@@ -124,7 +137,14 @@ onMounted(load)
         <h3 class="dialog__title">{{ dialog.id ? '编辑食堂' : '新建食堂' }}</h3>
         <label class="dialog__label" for="canteen-name">名称</label>
         <input id="canteen-name" v-model="dialog.name" class="dialog__input" type="text" />
+        <label class="dialog__label" for="canteen-activate">状态</label>
+        <select id="canteen-activate" v-model="dialog.activate" class="dialog__input">
+          <option :value="true">正常</option>
+          <option :value="false">已停用</option>
+        </select>
         <footer class="dialog__foot">
+          <button v-if="dialog.id" class="btn btn--danger" @click="onRemove">删除</button>
+          <span class="dialog__spacer" />
           <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
           <button class="btn btn--primary" :disabled="saving" @click="onSave">
             {{ saving ? '保存中…' : '保存' }}
@@ -132,14 +152,5 @@ onMounted(load)
         </footer>
       </div>
     </div>
-
-    <CardActionSheet
-      v-model="cardMenu.open"
-      :title="cardMenu.title"
-      :remove-disabled="cardMenu.removeDisabled"
-      :remove-hint="cardMenu.removeHint"
-      @edit="cardMenu.pickEdit"
-      @remove="cardMenu.pickRemove"
-    />
   </section>
 </template>

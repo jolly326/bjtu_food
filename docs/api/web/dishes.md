@@ -7,7 +7,7 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `stallId?` · `canteenId?` · `status?`（`on` / `off`）· `page` / `pageSize`（默认 20，上限 50） |
+| 入参 | `stallId?` · `canteenId?` · `activate?`（`true` 在售 / `false` 已下架）· `name?`（**名称模糊匹配**，1–64 字）· `page` / `pageSize`（默认 20，上限 50） |
 | 出参 | `AdminPageResult<DishAdminVO>` |
 | 排序 | 按 `id` 升序 |
 
@@ -21,15 +21,15 @@
 | `canteenName` | string | 否 | 食堂名（位置链路展示） |
 | `name` | string | 否 | 菜品名称 |
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 未上传 |
-| `status` | string | 否 | `on` 在售 / `off` 已下架 |
-| `likeCount` | number | 否 | **点赞数**（**只读**缓存列）；= `COUNT(dish_rating.liked = 1)` |
+| `activate` | boolean | 否 | 菜品状态：`true` 在售 / `false` 已下架 |
+| `likeCount` | number | 否 | **点赞数**（**只读**缓存列）；= `COUNT(dish_rating.liked = TRUE)` |
 | `updatedAt` | string | 否 | 更新时间 |
 
 ## `POST /admin/dishes`
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `{ stallId, name, imageUrl?, status? }` —— `status` 缺省 `on` |
+| 入参 | `{ stallId, name, imageUrl?, activate? }` —— `activate` 缺省 `true` |
 | 出参 | `DishAdminVO` |
 | 错误码 | `400` `stallId` / `name` 缺失或非法 ｜ 同档口下同名已存在 ｜ `4001` 档口不存在 |
 
@@ -50,4 +50,4 @@
 | 错误码 | `400` 存在引用 ｜ `4001` 菜品不存在 |
 
 > **`likeCount` 是派生缓存列** —— 由用户点赞驱动重算，**不可通过本接口直接修改**（见 [`schema/dish.md`](../../schema/dish.md) 的派生清单）。
-> **下架**（`status = 'off'`）对公开接口**等价于不存在**；**无「售罄 / 今日供应」状态**。
+> **下架**（`activate = false`）对公开接口**等价于不存在**；**无「售罄 / 今日供应」状态**。

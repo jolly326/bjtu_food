@@ -1,7 +1,7 @@
 """学生端「美食地图」单页：美食地图。
 
 端点（docs/api/client/dishes.md）：
-    GET  /dishes                  🔑 需登录，全量在售菜品（端上错位密铺、可平移缩放）
+    GET  /dishes                  🔑 需登录，全量在售菜品（端上排布、可平移缩放）
     POST /dishes/{id}/likes       🔑 需登录，两态点赞 toggle
 """
 

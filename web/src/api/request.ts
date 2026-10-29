@@ -45,8 +45,12 @@ function toLogin() {
   }
 }
 
+/** 🔴 登录端点不参与「401 即跳登录」：口令错误时的服务端文案要原样回到登录页 */
+const LOGIN_PATH = '/admin/sessions'
+
 async function raw<T>(method: string, path: string, body?: unknown): Promise<T> {
   const token = readToken()
+  const isLogin = path === LOGIN_PATH
   const res = await fetch(BASE_URL + path, {
     method,
     headers: {
@@ -56,12 +60,16 @@ async function raw<T>(method: string, path: string, body?: unknown): Promise<T> 
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 
-  if (res.status === 401) {
+  if (res.status === 401 && !isLogin) {
     toLogin()
     throw new Error('未登录或凭证已失效')
   }
 
   const payload = (await res.json()) as Envelope<T>
+  if (payload.code === 401 && !isLogin) {
+    toLogin()
+    throw new Error('未登录或凭证已失效')
+  }
   if (payload.code === 401) {
     toLogin()
     throw new Error(payload.message || '未登录')
@@ -91,7 +99,16 @@ export async function upload(file: File): Promise<string> {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
   })
+  // 与其他端点同口径：401 ⇒ 清凭证跳登录（docs/secur/S-01）
+  if (res.status === 401) {
+    toLogin()
+    throw new Error('未登录或凭证已失效')
+  }
   const payload = (await res.json()) as Envelope<{ url: string }>
+  if (payload.code === 401) {
+    toLogin()
+    throw new Error('未登录或凭证已失效')
+  }
   if (payload.code !== 200 || !payload.data) {
     throw new Error(payload.message || '上传失败')
   }

@@ -1,12 +1,11 @@
 /**
- * 卡片长按操作（规格见 docs/ui/web/公共组件与形态基线.md §2.3「长按操作浮层」）。
+ * 卡片操作浮层触发（规格见 docs/ui/web/公共组件与形态基线.md §2.3「卡片操作浮层」）。
  *
- * 三通道同一入口：① 按住卡片 500ms（触屏 / 鼠标；期间移动 > 10px 或抬起即取消）；
- * ② 桌面右键；③ 键盘（卡片聚焦后 Enter / 空格 / 菜单键）。唤起底部浮层，
- * 浮层本身无红色警示，破坏性操作仍由视图走二次确认。
+ * 单一入口：① **点击卡片**；② 键盘（卡片聚焦后 Enter / 空格）。
+ * 浮层本身无红色警示，破坏性操作仍由视图侧走二次确认。
  *
- * 两个入口，共用同一套手势与浮层：
- * - `useCardMenu`：固定「编辑 / 删除」两类动作（主数据五页）；
+ * 两个入口，共用同一套触发与浮层：
+ * - `useCardMenu`：固定「编辑 / 删除」两类动作（主数据页）；
  * - `useCardActions`：任意动作列表（纠错处理页：去改菜品 / 标记已处理 / 撤销）。
  */
 import { reactive, ref } from 'vue'
@@ -28,51 +27,17 @@ export type CardMenuMeta = {
   removeHint?: string
 }
 
-/** 按住时长（毫秒） */
-const LONG_PRESS_MS = 500
-/** 按住期间移动超过该像素视为滚动手势，取消长按 */
-const MOVE_TOLERANCE = 10
-
-/** 长按 / 右键 / 键盘三通道的手势处理器工厂（两条入口共用；`M` 为各自的元信息类型） */
-function createPressHandlers<T, M extends CardMenuMeta>(
+/** 点击 / 键盘两通道的触发处理器工厂（两条入口共用；`M` 为各自的元信息类型） */
+function createOpenHandlers<T, M extends CardMenuMeta>(
   row: T,
   meta: M,
   show: (row: T, meta: M) => void,
 ) {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  let startX = 0
-  let startY = 0
-
-  function cancel() {
-    if (timer !== undefined) {
-      clearTimeout(timer)
-      timer = undefined
-    }
-  }
-
   return {
-    onPointerdown: (e: PointerEvent) => {
-      startX = e.clientX
-      startY = e.clientY
-      cancel()
-      timer = setTimeout(() => {
-        timer = undefined
-        show(row, meta)
-      }, LONG_PRESS_MS)
-    },
-    onPointermove: (e: PointerEvent) => {
-      if (Math.hypot(e.clientX - startX, e.clientY - startY) > MOVE_TOLERANCE) cancel()
-    },
-    onPointerup: cancel,
-    onPointerleave: cancel,
-    onPointercancel: cancel,
-    onContextmenu: (e: MouseEvent) => {
-      e.preventDefault()
-      show(row, meta)
-    },
+    onClick: () => show(row, meta),
     onKeydown: (e: KeyboardEvent) => {
       if (e.repeat) return
-      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ContextMenu') {
+      if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         show(row, meta)
       }
@@ -110,9 +75,9 @@ export function useCardMenu<T>(handlers: { onEdit: (row: T) => void; onRemove: (
     if (current && !removeDisabled.value) handlers.onRemove(current)
   }
 
-  /** 卡片手势处理器：平铺（`v-bind`）到卡片元素 */
-  function pressAttrs(row: T, meta: CardMenuMeta = {}) {
-    return createPressHandlers(row, meta, show)
+  /** 卡片触发器：平铺（`v-bind`）到卡片元素 */
+  function openAttrs(row: T, meta: CardMenuMeta = {}) {
+    return createOpenHandlers(row, meta, show)
   }
 
   // reactive 包装让模板里 cardMenu.open / cardMenu.title 自动解包（无需 .value）
@@ -121,7 +86,7 @@ export function useCardMenu<T>(handlers: { onEdit: (row: T) => void; onRemove: (
     title,
     removeDisabled,
     removeHint,
-    pressAttrs,
+    openAttrs,
     close,
     pickEdit,
     pickRemove,
@@ -153,9 +118,9 @@ export function useCardActions<T>(onPick: (row: T, key: string) => void) {
     if (row && action && !action.disabled) onPick(row, key)
   }
 
-  function pressAttrs(row: T, meta: CardMenuMeta & { actions: CardAction[] }) {
-    return createPressHandlers(row, meta, show)
+  function openAttrs(row: T, meta: CardMenuMeta & { actions: CardAction[] }) {
+    return createOpenHandlers(row, meta, show)
   }
 
-  return reactive({ open, title, actions, pressAttrs, close, pick })
+  return reactive({ open, title, actions, openAttrs, close, pick })
 }

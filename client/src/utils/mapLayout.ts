@@ -1,7 +1,7 @@
 /**
  * 地图纯布局工具（无 DOM / 无 Vue 依赖，可单测）。
  *
- * - `buildStaggeredLayout`：圆角正方形磁贴的错位方格密铺（奇偶行错位半格）；
+ * - `buildGridLayout`：圆角正方形磁贴的规整网格密铺（固定行列、无行间错位）；
  * - `buildGridIndex`：按中心点把磁贴落格，点击命中从 O(N) 降到常数级；
  * - `cullTiles`：仅保留视口外扩半屏内的磁贴，控制 DOM 数量；
  * - `hitTestGrid`：在网格索引中做命中检测。
@@ -13,7 +13,7 @@ export interface TileBox {
   size: number
 }
 
-export interface StaggeredLayout {
+export interface GridLayout {
   boxes: TileBox[]
   worldW: number
   worldH: number
@@ -34,33 +34,47 @@ export interface ViewportTransform {
   scale: number
 }
 
-/** 错位方格密铺：固定网格 + 奇偶行水平错位半格，世界宽为错位留量。 */
-export function buildStaggeredLayout(count: number, tile: number, cell: number): StaggeredLayout {
+/**
+ * 选列数：让整体宽高比**趋近 1:1**，同等方正时优先「末行更满」。
+ *
+ * 评分 = 宽高比偏差 × 10 + 末行空缺率 × 6 —— 前项保证接近正方形，后项避免末行只剩一颗。
+ */
+function pickColumns(count: number): number {
+  let bestCols = 1
+  let bestScore = Number.POSITIVE_INFINITY
+  for (let cols = 1; cols <= count; cols++) {
+    const rows = Math.ceil(count / cols)
+    const ratioDiff = Math.abs(cols / rows - 1)
+    const emptyRatio = 1 - count / (cols * rows)
+    const score = ratioDiff * 10 + emptyRatio * 6
+    if (score < bestScore) {
+      bestScore = score
+      bestCols = cols
+    }
+  }
+  return bestCols
+}
+
+/** 规整网格密铺：固定行列逐行铺满，行与行**不做水平错位**（末行不足则右侧留空）。 */
+export function buildGridLayout(count: number, tile: number, cell: number): GridLayout {
   if (count <= 0) {
     return { boxes: [], worldW: 0, worldH: 0, cols: 0, rows: 0 }
   }
 
   const step = Math.max(1, cell)
-  const cols = Math.max(1, Math.ceil(Math.sqrt(count)))
+  const cols = pickColumns(count)
   const rows = Math.ceil(count / cols)
   const halfGap = (step - tile) / 2
-  const stagger = step / 2
 
-  const boxes: TileBox[] = Array.from({ length: count }, (_, index) => {
-    const col = index % cols
-    const row = Math.floor(index / cols)
-    const offsetX = row % 2 === 0 ? 0 : stagger
-    return {
-      x: col * step + offsetX + halfGap,
-      y: row * step + halfGap,
-      size: tile,
-    }
-  })
+  const boxes: TileBox[] = Array.from({ length: count }, (_, index) => ({
+    x: (index % cols) * step + halfGap,
+    y: Math.floor(index / cols) * step + halfGap,
+    size: tile,
+  }))
 
   return {
     boxes,
-    // 奇数行右移半格会多出半格宽度，世界宽为其留量（避免末列越界）
-    worldW: cols * step + stagger,
+    worldW: cols * step,
     worldH: rows * step,
     cols,
     rows,

@@ -8,6 +8,8 @@ import { vZoomImg } from './directives/zoomImg'
 import 'element-plus/theme-chalk/base.css'
 import 'element-plus/theme-chalk/el-message.css'
 import 'element-plus/theme-chalk/el-message-box.css'
+import 'element-plus/theme-chalk/el-select.css'
+import 'element-plus/theme-chalk/el-popper.css'
 import './styles/theme.css'
 
 const app = createApp(App)

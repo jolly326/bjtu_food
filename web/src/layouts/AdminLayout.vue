@@ -3,7 +3,7 @@
  * 运营端布局（知行食记 · 运营端）：
  * - 顶层固定导航栏：品牌名 知行食记（无衬线圆体）+ 日期；右侧操作员用户名文本（弱化，非按钮）
  * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.3）：
- *   六个功能入口（主数据组 ｜ 反馈组，分组分隔线）+ 分隔线 + 退出登录；
+ *   四个功能入口（主数据组：食堂 / 档口 / 菜品 ｜ 反馈组：纠错处理，分组分隔线）+ 分隔线 + 退出登录；
  *   悬停放大上浮 + 名称气泡、激活项主色 + 圆点指示；桌面 / 移动同构（无隐藏态）
  * - 内容区（滚动）：底部留白让出应用坞，防遮挡
  */
@@ -26,12 +26,10 @@ type DockItem = {
 }
 
 const MENUS: DockItem[] = [
-  { path: '/canteens', label: '食堂', icon: 'buildings', sep: false },
-  { path: '/stalls', label: '档口', icon: 'storefront', sep: false },
-  { path: '/dishes', label: '菜品', icon: 'fork-knife', sep: false },
-  { path: '/feedback', label: '反馈数据', icon: 'heart', sep: true },
-  { path: '/issues', label: '纠错处理', icon: 'flag', sep: false },
-  { path: '/options', label: '纠错选项', icon: 'list-checks', sep: false },
+  { path: '/canteens', label: '食堂', icon: 'building', sep: false },
+  { path: '/stalls', label: '档口', icon: 'store', sep: false },
+  { path: '/dishes', label: '菜品', icon: 'food', sep: false },
+  { path: '/issues', label: '纠错处理', icon: 'flag', sep: true },
 ]
 
 const now = computed(() => {
@@ -73,7 +71,7 @@ function onLogout() {
             :aria-label="item.label"
           >
             <AppIcon :name="item.icon" :size="22" />
-            <span class="dock__dot" />
+            <span class="dock__bar" />
           </router-link>
         </template>
 
@@ -85,7 +83,7 @@ function onLogout() {
           aria-label="退出登录"
           @click="onLogout"
         >
-          <AppIcon name="sign-out" :size="22" />
+          <AppIcon name="exit" :size="22" />
         </button>
       </div>
     </nav>
@@ -163,24 +161,31 @@ function onLogout() {
   overflow-y: auto;
 }
 
-/* ===== 底部应用坞（Dock 式全局导航：悬浮胶囊居中，见基线 §2.3）===== */
+/* ===== 底部应用坞（Dock 式全局导航：常驻水平居中，见基线 §2.3）===== */
+/* 🔴 left:0 + right:0 + flex 居中（不依赖 translateX(-50%)）：
+   视口宽度变化（滚动条出现 / 消失）时坞不产生横向位移，始终水平居中 */
 .layout__dock {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: calc(12px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  /* 容器横跨整屏但自身不吃事件，避免遮挡内容点击 */
+  pointer-events: none;
   z-index: 150;
 }
 
 .dock__wrap {
   display: flex;
   align-items: center;
-  justify-content: center; /* 坞内入口始终水平居中（窄屏见 safe center 兜底） */
   gap: 2px;
   padding: 6px;
   border-radius: 26px;
   background: var(--el-bg-color-overlay);
   box-shadow: var(--el-box-shadow-elevated);
+  /* 坞本体恢复点击 */
+  pointer-events: auto;
 }
 
 .dock__item {
@@ -241,19 +246,21 @@ function onLogout() {
   color: var(--el-color-primary);
 }
 
-.dock__dot {
+/* 激活指示：底部小横条（宽 > 高）—— 区别于「运行中」圆点语义 */
+.dock__bar {
   position: absolute;
   bottom: 3px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+  width: 16px;
+  height: 3px;
+  border-radius: var(--web-radius-pill);
   background: var(--el-color-primary);
   opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.dock__item--on .dock__dot {
+.dock__item--on .dock__bar {
   opacity: 1;
 }
 
@@ -297,12 +304,10 @@ function onLogout() {
     padding: 0 12px;
   }
   .layout__dock {
-    /* 维持基座的 left:50% + translateX(-50%) 居中，仅收窄底距；底缘让出系统手势条 */
+    /* 居中由基座的 left:0 + right:0 + flex 保证，窄屏仅收窄底距 */
     bottom: calc(8px + env(safe-area-inset-bottom));
   }
   .dock__wrap {
-    justify-content: center;
-    justify-content: safe center; /* 溢出时退化为起点对齐，保证首项可滚达（不支持 safe 的浏览器回退上一行） */
     gap: 0;
     padding: 4px 6px;
     max-width: calc(100vw - 16px);

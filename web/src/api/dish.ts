@@ -8,7 +8,10 @@ export const dishApi = {
   list: (params?: {
     stallId?: number
     canteenId?: number
-    status?: string
+    /** 上架状态过滤：true 在售 / false 已下架 */
+    activate?: boolean
+    /** 名称模糊匹配 */
+    name?: string
     page?: number
     pageSize?: number
   }) => http.get<Page<DishOut>>(`/admin/dishes${toQuery({ ...params })}`),

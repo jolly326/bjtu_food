@@ -28,12 +28,12 @@ class DishRow:
 
 
 def list_on_sale(session: Session) -> list[DishRow]:
-    """全量在售菜品 + 位置 + 点赞数；不做食堂筛选 / 分页（错位密铺由端上完成）。"""
+    """全量在售菜品 + 位置 + 点赞数；不做食堂筛选 / 分页（卡片排布由端上完成）。"""
     stmt = (
         select(Dish, Stall.name, Canteen.name, Stall.floor)
         .join(Stall, Stall.id == Dish.stall_id)
         .join(Canteen, Canteen.id == Stall.canteen_id)
-        .where(Dish.status == "on")
+        .where(Dish.activate == True)
     )
     rows: list[DishRow] = []
     for dish, stall_name, canteen_name, floor in session.execute(stmt):
@@ -85,12 +85,12 @@ def toggle_like(session: Session, *, student_id: int, dish_id: int) -> tuple[boo
             if rating is None:
                 raise
             rating.liked = not rating.liked
-            rating.reacted_at = func.now()
+            rating.updated_at = func.now()
             session.flush()
             liked = bool(rating.liked)
     else:
         rating.liked = not rating.liked
-        rating.reacted_at = func.now()
+        rating.updated_at = func.now()
         session.flush()
         liked = bool(rating.liked)
 

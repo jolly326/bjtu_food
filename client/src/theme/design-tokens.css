@@ -6,16 +6,12 @@
 
 page {
   /* ===== 圆角（Q 版：整体加大，圆润厚实）===== */
-  --radius-xs: 16rpx;
-  --radius-btn: 44rpx;
   /* 全站卡片统一大圆角（美食地图磁贴 / 弹窗面板） */
   --radius-card: 44rpx;
   --radius-modal: 56rpx;
   --radius-pill: 999rpx;
-  --radius-circle: 50%;
 
   /* ===== 间距（4pt 栅格）===== */
-  --spacing-3xs: 2rpx;
   --spacing-2xs: 4rpx;
   --spacing-xs: 8rpx;
   --spacing-sm: 16rpx;
@@ -27,23 +23,21 @@ page {
   --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
-  /* Q 版动森：标题与正文一律走**系统无衬线圆体**（不引入自定义字体文件）；
-     iOS 命中 -apple-system / PingFang SC（圆润），Android 命中系统默认 sans */
-  --font-sans: -apple-system, 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', system-ui, sans-serif;
+  /* Q 版动森：优先**系统圆体**（Yuanti SC / 幼圆），命中即得手写松弛感；
+     iOS 若无圆体回退 PingFang SC（本身圆润），Android 回退系统 sans */
+  --font-sans: 'Yuanti SC', 'YouYuan', 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC',
+    system-ui, sans-serif;
 
-  /* ===== 字号 ===== */
-  --font-hero: 64rpx;
-  --font-display: 48rpx;
+
+  /* ===== 字号（零消费即删：只保留实际消费的档位）===== */
   --font-title: 40rpx;
   --font-h2: 36rpx;
   --font-h3: 32rpx;
   --font-body: 28rpx;
   --font-subtitle: 26rpx;
-  --font-small: 22rpx;
 
-  /* ===== 字重（三档封顶：Q 版靠字号与颜色立层级，不靠加粗）===== */
+  /* ===== 字重（Q 版靠字号与颜色立层级，不靠加粗）===== */
   --weight-regular: 400;
-  --weight-medium: 500;
   --weight-semibold: 600;
 
   /* ===== 动效（Q 弹）===== */
@@ -61,4 +55,7 @@ page {
 
   /* ===== 高度 ===== */
   --tap-target-size: 96rpx;
+  /* Sheet 三段骨架高度：信息页 / 纠错页强同步（虚线固定在中线的前提） */
+  --sheet-block-top: calc(var(--tap-target-size) + var(--spacing-lg));
+  --sheet-block-bottom: calc(var(--tap-target-size) * 2 / 3);
 }

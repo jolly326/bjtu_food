@@ -22,6 +22,7 @@ from app.models import Canteen, Stall
 class CanteenRow:
     id: int
     name: str
+    activate: bool
     stall_count: int
     updated_at: str
 
@@ -30,6 +31,7 @@ def _to_row(canteen: Canteen, stall_count: int) -> CanteenRow:
     return CanteenRow(
         id=canteen.id,
         name=canteen.name,
+        activate=canteen.activate,
         stall_count=stall_count,
         updated_at=format_dt(canteen.updated_at) or "",
     )
@@ -52,21 +54,23 @@ def list_page(session: Session, *, page: int, size: int) -> tuple[list[CanteenRo
     return [_to_row(c, int(counts.get(c.id, 0))) for c in canteens], int(total)
 
 
-def create(session: Session, *, name: str) -> CanteenRow:
+def create(session: Session, *, name: str, activate: bool = True) -> CanteenRow:
     name = (name or "").strip()
     if not name:
         raise BadRequest("食堂名称不能为空")
     if repo.find_by_name(session, name=name) is not None:
         raise BadRequest("同名食堂已存在")
 
-    canteen = Canteen(name=name)
+    canteen = Canteen(name=name, activate=activate)
     session.add(canteen)
     session.flush()
     invalidate("student:dishes")
     return _to_row(canteen, 0)
 
 
-def update(session: Session, *, canteen_id: int, name: str) -> CanteenRow:
+def update(
+    session: Session, *, canteen_id: int, name: str, activate: bool | None = None
+) -> CanteenRow:
     name = (name or "").strip()
     if not name:
         raise BadRequest("食堂名称不能为空")
@@ -80,6 +84,19 @@ def update(session: Session, *, canteen_id: int, name: str) -> CanteenRow:
         raise BadRequest("同名食堂已存在")
 
     canteen.name = name
+
+    if activate is not None:
+        if not activate:
+            # RESTRICT：停用食堂前，子级须无启用中的档口
+            active_stall_count = session.scalar(
+                select(func.count()).select_from(Stall).where(
+                    Stall.canteen_id == canteen.id, Stall.activate == True
+                )
+            )
+            if active_stall_count:
+                raise BadRequest("该食堂下仍有启用中的档口，请先停用档口")
+        canteen.activate = activate
+
     session.flush()
     invalidate("student:dishes")
     stall_count = session.scalar(

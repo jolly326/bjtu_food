@@ -21,15 +21,16 @@
 
 **校园菜品展示与轻量反馈平台** —— 帮学生解决「今天吃什么」。菜品与档口信息由运营录入；学生只做一件事：**看图找菜、点反馈（点赞 / 纠错）**。
 
-- **学生端单页全屏沉浸**：**美食地图** —— 菜品以圆角正方形大图在**错位方格**上密铺于可平移缩放的 2D 平面上，点击磁贴唤起底部弹窗看详情、点赞与纠错；无 TabBar / 全局顶栏 / 页标题
-- **运营端**：食堂 / 档口 / 菜品 录入 + 反馈数据查看
+- **学生端单页全屏沉浸**：**美食地图** —— 圆角正方形菜品磁贴在可平移缩放的 2D 平面上**规整网格密铺**；点击磁贴唤起底部弹窗看详情、点赞与纠错；无 TabBar / 全局顶栏 / 页标题
+- **昼夜双主题**：白天奶米纸色、夜间低饱和夜色 `#2B3A4A`（不做纯黑），两套共用同一形态语言；页面根挂 `data-theme` 生效，启动读取本地持久化的选择
+- **运营端**：食堂 / 档口 / 菜品 录入 + 纠错处置（纠错待办与错误类型字典同页）
 - **无搜索**；**无「我的」页面**
 - **全匿名**：不做注册 / 登录 / 认证 / 注销；用户身份由微信 openid 静默识别，不在任何界面展示
 - **无分享与文字 UGC**：学生侧仅「点赞」「菜品纠错选项」两类动作
 
 ## 技术栈
 
-- **后端**：**Python · FastAPI · SQLAlchemy · MySQL 5.7（TDSQL-C）**
+- **后端**：**Python · FastAPI · SQLAlchemy · MySQL 8.0（TDSQL-C）**
 - **学生端**：Vue 3 + TypeScript · uni-app（微信小程序）
 - **运营端**：Vue 3 + TypeScript + Vite
 - **质量门禁**：后端 **pytest** + **分层护栏**（`import-linter` 等静态依赖检查）；前端 `vue-tsc` / `check:contract` / `vitest`
@@ -40,9 +41,9 @@
 |---|---|
 | `docs/` | [`README.md`](./README.md) |
 | [`func/client/`](./func/client/README.md) | `README` · `A1-美食地图` · `B1-点赞反馈` · `B2-菜品纠错` · `C1-openid静默识别` |
-| [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-反馈查看` · `B2-纠错查看` · `B3-纠错选项管理` · `C1-管理员登录` |
+| [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-纠错查看与选项字典` · `C1-管理员登录` |
 | [`ui/client/`](./ui/client/README.md) | `README` · `Q版风格指南` · `公共组件与形态基线` · `设计变量` · `图标资源` · `美食地图` |
-| [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `反馈数据` · `纠错处理` · `纠错选项` |
+| [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `纠错处理` |
 | [`api/`](./api/README.md) | `README` · `client/`（`auth` · `dishes` · `canteens` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `dishes` · `issues` · `images`） |
 | [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `dish` · `dish_rating` · `dish_issue` · `dish_issue_option` · `user` · `admin` |
 | [`secur/`](./secur/README.md) | `README` · `S-01-身份与凭证` · `S-02-鉴权与归属校验` · `S-03-限频与接口防护` · `S-04-凭据与部署边界` |
@@ -61,7 +62,7 @@
 ## 约定
 
 - 文档只写**当前口径**：变更过程与修订轮次不维护（需回溯从 git 历史查）。
-- 本目录**入库 git 跟踪**（真源须可 diff、可回滚）；**文档内不得出现任何凭据**（口令 / token / Webhook 地址 / 密钥），一律经环境变量与 `server/.env` 流转。
+- 本目录**入库 git 跟踪**（真源须可 diff、可回滚）；**文档内不得出现任何凭据**（口令 / token / Webhook 地址 / 密钥），一律经环境变量与 `server/.env.development` / `server/.env.production` / `server/.env.local` 流转。
 - 范围外的能力不建文档。
 - 命名：目录内用 `<板块前缀>-<主题>.md`。
 
@@ -70,8 +71,11 @@
 | 项 | 取舍 | 理由 |
 |---|---|---|
 | 点赞数 | **学生端展示点赞数**，不展示其它评价维度；运营端只读 `likeCount` | 守住「无二级页面、无等级」红线 |
-| `likeCount` | 学生端 `DishVO` 下发 `likeCount`；运营端「反馈数据」展示 `likeCount` | 群体热度由 `dish_rating` 聚合，不落风味评级 |
+| `likeCount` | 学生端 `DishVO` 下发 `likeCount`；运营端「菜品管理」列表展示 `likeCount` | 群体热度由 `dish_rating` 聚合，不落风味评级 |
 | 运营「菜品管理」反馈列 | 运营端仅展示 `likeCount`（点赞数），无等级列 | 群体热度即点赞数，不设等级 / 评级 |
-| 图标资源库 | 两端**同源预置**（`client/src/assets/icons` 与 `web/src/assets/icons`），未消费的图标键**保留不删**；门禁只提示、不阻断 | 复用同一套 Phosphor 资源，避免两端图标集漂移 |
+| 图标资源库 | 两端**同源预置**（`client/src/assets/icons` 与 `web/src/assets/icons`），**仅保留 Plump 图形黑色轮廓**（`fill: none` + `stroke: #000000`，不上色）；未消费的图标键**保留不删**；门禁只提示、不阻断 | 复用同一套 Streamline Plump 资源，避免两端图标集漂移；CC BY 4.0 署名见 [`ui/client/图标资源.md`](./ui/client/图标资源.md) §6 |
+| 学生端字体 | 用**系统圆体**（`--font-sans`），不引入 M PLUS Rounded / 思源圆体自定义字体文件 | 小程序 `wx.loadFontFace` 需 CDN 域名白名单且中文字体包体大；系统圆体已命中圆润字形 |
+| 契约快照手工同步 | 本机无可用 Python 运行时（WindowsApps 占位符），后端契约变更时无法跑 `gen:api:fresh` ⇒ 以 `client/scripts/sync-openapi-once.mjs` **手工同步** `openapi.json` 后跑 `npm run gen:api` 重新生成类型 | 换取「不因环境缺失而放弃后端演进」；有 Python 环境后跑一次 `gen:api:fresh` 即可回归自动链路并覆盖手工差异 |
 | 深色模式原生窗口底 | `pages.json` 窗口底必须字面 hex，**不随主题切换** —— 冷启动与切换瞬间有短暂暖白底 | 平台限制（微信校验要求 hexColor）；暗色界面经 CSS 变量全站切换，首屏瞬时浅底可接受 |
-| 深色模式不跟随系统 | 仅手动切换 + storage 持久化，默认浅色；学生端无全局切换入口（全屏沉浸无顶栏） | 跟随系统会使首屏底色不可控，与「安静、确定性」的品牌调性不符 |
+| 深色模式不跟随系统 | storage 持久化（键 `theme`），默认浅色；学生端在启动时读取挂载（全屏沉浸无顶栏） | 跟随系统会使首屏底色不可控，与「安静、确定性」的品牌调性不符 |
+| 夜间色温 | 夜间用**低饱和夜色 `#2B3A4A`**（深灰蓝底 + 冷调奶白字 + 晚霞橙点缀），🔴 不做纯黑 | 低饱和夜色更贴动森氛围、夜里不刺眼；两套主题共用同一形态语言（圆角 / 描边 / 动效一致），只换色温与明度 |
