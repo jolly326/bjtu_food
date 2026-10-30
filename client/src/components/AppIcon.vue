@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 图标唯一实现（口径见 docs/ui/client/公共组件与形态基线.md §1.8、资源清单 docs/ui/client/图标资源.md）。
- * 资源 = **Streamline Plump（Flat）单色棕描边 SVG**（CC BY 4.0），几何**不自行绘制**。
+ * 资源 = **Streamline Plump（Flat）暖橙主色描边 SVG**（CC BY 4.0），几何**不自行绘制**。
  * 描边色以显式 `stroke` 落盘，微信 `<image>` 直接渲染，不做运行时换色。
  */
 import { computed } from 'vue'

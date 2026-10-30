@@ -1,20 +1,27 @@
-* text=auto
+# 行尾统一：所有文本文件在工作区与版本库内一律 LF，消除 CRLF/LF 混用。
+* text=auto eol=lf
 
-*.java text working-tree-encoding=UTF-8
-*.xml text working-tree-encoding=UTF-8
-*.yml text working-tree-encoding=UTF-8
-*.yaml text working-tree-encoding=UTF-8
-*.properties text working-tree-encoding=UTF-8
-*.md text working-tree-encoding=UTF-8
-*.sql text working-tree-encoding=UTF-8
-*.json text working-tree-encoding=UTF-8
-*.js text working-tree-encoding=UTF-8
-*.ts text working-tree-encoding=UTF-8
-*.tsx text working-tree-encoding=UTF-8
-*.vue text working-tree-encoding=UTF-8
-*.html text working-tree-encoding=UTF-8
-*.css text working-tree-encoding=UTF-8
-*.scss text working-tree-encoding=UTF-8
+*.java text working-tree-encoding=UTF-8 eol=lf
+*.xml text working-tree-encoding=UTF-8 eol=lf
+*.yml text working-tree-encoding=UTF-8 eol=lf
+*.yaml text working-tree-encoding=UTF-8 eol=lf
+*.properties text working-tree-encoding=UTF-8 eol=lf
+*.md text working-tree-encoding=UTF-8 eol=lf
+*.sql text working-tree-encoding=UTF-8 eol=lf
+*.json text working-tree-encoding=UTF-8 eol=lf
+*.js text working-tree-encoding=UTF-8 eol=lf
+*.ts text working-tree-encoding=UTF-8 eol=lf
+*.tsx text working-tree-encoding=UTF-8 eol=lf
+*.vue text working-tree-encoding=UTF-8 eol=lf
+*.html text working-tree-encoding=UTF-8 eol=lf
+*.css text working-tree-encoding=UTF-8 eol=lf
+*.scss text working-tree-encoding=UTF-8 eol=lf
+*.svg text working-tree-encoding=UTF-8 eol=lf
+
+# Windows 批处理 / PowerShell 脚本需 CRLF，不随 LF 统一
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
 
 *.png binary
 *.jpg binary

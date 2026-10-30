@@ -1,7 +1,7 @@
 /**
  * 学生端图标资产映射（Streamline Plump · Flat，CC BY 4.0）。
  *
- * 资源为**黑色轮廓 SVG**（`fill: none` + `stroke: #000000`），微信 `<image>` 可直接渲染。
+ * 资源为**暖橙主色描边 SVG**（`fill: none` + `stroke: #FF8A4C`）落盘，微信 `<image>` 直接渲染（小程序 `<image>` 不支持 `currentColor`，故颜色写死）；唯 `heart-on` 为**珊瑚红 `#e8604c` 实心**（点赞激活态，与运营端 `--el-color-danger` 同源）。
  * 键名与 `src/assets/icons/<key>.svg` 一致；只引入学生端实际消费的键。
  * 署名：Icons by Streamline (https://streamlinehq.com), licensed under CC BY 4.0.
  */

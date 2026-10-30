@@ -27,7 +27,7 @@
 
 ### openid 的定位
 
-- `openid` **属个人信息** —— 须与微信 MP 后台的《用户隐私保护指引》声明保持一致（见 [`func/client/README.md` 合规与不做的事](../func/client/README.md)）。
+- `openid` **属个人信息** —— 须与微信 MP 后台的《用户隐私保护指引》声明保持一致（见 [`func/client/README.md` 合规与不做的事](../func/client/约定与红线.md)）。
 - 仅供服务端归属数据与频控使用；**端上不持有、不传递**。
 
 ## 关联

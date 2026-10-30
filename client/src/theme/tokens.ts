@@ -78,5 +78,3 @@ export const DARK_COLOR_MAP = {
   'sheet-pill-border': 'rgba(237,239,242,0.55)',
   'sheet-divider': 'rgba(237,239,242,0.22)',
 } as const
-
-export type ColorToken = keyof typeof COLOR_MAP

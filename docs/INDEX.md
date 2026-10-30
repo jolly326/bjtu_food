@@ -6,13 +6,13 @@
 
 | 目录 | 回答什么问题 | 唯一真源 |
 |---|---|---|
-| [`api/`](./api/README.md) | 传什么、收什么 | 接口契约（端点签名、参数、响应结构） |
-| [`schema/`](./schema/README.md) | 怎么存 | 数据库设计（表 / 列 / 约束 / 索引）；**库结构唯一真源** |
-| [`func/client/`](./func/client/README.md) | 为什么这么算 | 学生端**业务规则** |
-| [`ui/client/`](./ui/client/README.md) | 长什么样 | 学生端**视觉与交互**（页面稿、形态基线） |
-| [`func/web/`](./func/web/README.md) | 运营端怎么用 | 管理端各功能板块的设计文档 |
-| [`ui/web/`](./ui/web/README.md) | 运营端长什么样 | 管理端**视觉与交互**（设计变量 + 公共组件基线 + 页面稿） |
-| [`secur/`](./secur/README.md) | **安全吗** | **安全设计真源**（鉴权 / 频控 / 凭据与部署边界） |
+| [`api/`](./api/CONVENTIONS.md) | 传什么、收什么 | 接口契约（端点签名、参数、响应结构） |
+| [`schema/`](./schema/CONVENTIONS.md) | 怎么存 | 数据库设计（表 / 列 / 约束 / 索引）；**库结构唯一真源** |
+| [`func/client/`](./func/client/约定与红线.md) | 为什么这么算 | 学生端**业务规则** |
+| [`ui/client/`](./ui/client/INDEX.md) | 长什么样 | 学生端**视觉与交互**（页面稿、形态基线） |
+| [`func/web/`](./func/web/约定与红线.md) | 运营端怎么用 | 管理端各功能板块的设计文档 |
+| [`ui/web/`](./ui/web/INDEX.md) | 运营端长什么样 | 管理端**视觉与交互**（设计变量 + 公共组件基线 + 页面稿） |
+| [`secur/`](./secur/INDEX.md) | **安全吗** | **安全设计真源**（鉴权 / 频控 / 凭据与部署边界） |
 
 > **同一事实只写一处**。需要跨目录说明时用链接，不要复制正文。
 > feature 文档只写业务规则，字段签名一律以 `api/` 为准；UI 文档只写视觉，字段同理。
@@ -39,22 +39,22 @@
 
 | 目录 | 文档 |
 |---|---|
-| `docs/` | [`README.md`](./README.md) |
-| [`func/client/`](./func/client/README.md) | `README` · `A1-美食地图` · `B1-点赞反馈` · `B2-菜品纠错` · `C1-openid静默识别` |
-| [`func/web/`](./func/web/README.md) | `README` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-纠错查看与选项字典` · `C1-管理员登录` |
-| [`ui/client/`](./ui/client/README.md) | `README` · `Q版风格指南` · `公共组件与形态基线` · `设计变量` · `图标资源` · `美食地图` |
-| [`ui/web/`](./ui/web/README.md) | `README` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `纠错处理` |
-| [`api/`](./api/README.md) | `README` · `client/`（`auth` · `dishes` · `canteens` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `dishes` · `issues` · `images`） |
-| [`schema/`](./schema/README.md) | `README` · `canteen` · `stall` · `dish` · `dish_rating` · `dish_issue` · `dish_issue_option` · `user` · `admin` |
-| [`secur/`](./secur/README.md) | `README` · `S-01-身份与凭证` · `S-02-鉴权与归属校验` · `S-03-限频与接口防护` · `S-04-凭据与部署边界` |
+| `docs/` | [`INDEX`](./INDEX.md) |
+| [`func/client/`](./func/client/约定与红线.md) | `约定与红线` · `A1-美食地图` · `B1-点赞反馈` · `B2-菜品纠错` · `C1-openid静默识别` |
+| [`func/web/`](./func/web/约定与红线.md) | `约定与红线` · `A1-食堂管理` · `A2-档口管理` · `A3-菜品管理` · `B1-纠错查看与选项字典` · `C1-管理员登录` |
+| [`ui/client/`](./ui/client/INDEX.md) | `INDEX` · `Q版风格指南` · `公共组件与形态基线` · `设计变量` · `图标资源` · `美食地图` |
+| [`ui/web/`](./ui/web/INDEX.md) | `INDEX` · `公共组件与形态基线` · `设计变量` · `登录页` · `食堂管理` · `档口管理` · `菜品管理` · `纠错处理` |
+| [`api/`](./api/CONVENTIONS.md) | `CONVENTIONS` · `client/`（`auth` · `dishes` · `canteens` · `issues`） · `web/`（`auth` · `canteens` · `stalls` · `dishes` · `issues` · `images`） |
+| [`schema/`](./schema/CONVENTIONS.md) | `CONVENTIONS` · `canteen` · `stall` · `dish` · `dish_rating` · `dish_issue` · `dish_issue_option` · `user` · `admin` |
+| [`secur/`](./secur/INDEX.md) | `INDEX` · `S-01-身份与凭证` · `S-02-鉴权与归属校验` · `S-03-限频与接口防护` · `S-04-凭据与部署边界` |
 
 > 本目录即现行设计的唯一真源。
 
 ## 变更流程
 
 1. 改**代码**时同步更新对应层文档（先按上表定位归属）。
-2. 改**契约**（后端模型 / 端点）后需刷新端上类型：由 agent 本地启动后端（**仅限**抓取契约快照 `GET /openapi.json`）并执行 `client/` 下 `npm run gen:api:fresh`，随后跑 `npm run verify`。
-3. 改**库表**：先改 [`schema/`](./schema/README.md) 对应表文档（唯一真源），再直连远程库执行 `ALTER` / `CREATE`；**禁只 ALTER 不同步文档**。
+2. 改**契约**（后端模型 / 端点）后需刷新端上类型：本机有可用 conda 环境（`bjtu-food` / Python 3.12），由 agent 本地启动后端（**仅限**抓取契约快照 `GET /openapi.json`）并在 `client/` 下执行 `API_ORIGIN=http://127.0.0.1:8000 npm run gen:api:fresh`（后端默认端口 8000，`fetch-openapi.mjs` 默认 8080，故须显式指定），随后跑 `npm run verify`。
+3. 改**库表**：先改 [`schema/`](./schema/CONVENTIONS.md) 对应表文档（唯一真源），再直连远程库执行 `ALTER` / `CREATE`；**禁只 ALTER 不同步文档**。
 4. 提交前跑质量门禁：
    - 后端：`pytest`
    - 前端：`cd client && npm run verify`
@@ -73,9 +73,9 @@
 | 点赞数 | **学生端展示点赞数**，不展示其它评价维度；运营端只读 `likeCount` | 守住「无二级页面、无等级」红线 |
 | `likeCount` | 学生端 `DishVO` 下发 `likeCount`；运营端「菜品管理」列表展示 `likeCount` | 群体热度由 `dish_rating` 聚合，不落风味评级 |
 | 运营「菜品管理」反馈列 | 运营端仅展示 `likeCount`（点赞数），无等级列 | 群体热度即点赞数，不设等级 / 评级 |
-| 图标资源库 | 两端**同源预置**（`client/src/assets/icons` 与 `web/src/assets/icons`），**仅保留 Plump 图形黑色轮廓**（`fill: none` + `stroke: #000000`，不上色）；未消费的图标键**保留不删**；门禁只提示、不阻断 | 复用同一套 Streamline Plump 资源，避免两端图标集漂移；CC BY 4.0 署名见 [`ui/client/图标资源.md`](./ui/client/图标资源.md) §6 |
+| 图标资源库 | 两端**同源取形、分别入库**：矢量同源（Streamline Plump），着色按端落地 —— 学生端 `<image>` 不支持 `currentColor`，故写死 `stroke="#FF8A4C"`（`heart-on` 点赞激活态实心 `#e8604c`）；运营端一律 `stroke`/`fill` = `currentColor` 靠宿主上色。**未消费的图标键零消费即删** | 两端渲染机制不同，无法一端资源双端复用；不保留未消费资源，避免资源集漂移。CC BY 4.0 署名见 [`ui/client/图标资源.md`](./ui/client/图标资源.md) §6 |
 | 学生端字体 | 用**系统圆体**（`--font-sans`），不引入 M PLUS Rounded / 思源圆体自定义字体文件 | 小程序 `wx.loadFontFace` 需 CDN 域名白名单且中文字体包体大；系统圆体已命中圆润字形 |
-| 契约快照手工同步 | 本机无可用 Python 运行时（WindowsApps 占位符），后端契约变更时无法跑 `gen:api:fresh` ⇒ 以 `client/scripts/sync-openapi-once.mjs` **手工同步** `openapi.json` 后跑 `npm run gen:api` 重新生成类型 | 换取「不因环境缺失而放弃后端演进」；有 Python 环境后跑一次 `gen:api:fresh` 即可回归自动链路并覆盖手工差异 |
+| 契约快照同步 | 走**自动链路**：本机有可用 conda 环境，后端契约变更后用 `gen:api:fresh` 重新抓取即可，**不维护手工同步脚本与副本** | 手工同步会与后端真源漂移；自动链路以 Backend Pydantic 模型为端上类型唯一真源 |
 | 深色模式原生窗口底 | `pages.json` 窗口底必须字面 hex，**不随主题切换** —— 冷启动与切换瞬间有短暂暖白底 | 平台限制（微信校验要求 hexColor）；暗色界面经 CSS 变量全站切换，首屏瞬时浅底可接受 |
 | 深色模式不跟随系统 | storage 持久化（键 `theme`），默认浅色；学生端在启动时读取挂载（全屏沉浸无顶栏） | 跟随系统会使首屏底色不可控，与「安静、确定性」的品牌调性不符 |
 | 夜间色温 | 夜间用**低饱和夜色 `#2B3A4A`**（深灰蓝底 + 冷调奶白字 + 晚霞橙点缀），🔴 不做纯黑 | 低饱和夜色更贴动森氛围、夜里不刺眼；两套主题共用同一形态语言（圆角 / 描边 / 动效一致），只换色温与明度 |

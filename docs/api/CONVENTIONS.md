@@ -1,7 +1,7 @@
 # api — 接口契约
 
 **范围**：学生端（微信小程序 `client/`）与运营端（`web/`）消费的全部端点。
-**契约真源**：本文与各资源文档；端上类型由后端 **Pydantic 模型经 FastAPI 导出**（见「契约同步」）。
+**契约真源**：本文件与各资源文档；端上类型由后端 **Pydantic 模型经 FastAPI 导出**（见「契约同步」）。
 
 > 各 feature 文档只描述**业务规则**（为什么、边界在哪），端点签名与字段一律以本目录为准。
 
@@ -13,7 +13,7 @@
 |---|---|---|
 | [client/auth.md](./client/auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
 | [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/{id}/likes` | 美食地图页 |
-| [client/canteens.md](./client/canteens.md) | `GET /canteens` | （本期无筛选项，端点保留备用） |
+| [client/canteens.md](./client/canteens.md) | `GET /canteens` | 美食地图页：地图聚合并非本期筛选项，端点用于支撑地图数据读取 |
 | [client/issues.md](./client/issues.md) | `GET /dish-issue-options` · `POST /dishes/{id}/issues` | 菜品纠错 |
 
 ### 运营端（`web/`）
@@ -82,7 +82,7 @@
 | 500 | 服务器异常 | 展示可重试失败态 |
 
 > `4001` 是通用**细分码**：让端上**不必解析 `message` 文本**即可给出差异化引导。
-> **无「邮箱未认证」码** —— 学生端不做认证（见 [`func/client/README.md`](../func/client/README.md) 的「合规与不做的事」）。
+> **无「邮箱未认证」码** —— 学生端不做认证（见「合规与不做的事」）。
 
 ### 运维接口
 
@@ -120,7 +120,7 @@
 | 🔓 公开 | **仅 `POST /auth/wechat-login`** —— 换取凭证本身不能要求凭证 | — |
 | 🔑 需登录 | **其余全部端点**（学生端与运营端皆然）；请求须带 `Authorization: Bearer <token>` | `401` |
 
-- 🔴 **学生端所有业务端点统一要求凭证** —— 端上冷启动 `wx.login` → `POST /auth/wechat-login` 换取 token（**端上缓存 7 天**），此后每个请求都携带它。**不再有「公开读端点」这一态**。
+- 🔴 **学生端所有业务端点统一要求凭证** —— 端上冷启动 `wx.login` → `POST /auth/wechat-login` 换取 token（**端上缓存 7 天**），此后每个请求都携带它。**没有「公开读端点」这一态**。
 - 学生端**无权限分级**（无认证态）：凭证据 openid 静默识别签发，端上**不持有、不传递 openid**。
 - 运营端采用**独立管理员账号 + 账密登录**：`POST /admin/sessions` 换取**运营端 JWT**（独立 secret 签名），随后请求带 `Authorization: Bearer <jwt>`；缺失 / 失效 → `401`。前端**不持有口令**。
 
@@ -154,11 +154,14 @@
 
 🔴 **字段命名必须 camelCase** —— Pydantic 模型须配置 alias generator（`to_camel`），与本目录各资源文档的字段名**逐字一致**；`check:contract` 即该一致性的判据。
 
-**后端字段变更后必须刷新端上产物**（由 agent 本地启动后端执行，见 [`docs/README.md`](../README.md) 变更流程）：
+**后端字段变更后必须刷新端上产物**：本机可用 conda 环境（`bjtu-food` / Python 3.12）跑标准链路 —— 先本地启动后端（默认端口 **8000**），再在 `client/` 下执行：
 
 ```bash
-cd client && npm run gen:api:fresh
+# 后端端口非 8080 时用 API_ORIGIN 显式指定（fetch-openapi.mjs 默认 http://127.0.0.1:8080）
+API_ORIGIN=http://127.0.0.1:8000 npm run gen:api:fresh
 ```
+
+随后跑 `npm run verify` 验证。
 
 ## 撰写规范
 
