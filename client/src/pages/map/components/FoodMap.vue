@@ -28,6 +28,7 @@ import {
   type GridIndex,
   type TileBox,
 } from '@/utils/mapLayout'
+import { computePanBounds } from '@/utils/mapPan'
 import { refreshWindowSize, rpxToPx, windowSize } from '@/utils/viewport'
 
 interface Tile extends TileBox {
@@ -77,13 +78,7 @@ function tileStyle(tile: Tile) {
 }
 
 function bounds() {
-  const w = worldW.value * scale.value
-  const h = worldH.value * scale.value
-  const minX = w <= viewport.width ? (viewport.width - w) / 2 : viewport.width - w
-  const maxX = w <= viewport.width ? (viewport.width - w) / 2 : 0
-  const minY = h <= viewport.height ? (viewport.height - h) / 2 : viewport.height - h
-  const maxY = h <= viewport.height ? (viewport.height - h) / 2 : 0
-  return { minX, maxX, minY, maxY }
+  return computePanBounds(worldW.value, worldH.value, scale.value, viewport.width, viewport.height)
 }
 
 /**
