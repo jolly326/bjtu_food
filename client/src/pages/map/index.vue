@@ -5,14 +5,16 @@
  * 进入即拉取全量在售菜品并按错位方格密铺；点磁贴唤起底部弹窗看详情、两态点赞与纠错。
  * 空态不处理（零在售时画布留白），不做下拉刷新。
  */
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { dishApi, issueApi } from '@/api'
 import type { DishVO, IssueOptionOut } from '@/api'
 import PageLoading from '@/components/PageLoading.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import { SHEET } from '@/constants'
 import { uniqueById } from '@/utils/dishBatch'
 import { abortAllRequests, isAbortedRequest } from '@/utils/request'
+import { rpxToPx, windowSize } from '@/utils/viewport'
 import { useTheme } from '@/theme'
 import DishSheet from './components/DishSheet.vue'
 import FoodMap from './components/FoodMap.vue'
@@ -25,6 +27,26 @@ const loading = ref(true)
 const failed = ref(false)
 const sheetOpen = ref(false)
 const selected = ref<DishVO | null>(null)
+/** 弹层实测高度（px）：画布据此扣出「弹层顶边以上」的可视净空区 */
+const sheetHeight = ref(0)
+/**
+ * 可视净空区高度（px）：
+ * - 弹层收起 ⇒ 整屏
+ * - 弹层已开且已实测 ⇒ 屏高 − 弹层高
+ * - 弹层已开但尚未实测 ⇒ 预估净空区（否则会按整屏算，把 camera 聚焦夹偏半个弹层）
+ */
+const netHeight = computed(() => {
+  const { width, height: total } = windowSize()
+  if (!sheetOpen.value) return total
+  if (sheetHeight.value > 0) return Math.max(0, total - sheetHeight.value)
+  // 未实测：弹层高度以 rpx 计是恒定的，按屏宽折算成 px（固定屏高比例会在小屏偏下、大屏偏上）
+  return Math.max(0, total - rpxToPx(SHEET.ESTIMATE_HEIGHT_RPX, width))
+})
+
+// 弹层收起即释放净空区；画布视角保持原样，不复位
+watch(sheetOpen, (open) => {
+  if (!open) sheetHeight.value = 0
+})
 
 async function load(): Promise<void> {
   loading.value = true
@@ -47,6 +69,11 @@ function openSheet(dish: DishVO): void {
   sheetOpen.value = true
 }
 
+/** 点画布空白：收起弹层（退场动画由 BaseSheet 承担） */
+function closeSheet(): void {
+  sheetOpen.value = false
+}
+
 function onDishChange(payload: { id: number; likeCount: number; liked: boolean }): void {
   const dish = dishes.value.find((item) => item.id === payload.id)
   if (!dish) return
@@ -63,9 +90,21 @@ onUnmounted(abortAllRequests)
     <view class="map-page__body">
       <PageLoading v-if="loading" />
       <RetryBlock v-else-if="failed" @retry="load" />
-      <FoodMap v-else :dishes="dishes" @pick="openSheet" />
+      <FoodMap
+        v-else
+        :dishes="dishes"
+        :net-height="netHeight"
+        @pick="openSheet"
+        @blank="closeSheet"
+      />
     </view>
-    <DishSheet v-model="sheetOpen" :dish="selected" :options="options" @change="onDishChange" />
+    <DishSheet
+      v-model="sheetOpen"
+      :dish="selected"
+      :options="options"
+      @change="onDishChange"
+      @measured="sheetHeight = $event"
+    />
   </view>
 </template>
 

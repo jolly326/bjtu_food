@@ -3,7 +3,7 @@
  * 底部弹层（口径见 docs/ui/client/公共组件与形态基线.md §2.1.4）。
  * 本项目用法：美食地图点磁贴唤起菜品弹窗（DishSheet），承载详情 / 点赞 / 纠错。
  */
-import { computed, ref, watch } from 'vue'
+import { computed, getCurrentInstance, nextTick, ref, watch } from 'vue'
 
 /** 宿主节点虚拟化：组件根直接参与页面布局 */
 defineOptions({ options: { virtualHost: true } })
@@ -12,7 +12,7 @@ const props = withDefaults(
   defineProps<{
     modelValue: boolean
     title?: string
-    /** 是否显示变暗蒙版；`false` 时背景透明、仍保留点空白关闭（轻焦点） */
+    /** 是否显示变暗蒙版；`false` 时背景透明且不接收事件，下方画布保持可点可拖 */
     mask?: boolean
   }>(),
   { title: '', mask: true },
@@ -21,35 +21,96 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'close'): void
+  (e: 'measured', height: number): void
 }>()
 
 /** 下拉关闭：跟手位移超过 120rpx（= 60px）即关闭，未超过回弹 */
 const CLOSE_DRAG_PX = 60
-/** 关闭下滑时长，与 --duration-base 对齐 */
+/** 推入 / 推出时长，与 --duration-base 对齐 */
 const CLOSE_ANIM_MS = 240
 
+const instance = getCurrentInstance()
+/** 面板是否挂载：与入参解耦，保证退场动画播完才卸载 */
+const visible = ref(false)
 const dragging = ref(false)
 const closing = ref(false)
 const dragOffset = ref(0)
 let dragStartY = 0
 let closeTimer: ReturnType<typeof setTimeout> | null = null
 
-/** 面板跟手位移；未拖拽时恒为 0，回弹有明确终点 */
-const panelStyle = computed(() => ({ transform: `translateY(${dragOffset.value}px)` }))
+/** 面板跟手位移；退出时整块滑出屏幕（末段位移交给 CSS transition） */
+const panelStyle = computed(() => ({
+  transform: closing.value ? 'translateY(100%)' : `translateY(${dragOffset.value}px)`,
+}))
 
 watch(
   () => props.modelValue,
-  (visible) => {
-    if (!visible) return
-    if (closeTimer) {
-      clearTimeout(closeTimer)
-      closeTimer = null
+  (open) => {
+    if (open) {
+      if (closeTimer) {
+        clearTimeout(closeTimer)
+        closeTimer = null
+      }
+      dragging.value = false
+      closing.value = false
+      dragOffset.value = 0
+      visible.value = true
+      measureHeight()
+      return
     }
-    dragging.value = false
-    closing.value = false
-    dragOffset.value = 0
+    // 入参转 false：同样先播退场，避免直接卸载造成画面跳变
+    finishLater()
   },
 )
+
+/** 兜底重测定时器：入场动画结束后再量一次，避免首帧尚未完成布局 */
+let measureTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * 面板落地后上报真实高度：画布据此算出「弹层顶边以上」的可视净空区。
+ *
+ * 用 `instance.proxy` 查询 —— `virtualHost` 下部分基础库传内部实例查不到节点，
+ * 量不到就会退回预估比例，表现为「点边缘卡片时偏离可视区中心」。
+ * 另外在入场动画结束后补测一次，防止首帧布局未完成。
+ */
+function measureHeight(): void {
+  const proxy = instance?.proxy
+  if (!proxy) return
+  const run = () => {
+    if (!visible.value) return
+    uni
+      .createSelectorQuery()
+      .in(proxy)
+      .select('.sheet__panel')
+      .boundingClientRect((rect) => {
+        const height = (rect as unknown as { height?: number } | null)?.height
+        if (typeof height === 'number' && height > 0) emit('measured', height)
+      })
+      .exec()
+  }
+  nextTick(() => {
+    run()
+    if (measureTimer != null) clearTimeout(measureTimer)
+    measureTimer = setTimeout(run, CLOSE_ANIM_MS + 80)
+  })
+}
+
+/** 向下推出：动画结束后卸载并上报关闭 */
+function finishLater(): void {
+  if (!visible.value || closing.value) return
+  closing.value = true
+  dragOffset.value = 0
+  if (measureTimer != null) {
+    clearTimeout(measureTimer)
+    measureTimer = null
+  }
+  closeTimer = setTimeout(() => {
+    closeTimer = null
+    visible.value = false
+    closing.value = false
+    emit('close')
+  }, CLOSE_ANIM_MS)
+}
 
 function onDragStart(event: TouchEvent) {
   if (closing.value) return
@@ -71,26 +132,25 @@ function onDragEnd() {
   if (!dragging.value) return
   dragging.value = false
   if (dragOffset.value > CLOSE_DRAG_PX) {
-    closing.value = true
-    dragOffset.value = 1000
-    closeTimer = setTimeout(() => {
-      closeTimer = null
-      close()
-    }, CLOSE_ANIM_MS)
+    finishLater()
+    emit('update:modelValue', false)
     return
   }
   dragOffset.value = 0
 }
 
-function close() {
+/** 对外关闭入口：播放退场动画并同步 v-model */
+function dismiss(): void {
+  finishLater()
   emit('update:modelValue', false)
-  emit('close')
 }
+
+defineExpose({ dismiss })
 </script>
 
 <template>
-  <view v-if="modelValue" class="sheet">
-    <view class="sheet__scrim" :class="{ 'sheet__scrim--clear': !mask }" @tap="close" />
+  <view v-if="visible" class="sheet">
+    <view class="sheet__scrim" :class="{ 'sheet__scrim--clear': !mask }" @tap="dismiss" />
     <view class="sheet__panel" :class="{ 'sheet__panel--dragging': dragging }" :style="panelStyle">
       <view
         class="sheet__handle"
@@ -110,6 +170,8 @@ function close() {
 </template>
 
 <style lang="scss" scoped>
+/* 根节点铺满全屏但不接收事件：否则它会吃掉上半屏的所有点击，
+   让下方画布无法点选。只有 scrim 与 panel 各自显式开启命中。 */
 .sheet {
   position: fixed;
   top: 0;
@@ -117,6 +179,7 @@ function close() {
   bottom: 0;
   left: 0;
   z-index: var(--z-sheet);
+  pointer-events: none;
 }
 
 .sheet__scrim {
@@ -126,28 +189,33 @@ function close() {
   bottom: 0;
   left: 0;
   background: var(--overlay-scrim);
+  pointer-events: auto;
 }
 
-/* 无蒙版：背景透明（不变暗、不加滤镜），仍保留点击空白关闭 */
+/* 无蒙版：背景透明（不变暗、不加滤镜），且不接收事件 —— 下方画布保持可点可拖，
+   关闭改由「点画布空白」与「下拉把手」承担 */
 .sheet__scrim--clear {
   background: transparent;
+  pointer-events: none;
 }
 
 .sheet__panel {
   position: absolute;
   left: 0;
   right: 0;
-  /* 底边向下延伸一段：让 --ease-bounce 的向上过冲有内容垫着，避免露出页面背景 */
-  bottom: calc(-1 * var(--spacing-2xl));
-  padding: 0 0 calc(var(--spacing-lg) + var(--spacing-2xl) + env(safe-area-inset-bottom));
+  bottom: 0;
+  /* 兜底 0px：不支持 env() 的环境下不会整条声明失效 */
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  /* 根节点已禁用命中，面板须显式开启，否则自身也点不动 */
+  pointer-events: auto;
   max-height: 92vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--overlay-panel-bg);
   border-top: 1rpx solid var(--border-color);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
-  /* 果冻升起：带过冲的回弹曲线，底边延伸段吸收过冲 */
-  animation: sheet-rise var(--duration-slow) var(--ease-bounce);
+  /* 推入：无过冲，直线滑到终点 */
+  animation: sheet-rise var(--duration-base) var(--ease-out);
   transition: transform var(--duration-base) var(--ease-out);
   transform-origin: bottom center;
   will-change: transform;
@@ -187,7 +255,7 @@ function close() {
   flex-direction: column;
 }
 
-/* Q 弹升起：配合 --ease-bounce 的过冲，面板会略微冲过头再回落（动森式的「弹」） */
+/* 推入：面板自底边整块滑到终点，不回弹 */
 @keyframes sheet-rise {
   from {
     transform: translateY(100%);

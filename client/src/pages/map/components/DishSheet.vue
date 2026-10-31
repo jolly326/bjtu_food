@@ -28,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'change', payload: { id: number; likeCount: number; liked: boolean }): void
+  (e: 'measured', height: number): void
 }>()
 
 const open = computed({
@@ -122,7 +123,7 @@ function onToggleLike(): void {
 </script>
 
 <template>
-  <BaseSheet v-model="open" :mask="false">
+  <BaseSheet v-model="open" :mask="false" @measured="emit('measured', $event)">
     <!-- 菜品大图：固定不滑动；圆角与弹层顶角同半径 -->
     <view class="dish-hero">
       <image
@@ -178,7 +179,8 @@ function onToggleLike(): void {
   box-sizing: border-box;
   flex: 0 0 auto; /* 图片区不参与纵向压缩 */
   margin: 0 var(--spacing-lg) var(--spacing-xs);
-  padding-bottom: 62%;
+  /* 16:9：padding 百分比以父容器宽度为基准，先扣掉左右 margin 才是图片自身宽度 */
+  padding-bottom: calc((100% - var(--spacing-lg) * 2) * 9 / 16);
   overflow: hidden;
   background: var(--bg-placeholder);
   border: 1rpx solid var(--border-color);
@@ -236,7 +238,7 @@ function onToggleLike(): void {
   min-width: 0;
   /* 🔴 不用 flex 纵向分配：小程序里父高由内容决定时 `flex:1` 不分配空间，
      会让两块内容贴在一起。改为自然流 + 各块自身 min-height 对齐。 */
-  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-lg);
 }
 
 @media (prefers-reduced-motion: reduce) {

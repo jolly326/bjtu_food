@@ -73,7 +73,7 @@
 | 点赞数 | **学生端展示点赞数**，不展示其它评价维度；运营端只读 `likeCount` | 守住「无二级页面、无等级」红线 |
 | `likeCount` | 学生端 `DishVO` 下发 `likeCount`；运营端「菜品管理」列表展示 `likeCount` | 群体热度由 `dish_rating` 聚合，不落风味评级 |
 | 运营「菜品管理」反馈列 | 运营端仅展示 `likeCount`（点赞数），无等级列 | 群体热度即点赞数，不设等级 / 评级 |
-| 图标资源库 | 两端**同源取形、分别入库**：矢量同源（Streamline Plump），着色按端落地 —— 学生端 `<image>` 不支持 `currentColor`，故写死 `stroke="#FF8A4C"`（`heart-on` 点赞激活态实心 `#e8604c`）；运营端一律 `stroke`/`fill` = `currentColor` 靠宿主上色。**未消费的图标键零消费即删** | 两端渲染机制不同，无法一端资源双端复用；不保留未消费资源，避免资源集漂移。CC BY 4.0 署名见 [`ui/client/图标资源.md`](./ui/client/图标资源.md) §6 |
+| 图标资源库 | 两端**同源取形、分别入库**：矢量同源（Streamline Plump · Solid），着色按端落地 —— 学生端 `<image>` 不支持 `currentColor`，故写死 `fill="#8C7B6B"`（`heart-on` 点赞激活态实心 `#e8604c`）；运营端一律 `stroke`/`fill` = `currentColor` 靠宿主上色。**未消费的图标键零消费即删** | 两端渲染机制不同，无法一端资源双端复用；不保留未消费资源，避免资源集漂移。CC BY 4.0 署名见 [`ui/client/图标资源.md`](./ui/client/图标资源.md) §6 |
 | 学生端字体 | 用**系统圆体**（`--font-sans`），不引入 M PLUS Rounded / 思源圆体自定义字体文件 | 小程序 `wx.loadFontFace` 需 CDN 域名白名单且中文字体包体大；系统圆体已命中圆润字形 |
 | 契约快照同步 | 走**自动链路**：本机有可用 conda 环境，后端契约变更后用 `gen:api:fresh` 重新抓取即可，**不维护手工同步脚本与副本** | 手工同步会与后端真源漂移；自动链路以 Backend Pydantic 模型为端上类型唯一真源 |
 | 深色模式原生窗口底 | `pages.json` 窗口底必须字面 hex，**不随主题切换** —— 冷启动与切换瞬间有短暂暖白底 | 平台限制（微信校验要求 hexColor）；暗色界面经 CSS 变量全站切换，首屏瞬时浅底可接受 |

@@ -12,19 +12,20 @@ export type FrameHandle = number | ReturnType<typeof setTimeout>
 /** 无 rAF 环境下的帧间隔（≈60fps） */
 const FRAME_FALLBACK_MS = 16
 
-/** 是否有可用的 requestAnimationFrame */
-function hasRaf(): boolean {
-  return typeof requestAnimationFrame === 'function'
-}
+/**
+ * 是否有可用的 requestAnimationFrame。
+ * 运行环境恒定 ⇒ 模块加载时求值一次，避免每帧重复 `typeof` 检查（惯性期每帧要判两次）。
+ */
+const HAS_RAF = typeof requestAnimationFrame === 'function'
 
 /** 下一帧执行（无 rAF 回退 setTimeout） */
 export function requestFrame(callback: () => void): FrameHandle {
-  return hasRaf() ? requestAnimationFrame(callback) : setTimeout(callback, FRAME_FALLBACK_MS)
+  return HAS_RAF ? requestAnimationFrame(callback) : setTimeout(callback, FRAME_FALLBACK_MS)
 }
 
 /** 取消 `requestFrame` 调度的帧（回退路径走 clearTimeout） */
 export function cancelFrame(handle: FrameHandle): void {
-  if (hasRaf()) cancelAnimationFrame(handle as number)
+  if (HAS_RAF) cancelAnimationFrame(handle as number)
   else clearTimeout(handle as ReturnType<typeof setTimeout>)
 }
 

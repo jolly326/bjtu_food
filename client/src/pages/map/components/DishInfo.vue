@@ -195,6 +195,17 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
   padding: 0 var(--spacing-xs);
 }
 
+/* 视觉高度随下方块压缩，命中区经 ::after 纵向补足到 96rpx（不改布局高度） */
+.issue-entry::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: var(--tap-target-size);
+  transform: translateY(-50%);
+}
+
 .issue-entry__text {
   color: var(--text-body);
   font-family: var(--font-sans);

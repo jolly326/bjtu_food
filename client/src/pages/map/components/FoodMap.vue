@@ -28,15 +28,28 @@ import {
   type GridIndex,
   type TileBox,
 } from '@/utils/mapLayout'
-import { computePanBounds } from '@/utils/mapPan'
+import { computeFocusCamera } from '@/utils/mapCamera'
+import { computePanBounds, type PanBounds } from '@/utils/mapPan'
 import { refreshWindowSize, rpxToPx, windowSize } from '@/utils/viewport'
 
 interface Tile extends TileBox {
   dish: DishVO
+  /** 预计算的缩略图 URL：避免每帧对每个可见磁贴重复做字符串判断与拼接 */
+  src: string
+  /** 预计算的内联样式：位置 / 尺寸在 rebuild 后恒定，避免每帧新建 style 对象 */
+  style: string
 }
 
-const props = defineProps<{ dishes: DishVO[] }>()
-const emit = defineEmits<{ (e: 'pick', dish: DishVO): void }>()
+const props = defineProps<{
+  dishes: DishVO[]
+  /** 可视净空区高度（px）：底部弹层顶边以上；缺省按整屏计算 */
+  netHeight?: number
+}>()
+
+const emit = defineEmits<{
+  (e: 'pick', dish: DishVO): void
+  (e: 'blank'): void
+}>()
 
 const viewport = reactive(windowSize())
 
@@ -50,6 +63,9 @@ const failedIds = reactive(new Set<number>())
 
 /** 网格索引：按中心点把磁贴落格，点击命中从 O(N) 降到常数级 */
 let gridIndex: GridIndex<Tile> | null = null
+
+/** 首 / 末行卡片中心到世界边缘的距离（= 网格步长的一半）：平移边界据此放开到「边缘卡片可居中」 */
+let edgeInset = 0
 
 /** 视口裁剪：仅渲染「视口外扩半屏」内的磁贴，DOM 数量与可视区挂钩 */
 const visibleTiles = computed<Tile[]>(() =>
@@ -68,24 +84,58 @@ const worldStyle = computed(() => ({
   transform: `translate3d(${tx.value}px, ${ty.value}px, 0) scale(${scale.value})`,
 }))
 
-function tileStyle(tile: Tile) {
-  return {
-    width: `${tile.size}px`,
-    height: `${tile.size}px`,
-    left: `${tile.x}px`,
-    top: `${tile.y}px`,
-  }
-}
+/**
+ * 当前有效视口高度：弹层架起时只剩「顶边以上」的净空区可操作。
+ * 平移边界与 camera 聚焦**必须共用它** —— 否则聚焦目标会被按整屏算的边界夹住，
+ * 表现为「点了不居中，偏差正好是半个弹层」。
+ */
+const activeHeight = computed(() => {
+  const net = props.netHeight
+  return net != null && net > 0 && net < viewport.height ? net : viewport.height
+})
 
-function bounds() {
-  return computePanBounds(worldW.value, worldH.value, scale.value, viewport.width, viewport.height)
+/**
+ * 平移边界缓存：手势 / 惯性期间每帧都会调用（rubber + inertia + settle），
+ * 输入参数除 scale 外恒定 —— 命中缓存可省掉每帧的重复计算与对象分配。
+ */
+let boundsCache: {
+  worldW: number
+  worldH: number
+  scale: number
+  viewW: number
+  viewH: number
+  inset: number
+  value: PanBounds
+} | null = null
+
+function bounds(): PanBounds {
+  const w = worldW.value
+  const h = worldH.value
+  const s = scale.value
+  const vw = viewport.width
+  const vh = activeHeight.value
+  const c = boundsCache
+  if (
+    c !== null &&
+    c.worldW === w &&
+    c.worldH === h &&
+    c.scale === s &&
+    c.viewW === vw &&
+    c.viewH === vh &&
+    c.inset === edgeInset
+  ) {
+    return c.value
+  }
+  const value = computePanBounds(w, h, s, vw, vh, edgeInset)
+  boundsCache = { worldW: w, worldH: h, scale: s, viewW: vw, viewH: vh, inset: edgeInset, value }
+  return value
 }
 
 /**
- * 重建布局：**错位方格密铺**。
+ * 重建布局：**规整网格密铺**。
  *
- * - 固定网格结构（行优先），奇偶行水平错开半格形成砖墙式密铺；
- * - 每次载入把菜品随机映射到固定格子（`shuffled`）—— 规整网格、结构可预测、落点每次新鲜；
+ * - 固定行列、行优先逐行铺满，行与行不做水平错位（末行不足则右侧留空）；
+ * - 每次载入把菜品随机映射到固定格子（`shuffled`）—— 结构可预测、落点每次新鲜；
  * - 首屏居中于世界几何中心，进入即见地图中心区。
  */
 function rebuild(): void {
@@ -103,20 +153,28 @@ function rebuild(): void {
   const tile = rpxToPx(MAP.TILE_RPX, viewport.width)
   const cell = rpxToPx(MAP.CELL_RPX, viewport.width)
   const layout = buildGridLayout(list.length, tile, cell)
+  // 首 / 末卡片中心到世界边缘 = 步长的一半（halfGap + tile/2 化简）
+  edgeInset = cell / 2
   worldW.value = layout.worldW
   worldH.value = layout.worldH
 
-  tiles.value = list.map((dish, index) => ({
-    dish,
-    ...layout.boxes[index]!,
-  }))
+  tiles.value = list.map((dish, index) => {
+    const box = layout.boxes[index]!
+    return {
+      dish,
+      ...box,
+      // 缩略图与内联样式只在重建时算一次：渲染层每帧都要读，重复计算会被帧率成倍放大
+      src: thumbUrl(dish.imageUrl),
+      style: `width:${box.size}px;height:${box.size}px;left:${box.x}px;top:${box.y}px`,
+    }
+  })
   gridIndex = buildGridIndex(tiles.value, cell)
 
   scale.value = 1
   // 首屏落在世界几何中心，并显式收敛到合法边界（极端尺寸/窗口变化下也不越界）
   const b = bounds()
   tx.value = clamp((viewport.width - worldW.value) / 2, b.minX, b.maxX)
-  ty.value = clamp((viewport.height - worldH.value) / 2, b.minY, b.maxY)
+  ty.value = clamp((activeHeight.value - worldH.value) / 2, b.minY, b.maxY)
 }
 
 watch(() => props.dishes, rebuild, { immediate: true })
@@ -178,16 +236,21 @@ function rubber(nx: number, ny: number): void {
   ty.value = y
 }
 
-/** 弹性收敛到合法边界（duration = 0 即时） */
-function settle(duration: number): void {
+/**
+ * 缓动到指定位置。
+ * - `out`：三次 ease-out（弹性收敛 / 回弹用，快速落位）
+ * - `inOut`：三次 ease-in-out（camera 聚焦用，起止都柔和，避免大位移「猛地一窜」）
+ */
+function animateTo(
+  targetX: number,
+  targetY: number,
+  duration: number,
+  mode: 'out' | 'inOut' = 'out',
+): void {
   stopAnimation()
-  if (reduceMotion) duration = 0
-  const b = bounds()
-  const targetX = clamp(tx.value, b.minX, b.maxX)
-  const targetY = clamp(ty.value, b.minY, b.maxY)
   const fromX = tx.value
   const fromY = ty.value
-  if (duration <= 0 || (fromX === targetX && fromY === targetY)) {
+  if (duration <= 0 || reduceMotion || (fromX === targetX && fromY === targetY)) {
     tx.value = targetX
     ty.value = targetY
     return
@@ -195,13 +258,80 @@ function settle(duration: number): void {
   const startedAt = now()
   const tick = () => {
     const progress = clamp((now() - startedAt) / duration, 0, 1)
-    const eased = 1 - (1 - progress) ** 3
+    const eased =
+      mode === 'inOut'
+        ? progress < 0.5
+          ? 4 * progress ** 3
+          : 1 - (-2 * progress + 2) ** 3 / 2
+        : 1 - (1 - progress) ** 3
     tx.value = fromX + (targetX - fromX) * eased
     ty.value = fromY + (targetY - fromY) * eased
     frame = progress < 1 ? requestFrame(tick) : null
   }
   tick()
 }
+
+/** 弹性收敛到合法边界（duration = 0 即时） */
+function settle(duration: number): void {
+  const b = bounds()
+  animateTo(clamp(tx.value, b.minX, b.maxX), clamp(ty.value, b.minY, b.maxY), duration)
+}
+
+/** 待聚焦的菜品：弹层尚未落定时先记下，等实测高度回传后再动 */
+let pendingFocusId: number | null = null
+/** 兜底定时器：measured 失败时也不会永不聚焦 */
+let focusTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearFocusTimer(): void {
+  if (focusTimer != null) {
+    clearTimeout(focusTimer)
+    focusTimer = null
+  }
+}
+
+/** 落地执行一次聚焦（目标与边界共用 activeHeight ⇒ 不会被 clamp 夹偏） */
+function applyFocus(): void {
+  const id = pendingFocusId
+  if (id == null) return
+  const tile = tiles.value.find((item) => item.dish.id === id)
+  pendingFocusId = null
+  clearFocusTimer()
+  if (!tile) return
+  const target = computeFocusCamera(
+    tile,
+    scale.value,
+    { width: viewport.width, height: activeHeight.value },
+    bounds(),
+  )
+  animateTo(target.tx, target.ty, MAP.FOCUS_MS, 'inOut')
+}
+
+/**
+ * 请求聚焦某个磁贴。
+ * 弹层已架起（净空区有效）⇒ 立即动；否则等实测高度回传再动 ——
+ * 避免「先按整屏居中、随后被弹层压住再拽一次」的双段位移。
+ */
+function requestFocus(dishId: number): void {
+  pendingFocusId = dishId
+  const net = props.netHeight
+  if (net != null && net > 0 && net < viewport.height) {
+    applyFocus()
+    return
+  }
+  clearFocusTimer()
+  focusTimer = setTimeout(() => {
+    focusTimer = null
+    applyFocus()
+  }, MAP.FOCUS_WAIT_MS)
+}
+
+watch(
+  () => props.netHeight,
+  (value) => {
+    // 弹层落定后补聚焦；收起时（净空区回到整屏）保持视角不变
+    if (pendingFocusId != null && value != null && value > 0 && value < viewport.height) applyFocus()
+  },
+)
 
 function inertia(): void {
   if (reduceMotion) {
@@ -358,9 +488,13 @@ function onTouchEnd(event: TouchEvent): void {
   if (wasPan && !moved && now() - startAt <= MAP.TAP_DURATION_MS && point) {
     const dish = hitTest(point.clientX, point.clientY)
     if (dish) {
+      requestFocus(dish.id)
       emit('pick', dish)
       return
     }
+    // 位移与时长都在阈值内、且未命中磁贴 ⇒ 点空白（拖动过的手势不会走到这里）
+    emit('blank')
+    return
   }
   if (wasPan) inertia()
   else settle(MAP.EDGE_SETTLE_MS)
@@ -386,6 +520,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopAnimation()
+  clearFocusTimer()
   if (resizeTimer != null) clearTimeout(resizeTimer)
   uni.offWindowResize(handleResize)
 })
@@ -404,14 +539,14 @@ onBeforeUnmount(() => {
         v-for="tile in visibleTiles"
         :key="tile.dish.id"
         class="map__tile"
-        :style="tileStyle(tile)"
+        :style="tile.style"
         hover-class="map__tile--pressed"
         hover-stay-time="80"
       >
         <image
-          v-if="tile.dish.imageUrl && !failedIds.has(tile.dish.id)"
+          v-if="tile.src && !failedIds.has(tile.dish.id)"
           class="map__tile-img"
-          :src="thumbUrl(tile.dish.imageUrl)"
+          :src="tile.src"
           mode="aspectFill"
           lazy-load
           @error="onImageError(tile.dish.id)"

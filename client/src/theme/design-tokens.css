@@ -57,5 +57,5 @@ page {
   --tap-target-size: 96rpx;
   /* Sheet 三段骨架高度：信息页 / 纠错页强同步（虚线固定在中线的前提） */
   --sheet-block-top: calc(var(--tap-target-size) + var(--spacing-lg));
-  --sheet-block-bottom: calc(var(--tap-target-size) * 2 / 3);
+  --sheet-block-bottom: var(--spacing-xl);
 }
