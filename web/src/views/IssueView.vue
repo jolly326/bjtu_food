@@ -18,6 +18,7 @@ import { fetchAllPages } from '@/composables/useOptions'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
 import { useCardActions, type CardAction } from '@/composables/useCardMenu'
 import {
+  canteenApi,
   dishApi,
   issueApi,
   optionApi,
@@ -34,6 +35,7 @@ const tab = ref<'issues' | 'options'>('issues')
 
 const dishes = ref<DishOut[]>([])
 const stalls = ref<StallOut[]>([])
+const canteens = ref<{ id: number; name: string }[]>([])
 const filter = reactive({
   handled: false as boolean | undefined,
   dishId: undefined as number | undefined,
@@ -49,6 +51,10 @@ async function loadStalls() {
   stalls.value = (await fetchAllPages((page, pageSize) =>
     stallApi.list({ page, pageSize }),
   )) as StallOut[]
+}
+
+async function loadCanteens() {
+  canteens.value = await fetchAllPages((page, pageSize) => canteenApi.list(page, pageSize))
 }
 
 /** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
@@ -183,7 +189,7 @@ async function onOptionRemove() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadDishes(), loadStalls(), load(), loadOptions()])
+  await Promise.all([loadDishes(), loadStalls(), loadCanteens(), load(), loadOptions()])
 })
 </script>
 
@@ -359,6 +365,7 @@ onMounted(async () => {
     <DishEditDialog
       v-model="editVisible"
       :dish="editing"
+      :canteens="canteens"
       :stalls="stalls"
       @saved="
         () => {

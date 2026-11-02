@@ -23,6 +23,8 @@ const stalls = ref<StallOut[]>([])
 const filter = reactive({
   canteenId: undefined as number | undefined,
   stallId: undefined as number | undefined,
+  /** 只看未指定档口的菜品（归属食堂但无档口） */
+  noStall: undefined as boolean | undefined,
   /** 上架状态：undefined 全部 / true 在售 / false 已下架 */
   activate: undefined as boolean | undefined,
   /** 名称模糊搜索（防抖后生效） */
@@ -57,6 +59,7 @@ const { rows, total, page, loading, error, hasNext, load, go, reload } = usePage
     dishApi.list({
       stallId: filter.stallId,
       canteenId: filter.canteenId,
+      noStall: filter.noStall,
       activate: filter.activate,
       name: filter.name.trim() || undefined,
       page: p,
@@ -149,7 +152,9 @@ function toggleSelectAll() {
 /** 行 → 提交体（批量改单项字段时复用其余字段） */
 function bodyOf(row: DishOut) {
   return {
+    canteenId: row.canteenId,
     stallId: row.stallId,
+    floor: row.floor || null,
     name: row.name,
     imageUrl: row.imageUrl ?? null,
     activate: row.activate,
@@ -218,6 +223,12 @@ async function onBatchStallConfirm() {
   await applyBatch((row) => ({ ...bodyOf(row), stallId }))
 }
 
+/** 批量清空所属档口：菜品回落为只挂食堂（仍保留食堂与楼层） */
+async function onBatchStallClear() {
+  batchStallDialog.visible = false
+  await applyBatch((row) => ({ ...bodyOf(row), stallId: null }))
+}
+
 onMounted(async () => {
   await Promise.all([loadCanteens(), loadStalls(), load()])
 })
@@ -272,6 +283,16 @@ onMounted(async () => {
         <el-option label="全部状态" :value="undefined" />
         <el-option label="在售" :value="true" />
         <el-option label="已下架" :value="false" />
+      </el-select>
+      <el-select
+        v-model="filter.noStall"
+        class="filters__select"
+        placeholder="档口归属"
+        clearable
+        @change="reload"
+      >
+        <el-option label="全部归属" :value="undefined" />
+        <el-option label="未指定档口" :value="true" />
       </el-select>
     </div>
 
@@ -390,6 +411,7 @@ onMounted(async () => {
         </select>
         <footer class="dialog__foot">
           <button class="btn btn--outline" @click="batchStallDialog.visible = false">取消</button>
+          <button class="btn" @click="onBatchStallClear">清空档口</button>
           <button class="btn btn--primary" @click="onBatchStallConfirm">确定</button>
         </footer>
       </div>
@@ -398,6 +420,7 @@ onMounted(async () => {
     <DishEditDialog
       v-model="editVisible"
       :dish="editing"
+      :canteens="canteens"
       :stalls="stalls"
       @saved="load"
       @remove="onRemove"

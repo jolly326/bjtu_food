@@ -166,7 +166,7 @@ function onConfirm(): void {
           <text class="nav-text">取消</text>
         </view>
         <view
-          class="nav-item"
+          class="nav-item nav-item--primary"
           :class="{ 'nav-item--disabled': busy }"
           hover-class="nav-item--pressed"
           aria-role="button"
@@ -212,7 +212,7 @@ function onConfirm(): void {
   gap: var(--spacing-sm);
 }
 
-/* 选项：纯文字，无底色无边框 */
+/* 选项：浅杏软胶囊（sheet 胶囊用浅杏，靠细棕描边分层） */
 .feedback__option {
   display: flex;
   flex: 1 1 0;
@@ -220,10 +220,15 @@ function onConfirm(): void {
   justify-content: center;
   min-width: 0;
   min-height: var(--tap-target-size);
+  padding: 0 var(--spacing-xs);
+  border-radius: var(--radius-pill);
+  background: var(--pill-bg);
+  border: var(--border-width) solid var(--border-color);
+  transition: transform var(--duration-fast) var(--ease-bounce);
 }
 
 .feedback__option--pressed {
-  opacity: 0.55;
+  transform: scale(0.96);
 }
 
 .feedback__label {
@@ -236,13 +241,17 @@ function onConfirm(): void {
   white-space: nowrap;
 }
 
-/* 已选中：纯文字居中 */
+/* 已选中：浅杏软胶囊居中（与可选项同一形态） */
 .feedback__picked {
   display: flex;
   flex: 1;
   align-items: center;
   justify-content: center;
   min-height: var(--tap-target-size);
+  padding: 0 var(--spacing-md);
+  border-radius: var(--radius-pill);
+  background: var(--pill-bg);
+  border: var(--border-width) solid var(--border-color);
 }
 
 /* 成功态：对勾 + 文案 */
@@ -268,6 +277,7 @@ function onConfirm(): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--spacing-md);
   min-height: var(--sheet-block-bottom);
   animation: fb-fade var(--duration-base) var(--ease-out);
 }
@@ -278,16 +288,33 @@ function onConfirm(): void {
   justify-content: center;
 }
 
+/* 单独收尾按钮（关闭）自然宽度、居中，不撑满 */
+.feedback__close-wrap .nav-item {
+  flex: 0 1 auto;
+  padding: 0 var(--spacing-2xl);
+}
+
 .nav-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--spacing-2xs);
+  flex: 1 1 0;
   min-height: var(--tap-target-size);
-  padding: 0 var(--spacing-2xs);
+  padding: 0 var(--spacing-lg);
+  border-radius: var(--radius-pill);
+  background: var(--pill-bg);
+  border: var(--border-width) solid var(--border-color);
+  transition: transform var(--duration-fast) var(--ease-bounce);
 }
 
 .nav-item--pressed {
-  opacity: 0.55;
+  transform: scale(0.96);
+}
+
+/* 主操作（确认提交）靠深棕字强调，🔴 仍不用暖橙主色 */
+.nav-item--primary .nav-text {
+  color: var(--text-title);
 }
 
 .nav-item--disabled {

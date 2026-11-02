@@ -60,7 +60,8 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
         </view>
       </view>
 
-      <text v-if="dish.stallName" class="dish__stall">{{ dish.stallName }}</text>
+      <!-- 档口缺失 ⇒ 占位「暂无」（置灰，与真实档口名区分）；食堂缺失不可能发生（后端强校验非空） -->
+      <text class="dish__stall" :class="{ 'dish__stall--empty': !dish.stallName }">{{ dish.stallName || '暂无' }}</text>
     </view>
 
     <!-- 虚线：固定在滑块中线 -->
@@ -71,10 +72,11 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
       <view class="dish__loc-row">
         <view class="dish__loc-left">
           <text class="dish__canteen">{{ dish.canteenName }}</text>
-          <text v-if="dish.floor" class="dish__floor">{{ dish.floor }}</text>
+          <text class="dish__floor" :class="{ 'dish__floor--empty': !dish.floor }">{{ dish.floor || '暂无' }}</text>
         </view>
         <view
           class="issue-entry"
+          hover-class="issue-entry--pressed"
           aria-role="button"
           aria-label="纠错"
           @tap.stop="emit('openFeedback')"
@@ -142,6 +144,11 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
   white-space: nowrap;
 }
 
+/* 档口缺失的占位：置灰，与真实档口名区分 */
+.dish__stall--empty {
+  color: var(--text-disabled);
+}
+
 /* 第 3 行：短横线虚线由 DashedRule 承载；本页仅此一条 */
 
 /* 第 4 行：固定行高，与纠错页导航同高 */
@@ -183,16 +190,28 @@ const displayCount = computed(() => props.dish?.likeCount ?? 0)
   line-height: 1.3;
 }
 
-/* 纠错入口：文字 + 图标，无底色、无边框（下方按钮统一不加承载底） */
+/* 楼层缺失的占位：置灰，与真实楼层区分 */
+.dish__floor--empty {
+  color: var(--text-disabled);
+}
+
+/* 纠错入口：浅杏软胶囊（sheet 胶囊用浅杏，靠细棕描边分层） */
 .issue-entry {
   position: relative;
-  display: flex;
+  display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   gap: var(--spacing-2xs);
-  min-height: var(--sheet-block-bottom);
-  margin-right: calc(-1 * var(--spacing-xs));
-  padding: 0 var(--spacing-xs);
+  min-height: var(--tap-target-size);
+  padding: 0 var(--spacing-md);
+  border-radius: var(--radius-pill);
+  background: var(--pill-bg);
+  border: var(--border-width) solid var(--border-color);
+  transition: transform var(--duration-fast) var(--ease-bounce);
+}
+
+.issue-entry--pressed {
+  transform: scale(0.96);
 }
 
 .issue-entry__text {

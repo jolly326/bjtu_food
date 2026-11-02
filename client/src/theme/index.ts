@@ -10,5 +10,7 @@ export * from './tokens'
 export {
   useTheme,
   initTheme,
+  setTheme,
+  toggleTheme,
   type ThemeMode,
 } from './useTheme'

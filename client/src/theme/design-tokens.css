@@ -10,6 +10,8 @@ page {
   --radius-card: 44rpx;
   --radius-modal: 56rpx;
   --radius-pill: 999rpx;
+  /* 常规描边线宽：图片 / 卡片 / 弹层顶边统一，图片 border 加粗在此集中控制 */
+  --border-width: 2rpx;
 
   /* ===== 间距（4pt 栅格）===== */
   --spacing-2xs: 4rpx;
@@ -57,5 +59,5 @@ page {
   --tap-target-size: 96rpx;
   /* Sheet 三段骨架高度：信息页 / 纠错页强同步（虚线固定在中线的前提） */
   --sheet-block-top: calc(var(--tap-target-size) + var(--spacing-lg));
-  --sheet-block-bottom: calc(var(--tap-target-size) * 2 / 3);
+  --sheet-block-bottom: var(--spacing-xl);
 }

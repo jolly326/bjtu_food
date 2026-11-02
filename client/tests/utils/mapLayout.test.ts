@@ -5,6 +5,7 @@ import {
   buildGridLayout,
   cullTiles,
   hitTestGrid,
+  pickScatteredHoles,
 } from '@/utils/mapLayout'
 
 describe('mapLayout：规整网格', () => {
@@ -43,6 +44,7 @@ describe('mapLayout：规整网格', () => {
   it('空列表返回空世界', () => {
     expect(buildGridLayout(0, 200, 330)).toEqual({
       boxes: [],
+      functional: [],
       worldW: 0,
       worldH: 0,
       cols: 0,
@@ -74,5 +76,29 @@ describe('mapLayout：视口裁剪', () => {
     ]
     const visible = cullTiles(tiles, { width: 300, height: 300, tx: 0, ty: 0, scale: 1 })
     expect(visible.map((t) => t.id)).toEqual([1])
+  })
+})
+
+describe('mapLayout：散布空位', () => {
+  it('pickScatteredHoles 挑选的空位互不相邻（8 邻域：切比雪夫距离 ≥ 2）', () => {
+    let s = 123456789
+    const rng = () => {
+      s = (s * 1103515245 + 12345) & 0x7fffffff
+      return s / 0x7fffffff
+    }
+    // 12×10 网格的 120 个空闲格
+    const free = Array.from({ length: 120 }, (_, i) => ({ r: Math.floor(i / 12), c: i % 12 }))
+    for (let t = 0; t < 60; t++) {
+      const holes = pickScatteredHoles(free, 9, rng)
+      const cells = [...holes].map((i) => free[i])
+      for (let i = 0; i < cells.length; i++) {
+        for (let j = i + 1; j < cells.length; j++) {
+          const dr = Math.abs(cells[i].r - cells[j].r)
+          const dc = Math.abs(cells[i].c - cells[j].c)
+          // 8 邻域不相邻 = 任意两空位切比雪夫距离 ≥ 2
+          expect(Math.max(dr, dc)).toBeGreaterThan(1)
+        }
+      }
+    }
   })
 })

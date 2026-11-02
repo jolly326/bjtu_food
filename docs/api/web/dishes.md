@@ -7,7 +7,7 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `stallId?` · `canteenId?` · `activate?`（`true` 在售 / `false` 已下架）· `name?`（**名称模糊匹配**，1–64 字）· `page` / `pageSize`（默认 20，上限 50） |
+| 入参 | `stallId?` · `canteenId?` · `noStall?`（`true` = 只看**未指定档口**的菜品）· `activate?`（`true` 在售 / `false` 已下架）· `name?`（**名称模糊匹配**，1–64 字）· `page` / `pageSize`（默认 20，上限 50） |
 | 出参 | `AdminPageResult<DishAdminVO>` |
 | 排序 | 按 `id` 升序 |
 
@@ -16,9 +16,11 @@
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 菜品 ID |
-| `stallId` | number | 否 | 所属档口 |
-| `stallName` | string | 否 | 档口名 |
+| `canteenId` | number | 否 | 所属食堂（**必填**，最小定位信息） |
 | `canteenName` | string | 否 | 食堂名（位置链路展示） |
+| `stallId` | number | **是** | 所属档口；`null` = 档口未知 / 暂不指定 |
+| `stallName` | string | 否 | 档口名；缺失为 `''`（列表占位展示「暂无」） |
+| `floor` | string | **是** | 楼层（受控字典：负一层…四层）；缺失为 `''`（列表占位展示「暂无」） |
 | `name` | string | 否 | 菜品名称 |
 | `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 未上传 |
 | `activate` | boolean | 否 | 菜品状态：`true` 在售 / `false` 已下架 |
@@ -29,17 +31,17 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `{ stallId, name, imageUrl?, activate? }` —— `activate` 缺省 `true` |
+| 入参 | `{ canteenId, name, stallId?, floor?, imageUrl?, activate? }` —— `canteenId` / `name` 必填；`stallId` / `floor` 缺省为「未指定」；`activate` 缺省 `true` |
 | 出参 | `DishAdminVO` |
-| 错误码 | `400` `stallId` / `name` 缺失或非法 ｜ 同档口下同名已存在 ｜ `4001` 档口不存在 |
+| 错误码 | `400` `canteenId` / `name` 缺失或非法 ｜ 同食堂下同名已存在 ｜ 档口与食堂归属不一致 ｜ `4001` 食堂不存在 ｜ `4001` 档口不存在 |
 
 ## `PUT /admin/dishes/{id}`
 
 | 项 | 口径 |
 |---|---|
-| 入参 | 同 `POST`（`imageUrl` 传 `null` = 清除图片） |
+| 入参 | 同 `POST`（`imageUrl` 传 `null` = 清除图片；`stallId` 传 `null` = 清空档口） |
 | 出参 | `DishAdminVO` |
-| 错误码 | `400` 同档口下同名已存在 ｜ `4001` 菜品不存在 |
+| 错误码 | `400` 同食堂下同名已存在 ｜ 档口与食堂归属不一致 ｜ `4001` 菜品不存在 |
 
 ## `DELETE /admin/dishes/{id}`
 

@@ -2,18 +2,25 @@
 /**
  * 菜品编辑弹窗（菜品管理 / 纠错处理两页共用，规格见 docs/ui/web/菜品管理.md §2）。
  * 新建（`dish = null`）与编辑同组件；上传前压缩（utils/image）；保存成功回抛 `saved`。
+ *
+ * 归属：食堂必填（最小定位），档口 / 楼层可选；指定档口时按所选食堂过滤档口下拉。
  */
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { dishApi, upload, type DishOut } from '@/api'
 import type { StallOut } from '@/api/types'
 import { compressImage } from '@/utils/image'
 
+/** 楼层受控字典（与后端 dish.floor 同源：docs/schema/dish.md） */
+const FLOOR_OPTIONS = ['负一层', '一层', '二层', '三层', '四层']
+
 const props = defineProps<{
   modelValue: boolean
   /** 编辑对象；`null` = 新建 */
   dish: DishOut | null
-  /** 档口选项（父级加载；带食堂名便于分组展示） */
+  /** 食堂选项（父级加载） */
+  canteens: { id: number; name: string }[]
+  /** 档口选项（父级加载；按所选食堂过滤） */
   stalls: StallOut[]
 }>()
 
@@ -26,12 +33,19 @@ const emit = defineEmits<{
 
 const dialog = reactive({
   id: 0,
+  canteenId: undefined as number | undefined,
   stallId: undefined as number | undefined,
+  floor: '' as string,
   name: '',
   imageUrl: '',
   activate: true,
   uploading: false,
 })
+
+/** 档口按所选食堂过滤；未选食堂时列全部（避免误选跨食堂档口） */
+const filteredStalls = computed(() =>
+  dialog.canteenId ? props.stalls.filter((s) => s.canteenId === dialog.canteenId) : props.stalls,
+)
 const saving = ref(false)
 
 watch(
@@ -40,12 +54,19 @@ watch(
     if (!visible) return
     // 打开时整体重置表单（避免残留上次的值）
     dialog.id = props.dish?.id ?? 0
-    dialog.stallId = props.dish?.stallId
+    dialog.canteenId = props.dish?.canteenId
+    dialog.stallId = props.dish?.stallId ?? undefined
+    dialog.floor = props.dish?.floor ?? ''
     dialog.name = props.dish?.name ?? ''
     dialog.imageUrl = props.dish?.imageUrl ?? ''
     dialog.activate = props.dish?.activate ?? true
   },
 )
+
+function onCanteenChange() {
+  // 切换食堂后该食堂档口集合变化，原档口可能失效 ⇒ 重置
+  dialog.stallId = undefined
+}
 
 async function onPickImage(event: Event) {
   const input = event.target as HTMLInputElement
@@ -64,8 +85,8 @@ async function onPickImage(event: Event) {
 }
 
 async function onSave() {
-  if (!dialog.stallId) {
-    ElMessage.warning('请选择所属档口')
+  if (!dialog.canteenId) {
+    ElMessage.warning('请选择所属食堂')
     return
   }
   if (!dialog.name.trim()) {
@@ -75,7 +96,9 @@ async function onSave() {
   saving.value = true
   try {
     const body = {
-      stallId: dialog.stallId,
+      canteenId: dialog.canteenId,
+      stallId: dialog.stallId ?? null,
+      floor: dialog.floor || null,
       name: dialog.name.trim(),
       imageUrl: dialog.imageUrl || null,
       activate: dialog.activate,
@@ -98,12 +121,22 @@ async function onSave() {
     <div class="dialog">
       <h3 class="dialog__title">{{ dialog.id ? '编辑菜品' : '新建菜品' }}</h3>
 
-      <label class="dialog__label" for="dish-stall">所属档口</label>
+      <label class="dialog__label" for="dish-canteen">所属食堂（必填）</label>
+      <select id="dish-canteen" v-model="dialog.canteenId" class="dialog__input" @change="onCanteenChange">
+        <option :value="undefined">请选择食堂</option>
+        <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
+      </select>
+
+      <label class="dialog__label" for="dish-stall">所属档口（可选）</label>
       <select id="dish-stall" v-model="dialog.stallId" class="dialog__input">
-        <option :value="undefined">请选择</option>
-        <option v-for="s in stalls" :key="s.id" :value="s.id">
-          {{ s.canteenName }} · {{ s.name }}
-        </option>
+        <option :value="undefined">暂不指定（只挂食堂）</option>
+        <option v-for="s in filteredStalls" :key="s.id" :value="s.id">{{ s.name }}</option>
+      </select>
+
+      <label class="dialog__label" for="dish-floor">楼层（可选）</label>
+      <select id="dish-floor" v-model="dialog.floor" class="dialog__input">
+        <option value="">暂不指定（回落档口楼层）</option>
+        <option v-for="f in FLOOR_OPTIONS" :key="f" :value="f">{{ f }}</option>
       </select>
 
       <label class="dialog__label" for="dish-name">名称</label>

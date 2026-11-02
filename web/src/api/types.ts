@@ -29,7 +29,12 @@ export type StallOut = StallBody & {
 }
 
 export type DishBody = {
-  stallId: number
+  /** 食堂必填：菜品最小定位信息（学生端据此能找到地方） */
+  canteenId: number
+  /** 档口可选：未指定时菜品只挂在食堂（上下架仍生效） */
+  stallId?: number | null
+  /** 楼层可选：缺省回落档口楼层 */
+  floor?: string | null
   name: string
   imageUrl?: string | null
   /** 上架状态：true 在售 / false 已下架（列名 activate，见 schema/dish.md） */
@@ -37,8 +42,8 @@ export type DishBody = {
 }
 export type DishOut = DishBody & {
   id: number
-  stallName: string
   canteenName: string
+  stallName: string
   /** 点赞数：只读派生缓存列 = COUNT(dish_rating.liked = 1) */
   likeCount: number
   updatedAt: string

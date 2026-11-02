@@ -16,7 +16,10 @@ from app.models import Canteen, Dish, DishRating, Stall
 
 @dataclass(slots=True)
 class DishRow:
-    """在售菜品 + 位置链路（食堂 / 档口）+ 群体点赞数。"""
+    """在售菜品 + 位置链路（食堂 / 档口）+ 群体点赞数。
+
+    档口 / 楼层可缺失 ⇒ **用空串表达**（保持非空类型，端上无需判 null，展示占位「暂无」）。
+    """
 
     id: int
     name: str
@@ -24,15 +27,25 @@ class DishRow:
     like_count: int
     canteen_name: str
     stall_name: str
-    floor: str | None
+    floor: str
 
 
 def list_on_sale(session: Session) -> list[DishRow]:
-    """全量在售菜品 + 位置 + 点赞数；不做食堂筛选 / 分页（卡片排布由端上完成）。"""
+    """全量在售菜品 + 位置 + 点赞数；不做食堂筛选 / 分页（卡片排布由端上完成）。
+
+    食堂必填走 INNER JOIN；**档口可空必须走 LEFT JOIN** —— 用 INNER JOIN 会让
+    无档口菜品直接被过滤掉，从美食地图上消失。
+    楼层优先取菜品自身 ``floor``，缺失时回落档口楼层。
+    """
     stmt = (
-        select(Dish, Stall.name, Canteen.name, Stall.floor)
-        .join(Stall, Stall.id == Dish.stall_id)
-        .join(Canteen, Canteen.id == Stall.canteen_id)
+        select(
+            Dish,
+            func.coalesce(Stall.name, ""),
+            Canteen.name,
+            func.coalesce(Dish.floor, Stall.floor, ""),
+        )
+        .join(Canteen, Canteen.id == Dish.canteen_id)
+        .outerjoin(Stall, Stall.id == Dish.stall_id)
         .where(Dish.activate == True)
     )
     rows: list[DishRow] = []
