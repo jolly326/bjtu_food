@@ -3,12 +3,11 @@
 * **同一食堂下** ``name`` 唯一（替换失效的「同一档口下唯一」）
 * 归属：**食堂必填**（最小定位），档口 / 楼层**可选**；指定了档口则该档口所属食堂必须与菜品食堂一致
 * 🔴 ``like_count`` 只读，**本域不写**
-* 🔴 删除**引用即禁删**：存在学生记忆或纠错 ⇒ `400` 引导改用「下架」（CASCADE 仅为兜底，正常路径不可达）
+* 删除：管理员可物理删除菜品，引用项（纠错/点赞）随外键 ``ondelete="CASCADE"`` 一并清除（删除前由前端提醒）
 """
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.admin.dish import repo
@@ -16,7 +15,7 @@ from app.admin.dish.repo import DishRow
 from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
-from app.models import Canteen, Dish, DishIssue, Stall
+from app.models import Canteen, Dish, Stall
 
 # 楼层受控字典（与 stall.floor 同源）
 FLOOR_CHOICES = ("负一层", "一层", "二层", "三层", "四层")
@@ -130,12 +129,7 @@ def delete(session: Session, *, dish_id: int) -> None:
     dish = session.get(Dish, dish_id)
     if dish is None:
         raise NotFound("菜品不存在")
-    # 🔴 引用即禁删：学生纠错一旦随 CASCADE 蒸发不可恢复 —— 请改用「下架」
-    issue_count = session.scalar(
-        select(func.count()).select_from(DishIssue).where(DishIssue.dish_id == dish_id)
-    )
-    if issue_count:
-        raise BadRequest("该菜品已有学生纠错记录，无法删除，请改用「下架」")
+    # 物理删除：dish_issue / dish_rating 因外键 ondelete="CASCADE" 自动连带清除（删除前由前端提醒）
     session.delete(dish)
     session.flush()
     invalidate("student:dishes")

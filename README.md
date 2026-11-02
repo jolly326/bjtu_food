@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
-![MySQL](https://img.shields.io/badge/MySQL-5.7-4479A1)
+![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1)
 ![uni-app](https://img.shields.io/badge/uni--app-Vue3-4FC08D)
 ![Vue3](https://img.shields.io/badge/Vue-3-42b883)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6)
@@ -14,7 +14,7 @@
 
 ## 产品形态（学生端单页全屏沉浸）
 
-- **美食地图**：圆角正方形卡片（菜品磁贴 + 功能方块 + `2×2` 大菜品卡）在可平移缩放的 2D 平面上**随机分布**；点磁贴唤起底部弹窗看详情、点赞与纠错。
+- **美食地图**：圆角正方形卡片（菜品磁贴 + 功能方块 + `2×2` 大菜品卡）在可平移缩放的 2D 平面上**规整对齐网格**（允许每载入 1–2 个 2×2 大图与少量随机留白）；点磁贴唤起底部弹窗看详情、点赞与纠错。
 - **无 TabBar / 全局顶栏 / 页标题** —— 无搜索、无「我的」页面、无菜品详情页。
 - **全匿名**：微信 `openid` 静默识别，身份**不在任何界面展示**；不做注册 / 登录 / 认证 / 注销。
 - **零自由输入**：学生侧只有「点赞」与「纠错选项」两类动作，没有文字与图片 UGC。
@@ -35,7 +35,7 @@
 
 | 端 | 技术 |
 |---|---|
-| 后端 | **Python · FastAPI · SQLAlchemy · MySQL 5.7（TDSQL-C）** |
+| 后端 | **Python · FastAPI · SQLAlchemy · MySQL 8.0（TDSQL-C）** |
 | 小程序 | uni-app · Vue 3 · TypeScript |
 | 管理后台 | Vue 3 · TypeScript · Element Plus |
 
@@ -45,17 +45,20 @@
 
 ```
 bjtu_food/
-├── server/    # 后端服务（FastAPI）
-├── client/    # 微信小程序（uni-app）
-├── web/       # 管理后台（Vue 3）
-└── docs/      # 设计文档 —— 唯一真源（定位 / 功能 / 契约 / 库结构 / UI / 安全）
+├── server/        # 后端服务（FastAPI）
+├── client/        # 微信小程序（uni-app）
+├── web/           # 管理后台（Vue 3）
+├── docs/          # 设计文档 —— 唯一真源（定位 / 功能 / 契约 / 库结构 / UI / 安全）
+└── ENVIRONMENT.md # 三端环境与启动说明
 ```
+
+> 架构与分包见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)；三端环境与启动见 [`ENVIRONMENT.md`](ENVIRONMENT.md)。
 
 ## 快速开始
 
 ### 环境要求
 
-Python **3.12**（conda）· Node.js 18+ · npm · 微信开发者工具 · MySQL **5.7+**
+Python **3.12**（conda）· Node.js 18+ · npm · 微信开发者工具 · MySQL **8.0+**
 
 ### 1. 后端环境
 
@@ -78,7 +81,7 @@ pip install -r server/requirements.txt -r server/requirements-dev.txt
 
 ### 3. 配置环境变量
 
-**后端**：复制 `server/.env.example` 为 `server/.env`（`.env.local` 放个人差别值，均不入库）：
+**后端**：以 `server/.env.example` 为模板创建 **`server/.env.development`**（团队默认，按 `APP_PROFILE` 加载）；个人差异写 `server/.env.local`（覆盖前者）；生产用 `server/.env.production` 或进程环境变量（均不入库）：
 
 | 变量 | 说明 |
 |---|---|
@@ -86,7 +89,7 @@ pip install -r server/requirements.txt -r server/requirements-dev.txt
 | `JWT_SECRET` | **学生端** JWT 签名密钥 |
 | `ADMIN_JWT_SECRET` | **运营端** JWT 签名密钥 —— 🔴 **必须与学生端不同**（否则学生 token 可冒充运营端） |
 | `WECHAT_APPID` / `WECHAT_SECRET` | 微信小程序凭证（换 openid） |
-| `COS_*` | 对象存储（档口海报 / 菜品图） |
+| `COS_*`（含必填 `COS_DOMAIN`） | 对象存储（菜品 / 食堂 / 档口封面图） |
 
 **管理后台**：`web/.env.development`（连本机）/ `web/.env.production`（连云端），Vite 标准机制，开箱即用。
 

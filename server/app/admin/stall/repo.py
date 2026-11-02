@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.formatters import format_dt
+from app.core.storage import to_absolute
 from app.models import Canteen, Dish, Stall
 
 
@@ -22,6 +23,7 @@ class StallRow:
     activate: bool
     floor: str | None
     window_no: str | None
+    image: str | None
     dish_count: int
     updated_at: str
 
@@ -35,6 +37,7 @@ def _to_row(stall: Stall, canteen_name: str, dish_count: int) -> StallRow:
         activate=stall.activate,
         floor=stall.floor,
         window_no=stall.window_no,
+        image=to_absolute(stall.image),
         dish_count=dish_count,
         updated_at=format_dt(stall.updated_at) or "",
     )

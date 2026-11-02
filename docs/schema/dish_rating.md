@@ -26,7 +26,7 @@
 |---|---|
 | 点赞 | upsert 本行（`liked = TRUE`，`updated_at` = DB 时钟）+ 同事务重算 `dish.like_count` |
 | 取消点赞 | 置 `liked = FALSE` + 同事务重算 `dish.like_count`（保留行，便于再次点赞） |
-| 删除菜品 | 纠错引用即禁删 ⇒ 本表行不会因删菜蒸发；`CASCADE` 仅兜底 |
+| 删除菜品 | 随菜品 `ON DELETE CASCADE` **一并清除**（管理员删菜即蒸发，并同事务重算 `dish.like_count`） |
 
 ## 聚合口径
 

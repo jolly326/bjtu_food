@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 运营端图标：与学生端同源的 **Streamline Plump（Flat）单色描边 SVG**（`assets/icons`，15 枚，CC BY 4.0；
+ * 运营端图标：**Streamline Plump Solid 实心 SVG**（`assets/icons`，14 枚，CC BY 4.0；
  * 🔴「零消费即删」—— 新增前先全仓查引用，无消费的不入库，见 docs/ui/web/设计变量.md §2.4）。
- * SVG 的 `stroke` / `fill` 一律 `currentColor` ⇒ 图标跟随宿主 `color` 上色（激活态主色、占位态弱化色）。
+ * SVG 一律 `fill="currentColor"` + `fill-rule="evenodd"`（实心、挖孔靠 evenodd，无描边）⇒ 图标跟随宿主 `color` 上色（默认深棕 `#44382E`、弱化态 `#8C7B6B`、激活 / 主操作态暖橙 `#FF8A4C`）。
  * 图标与尺寸口径见 docs/ui/web/公共组件与形态基线.md。
  */
 import { computed, ref, watchEffect } from 'vue'

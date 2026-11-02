@@ -92,7 +92,7 @@
 | 菜名（弹窗主标题）、加载态文案 | **无衬线圆体** `--font-sans` |
 | 食堂·档口等**参数型元信息**、按钮文案、弹层选项、引导小字 | **无衬线圆体** `--font-sans` |
 
-> **字体落地**：动森同款圆体（M PLUS Rounded 1c / 思源圆体）需经 `wx.loadFontFace` 远程加载，受**域名白名单 + 中文字体包体**限制 —— 端上用**系统圆体**（`--font-sans`：`-apple-system` / `PingFang SC` / `HarmonyOS Sans SC`）命中圆润字形，**不引入自定义字体文件**（取舍见 [`docs/README.md`](../../INDEX.md)「已知取舍」）。
+> **字体落地**：动森同款圆体（M PLUS Rounded 1c / 思源圆体）需经 `wx.loadFontFace` 远程加载，受**域名白名单 + 中文字体包体**限制 —— 端上用**系统圆体**（`--font-sans`：`-apple-system` / `PingFang SC` / `HarmonyOS Sans SC`）命中圆润字形，**不引入自定义字体文件**（取舍见 [`docs/INDEX.md`](../../INDEX.md)「已知取舍」）。
 
 ### 3.3 字号梯度（封闭标度，禁止自造）
 
@@ -132,15 +132,15 @@
 
 ---
 
-## 6 · 图标（粗描边语汇）
+## 6 · 图标（实心填充语汇）
 
 | 项 | 口径 |
 |---|---|
-| 来源 | Streamline Plump（Flat）**黑色轮廓 SVG**（`client/src/assets/icons/`），**单一来源**；禁 emoji / 自绘 / 图标字体 |
-| 描边 | 一律 `fill: none` + 浅棕描边（`48` 网格 `stroke-width 2`，心形 / 加号紧致 `viewBox` 用 `1.2`），圆角收口 |
-| 色调 | 全部图标浅棕 `#8C7B6B`；唯一填充态 = 已赞 `heart-on`；无 tone / 主题变体 |
+| 来源 | Streamline Plump（**Solid**）**实心填充 SVG**（`client/src/assets/icons/`），**单一来源**；禁 emoji / 自绘 / 图标字体 |
+| 填充 | 一律 `fill="#8C7B6B"` 中性棕实心、无描边（Solid 变体；去掉源文件 `stroke`），圆角由路径自带 |
+| 色调 | 全部图标浅棕 `#8C7B6B`；唯一异色 = 已赞 `heart-on` 珊瑚红 `#e8604c` 实心；无 tone / 主题变体 |
 | 尺寸 | 封闭档位表（见基线 §1.8）；同级图标同尺寸 |
-| 形态 | 无圆形底、无描边外框（`heart` 空心除外）；命中区仍须 ≥ 96rpx |
+| 形态 | 无圆形底、无描边外框；`heart` / `heart-on` 均实心、靠颜色区分；命中区仍须 ≥ 96rpx |
 | 语义 | 一图标一含义；同含义跨页复用同一键 |
 
 **图标键选择遵循「物象而非抽象」**（Q 版动森 用图像 / 餐具 / 书 / 星芒这类具象物）：
@@ -206,5 +206,5 @@
 - **token 唯一真源**：颜色 `theme/tokens.ts` + `generated-colors.css`；非颜色 `design-tokens.css`；对照表见 [设计变量.md](./设计变量.md)。
 - **形态唯一真源**：[公共组件与形态基线.md](./公共组件与形态基线.md)（§0 设计语言 / §1 形态基线 / §2 组件规格）。
 - **目录规范**：跨页公共件 `client/src/components/`；页面私有件 `pages/map/components/`（见基线 §2.0）；魔法数字 `client/src/constants.ts`。
-- **图标**：新键落 `client/src/assets/icons/<key>.svg` → 登记 `client/src/theme/icons.ts` / [图标资源.md](./图标资源.md) §3 → `node scripts/sync-icons.mjs`。
-- **门禁**：`npm run verify` = `check:ui`（裸值）+ `check:icon`（图标体系）+ `check:event`（事件命名）+ `check:doc`（文档一致 / 断链）+ lint + type-check + 单测 + 构建，全绿才算可交付。
+- **图标**：新键落 `client/src/assets/icons/<key>.svg` → 登记 `client/src/theme/icons.ts` / [图标资源.md](./图标资源.md) §3；运营端按需**独立**从 Solid 源入库（`currentColor` 着色）。
+- **门禁**：`npm run verify` = `check:contract`（契约）+ `check:icon`（图标体系）+ `check:ui`（裸值）+ `check:events`（事件命名）+ `check:doc`（文档一致 / 断链）+ lint + type-check + 单测 + 构建，全绿才算可交付。

@@ -78,6 +78,18 @@ function onFix(row: IssueOut) {
   editVisible.value = true
 }
 
+/** 删除由弹窗内二次确认上抛：真正删除菜品并刷新（纠错随 CASCADE 一并清除） */
+async function onRemove(id: number) {
+  try {
+    await dishApi.remove(id)
+    ElMessage.success('已删除')
+    editVisible.value = false
+    await Promise.all([load(), loadDishes()])
+  } catch (e) {
+    ElMessage.error((e as Error).message)
+  }
+}
+
 async function onHandle(row: IssueOut) {
   try {
     await issueApi.setHandled(row.id, true)
@@ -373,6 +385,7 @@ onMounted(async () => {
           void loadDishes()
         }
       "
+      @remove="onRemove"
     />
   </section>
 </template>

@@ -9,6 +9,7 @@
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 食堂 ID |
 | `name` | VARCHAR(32) | NO | `''` | | 食堂名称 |
 | `activate` | BOOLEAN | NO | `TRUE` | | 食堂状态：`TRUE` 正常 / `FALSE` 已停用 |
+| `image` | VARCHAR(255) | YES | NULL | | 封面图（**相对路径**，出参转绝对 URL；仅运营端管理，学生端不消费） |
 | `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参） |
 
 ## 索引
@@ -21,7 +22,7 @@
 
 ## 关键设计
 
-- **不存图片 / 地点 / 描述** —— 这些信息在档口承载（见 [stall.md](./stall.md)），公开侧不消费。
+- **封面图** `image` 为运营端展示用（相对路径入库、出参绝对 URL）；学生端不消费。地点等信息仍在档口承载（见 [stall.md](./stall.md)）。
 - 食堂是档口的上级归属；美食地图弹窗以「食堂 / 档口」展示菜品位置（位置由服务端联表带出，端上不单独拉取筛选）。
 
 ## 关联

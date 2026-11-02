@@ -3,8 +3,9 @@
  * 运营端布局（知行食记 · 运营端）：
  * - 顶层固定导航栏：品牌名 知行食记（无衬线圆体）+ 日期；右侧操作员用户名文本（弱化，非按钮）
  * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.3）：
- *   四个功能入口（主数据组：食堂 / 档口 / 菜品 ｜ 反馈组：纠错处理，分组分隔线）+ 分隔线 + 退出登录；
+ *   四个功能入口（主数据组：食堂 / 档口 / 菜品 ｜ 反馈组：纠错处理，分组分隔线），始终水平居中；
  *   悬停放大上浮 + 名称气泡、激活项主色 + 圆点指示；桌面 / 移动同构（无隐藏态）
+ * - 退出登录：顶栏右上角图标按钮（不再放在坞内，避免危险操作混入导航）
  * - 内容区（滚动）：底部留白让出应用坞，防遮挡
  */
 import { useRoute, useRouter } from 'vue-router'
@@ -51,7 +52,12 @@ function onLogout() {
         <span class="brand__name">知行食记</span>
         <span class="brand__date">{{ now }}</span>
       </div>
-      <span class="topbar__user">{{ session.username || '运营' }}</span>
+      <div class="topbar__right">
+        <span class="topbar__user">{{ session.username || '运营' }}</span>
+        <button class="topbar__logout" type="button" aria-label="退出登录" @click="onLogout">
+          <AppIcon name="exit" :size="20" />
+        </button>
+      </div>
     </nav>
 
     <main class="layout__main">
@@ -74,17 +80,6 @@ function onLogout() {
             <span class="dock__bar" />
           </router-link>
         </template>
-
-        <span class="dock__sep" aria-hidden="true" />
-
-        <button
-          class="dock__item dock__item--danger"
-          data-label="退出登录"
-          aria-label="退出登录"
-          @click="onLogout"
-        >
-          <AppIcon name="exit" :size="22" />
-        </button>
       </div>
     </nav>
   </div>
@@ -150,6 +145,37 @@ function onLogout() {
   color: var(--el-text-color-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 顶栏右侧：用户名 + 退出登录图标按钮 */
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.topbar__logout {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--el-border-radius-base);
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.topbar__logout:hover {
+  color: var(--el-color-error);
+  background: var(--el-color-error-light-9);
 }
 
 /* ===== 内容区（底部让出应用坞，防遮挡，见基线 §2.3） ===== */
@@ -273,15 +299,6 @@ function onLogout() {
   background: var(--el-border-color-extra-light);
 }
 
-.dock__item--danger {
-  color: var(--el-text-color-secondary);
-}
-
-.dock__item--danger:hover {
-  color: var(--el-color-error);
-  background: var(--el-color-error-light-9);
-}
-
 /* 中屏（≤1024px）：内容区与顶栏内距收一档 */
 @media (max-width: 1024px) {
   .layout__topbar {
@@ -310,12 +327,6 @@ function onLogout() {
   .dock__wrap {
     gap: 0;
     padding: 4px 6px;
-    max-width: calc(100vw - 16px);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .dock__wrap::-webkit-scrollbar {
-    display: none;
   }
   /* 触控格 40×44（8 项 + 2 分隔 ≈ 338px，360px 屏内不溢出且保住 ≥44px 点按高度） */
   .dock__item {
@@ -337,10 +348,6 @@ function onLogout() {
   .dock__item:not(.dock__item--on):hover {
     background: transparent;
     color: var(--el-text-color-regular);
-  }
-  .dock__item--danger:hover {
-    background: transparent;
-    color: var(--el-text-color-secondary);
   }
   /* 气泡独立于 hover（防粘滞）：激活项常显名称，弥补触屏无悬停的图标识别 */
   .dock__item:hover::after {

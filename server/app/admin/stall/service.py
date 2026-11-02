@@ -14,6 +14,7 @@ from app.admin.stall import repo
 from app.admin.stall.repo import StallRow
 from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
+from app.core.storage import to_relative
 from app.models import Canteen, Dish, Stall
 
 # 与前端常量、库内取值逐字一致（docs/schema/stall.md）
@@ -57,6 +58,7 @@ def create(session: Session, *, payload) -> StallRow:
         activate=payload.activate,
         floor=payload.floor,
         window_no=payload.window_no,
+        image=to_relative(payload.image_url),
     )
     session.add(stall)
     session.flush()
@@ -91,6 +93,7 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
     stall.activate = payload.activate
     stall.floor = payload.floor
     stall.window_no = payload.window_no
+    stall.image = to_relative(payload.image_url)
     session.flush()
     invalidate("student:dishes")
     return _reload(session, stall.id)

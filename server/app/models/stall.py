@@ -19,6 +19,7 @@ class Stall(Base):
     activate: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     floor: Mapped[str | None] = mapped_column(String(8), nullable=True)
     window_no: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    image: Mapped[str | None] = mapped_column(String(255), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )

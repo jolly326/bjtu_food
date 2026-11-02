@@ -57,12 +57,14 @@
 |---|---|---|---|
 | N→1 | `canteen.id` | 所属食堂（**必填**） | **`ON DELETE RESTRICT`**（有菜品引用的食堂不能删除） |
 | N→1 | `stall.id` | 所属档口（**可空**） | **`ON DELETE SET NULL`**（档口删除后菜品保留、档口置空） |
-| 1→n | `dish_rating.dish_id` | 该菜品的点赞（真源） | 见 [dish_rating.md](./dish_rating.md) |
+| 1→n | `dish_issue.dish_id` | 该菜品的纠错 | **`ON DELETE CASCADE`**（删菜即清空该菜纠错） |
+| 1→n | `dish_rating.dish_id` | 该菜品的点赞（真源） | **`ON DELETE CASCADE`**（删菜即清空，并同事务重算 `dish.like_count`） |
 
 ## 注意事项
 
 - `image` 存**相对路径**，出参经路径工具转绝对 URL。
 - `activate = FALSE`（下架）对公开接口**等价于不存在**。
+- 🔴 **删除**：管理员可物理删除菜品；`dish_issue` / `dish_rating` 因外键 `ON DELETE CASCADE` 自动一并清除（删除前前端弹窗内二次确认提醒）；`CASCADE` 同步重算 `dish.like_count`。
 - `name` 在**同一食堂下**唯一（唯一索引 `uq_dish_canteen_name`）。
 - 🔴 **归属一致性**：`stall_id` 非空且其档口有 `canteen_id` 时，`dish.canteen_id` 必须等于该档口的 `canteen_id`（应用层校验，违者 `400`）—— 杜绝「A 食堂的档口挂到 B 食堂的菜」。
 - 楼层取值优先级：出参 `floor = COALESCE(dish.floor, stall.floor)`，缺失时为空串。

@@ -3,16 +3,17 @@
  * 菜品管理（设计稿 docs/ui/web/菜品管理.md；业务规则 docs/func/web/A3）。
  * likeCount 是只读派生列（点赞数 = COUNT(dish_rating.liked = 1)）。
  *
- * 交互：点击卡片 → 操作浮层（编辑 / 删除）；顶栏「批量」进入多选模式后
- * 点行 = 勾选，可批量上架 / 下架 / 改档口（逐条提交，非原子）。
+ * 交互：点击卡片 → 直接进入编辑弹窗（删除在弹窗内整卡确认）；顶栏「批量」进入多选模式后
+ * 点卡片 = 勾选、点图片 = 放大预览（页面与卡片排版不变），可批量上架 / 下架 / 改档口（逐条提交，非原子）。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import DishEditDialog from '@/components/DishEditDialog.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
+import { useBatchSelection } from '@/composables/useBatchSelection'
 import { fetchAllPages } from '@/composables/useOptions'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
 import { canteenApi, dishApi, stallApi, type DishOut } from '@/api'
@@ -78,21 +79,8 @@ function onEdit(row: DishOut) {
   editVisible.value = true
 }
 
-/** 删除入口在编辑界面内（卡面无操作按钮、无卡片浮层） */
+/** 删除入口在编辑界面内（卡面无操作按钮、无卡片浮层）；二次确认已由弹窗承担 */
 async function onRemove(id: number) {
-  try {
-    await ElMessageBox.confirm(
-      '删除后不可恢复。若该菜已有学生纠错记录，删除会被拒绝（请先改用下架）。',
-      '确认删除',
-      {
-        type: 'warning',
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
-      },
-    )
-  } catch {
-    return
-  }
   try {
     await dishApi.remove(id)
     ElMessage.success('已删除')
@@ -121,33 +109,20 @@ watch(
 
 /* ===== 批量模式 ===== */
 
-/** 多选模式：点行 = 勾选；批量动作逐条提交（无服务端批量端点） */
-const batchMode = ref(false)
-const selected = ref<Set<number>>(new Set())
-const batchBusy = ref(false)
+const {
+  batchMode,
+  selected,
+  batchBusy,
+  selectedCount,
+  allSelected,
+  toggleBatchMode,
+  clearSelection,
+  toggleSelect,
+  toggleSelectAll,
+  runBatch,
+} = useBatchSelection(rows)
+
 const batchStallDialog = reactive({ visible: false, stallId: undefined as number | undefined })
-
-const selectedRows = computed(() => rows.value.filter((r) => selected.value.has(r.id)))
-const selectedCount = computed(() => selectedRows.value.length)
-const allSelected = computed(
-  () => rows.value.length > 0 && rows.value.every((r) => selected.value.has(r.id)),
-)
-
-function toggleBatchMode() {
-  batchMode.value = !batchMode.value
-  selected.value = new Set()
-}
-
-function toggleSelect(row: DishOut) {
-  const next = new Set(selected.value)
-  if (next.has(row.id)) next.delete(row.id)
-  else next.add(row.id)
-  selected.value = next
-}
-
-function toggleSelectAll() {
-  selected.value = allSelected.value ? new Set() : new Set(rows.value.map((r) => r.id))
-}
 
 /** 行 → 提交体（批量改单项字段时复用其余字段） */
 function bodyOf(row: DishOut) {
@@ -161,31 +136,11 @@ function bodyOf(row: DishOut) {
   }
 }
 
-/** 逐条提交批量变更：分批并发（每批 6 条），汇总成功 / 失败 */
+/** 逐条提交批量变更（分批并发在 composable 内），汇总成功 / 失败 */
 async function applyBatch(patch: (row: DishOut) => ReturnType<typeof bodyOf>): Promise<void> {
-  const targets = selectedRows.value
-  if (!targets.length) return
-  batchBusy.value = true
-  let okCount = 0
-  const failed: { name: string }[] = []
-  try {
-    for (let i = 0; i < targets.length; i += 6) {
-      const chunk = targets.slice(i, i + 6)
-      const results = await Promise.allSettled(
-        chunk.map((row) => dishApi.update(row.id, patch(row))),
-      )
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          okCount += 1
-        } else {
-          failed.push({ name: chunk[index]!.name })
-        }
-      })
-    }
-  } finally {
-    batchBusy.value = false
-  }
-  selected.value = new Set()
+  const { ok, failed } = await runBatch((row) => dishApi.update(row.id, patch(row)))
+  if (!ok && !failed.length) return
+  clearSelection()
   await load()
   if (failed.length) {
     const names = failed
@@ -193,10 +148,10 @@ async function applyBatch(patch: (row: DishOut) => ReturnType<typeof bodyOf>): P
       .map((f) => f.name)
       .join('、')
     ElMessage.warning(
-      `已更新 ${okCount} 项，${failed.length} 项失败（${names}${failed.length > 3 ? '…' : ''}）`,
+      `已更新 ${ok} 项，${failed.length} 项失败（${names}${failed.length > 3 ? '…' : ''}）`,
     )
   } else {
-    ElMessage.success(`已更新 ${okCount} 项`)
+    ElMessage.success(`已更新 ${ok} 项`)
   }
 }
 
@@ -223,7 +178,7 @@ async function onBatchStallConfirm() {
   await applyBatch((row) => ({ ...bodyOf(row), stallId }))
 }
 
-/** 批量清空所属档口：菜品回落为只挂食堂（仍保留食堂与楼层） */
+/** 批量清空所属档口：菜品回落为不指定档口（仍保留食堂与楼层） */
 async function onBatchStallClear() {
   batchStallDialog.visible = false
   await applyBatch((row) => ({ ...bodyOf(row), stallId: null }))
@@ -238,6 +193,53 @@ onMounted(async () => {
   <section class="page">
     <header class="page__bar">
       <h2 class="page__title">菜品管理</h2>
+      <div class="filters">
+        <input
+          v-model="filter.name"
+          class="filters__search"
+          type="search"
+          placeholder="搜索菜品名称"
+          aria-label="按名称搜索"
+        />
+        <el-select
+          v-model="filter.canteenId"
+          class="filters__select"
+          placeholder="全部食堂"
+          clearable
+          @change="onFilterCanteenChange"
+        >
+          <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
+        </el-select>
+        <el-select
+          v-model="filter.stallId"
+          class="filters__select"
+          placeholder="全部档口"
+          clearable
+          @change="reload"
+        >
+          <el-option v-for="s in filterStalls.items" :key="s.id" :value="s.id" :label="s.name" />
+        </el-select>
+        <el-select
+          v-model="filter.activate"
+          class="filters__select"
+          placeholder="全部状态"
+          @change="reload"
+        >
+          <el-option label="全部状态" :value="undefined" />
+          <el-option label="在售" :value="true" />
+          <el-option label="已下架" :value="false" />
+        </el-select>
+        <el-select
+          v-model="filter.noStall"
+          class="filters__select"
+          placeholder="档口归属"
+          clearable
+          @change="reload"
+        >
+          <el-option label="全部归属" :value="undefined" />
+          <el-option label="未指定档口" :value="true" />
+        </el-select>
+      </div>
       <div class="page__actions">
         <button class="btn btn--outline" :aria-pressed="batchMode" @click="toggleBatchMode">
           {{ batchMode ? '退出批量' : '批量' }}
@@ -247,54 +249,6 @@ onMounted(async () => {
         </button>
       </div>
     </header>
-
-    <div class="filters">
-      <input
-        v-model="filter.name"
-        class="filters__search"
-        type="search"
-        placeholder="搜索菜品名称"
-        aria-label="按名称搜索"
-      />
-      <el-select
-        v-model="filter.canteenId"
-        class="filters__select"
-        placeholder="全部食堂"
-        clearable
-        @change="onFilterCanteenChange"
-      >
-        <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
-      </el-select>
-      <el-select
-        v-model="filter.stallId"
-        class="filters__select"
-        placeholder="全部档口"
-        clearable
-        @change="reload"
-      >
-        <el-option v-for="s in filterStalls.items" :key="s.id" :value="s.id" :label="s.name" />
-      </el-select>
-      <el-select
-        v-model="filter.activate"
-        class="filters__select"
-        placeholder="全部状态"
-        @change="reload"
-      >
-        <el-option label="全部状态" :value="undefined" />
-        <el-option label="在售" :value="true" />
-        <el-option label="已下架" :value="false" />
-      </el-select>
-      <el-select
-        v-model="filter.noStall"
-        class="filters__select"
-        placeholder="档口归属"
-        clearable
-        @change="reload"
-      >
-        <el-option label="全部归属" :value="undefined" />
-        <el-option label="未指定档口" :value="true" />
-      </el-select>
-    </div>
 
     <!-- 批量操作条：仅多选模式出现 -->
     <div v-if="batchMode" class="batch-bar">
@@ -345,19 +299,17 @@ onMounted(async () => {
           @click.stop
           @change="toggleSelect(row)"
         />
-        <template v-else>
-          <img
-            v-if="row.imageUrl"
-            v-zoomimg
-            :src="row.imageUrl"
-            class="list-card__cover"
-            :alt="row.name"
-            loading="lazy"
-          />
-          <span v-else class="list-card__cover list-card__cover--ph" aria-hidden="true">
-            <AppIcon name="image" :size="28" />
-          </span>
-        </template>
+        <img
+          v-if="row.imageUrl"
+          v-zoomimg
+          :src="row.imageUrl"
+          class="list-card__cover"
+          :alt="row.name"
+          loading="lazy"
+        />
+        <span v-else class="list-card__cover list-card__cover--ph" aria-hidden="true">
+          <AppIcon name="image" :size="28" />
+        </span>
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>

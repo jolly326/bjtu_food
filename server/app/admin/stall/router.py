@@ -28,6 +28,7 @@ class StallSaveIn(InModel):
     activate: bool = True
     floor: str | None = None
     window_no: str | None = None
+    image_url: str | None = None
 
 
 class StallOut(OutModel):
@@ -38,6 +39,7 @@ class StallOut(OutModel):
     activate: bool
     floor: str | None = None
     window_no: str | None = None
+    image_url: str | None = None
     dish_count: int
     updated_at: str
 
@@ -51,6 +53,7 @@ def _to_out(row) -> StallOut:
         activate=row.activate,
         floor=row.floor,
         window_no=row.window_no,
+        image_url=row.image,
         dish_count=row.dish_count,
         updated_at=row.updated_at,
     )

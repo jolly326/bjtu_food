@@ -1,12 +1,14 @@
 /* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md 与风格指南）。
    与学生端同源的 **Q 版动森**：暖奶油页面底 + 奶白卡面、卡片无实线描边、
-   **贴纸式阴影**（实心错位 + 柔和外扩）、圆润厚实的大圆角、无衬线圆体、
+   **极弱弥散阴影**（双层低透明、无硬堆叠）、圆润厚实的大圆角、无衬线圆体、
    Q 版暖橙主色 #FF8A4C、大面积留白。 */
 
 /* 🔴 html:root（特异性 0-1-1）而非 :root（0-1-0）：即使按需引入的组件样式
    （如 element-plus base）在懒加载时晚于本文件注入 <head>，其自带的
    `:root { --el-color-primary: #409eff }` 也无法覆盖此处的品牌变量（主题变蓝防线） */
 html:root {
+  /* 始终预留滚动条槽位：页面滚动条出现 / 消失时，固定定位的底部应用坞不产生横向位移 */
+  scrollbar-gutter: stable;
   /* ===== 品牌主色（与学生端 --color-primary 逐字一致：Q 版暖橙） ===== */
   --el-color-primary: #ff8a4c;
   --el-color-primary-light-3: #ffa873;
@@ -34,7 +36,7 @@ html:root {
   --el-bg-color-page: #fffaf3;
   --el-bg-color: #ffffff;
   --el-bg-color-overlay: #ffffff;
-  /* 卡面：奶白（卡片靠贴纸阴影浮起，不画描边） */
+  /* 卡面：奶白（卡片靠极弱弥散阴影浮起，不画描边） */
   --web-bg-card: #ffffff;
   --el-fill-color-light: #f6eee1;
   --el-fill-color-lighter: #fbf6ee;
@@ -59,10 +61,10 @@ html:root {
   --web-radius-card: 22px;
   --web-radius-pill: 999px;
 
-  /* ===== 阴影（贴纸式：实心错位 + 柔和外扩） ===== */
-  --el-box-shadow-light: 0 4px 0 rgba(214, 178, 128, 0.28), 0 8px 18px rgba(190, 150, 100, 0.14);
-  --el-box-shadow-elevated: 0 8px 0 rgba(214, 178, 128, 0.3), 0 16px 32px rgba(190, 150, 100, 0.18);
-  --web-shadow-card: 0 4px 0 rgba(214, 178, 128, 0.28), 0 8px 18px rgba(190, 150, 100, 0.14);
+  /* ===== 阴影（极弱弥散：贴合 cozy 软阴影，无硬堆叠） ===== */
+  --el-box-shadow-light: 0 2px 8px rgba(68, 56, 46, 0.08), 0 8px 20px rgba(68, 56, 46, 0.06);
+  --el-box-shadow-elevated: 0 4px 16px rgba(68, 56, 46, 0.1), 0 12px 32px rgba(68, 56, 46, 0.08);
+  --web-shadow-card: 0 2px 8px rgba(68, 56, 46, 0.08), 0 8px 20px rgba(68, 56, 46, 0.06);
 
   /* ===== 间距节奏（留白优先） ===== */
   --web-gap-tight: 10px;
@@ -100,7 +102,7 @@ h3 {
   letter-spacing: 0.01em;
 }
 
-/* ===== 内容区 = 悬浮卡片（无描边，靠奶白卡面 + 贴纸阴影） ===== */
+/* ===== 内容区 = 悬浮卡片（无描边，靠奶白卡面 + 极弱弥散阴影） ===== */
 #app .page {
   display: flex;
   flex-direction: column;
@@ -133,6 +135,11 @@ h3 {
   align-items: center;
   gap: var(--web-gap-tight);
   flex-wrap: wrap;
+}
+
+/* 顶栏内联筛选：占据标题与操作之间的剩余空间，避免筛选单独占一行 */
+#app .page__bar .filters {
+  flex: 1 1 auto;
 }
 
 #app .page__foot {
@@ -446,12 +453,6 @@ h3 {
   height: 28px;
   padding: 0 12px;
   font-size: 12px;
-}
-
-/* ===== 圆形图片（海报 / 美食图圆形裁切） ===== */
-#app .img--round {
-  border-radius: 50%;
-  object-fit: cover;
 }
 
 /* ===== 登录页：纯白底 + 贴纸卡片 ===== */

@@ -7,6 +7,8 @@ export type CanteenOut = {
   name: string
   /** 状态：`true` 正常 / `false` 已停用 */
   activate: boolean
+  /** 封面图：出参为绝对 URL，可为空（仅运营端使用） */
+  imageUrl?: string | null
   stallCount: number
   updatedAt: string
 }
@@ -18,6 +20,8 @@ export type StallBody = {
   activate?: boolean
   floor?: string | null
   windowNo?: string | null
+  /** 封面图：入参为绝对 URL 或空（仅运营端使用） */
+  imageUrl?: string | null
 }
 export type StallOut = StallBody & {
   id: number
