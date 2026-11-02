@@ -109,6 +109,8 @@ export interface components {
       id: number;
       /** Name */
       name: string;
+      /** Activate */
+      activate: boolean;
       /** Stallcount */
       stallCount: number;
       /** Updatedat */
@@ -172,6 +174,11 @@ export interface components {
     CanteenSaveIn: {
       /** Name */
       name: string;
+      /**
+       * Activate
+       * @default true
+       */
+      activate?: boolean;
     };
     /** DishIssueOut */
     DishIssueOut: {
@@ -210,29 +217,37 @@ export interface components {
     DishOut: {
       /** Id */
       id: number;
-      /** Stallid */
-      stallId: number;
-      /** Stallname */
-      stallName: string;
+      /** Canteenid */
+      canteenId: number;
       /** Canteenname */
       canteenName: string;
+      /** Stallid */
+      stallId?: number | null;
+      /** Stallname */
+      stallName: string;
+      /** Floor */
+      floor: string;
       /** Name */
       name: string;
       /** Imageurl */
       imageUrl?: string | null;
+      /** Activate */
+      activate: boolean;
       /** Likecount */
       likeCount: number;
       /** Updatedat */
       updatedAt: string;
-      /** Activate */
-      activate: boolean;
     };
     /** DishSaveIn */
     DishSaveIn: {
-      /** Stallid */
-      stallId: number;
+      /** Canteenid */
+      canteenId: number;
       /** Name */
       name: string;
+      /** Stallid */
+      stallId?: number | null;
+      /** Floor */
+      floor?: string | null;
       /** Imageurl */
       imageUrl?: string | null;
       /**
@@ -573,6 +588,8 @@ export interface components {
       canteenName: string;
       /** Name */
       name: string;
+      /** Activate */
+      activate: boolean;
       /** Floor */
       floor?: string | null;
       /** Windowno */
@@ -588,6 +605,11 @@ export interface components {
       canteenId: number;
       /** Name */
       name: string;
+      /**
+       * Activate
+       * @default true
+       */
+      activate?: boolean;
       /** Floor */
       floor?: string | null;
       /** Windowno */
@@ -867,10 +889,12 @@ export interface operations {
       query?: {
         stallId?: number | null;
         canteenId?: number | null;
+        /** @description 只看未指定档口的菜品 */
+        noStall?: boolean | null;
         activate?: boolean | null;
-        page?: number | null;
         /** @description 名称模糊匹配 */
         name?: string | null;
+        page?: number | null;
         pageSize?: number | null;
       };
     };

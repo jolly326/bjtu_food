@@ -7,6 +7,13 @@
  *
  * 因此：内容与视口同宽时仍可拖动一段；单张卡片（世界边长 = 2 × edgeInset）时
  * 两侧边界收敛为同一点 ⇒ 自动居中锁定。
+ *
+ * @param worldW 世界（内容）宽（px）
+ * @param worldH 世界（内容）高（px）
+ * @param scale 当前缩放
+ * @param viewportW 视口宽（px）
+ * @param viewportH 视口高（px）
+ * @param edgeInset 首/末卡片中心到世界边缘的距离（px），默认 0
  */
 export type PanBounds = { minX: number; maxX: number; minY: number; maxY: number }
 

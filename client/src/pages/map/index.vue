@@ -2,7 +2,7 @@
 /**
  * 美食地图（单页全屏）—— 设计稿 docs/ui/client/美食地图.md；功能规则 docs/func/client/A1、B1、B2。
  *
- * 进入即拉取全量在售菜品并按错位方格密铺；点磁贴唤起底部弹窗看详情、两态点赞与纠错。
+ * 进入即拉取全量在售菜品并按马赛克拼贴（含 2×2 大图与随机留空）渲染；点磁贴唤起底部弹窗看详情、两态点赞与纠错。
  * 空态不处理（零在售时画布留白），不做下拉刷新。
  */
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -109,8 +109,10 @@ onUnmounted(abortAllRequests)
 </template>
 
 <style lang="scss" scoped>
-/* 页面底色唯一承载处是 `page{}`（styles/global.scss），此处 SHALL NOT 重复声明（基线 §1.1）；
-   🔴 无顶栏 / 无 header：整屏即内容区，**_map-page_ 铺满视口且不做顶部避让** —— 加载块与失败块
+/* 页面底色由本根视图承载：`page` 是祖先元素、收不到后代 `[data-theme='dark']` 的 dark 变量，
+   故必须由持有 `data-theme` 的根视图自身绘制 `var(--bg-page)`（夜间才真正变色）；`page{}` 仅作兜底；
+   子组件 SHALL NOT 再声明页面底色（基线 §1.1）。
+   🔴 无顶栏 / 无 header：整屏即内容区，_map-page_ 铺满视口且不做顶部避让 —— 加载块与失败块
    因此能在「整屏」内垂直居中（`.map-page__body` 撑满，`StatusBlock` flex:1 居中）。 */
 .map-page {
   position: fixed;
@@ -122,6 +124,9 @@ onUnmounted(abortAllRequests)
   box-sizing: border-box;
   flex-direction: column;
   overflow: hidden;
+  /* 随主题切换的页面底色（持有 data-theme，故 var(--bg-page) 解析为当前主题值） */
+  background: var(--bg-page);
+  color: var(--text-body);
 }
 
 /* 画布 / 加载 / 失败块的内容区：撑满剩余高度，并作为 FoodMap 绝对定位的包含块 */
@@ -132,4 +137,5 @@ onUnmounted(abortAllRequests)
   min-height: 0;
   flex-direction: column;
 }
+
 </style>

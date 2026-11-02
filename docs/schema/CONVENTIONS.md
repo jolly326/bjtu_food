@@ -66,7 +66,7 @@ admin（独立账号体系，与 user 无关）
 
 | 边界 | 清单 | 为何不在 DB 层 |
 |---|---|---|
-| **由应用层保证的唯一性** | `canteen.name`；`stall.name`（同食堂下）；`dish.name`（同档口下） | 字典类命名去重 |
+| **由应用层保证的唯一性** | `canteen.name`；`stall.name`（同食堂下）；`dish.name`（同食堂下） | 字典类命名去重 |
 | **可空列不作哨兵** | `dish_issue.handled_at = NULL` = 未处理；未赞 = **`dish_rating` 无行或 `liked = 0`**（非 NULL 哨兵） | 用 `NULL` / 缺行表达「尚未发生」 |
 | **枚举值域** | `dish.activate`（`TRUE` / `FALSE`） | 布尔值，应用层校验 |
 | **受控字典不在库内** | `stall.floor`（值即汉字：`负一层`…`四层`） | 低频封闭枚举；新增 / 改名需「先迁移数据、再改两端」 |

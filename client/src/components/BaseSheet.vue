@@ -212,8 +212,10 @@ defineExpose({ dismiss })
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--overlay-panel-bg);
-  border-top: 1rpx solid var(--border-color);
+  border-top: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-modal) var(--radius-modal) 0 0;
+  /* 极弱弥散阴影（向上）：弹层自底部升起时于顶边上方提供悬浮 */
+  box-shadow: var(--shadow-up);
   /* 推入：无过冲，直线滑到终点 */
   animation: sheet-rise var(--duration-base) var(--ease-out);
   transition: transform var(--duration-base) var(--ease-out);

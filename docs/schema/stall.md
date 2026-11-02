@@ -7,7 +7,7 @@
 | 列 | 类型 | 可空 | 默认 | 键 | 说明 |
 |---|---|---|---|---|---|
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 档口 ID |
-| `canteen_id` | BIGINT | NO | 无 | KEY, FK→canteen | 所属食堂；**必填、无默认值**（不用 `0` 占位） |
+| `canteen_id` | BIGINT | **YES** | `NULL` | KEY, FK→canteen | 所属食堂；**可空** —— 允许「未归位」档口（尚未确定所属食堂）；此时菜品仍凭自身 `canteen_id` 定位 |
 | `name` | VARCHAR(32) | NO | `''` | | 档口名称 |
 | `activate` | BOOLEAN | NO | `TRUE` | | 档口状态：`TRUE` 正常 / `FALSE` 已停用 |
 | `floor` | VARCHAR(8) | YES | NULL | | 楼层（受控字典，值即汉字：`负一层`…`四层`） |
@@ -24,7 +24,7 @@
 
 ## 关键设计
 
-> 档口的菜品构成删除阻力，其余关联随外键 `ON DELETE CASCADE` 清理。
+> 档口删除后其下菜品保留（`dish.stall_id` 置空），**不再构成删除阻力**。
 
 ### `floor` 是受控字典（**取值清单**）
 
@@ -41,10 +41,11 @@
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
 | N→1 | `canteen.id` | 所属食堂 | 无级联（外键 `fk_stall_canteen`） |
-| 1→n | `dish.stall_id` | 该档口的菜品 | **`ON DELETE RESTRICT`**（有菜品引用的档口不能删除） |
+| 1→n | `dish.stall_id` | 该档口的菜品 | **`ON DELETE SET NULL`**（档口删除后菜品保留、档口置空） |
 
 ## 注意事项
 
 - `name` 在**同一食堂下**的唯一性由**应用层**保证（无 DB 唯一索引）。
+- **未归位档口**：`canteen_id` 为空的档口允许存在，运营端列表标注「未归位」并可后续归位；菜品引用它时菜品自身 `canteen_id` 仍必填，学生端位置展示不受影响。
 - 管理端维护入口：运营端「档口管理」（档口本体）。
 - `floor`：学生端菜品弹窗「位置」展示（`餐厅 · 楼层 · 档口`）+ 运营端列表；`window_no`：学生端零消费，仅运营端列表展示。

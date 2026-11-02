@@ -24,3 +24,14 @@ export function initTheme(): void {
     theme.value = saved
   }
 }
+
+/** 写入并持久化主题（页面根视图 `data-theme` 随 `theme` 响应） */
+export function setTheme(mode: ThemeMode): void {
+  theme.value = mode
+  uni.setStorageSync(STORAGE.THEME, mode)
+}
+
+/** 日 / 夜互切 */
+export function toggleTheme(): void {
+  setTheme(theme.value === 'light' ? 'dark' : 'light')
+}

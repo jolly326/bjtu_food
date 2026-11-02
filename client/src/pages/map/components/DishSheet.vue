@@ -183,8 +183,10 @@ function onToggleLike(): void {
   padding-bottom: calc((100% - var(--spacing-lg) * 2) * 9 / 16);
   overflow: hidden;
   background: var(--bg-placeholder);
-  border: 1rpx solid var(--border-color);
+  border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-modal);
+  /* 极弱弥散阴影：大图轻微悬浮（与弹层一致） */
+  box-shadow: var(--shadow-soft);
 }
 
 .dish-hero__img {

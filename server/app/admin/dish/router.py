@@ -25,17 +25,21 @@ router = APIRouter(prefix="/admin/dishes", tags=["admin-dish"])
 
 
 class DishSaveIn(InModel):
-    stall_id: int
+    canteen_id: int
     name: str
+    stall_id: int | None = None
+    floor: str | None = None
     image_url: str | None = None
     activate: bool = True
 
 
 class DishOut(OutModel):
     id: int
-    stall_id: int
-    stall_name: str
+    canteen_id: int
     canteen_name: str
+    stall_id: int | None = None
+    stall_name: str
+    floor: str
     name: str
     image_url: str | None = None
     activate: bool
@@ -46,9 +50,11 @@ class DishOut(OutModel):
 def _to_out(row) -> DishOut:
     return DishOut(
         id=row.id,
+        canteen_id=row.canteen_id,
+        canteen_name=row.canteen_name,
         stall_id=row.stall_id,
         stall_name=row.stall_name,
-        canteen_name=row.canteen_name,
+        floor=row.floor,
         name=row.name,
         image_url=row.image,
         activate=row.activate,
@@ -61,6 +67,7 @@ def _to_out(row) -> DishOut:
 def list_dishes(
     stall_id: int | None = Query(default=None, alias="stallId"),
     canteen_id: int | None = Query(default=None, alias="canteenId"),
+    no_stall: bool | None = Query(default=None, alias="noStall", description="只看未指定档口的菜品"),
     activate: bool | None = Query(default=None),
     name: str | None = Query(default=None, min_length=1, max_length=64, description="名称模糊匹配"),
     page: int | None = Query(default=None),
@@ -73,6 +80,7 @@ def list_dishes(
         session,
         stall_id=stall_id,
         canteen_id=canteen_id,
+        no_stall=no_stall,
         activate=activate,
         name=name,
         page=paging.page,

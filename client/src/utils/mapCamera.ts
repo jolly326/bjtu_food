@@ -4,6 +4,11 @@
  * 口径：把目标磁贴中心送到「可视净空区」中心 —— 净空区是底部弹层顶边以上的可见高度，
  * 不是整屏（弹层撑起时按屏居中会把磁贴压在弹层下）。
  * 结果再收敛到既有平移边界内，因此世界小于视口时保持不位移。
+ *
+ * @param tile 目标磁贴（需 x/y/size 以取中心）
+ * @param scale 当前缩放
+ * @param area 可视净空区（底部弹层顶边以上的可见区域）
+ * @param bounds 当前平移边界（由 computePanBounds 给出）
  */
 import type { TileBox } from './mapLayout'
 import { clamp } from './mapMotion'

@@ -559,6 +559,24 @@
             }
           },
           {
+            "name": "noStall",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "只看未指定档口的菜品",
+              "title": "Nostall"
+            },
+            "description": "只看未指定档口的菜品"
+          },
+          {
             "name": "activate",
             "in": "query",
             "required": false,
@@ -575,6 +593,26 @@
             }
           },
           {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "名称模糊匹配",
+              "title": "Name"
+            },
+            "description": "名称模糊匹配"
+          },
+          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -588,25 +626,6 @@
                 }
               ],
               "title": "Page"
-            }
-          },
-          {
-            "name": "name",
-            "in": "query",
-            "required": false,
-            "description": "名称模糊匹配",
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Name",
-              "maxLength": 64,
-              "minLength": 1
             }
           },
           {
@@ -868,7 +887,6 @@
                   "type": "null"
                 }
               ],
-              "default": false,
               "title": "Handled"
             }
           },
@@ -1441,6 +1459,10 @@
             "type": "string",
             "title": "Name"
           },
+          "activate": {
+            "type": "boolean",
+            "title": "Activate"
+          },
           "stallCount": {
             "type": "integer",
             "title": "Stallcount"
@@ -1454,6 +1476,7 @@
         "required": [
           "id",
           "name",
+          "activate",
           "stallCount",
           "updatedAt"
         ],
@@ -1617,6 +1640,11 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "activate": {
+            "type": "boolean",
+            "title": "Activate",
+            "default": true
           }
         },
         "additionalProperties": false,
@@ -1668,8 +1696,8 @@
             "title": "Handledat"
           },
           "dishFeedbackCount": {
-            "title": "Dishfeedbackcount",
-            "type": "integer"
+            "type": "integer",
+            "title": "Dishfeedbackcount"
           }
         },
         "type": "object",
@@ -1716,17 +1744,32 @@
             "type": "integer",
             "title": "Id"
           },
-          "stallId": {
+          "canteenId": {
             "type": "integer",
+            "title": "Canteenid"
+          },
+          "canteenName": {
+            "type": "string",
+            "title": "Canteenname"
+          },
+          "stallId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Stallid"
           },
           "stallName": {
             "type": "string",
             "title": "Stallname"
           },
-          "canteenName": {
+          "floor": {
             "type": "string",
-            "title": "Canteenname"
+            "title": "Floor"
           },
           "name": {
             "type": "string",
@@ -1743,6 +1786,10 @@
             ],
             "title": "Imageurl"
           },
+          "activate": {
+            "type": "boolean",
+            "title": "Activate"
+          },
           "likeCount": {
             "type": "integer",
             "title": "Likecount"
@@ -1750,18 +1797,15 @@
           "updatedAt": {
             "type": "string",
             "title": "Updatedat"
-          },
-          "activate": {
-            "title": "Activate",
-            "type": "boolean"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "stallId",
-          "stallName",
+          "canteenId",
           "canteenName",
+          "stallName",
+          "floor",
           "name",
           "activate",
           "likeCount",
@@ -1771,13 +1815,35 @@
       },
       "DishSaveIn": {
         "properties": {
-          "stallId": {
+          "canteenId": {
             "type": "integer",
-            "title": "Stallid"
+            "title": "Canteenid"
           },
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "stallId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stallid"
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor"
           },
           "imageUrl": {
             "anyOf": [
@@ -1791,15 +1857,15 @@
             "title": "Imageurl"
           },
           "activate": {
-            "default": true,
+            "type": "boolean",
             "title": "Activate",
-            "type": "boolean"
+            "default": true
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "stallId",
+          "canteenId",
           "name"
         ],
         "title": "DishSaveIn"
@@ -2477,6 +2543,10 @@
             "type": "string",
             "title": "Name"
           },
+          "activate": {
+            "type": "boolean",
+            "title": "Activate"
+          },
           "floor": {
             "anyOf": [
               {
@@ -2514,6 +2584,7 @@
           "canteenId",
           "canteenName",
           "name",
+          "activate",
           "dishCount",
           "updatedAt"
         ],
@@ -2528,6 +2599,11 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "activate": {
+            "type": "boolean",
+            "title": "Activate",
+            "default": true
           },
           "floor": {
             "anyOf": [

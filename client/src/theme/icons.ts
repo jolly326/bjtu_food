@@ -12,6 +12,8 @@ import heartOn from '@/assets/icons/heart-on.svg'
 import help from '@/assets/icons/help.svg'
 import image from '@/assets/icons/image.svg'
 import loading from '@/assets/icons/loading.svg'
+import moon from '@/assets/icons/moon.svg'
+import sun from '@/assets/icons/sun.svg'
 import warning from '@/assets/icons/warning.svg'
 
 /** 图标键 -> 打包器资产地址 */
@@ -23,6 +25,8 @@ export const ICONS = {
   help,
   image,
   loading,
+  moon,
+  sun,
   warning,
 } as const
 

@@ -21,12 +21,14 @@ export const MAP = {
   TILE_RPX: 240,
   /** 网格步长（rpx） */
   CELL_RPX: 300,
+  /** 2×2 大图数量占菜品数的比例（随菜品数放大） */
+  BIG_TILE_RATIO: 0.12,
   /** 最小缩放倍数 */
   MIN_SCALE: 0.55,
   /** 最大缩放倍数 */
   MAX_SCALE: 3,
   /** 点击判定最大位移（px） */
-  TAP_MOVE_PX: 8,
+  TAP_MOVE_THRESHOLD_PX: 8,
   /** 点击判定最大时长（ms） */
   TAP_DURATION_MS: 320,
   /** 越界橡皮筋系数（越小越硬）：松手位附近每 1px 越界的跟手比例 */
