@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 短横线虚线分隔（口径见 docs/ui/client/公共组件与形态基线.md）。
- * 线 16rpx + 空 16rpx，上下各留 --spacing-sm；信息页 / 纠错页共用的中线，保证切换时位置一致。
+ * 线 16rpx + 空 16rpx，上下各留 --spacing-sm；用于内容块之间的横向虚线分隔。
  */
 defineOptions({ options: { virtualHost: true } })
 </script>

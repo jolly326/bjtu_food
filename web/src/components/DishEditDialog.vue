@@ -1,114 +1,144 @@
 <script setup lang="ts">
 /**
- * 菜品编辑弹窗（菜品管理 / 纠错处理两页共用，规格见 docs/ui/web/菜品管理.md §2）。
- * 新建（`dish = null`）与编辑同组件；图片由 `ImageField` 收敛（本地预览、保存时上传 COS）；保存成功回抛 `saved`。
- *
- * 归属：所属食堂必选（最小定位），档口 / 楼层可选；指定档口时按所选食堂过滤档口下拉。
+ * 菜品编辑弹窗（规格见 docs/ui/web/菜品管理.md §3）。
+ * 新建（`dish = null`）与编辑同组件；菜品本体 + **售卖点表格（可增删行）**；
+ * 保存语义 = 售卖点**整表替换**（带 id 更新、不带 id 新增、未出现删除）。
  */
-import { computed, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import ConfirmDeleteView from '@/components/ConfirmDeleteView.vue'
 import ImageField from '@/components/ImageField.vue'
-import { dishApi, upload, type DishOut } from '@/api'
+import { dishApi, upload, type DishBody, type DishOfferingInput, type DishOut } from '@/api'
 import type { StallOut } from '@/api/types'
-
-/** 楼层受控字典（与后端 dish.floor 同源：docs/schema/dish.md） */
-const FLOOR_OPTIONS = ['负一层', '一层', '二层', '三层', '四层']
 
 const props = defineProps<{
   modelValue: boolean
   /** 编辑对象；`null` = 新建 */
   dish: DishOut | null
-  /** 食堂选项（父级加载） */
   canteens: { id: number; name: string }[]
-  /** 档口选项（父级加载；按所选食堂过滤） */
   stalls: StallOut[]
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   saved: []
-  /** 删除入口在编辑界面内：上抛 id，二次确认与删除由视图侧收口 */
   remove: [id: number]
 }>()
 
+type OfferingRow = {
+  id?: number
+  canteenId: number | undefined
+  stallId: number | null
+  priceYuan: string
+  activate: boolean
+}
+
 const dialog = reactive({
   id: 0,
-  canteenId: undefined as number | undefined,
-  stallId: undefined as number | undefined,
-  floor: '' as string,
   name: '',
+  description: '',
   imageUrl: '',
   activate: true,
 })
 
-/** 档口按所选食堂过滤；未选食堂时列全部（避免误选跨食堂档口） */
-const filteredStalls = computed(() =>
-  dialog.canteenId ? props.stalls.filter((s) => s.canteenId === dialog.canteenId) : props.stalls,
-)
+const offerings = ref<OfferingRow[]>([])
 const saving = ref(false)
-/** 选图后暂存待上传文件（保存时才真正落 COS）；预览用 blob URL，关闭/取消即丢弃 */
 const pendingFile = ref<File | null>(null)
-/** 弹窗视图：表单 / 删除确认（整卡切换，共用同一卡片） */
 const view = ref<'form' | 'delete'>('form')
+
+function blankRow(): OfferingRow {
+  return { canteenId: undefined, stallId: null, priceYuan: '', activate: true }
+}
 
 watch(
   () => props.modelValue,
   (visible) => {
     if (!visible) {
-      // 关闭时丢弃待上传文件并复位到表单视图（blob 由 ImageField 卸载时释放）
       pendingFile.value = null
       view.value = 'form'
       return
     }
-    // 打开时整体重置表单（避免残留上次的值）
     dialog.id = props.dish?.id ?? 0
-    dialog.canteenId = props.dish?.canteenId
-    dialog.stallId = props.dish?.stallId ?? undefined
-    dialog.floor = props.dish?.floor ?? ''
     dialog.name = props.dish?.name ?? ''
+    dialog.description = props.dish?.description ?? ''
     dialog.imageUrl = props.dish?.imageUrl ?? ''
     dialog.activate = props.dish?.activate ?? true
+    offerings.value = (props.dish?.offerings ?? []).map((offering) => ({
+      id: offering.id,
+      canteenId: offering.canteenId,
+      stallId: offering.stallId,
+      priceYuan: offering.price === null ? '' : String(offering.price / 100),
+      activate: offering.activate,
+    }))
     pendingFile.value = null
     view.value = 'form'
   },
 )
 
-function onCanteenChange() {
-  // 切换食堂后该食堂档口集合变化，原档口可能失效 ⇒ 重置
-  dialog.stallId = undefined
+function stallsOf(canteenId: number | undefined): StallOut[] {
+  return canteenId ? props.stalls.filter((stall) => stall.canteenId === canteenId) : props.stalls
 }
 
-/** 删除确认：复位表单并上抛 id，真正删除与关闭由视图侧收口 */
-function confirmDelete() {
-  view.value = 'form'
-  emit('remove', dialog.id)
+function onCanteenChange(row: OfferingRow): void {
+  // 换食堂后原档口可能失效 ⇒ 重置
+  row.stallId = null
 }
 
-async function onSave() {
-  if (!dialog.canteenId) {
-    ElMessage.warning('请选择所属食堂')
-    return
+function addRow(): void {
+  offerings.value.push(blankRow())
+}
+
+function removeRow(index: number): void {
+  offerings.value.splice(index, 1)
+}
+
+function offeringBody(row: OfferingRow): DishOfferingInput | null {
+  if (!row.canteenId) return null
+  const price = row.priceYuan.trim() === '' ? null : Math.round(Number(row.priceYuan) * 100)
+  return {
+    id: row.id,
+    canteenId: row.canteenId,
+    stallId: row.stallId ?? null,
+    price: price !== null && Number.isFinite(price) ? price : null,
+    activate: row.activate,
   }
+}
+
+async function onSave(): Promise<void> {
   if (!dialog.name.trim()) {
     ElMessage.warning('菜品名称不能为空')
     return
   }
+  const payload: DishOfferingInput[] = []
+  for (const row of offerings.value) {
+    const body = offeringBody(row)
+    if (!body) {
+      ElMessage.warning('售卖点需选择食堂')
+      return
+    }
+    if (row.stallId) {
+      const stall = props.stalls.find((item) => item.id === row.stallId)
+      if (!stall || stall.canteenId !== row.canteenId) {
+        ElMessage.warning('档口所属食堂与售卖点食堂不一致')
+        return
+      }
+    }
+    payload.push(body)
+  }
+
   saving.value = true
   try {
-    // 仅当本次选了新图才在「保存」时落 COS
     let imageUrl = dialog.imageUrl || null
     if (pendingFile.value) {
       imageUrl = await upload(pendingFile.value)
       pendingFile.value = null
     }
-    const body = {
-      canteenId: dialog.canteenId,
-      stallId: dialog.stallId ?? null,
-      floor: dialog.floor || null,
+    const body: DishBody = {
       name: dialog.name.trim(),
+      description: dialog.description || null,
       imageUrl,
       activate: dialog.activate,
+      offerings: payload,
     }
     if (dialog.id) await dishApi.update(dialog.id, body)
     else await dishApi.create(body)
@@ -121,6 +151,11 @@ async function onSave() {
     saving.value = false
   }
 }
+
+function confirmDelete(): void {
+  view.value = 'form'
+  emit('remove', dialog.id)
+}
 </script>
 
 <template>
@@ -128,7 +163,7 @@ async function onSave() {
     <div class="dialog">
       <ConfirmDeleteView
         v-if="view === 'delete'"
-        message="删除后不可恢复，该菜品的纠错 / 点赞将一并清除。"
+        message="删除后不可恢复，该菜品的售卖点与菜品反馈将一并清除。"
         @cancel="view = 'form'"
         @confirm="confirmDelete"
       />
@@ -138,44 +173,59 @@ async function onSave() {
         <label class="dialog__label" for="dish-name">名称</label>
         <input id="dish-name" v-model="dialog.name" class="dialog__input" type="text" />
 
-        <div class="dialog__grid">
-          <div class="dialog__cell">
-            <label class="dialog__label" for="dish-canteen">所属食堂</label>
-            <select
-              id="dish-canteen"
-              v-model="dialog.canteenId"
-              class="dialog__input"
-              @change="onCanteenChange"
-            >
-              <option :value="undefined">请选择食堂</option>
+        <label class="dialog__label" for="dish-desc">描述</label>
+        <textarea
+          id="dish-desc"
+          v-model="dialog.description"
+          class="dialog__input dialog__textarea"
+          placeholder="名称 + 口味 + 场景 + 特点"
+        />
+
+        <label class="dialog__label" for="dish-activate">状态</label>
+        <select id="dish-activate" v-model="dialog.activate" class="dialog__input">
+          <option :value="true">在售</option>
+          <option :value="false">已下架</option>
+        </select>
+
+        <label class="dialog__label">菜品图片</label>
+        <ImageField v-model="dialog.imageUrl" label="菜品图片" @pending="pendingFile = $event" />
+
+        <div class="offering-head">
+          <span class="dialog__label">售卖点</span>
+          <button class="btn btn--sm" type="button" @click="addRow">+ 添加售卖点</button>
+        </div>
+
+        <div v-for="(row, index) in offerings" :key="index" class="offering-edit">
+          <div class="offering-edit__grid">
+            <select v-model="row.canteenId" class="dialog__input" @change="onCanteenChange(row)">
+              <option :value="undefined">选择食堂</option>
               <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
-          </div>
-          <div class="dialog__cell">
-            <label class="dialog__label" for="dish-stall">所属档口</label>
-            <select id="dish-stall" v-model="dialog.stallId" class="dialog__input">
-              <option :value="undefined">不指定档口</option>
-              <option v-for="s in filteredStalls" :key="s.id" :value="s.id">{{ s.name }}</option>
+            <select v-model="row.stallId" class="dialog__input">
+              <option :value="null">不指定档口</option>
+              <option v-for="s in stallsOf(row.canteenId)" :key="s.id" :value="s.id">
+                {{ s.name }}
+              </option>
             </select>
-          </div>
-          <div class="dialog__cell">
-            <label class="dialog__label" for="dish-floor">楼层</label>
-            <select id="dish-floor" v-model="dialog.floor" class="dialog__input">
-              <option value="">不指定</option>
-              <option v-for="f in FLOOR_OPTIONS" :key="f" :value="f">{{ f }}</option>
-            </select>
-          </div>
-          <div class="dialog__cell">
-            <label class="dialog__label" for="dish-activate">状态</label>
-            <select id="dish-activate" v-model="dialog.activate" class="dialog__input">
+            <input
+              v-model="row.priceYuan"
+              class="dialog__input"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="价格（元）"
+            />
+            <select v-model="row.activate" class="dialog__input">
               <option :value="true">在售</option>
               <option :value="false">已下架</option>
             </select>
           </div>
+          <button class="btn btn--sm offering-edit__remove" type="button" @click="removeRow(index)">
+            删除本行
+          </button>
         </div>
 
-        <label class="dialog__label">菜品图片</label>
-        <ImageField v-model="dialog.imageUrl" label="菜品图片" @pending="pendingFile = $event" />
+        <p class="dialog__hint">楼层随档口带出；不指定档口时楼层显示「—」。价格留空 = 价格待定。</p>
 
         <footer class="dialog__foot">
           <button v-if="dialog.id" class="btn btn--danger" @click="view = 'delete'">删除</button>
@@ -191,15 +241,40 @@ async function onSave() {
 </template>
 
 <style scoped>
-/* 两列紧凑栅格：把「状态」并入行列，避免独占一行 */
-.dialog__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 12px;
+.dialog__textarea {
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
 }
+
+.offering-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.offering-edit {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--el-border-color-extra-light);
+  border-radius: var(--el-border-radius-base);
+  background: var(--el-fill-color-lighter);
+}
+
+.offering-edit__grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr 0.8fr;
+  gap: 8px;
+}
+
+.offering-edit__remove {
+  margin-top: 6px;
+}
+
 @media (max-width: 640px) {
-  .dialog__grid {
-    grid-template-columns: 1fr;
+  .offering-edit__grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

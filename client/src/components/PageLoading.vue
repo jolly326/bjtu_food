@@ -6,11 +6,8 @@
  * 加载态差异只有两点：图标弱化（55% 不透明度）+ 匀速旋转。
  */
 import StatusBlock from './StatusBlock.vue'
-import { useTheme } from '@/theme'
 
 defineOptions({ options: { virtualHost: true } })
-
-const theme = useTheme()
 
 withDefaults(
   defineProps<{
@@ -22,5 +19,5 @@ withDefaults(
 </script>
 
 <template>
-  <StatusBlock name="loading" :text="text" :theme="theme" spinning dim />
+  <StatusBlock name="loading" :text="text" spinning dim />
 </template>

@@ -11,6 +11,7 @@ import 'element-plus/theme-chalk/el-message-box.css'
 import 'element-plus/theme-chalk/el-select.css'
 import 'element-plus/theme-chalk/el-popper.css'
 import './styles/theme.css'
+import './styles/motion.css'
 
 const app = createApp(App)
 

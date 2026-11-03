@@ -32,38 +32,59 @@ export type StallOut = StallBody & {
   updatedAt: string
 }
 
-export type DishBody = {
-  /** 食堂必填：菜品最小定位信息（学生端据此能找到地方） */
+/** 售卖点入参：带 `id` 更新、不带 `id` 新增、未出现即删除（整表替换）。 */
+export type DishOfferingInput = {
+  id?: number
   canteenId: number
-  /** 档口可选：未指定时菜品只挂在食堂（上下架仍生效） */
   stallId?: number | null
-  /** 楼层可选：缺省回落档口楼层 */
-  floor?: string | null
+  /** 售价（分）；`null` = 未录入 */
+  price?: number | null
+  activate?: boolean
+}
+
+export type DishBody = {
+  /** 菜品名称：全库唯一 */
   name: string
+  /** 档案富文本：名称 + 口味 + 场景 + 特点 */
+  description?: string | null
   imageUrl?: string | null
-  /** 上架状态：true 在售 / false 已下架（列名 activate，见 schema/dish.md） */
+  /** 上架状态：true 在售 / false 已下架 */
+  activate?: boolean
+  /** 售卖点列表（整表替换） */
+  offerings?: DishOfferingInput[]
+}
+
+export type DishOfferingOut = {
+  id: number
+  canteenId: number
+  canteenName: string
+  stallId: number | null
+  stallName: string
+  /** 楼层（取档口）；无档口为空串 */
+  floor: string
+  /** 售价（分）；`null` = 未录入 */
+  price: number | null
   activate: boolean
 }
-export type DishOut = DishBody & {
+
+export type DishOut = {
   id: number
-  canteenName: string
-  stallName: string
-  /** 点赞数：只读派生缓存列 = COUNT(dish_rating.liked = 1) */
-  likeCount: number
+  name: string
+  description: string
+  imageUrl?: string | null
+  activate: boolean
+  offerings: DishOfferingOut[]
   updatedAt: string
 }
 
-export type IssueOut = {
+export type FeedbackType = 'product' | 'dish'
+
+export type FeedbackOut = {
   id: number
-  dishId: number
+  type: FeedbackType
+  dishId: number | null
   dishName: string
-  canteenName: string
-  stallName: string
-  optionName: string
+  content: string
   createdAt: string
   handledAt: string | null
-  /** 该菜当前待处理纠错条数（服务端聚合；列表按它降序优先） */
-  dishFeedbackCount: number
 }
-
-export type OptionOut = { id: number; name: string; refCount: number; updatedAt: string }

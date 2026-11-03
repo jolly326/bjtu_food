@@ -212,7 +212,8 @@ onMounted(async () => {
 
 <template>
   <section class="page">
-    <header class="page__bar">
+    <Teleport to="#layout-pageheader">
+      <header class="page__bar">
       <h2 class="page__title">档口管理</h2>
       <div class="filters">
         <el-select
@@ -233,7 +234,8 @@ onMounted(async () => {
           <AppIcon name="add" :size="16" />新建
         </button>
       </div>
-    </header>
+      </header>
+    </Teleport>
 
     <!-- 批量操作条：仅多选模式出现 -->
     <div v-if="batchMode" class="batch-bar">

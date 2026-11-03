@@ -1,12 +1,12 @@
-/** 美食地图域（docs/api/client/dishes.md）。 */
+/** 菜品域（docs/api/client/dishes.md）。 */
 
 import { http } from '@/utils/request'
 
-import type { DishLikeOut, DishVO } from './types'
+import type { DishVO, RecommendOut } from './types'
 
 export const dishApi = {
-  /** 美食地图：全量在售菜品（卡片排布由端上完成） */
+  /** 全量在售菜品（图标网格初始渲染） */
   list: () => http.get<DishVO[]>('/dishes'),
-  /** 两态点赞 toggle：已赞 ⇒ 取消，未赞 ⇒ 点赞 */
-  like: (dishId: number) => http.post<DishLikeOut>(`/dishes/${dishId}/likes`),
+  /** 一句话匹配（硬约束 + 语义召回） */
+  recommend: (query: string) => http.post<RecommendOut>('/dishes/recommend', { query }),
 }

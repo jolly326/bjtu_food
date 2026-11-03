@@ -12,11 +12,11 @@ const props = defineProps<{
   modelValue: boolean
   /** 浮层标题（行名，弱化展示；空则不渲染标题行） */
   title?: string
-  /** 删除行禁用（如纠错选项被引用） */
+  /** 删除行禁用（如被引用不可删） */
   removeDisabled?: boolean
   /** 删除禁用原因（删除行下方弱化说明） */
   removeHint?: string
-  /** 自定义动作行（传了就不渲染固定「编辑 / 删除」，见纠错处理页） */
+  /** 自定义动作行（传了就不渲染固定「编辑 / 删除」） */
   actions?: CardAction[]
 }>()
 

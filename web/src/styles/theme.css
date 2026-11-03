@@ -7,8 +7,6 @@
    （如 element-plus base）在懒加载时晚于本文件注入 <head>，其自带的
    `:root { --el-color-primary: #409eff }` 也无法覆盖此处的品牌变量（主题变蓝防线） */
 html:root {
-  /* 始终预留滚动条槽位：页面滚动条出现 / 消失时，固定定位的底部应用坞不产生横向位移 */
-  scrollbar-gutter: stable;
   /* ===== 品牌主色（与学生端 --color-primary 逐字一致：Q 版暖橙） ===== */
   --el-color-primary: #ff8a4c;
   --el-color-primary-light-3: #ffa873;
@@ -33,11 +31,11 @@ html:root {
   --el-color-danger-light-9: #fcedea;
 
   /* ===== 页面 / 卡面（暖奶油底 + 奶白卡） ===== */
-  --el-bg-color-page: #fffaf3;
-  --el-bg-color: #ffffff;
-  --el-bg-color-overlay: #ffffff;
+  --el-bg-color-page: #fff7e8;
+  --el-bg-color: #fffdf7;
+  --el-bg-color-overlay: #fffdf7;
   /* 卡面：奶白（卡片靠极弱弥散阴影浮起，不画描边） */
-  --web-bg-card: #ffffff;
+  --web-bg-card: #fffdf7;
   --el-fill-color-light: #f6eee1;
   --el-fill-color-lighter: #fbf6ee;
   --el-fill-color: #f1e7d6;
@@ -70,6 +68,8 @@ html:root {
   --web-gap-tight: 10px;
   --web-gap: 14px;
   --web-gap-loose: 22px;
+  /* 顶栏高与页面横向内距：顶栏、内容区滚动边界、内容卡片共用同一取值 */
+  --web-topbar-h: 56px;
   --web-page-pad: 24px;
 
   /* ===== 字体（Q 版：一律系统无衬线圆体，不引入自定义字体） ===== */
@@ -81,6 +81,20 @@ html:root {
   --web-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* 断点：顶栏高与页面横向内距同步收档 —— 顶栏、内容区滚动边界、卡片边界始终落在同一条竖线上 */
+@media (max-width: 1024px) {
+  html:root {
+    --web-page-pad: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  html:root {
+    --web-topbar-h: 52px;
+    --web-page-pad: 14px;
+  }
+}
+
 body {
   margin: 0;
   font-family: var(--web-font-sans);
@@ -90,7 +104,9 @@ body {
 }
 
 #app {
+  /* 与 AdminLayout 的 100dvh 同源：移动端浏览器工具栏收放时不留出页面级滚动余量 */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ===== 标题统一走无衬线圆体（Q 版）：层级靠字号 + 颜色，字重不堆叠 ===== */
@@ -122,11 +138,23 @@ h3 {
   flex-wrap: wrap;
 }
 
+#app .page__titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 #app .page__title {
   margin: 0;
   font-size: 18px;
   font-weight: 500;
   color: var(--el-text-color-primary);
+}
+
+#app .page__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 /* 顶栏右侧操作组（多按钮时统一间距） */
@@ -516,7 +544,7 @@ h3 {
 }
 
 #app .list-card__titleText {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--el-text-color-primary);
 }
@@ -551,7 +579,7 @@ h3 {
   color: var(--el-text-color-placeholder);
 }
 
-/* 指标行（价格 / 点赞数 / 计数 / 时间） */
+/* 指标行（价格 / 计数 / 时间） */
 #app .list-card__stats {
   display: flex;
   align-items: baseline;
@@ -573,7 +601,7 @@ h3 {
   gap: 4px;
 }
 
-/* 已处理 / 失效态整卡弱化（纠错处理页） */
+/* 已处理 / 失效态整卡弱化（反馈处理页） */
 #app .list-card--dim {
   opacity: 0.55;
 }
@@ -634,7 +662,7 @@ h3 {
   margin-left: auto;
 }
 
-/* ===== 页内分段切换（纠错处理页：待办 / 选项字典）===== */
+/* ===== 页内分段切换（当前无页面消费，保留备用）===== */
 #app .seg {
   display: inline-flex;
   gap: 2px;

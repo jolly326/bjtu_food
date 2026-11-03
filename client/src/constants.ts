@@ -3,64 +3,31 @@
  * 尺寸 / 时长 / 阈值 / storage 键一律在此登记（`@/constants` 引入），组件与页面不得另行内联同名数字。
  */
 
-export const SHEET = {
-  /** 反馈选项每页显示数量 */
-  FEEDBACK_PAGE_SIZE: 3,
-  /** 点赞弹簧动画时长（ms） */
-  POP_MS: 240,
-  /**
-   * 弹层内容总高（rpx）的兜底估算：把手 32 + 大图 (750−64)×9/16 ≈ 386 + 间距 8
-   * + 滑块页内距 16 + 上方块 128 + 虚线 36 + 下方块 40 ≈ 646。
-   * 仅在实测高度拿不到时用于折算净空区 —— 用固定屏高比例会在小屏偏下、大屏偏上。
-   */
-  ESTIMATE_HEIGHT_RPX: 646,
-} as const;
-
-export const MAP = {
-  /** 磁贴边长（rpx） */
-  TILE_RPX: 240,
-  /** 网格步长（rpx） */
-  CELL_RPX: 300,
-  /** 2×2 大图数量占菜品数的比例（随菜品数放大） */
-  BIG_TILE_RATIO: 0.12,
-  /** 最小缩放倍数 */
-  MIN_SCALE: 0.55,
-  /** 最大缩放倍数 */
-  MAX_SCALE: 3,
-  /** 点击判定最大位移（px） */
-  TAP_MOVE_THRESHOLD_PX: 8,
-  /** 点击判定最大时长（ms） */
-  TAP_DURATION_MS: 320,
-  /** 越界橡皮筋系数（越小越硬）：松手位附近每 1px 越界的跟手比例 */
-  RUBBER: 0.5,
-  /** 单轴越界位移的饱和基准（px）：越界到这个量级时画布几乎不再跟手 */
-  RUBBER_TRAVEL: 200,
-  /** 惯性衰减系数 */
-  FRICTION: 0.92,
-  /** 最小惯性速度 */
-  MIN_SPEED: 0.12,
-  /** 松手后弹性收敛到合法边界的时长（ms） */
-  SETTLE_MS: 220,
-  /** 越界 / 手势结束时的收敛时长（ms，略快于常规收敛） */
-  EDGE_SETTLE_MS: 200,
-  /** camera 聚焦动画时长（ms）：比常规收敛更长，避免大位移时显得突进 */
-  FOCUS_MS: 320,
-  /** 点选后等待弹层实测高度的上限（ms）：超时则用预估净空区兜底聚焦 */
-  FOCUS_WAIT_MS: 220,
-} as const;
-
 export const REQUEST = {
   /** 请求超时（ms） */
   TIMEOUT_MS: 15000,
   /** 窗口 resize 防抖（ms） */
   RESIZE_DEBOUNCE_MS: 120,
-} as const;
+} as const
+
+export const FEEDBACK = {
+  /** 正文最大字数 */
+  MAX_LEN: 500,
+} as const
+
+export const SEARCH_DOCK = {
+  /** 无点击 / 输入多久后进入待机淡出态（ms） */
+  IDLE_MS: 5000,
+} as const
+
+export const IMAGE = {
+  /** 磁贴缩略图限宽（px）：3 列磁贴在 3x 屏约 318px */
+  TILE_THUMB_WIDTH: 400,
+  /** 展开卡大图缩略图限宽（px）：整行 16:9 大图在 3x 屏约 933px */
+  CARD_THUMB_WIDTH: 800,
+} as const
 
 export const STORAGE = {
   /** 学生端 token 存储键 */
   STUDENT_TOKEN: 'student_token',
-  /** 主题模式存储键 */
-  THEME: 'theme',
-  /** 纠错提交去重记录存储键（同一设备内软提示的依据） */
-  ISSUE_SUBMITTED: 'dish-issue-submitted',
-} as const;
+} as const

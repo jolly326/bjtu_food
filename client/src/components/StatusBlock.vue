@@ -27,8 +27,6 @@ withDefaults(
     pressable?: boolean
     /** 无障碍标签（可点块的语义） */
     ariaLabel?: string
-    /** 主题标记（首屏状态块需要自带，避免夜间模式闪浅色） */
-    theme?: string
   }>(),
   {
     size: 56,
@@ -36,7 +34,6 @@ withDefaults(
     dim: false,
     pressable: false,
     ariaLabel: '',
-    theme: '',
   },
 )
 
@@ -46,7 +43,6 @@ const emit = defineEmits<{ (e: 'press'): void }>()
 <template>
   <view
     class="status"
-    :data-theme="theme || undefined"
     :hover-class="pressable ? 'status--pressed' : 'none'"
     :aria-role="pressable ? 'button' : undefined"
     :aria-label="ariaLabel || undefined"

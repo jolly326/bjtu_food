@@ -9,5 +9,5 @@
 import type { components } from '@/types/generated/api'
 
 export type DishVO = components['schemas']['DishVO']
-export type DishLikeOut = components['schemas']['DishLikeOut']
-export type IssueOptionOut = components['schemas']['IssueOptionOut']
+export type DishLocationVO = components['schemas']['DishLocationVO']
+export type RecommendOut = components['schemas']['RecommendOut']

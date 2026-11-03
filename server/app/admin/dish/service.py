@@ -1,24 +1,23 @@
-"""运营端菜品业务规则（docs/func/web/A3-菜品管理.md、docs/schema/dish.md）。
+"""运营端菜品业务规则（docs/func/web/A-主数据维护/A3-菜品管理.md、docs/schema/dish.md）。
 
-* **同一食堂下** ``name`` 唯一（替换失效的「同一档口下唯一」）
-* 归属：**食堂必填**（最小定位），档口 / 楼层**可选**；指定了档口则该档口所属食堂必须与菜品食堂一致
-* 🔴 ``like_count`` 只读，**本域不写**
-* 删除：管理员可物理删除菜品，引用项（纠错/点赞）随外键 ``ondelete="CASCADE"`` 一并清除（删除前由前端提醒）
+* ``name`` **全库唯一**（应用层判重，DB 另有唯一键兜底）
+* 售卖点随菜品整表替换：带 ``id`` 更新、不带 ``id`` 新增、未出现的删除
+* ``stallId`` 非空时其档口 ``canteen_id`` 必须等于售卖点 ``canteenId``（否则 ``400``）
+* ``description`` 变更时重算 ``embedding``
 """
 
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.admin.dish import repo
 from app.admin.dish.repo import DishRow
 from app.core.cache import invalidate
+from app.core.embedding import LOCAL_MODEL, embed
 from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
-from app.models import Canteen, Dish, Stall
-
-# 楼层受控字典（与 stall.floor 同源）
-FLOOR_CHOICES = ("负一层", "一层", "二层", "三层", "四层")
+from app.models import Canteen, Dish, DishOffering, Stall
 
 
 def _validate(payload) -> None:
@@ -26,74 +25,76 @@ def _validate(payload) -> None:
         raise BadRequest("菜品名称不能为空")
     if not isinstance(payload.activate, bool):
         raise BadRequest("activate 必须为布尔值")
-    if payload.floor and payload.floor not in FLOOR_CHOICES:
-        raise BadRequest("楼层取值非法")
 
 
-def _load_canteen(session: Session, canteen_id: int | None) -> Canteen:
-    """食堂必填：最小定位信息，学生端据此能找到地方。"""
-    if canteen_id is None:
-        raise BadRequest("请选择所属食堂")
-    canteen = session.get(Canteen, canteen_id)
+def _check_offering(session: Session, item) -> None:
+    canteen = session.get(Canteen, item.canteen_id)
     if canteen is None:
         raise NotFound("食堂不存在")
-    return canteen
+    if item.stall_id is not None:
+        stall = session.get(Stall, item.stall_id)
+        if stall is None:
+            raise NotFound("档口不存在")
+        if stall.canteen_id != canteen.id:
+            raise BadRequest("档口所属食堂与售卖点食堂不一致")
 
 
-def _load_stall(session: Session, stall_id: int | None, *, canteen_id: int) -> Stall | None:
-    """档口可选：未指定返回 None；指定了就必须存在且归属一致。"""
-    if stall_id is None:
-        return None
-    stall = session.get(Stall, stall_id)
-    if stall is None:
-        raise NotFound("档口不存在")
-    if stall.canteen_id is not None and stall.canteen_id != canteen_id:
-        raise BadRequest("档口所属食堂与菜品所属食堂不一致")
-    return stall
+def _set_embedding(dish: Dish) -> None:
+    text = (dish.description or dish.name or "").strip()
+    dish.embedding = embed(text)
+    dish.embedding_model = LOCAL_MODEL
 
 
-def list_page(
-    session: Session,
-    *,
-    stall_id: int | None,
-    canteen_id: int | None,
-    no_stall: bool | None,
-    activate: bool | None,
-    name: str | None,
-    page: int,
-    size: int,
-) -> tuple[list[DishRow], int]:
-    return repo.list_page(
-        session,
-        stall_id=stall_id,
-        canteen_id=canteen_id,
-        no_stall=no_stall,
-        activate=activate,
-        name=name,
-        page=page,
-        size=size,
-    )
+def _replace_offerings(session: Session, dish: Dish, items: list) -> None:
+    existing = {
+        off.id: off
+        for off in session.scalars(
+            select(DishOffering).where(DishOffering.dish_id == dish.id)
+        )
+    }
+    kept: set[int] = set()
+    for item in items:
+        _check_offering(session, item)
+        item_id = getattr(item, "id", None)
+        if item_id is not None and item_id in existing:
+            off = existing[item_id]
+            kept.add(off.id)
+            off.canteen_id = item.canteen_id
+            off.stall_id = item.stall_id
+            off.price = item.price
+            off.activate = item.activate
+        else:
+            session.add(
+                DishOffering(
+                    dish_id=dish.id,
+                    canteen_id=item.canteen_id,
+                    stall_id=item.stall_id,
+                    price=item.price,
+                    activate=item.activate,
+                )
+            )
+    for offering_id, offering in existing.items():
+        if offering_id not in kept:
+            session.delete(offering)
 
 
 def create(session: Session, *, payload) -> DishRow:
     _validate(payload)
-    canteen = _load_canteen(session, payload.canteen_id)
-    _load_stall(session, payload.stall_id, canteen_id=canteen.id)
-
-    # 同一食堂下 name 唯一
-    clash = repo.find_by_canteen_name(session, canteen_id=canteen.id, name=payload.name.strip())
-    if clash is not None:
-        raise BadRequest("同食堂下菜品名称已存在")
+    name = payload.name.strip()
+    if repo.find_by_name(session, name=name) is not None:
+        raise BadRequest("菜品名称已存在")
 
     dish = Dish(
-        canteen_id=canteen.id,
-        stall_id=payload.stall_id,
-        floor=payload.floor,
-        name=payload.name.strip(),
+        name=name,
+        description=payload.description or None,
         image=to_relative(payload.image_url),
         activate=payload.activate,
     )
+    _set_embedding(dish)
     session.add(dish)
+    session.flush()
+
+    _replace_offerings(session, dish, payload.offerings or [])
     session.flush()
     invalidate("student:dishes")
     return _reload(session, dish.id)
@@ -104,22 +105,18 @@ def update(session: Session, *, dish_id: int, payload) -> DishRow:
     dish = session.get(Dish, dish_id)
     if dish is None:
         raise NotFound("菜品不存在")
-    canteen = _load_canteen(session, payload.canteen_id)
-    _load_stall(session, payload.stall_id, canteen_id=canteen.id)
 
-    # 同一食堂下 name 唯一（不包含自身）
-    clash = repo.find_by_canteen_name(
-        session, canteen_id=canteen.id, name=payload.name.strip(), exclude_id=dish_id
-    )
-    if clash is not None:
-        raise BadRequest("同食堂下菜品名称已存在")
+    name = payload.name.strip()
+    if repo.find_by_name(session, name=name, exclude_id=dish_id) is not None:
+        raise BadRequest("菜品名称已存在")
 
-    dish.canteen_id = canteen.id
-    dish.stall_id = payload.stall_id
-    dish.floor = payload.floor
-    dish.name = payload.name.strip()
+    dish.name = name
+    dish.description = payload.description or None
     dish.image = to_relative(payload.image_url)
     dish.activate = payload.activate
+    _set_embedding(dish)
+
+    _replace_offerings(session, dish, payload.offerings or [])
     session.flush()
     invalidate("student:dishes")
     return _reload(session, dish.id)
@@ -129,7 +126,7 @@ def delete(session: Session, *, dish_id: int) -> None:
     dish = session.get(Dish, dish_id)
     if dish is None:
         raise NotFound("菜品不存在")
-    # 物理删除：dish_issue / dish_rating 因外键 ondelete="CASCADE" 自动连带清除（删除前由前端提醒）
+    # dish_offering / feedback 随外键 ON DELETE CASCADE 一并清除（删除前由前端提醒）
     session.delete(dish)
     session.flush()
     invalidate("student:dishes")

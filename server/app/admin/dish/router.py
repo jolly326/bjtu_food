@@ -1,12 +1,9 @@
-"""运营端菜品管理（docs/func/web/A3-菜品管理.md、docs/api/web/dishes.md）。
+"""运营端菜品管理（docs/api/web/dishes.md）。
 
-端点：
-    GET    /admin/dishes?stallId=&canteenId=&activate=&name=   分页（name 为名称模糊匹配）
-    POST   /admin/dishes                               新建
-    PUT    /admin/dishes/{id}                          修改
-    DELETE /admin/dishes/{id}                          删除（连带清理记录与纠错）
-
-🔴 ``likeCount`` 是**派生缓存列**，只读出参、不可写入。
+    GET    /admin/dishes?canteenId=&stallId=&activate=&name=   分页
+    POST   /admin/dishes                                        新建（含售卖点）
+    PUT    /admin/dishes/{id}                                   修改（售卖点整表替换）
+    DELETE /admin/dishes/{id}                                   删除
 """
 
 from __future__ import annotations
@@ -24,50 +21,71 @@ from app.core.schemas import InModel, OutModel
 router = APIRouter(prefix="/admin/dishes", tags=["admin-dish"])
 
 
-class DishSaveIn(InModel):
+class DishOfferingIn(InModel):
+    id: int | None = None
     canteen_id: int
-    name: str
     stall_id: int | None = None
-    floor: str | None = None
-    image_url: str | None = None
+    price: int | None = None
     activate: bool = True
 
 
-class DishOut(OutModel):
+class DishSaveIn(InModel):
+    name: str
+    description: str | None = None
+    image_url: str | None = None
+    activate: bool = True
+    offerings: list[DishOfferingIn] = []
+
+
+class DishOfferingOut(OutModel):
     id: int
     canteen_id: int
     canteen_name: str
     stall_id: int | None = None
     stall_name: str
     floor: str
+    price: int | None = None
+    activate: bool
+
+
+class DishOut(OutModel):
+    id: int
     name: str
+    description: str
     image_url: str | None = None
     activate: bool
-    like_count: int
+    offerings: list[DishOfferingOut]
     updated_at: str
 
 
 def _to_out(row) -> DishOut:
     return DishOut(
         id=row.id,
-        canteen_id=row.canteen_id,
-        canteen_name=row.canteen_name,
-        stall_id=row.stall_id,
-        stall_name=row.stall_name,
-        floor=row.floor,
         name=row.name,
+        description=row.description,
         image_url=row.image,
         activate=row.activate,
-        like_count=row.like_count,
+        offerings=[
+            DishOfferingOut(
+                id=o.id,
+                canteen_id=o.canteen_id,
+                canteen_name=o.canteen_name,
+                stall_id=o.stall_id,
+                stall_name=o.stall_name,
+                floor=o.floor,
+                price=o.price,
+                activate=o.activate,
+            )
+            for o in row.offerings
+        ],
         updated_at=row.updated_at,
     )
 
 
 @router.get("", response_model=Envelope[AdminPageResult[DishOut]], summary="菜品列表")
 def list_dishes(
-    stall_id: int | None = Query(default=None, alias="stallId"),
     canteen_id: int | None = Query(default=None, alias="canteenId"),
-    no_stall: bool | None = Query(default=None, alias="noStall", description="只看未指定档口的菜品"),
+    stall_id: int | None = Query(default=None, alias="stallId"),
     activate: bool | None = Query(default=None),
     name: str | None = Query(default=None, min_length=1, max_length=64, description="名称模糊匹配"),
     page: int | None = Query(default=None),
@@ -76,11 +94,10 @@ def list_dishes(
     session: Session = Depends(get_session),
 ) -> Envelope[AdminPageResult[DishOut]]:
     paging = normalize_page(page, page_size)
-    rows, total = service.list_page(
+    rows, total = service.repo.list_page(
         session,
-        stall_id=stall_id,
         canteen_id=canteen_id,
-        no_stall=no_stall,
+        stall_id=stall_id,
         activate=activate,
         name=name,
         page=paging.page,

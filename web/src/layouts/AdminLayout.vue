@@ -3,10 +3,10 @@
  * 运营端布局（知行食记 · 运营端）：
  * - 顶层固定导航栏：品牌名 知行食记（无衬线圆体）+ 日期；右侧操作员用户名文本（弱化，非按钮）
  * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.3）：
- *   四个功能入口（主数据组：食堂 / 档口 / 菜品 ｜ 反馈组：纠错处理，分组分隔线），始终水平居中；
+ *   四个功能入口（主数据组：食堂 / 档口 / 菜品 ｜ 反馈组：反馈处理，分组分隔线），始终水平居中；
  *   悬停放大上浮 + 名称气泡、激活项主色 + 圆点指示；桌面 / 移动同构（无隐藏态）
  * - 退出登录：顶栏右上角图标按钮（不再放在坞内，避免危险操作混入导航）
- * - 内容区（滚动）：底部留白让出应用坞，防遮挡
+ * - 内容区（唯一滚动容器）：页头吸顶于滚动区上界，内容自其下方穿过；底部留白让出应用坞，防遮挡
  */
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
@@ -30,7 +30,7 @@ const MENUS: DockItem[] = [
   { path: '/canteens', label: '食堂', icon: 'building', sep: false },
   { path: '/stalls', label: '档口', icon: 'store', sep: false },
   { path: '/dishes', label: '菜品', icon: 'food', sep: false },
-  { path: '/issues', label: '纠错处理', icon: 'flag', sep: true },
+  { path: '/feedback', label: '反馈处理', icon: 'flag', sep: true },
 ]
 
 const now = computed(() => {
@@ -60,7 +60,10 @@ function onLogout() {
       </div>
     </nav>
 
+    <!-- 内容区 = 唯一滚动容器：页头挂载点与页面内容同处一个滚动上下文（页头吸顶），
+         横向内距 / 滚动条槽位共用 ⇒ 滚动区上下左右边界与内容天然对齐 -->
     <main class="layout__main">
+      <div id="layout-pageheader" class="layout__pageheader"></div>
       <RouterView />
     </main>
 
@@ -89,7 +92,8 @@ function onLogout() {
 .layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--el-bg-color-page);
 }
 
@@ -100,7 +104,7 @@ function onLogout() {
   top: 0;
   left: 0;
   right: 0;
-  height: 56px;
+  height: var(--web-topbar-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -178,13 +182,31 @@ function onLogout() {
   background: var(--el-color-error-light-9);
 }
 
-/* ===== 内容区（底部让出应用坞，防遮挡，见基线 §2.3） ===== */
+/* ===== 内容区（唯一滚动容器；底部让出应用坞，防遮挡，见基线 §2.3） ===== */
 .layout__main {
   flex: 1;
   min-width: 0;
-  margin-top: 56px;
-  padding: var(--web-page-pad) var(--web-page-pad) 104px;
+  min-height: 0;
+  /* 顶栏 fixed 脱离布局流：内容区用等高外边距下移，滚动区上界 = 顶栏下沿 */
+  margin-top: var(--web-topbar-h);
+  padding: 0 var(--web-page-pad) 104px;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 滚动条槽位常驻：各页内容长短切换时内容宽度不跳变，页头与卡片边界始终对齐 */
+  scrollbar-gutter: stable;
+}
+
+/* ===== 页头（内容区内吸顶，滚动时内容自其下方穿过） =====
+   页面通过 Teleport 把 .page__bar 投射到这里；与内容共用同一滚动上下文与横向内距，
+   左右边界天然对齐；底内距给出内容消失线，正文不会贴着筛选行被裁切。 */
+.layout__pageheader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  /* 上：与顶栏的间距；下：内容消失线（同时是页头与卡片的间距） */
+  padding: var(--web-gap) 0 var(--web-gap);
+  background: var(--el-bg-color-page);
 }
 
 /* ===== 底部应用坞（Dock 式全局导航：常驻水平居中，见基线 §2.3）===== */
@@ -299,26 +321,11 @@ function onLogout() {
   background: var(--el-border-color-extra-light);
 }
 
-/* 中屏（≤1024px）：内容区与顶栏内距收一档 */
-@media (max-width: 1024px) {
-  .layout__topbar {
-    padding: 0 20px;
-  }
-
-  .layout__main {
-    padding: 20px 20px 104px;
-  }
-}
-
-/* 窄屏（≤640px）：图标格收窄保证整坞一屏内**仍水平居中**（极窄屏 safe 兜底可横滚）；内容区收窄边距 */
+/* 窄屏（≤640px）：图标格收窄保证整坞一屏内**仍水平居中**（极窄屏 safe 兜底可横滚）。
+   横向内距与顶栏高由 `--web-page-pad` / `--web-topbar-h` 统一收档（theme.css），此处只收坞与底部净空 */
 @media (max-width: 640px) {
   .layout__main {
-    margin-top: 52px;
-    padding: 14px 14px 96px;
-  }
-  .layout__topbar {
-    height: 52px;
-    padding: 0 12px;
+    padding-bottom: 96px;
   }
   .layout__dock {
     /* 居中由基座的 left:0 + right:0 + flex 保证，窄屏仅收窄底距 */

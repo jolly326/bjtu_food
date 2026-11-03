@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * 底部弹层（口径见 docs/ui/client/公共组件与形态基线.md §2.1.4）。
- * 本项目用法：美食地图点磁贴唤起菜品弹窗（DishSheet），承载详情 / 点赞 / 纠错。
+ * 底部弹层原语（口径见 docs/ui/client/公共组件与形态基线.md §2.1.4）。
  */
 import { computed, getCurrentInstance, nextTick, ref, watch } from 'vue'
 

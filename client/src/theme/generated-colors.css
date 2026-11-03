@@ -1,60 +1,26 @@
 /* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。
-   双主题：浅色组挂 page（默认）；深色组挂页面根视图 view[data-theme="dark"]，
-   变量定义在该元素上 ⇒ 作用于其自身与整棵子树（机制见 docs/ui/client/设计变量.md §1.2）。
-   风格 = 动森风移动端：奶米纸色 / 深棕 / 浅杏胶囊 / 柔和弥散。 */
+   单主题（奶米纸色）：语义色只声明一组，页面 / 组件只消费语义键。 */
 page {
-  /* ===== 主色（暖橙保留给非 sheet 的品牌 CTA；品牌保留 token，不按「零消费即删」删除）===== */
+  /* ===== 主色（暖橙保留给非 sheet 的品牌 CTA；品牌保留 token）===== */
   --color-primary: #FF8A4C;
 
-  /* ===== 文字（规范深棕 / 可读浅棕阶）===== */
+  /* ===== 文字（深棕 / 辅助浅棕 / 三级）===== */
   --text-title: #44382E;
-  --text-body: #75665A;
-  --text-disabled: #B8A99C;
+  --text-body: #8C7B6B;
+  --text-disabled: #9F927D;
 
   /* ===== 背景 / 边框 ===== */
-  --bg-page: #FFFAF3;
+  --bg-page: #FFF7E8;
   --bg-card: #FFFDF7;
   --bg-placeholder: #F3E7D3;
   --border-color: #E6D8C6;
-  /* 浅杏胶囊底：sheet 内软胶囊按钮（纠错 / 反馈 / 导航）的浅杏承载底 */
+  /* 浅杏胶囊底：软胶囊按钮（反馈 / 导航）的浅杏承载底 */
   --pill-bg: #F9E9D8;
 
-
-  /* ===== 遮罩 + 极弱弥散阴影 ===== */
-  --overlay-scrim: rgba(90,62,43,0.32);
-  --overlay-panel-bg: #FFFAF3;
+  /* ===== 低透明度奶色蒙层 + 极弱弥散阴影 ===== */
+  --overlay-scrim: rgba(255,247,232,0.60);
+  --overlay-panel-bg: #FFF7E8;
   --sheet-divider: #D9C7B2;
-  /* 极弱弥散阴影（向下）：仅用于卡片 / 大图，营造轻微悬浮；🔴 禁用硬阴影 / 渐变 / 3D 堆叠 */
   --shadow-soft: 0 2rpx 10rpx rgba(68, 56, 46, 0.08);
-  /* 极弱弥散阴影（向上）：弹层自底部升起时于顶边上方提供悬浮；🔴 禁用硬阴影 / 渐变 */
   --shadow-up: 0 -2rpx 12rpx rgba(68, 56, 46, 0.10);
-}
-
-/* ===== 深色组（灰黑：deepseek harness 风中性灰黑底 + 中性浅灰字，主色提亮为晚霞橙）===== */
-view[data-theme='dark'] {
-  /* ===== 主色 ===== */
-  --color-primary: #FFA76B;
-
-  /* ===== 文字（中性浅灰阶）===== */
-  --text-title: #EDEDED;
-  --text-body: #C9C9C9;
-  --text-disabled: #6B6B6B;
-
-  /* ===== 背景 / 边框 ===== */
-  --bg-page: #1E1E1E;
-  --bg-card: #262626;
-  --bg-placeholder: #2E2E2E;
-  --border-color: rgba(255,255,255,0.14);
-  /* 浅杏胶囊底（暗底提亮的暖调胶囊，比面板底略亮一档） */
-  --pill-bg: #33302A;
-
-
-  /* ===== 遮罩 + 极弱弥散阴影 ===== */
-  --overlay-scrim: rgba(0,0,0,0.55);
-  --overlay-panel-bg: #262626;
-  --sheet-divider: rgba(255,255,255,0.14);
-  /* 极弱弥散阴影（向下）：仅用于卡片 / 大图；暗底靠低透明度黑投影提供轻微悬浮 */
-  --shadow-soft: 0 2rpx 10rpx rgba(0, 0, 0, 0.30);
-  /* 极弱弥散阴影（向上）：弹层自底部升起时于顶边上方提供悬浮 */
-  --shadow-up: 0 -2rpx 12rpx rgba(0, 0, 0, 0.35);
 }

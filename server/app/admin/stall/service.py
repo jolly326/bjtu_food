@@ -15,7 +15,7 @@ from app.admin.stall.repo import StallRow
 from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
-from app.models import Canteen, Dish, Stall
+from app.models import Canteen, DishOffering, Stall
 
 # 与前端常量、库内取值逐字一致（docs/schema/stall.md）
 FLOOR_VALUES = frozenset({"负一层", "一层", "二层", "三层", "四层"})
@@ -83,8 +83,8 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
     if not payload.activate:
         # RESTRICT：停用档口前，子级须无启用中的菜品
         active_dish_count = session.scalar(
-            select(func.count()).select_from(Dish).where(
-                Dish.stall_id == stall.id, Dish.activate == True
+            select(func.count()).select_from(DishOffering).where(
+                DishOffering.stall_id == stall.id, DishOffering.activate == True
             )
         )
         if active_dish_count:
@@ -105,7 +105,7 @@ def delete(session: Session, *, stall_id: int) -> None:
         raise NotFound("档口不存在")
 
     dish_count = session.scalar(
-        select(func.count()).select_from(Dish).where(Dish.stall_id == stall.id)
+        select(func.count()).select_from(DishOffering).where(DishOffering.stall_id == stall.id)
     )
     if dish_count:
         raise BadRequest("该档口下仍有菜品，请先清空菜品")

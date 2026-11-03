@@ -8,8 +8,8 @@
 | 端 | 目录 | 角色 | 技术栈 |
 |---|---|---|---|
 | 服务端 | `server/` | 唯一数据出口，学生端 / 运营端共用 | FastAPI · SQLAlchemy 2.0 · MySQL 8.0 · Redis（可选） |
-| 运营端 | `web/` | 管理后台（食堂 / 档口 / 菜品 / 纠错处置） | Vue 3 · TypeScript · Vite · Element Plus（主题覆盖） |
-| 学生端 | `client/` | 微信小程序（美食地图浏览 / 点赞 / 纠错） | uni-app · Vue 3 · TypeScript |
+| 运营端 | `web/` | 管理后台（食堂 / 档口 / 菜品 / 反馈处理） | Vue 3 · TypeScript · Vite · Element Plus（主题覆盖） |
+| 学生端 | `client/` | 微信小程序（菜品首页浏览 / 搜索 / 反馈） | uni-app · Vue 3 · TypeScript |
 
 三端**不共享运行时**；唯一跨端资产是 **SVG 图标资源**（各自入库，见 [`ui/client/图标资源.md`](./ui/client/图标资源.md)）。
 
@@ -33,12 +33,12 @@ server/app/
 │   └── formatters.py      # 时间等格式化
 ├── models/                # SQLAlchemy 模型（库结构唯一映射）
 │   ├── base.py / admin.py / user.py
-│   └── canteen.py / stall.py / dish.py / dish_rating.py / dish_issue.py / dish_issue_option.py
+│   └── canteen.py / stall.py / dish.py / dish_offering.py / feedback.py
 ├── admin/                 # 运营端入口（按业务域分包）
-│   ├── auth/  canteen/  stall/  dish/  issue/  option/  image/
+│   ├── auth/  canteen/  stall/  dish/  feedback/  image/
 │   └── 每个域：router.py（路由 + Pydantic 入/出参）· service.py（业务/校验/缓存失效）· repo.py（查询）
-└── student/               # 学生端入口（只读为主 + 点赞/纠错）
-    ├── auth/  canteen/  dish/  issue/
+└── student/               # 学生端入口（只读 + 文本反馈）
+    ├── auth/  canteen/  dish/  feedback/
     └── 每个域同样 router → service → repo
 ```
 
@@ -59,14 +59,14 @@ web/src/
 ├── router/index.ts            # 路由（按页面懒加载）
 ├── layouts/AdminLayout.vue    # 顶栏 + 底部应用坞（Dock）骨架
 ├── views/                     # 页面：一个页面一个 *View.vue
-│   └── LoginView · CanteenView · StallView · DishView · IssueView
+│   └── LoginView · CanteenView · StallView · DishView · FeedbackView
 ├── components/                # ≥2 页面复用的公共件
 │   └── AppIcon · CardActionSheet · ConfirmDeleteView · DishEditDialog · ImageField · ImageZoomOverlay · ListError · PaginationBar
 ├── composables/               # 可复用逻辑（无视图）
-│   └── usePagedList · useBatchSelection · useCardMenu · useImageZoom · useOptions
+│   └── usePagedList · useBatchSelection · useCardMenu · useImageZoom
 ├── directives/zoomImg.ts      # v-zoomimg（点图放大）
 ├── api/                       # 领域 API 封装 + 统一请求层
-│   └── request.ts · canteen · stall · dish · issue · option · session · query · types
+│   └── request.ts · canteen · stall · dish · feedback · session · query · types
 ├── stores/session.ts          # 登录态
 ├── styles/theme.css           # 【唯一】主题覆盖层（Element Plus 变量 + 少量 --web-* 自建）
 ├── utils/                     # 纯函数（image 压缩 / datetime）
@@ -83,12 +83,12 @@ web/src/
 
 ```
 client/src/
-├── pages/map/index.vue            # 唯一页面：美食地图
-│   └── components/                # 页面私有：FoodMap · ThemeTotem · DishSheet · DishInfo · FeedbackPanel
-├── components/                    # ≥2 页复用的公共件（7 个）
+├── pages/home/index.vue           # 唯一页面：菜品图标网格 + 搜索 dock
+│   └── components/                # 页面私有：DishGrid · DishTile · DishExpandCard · SearchDock · FeedbackPanel
+├── components/                    # ≥2 页复用的公共件
 │   └── AppIcon · ImagePlaceholder · RetryBlock · PageLoading · BaseSheet · DashedRule · StatusBlock
-├── hooks/                         # 组合式逻辑：useMapScene · useDishFeedback · useTimers
-├── utils/                         # 纯函数：viewport · mapLayout · mapMotion · mapCamera · mapPan · backoff · dishBatch · image · issueLocal · request
+├── hooks/                         # 组合式逻辑：useDishSearch · useDishFeedback · useTimers
+├── utils/                         # 纯函数：backoff · image · feedbackLocal · request
 ├── theme/                         # token 真源：tokens.ts · generated-colors.css · design-tokens.css · icons.ts · useTheme.ts
 ├── api/                           # 学生端接口封装
 ├── types/generated/api.d.ts       # OpenAPI 生成类型
@@ -98,7 +98,7 @@ client/src/
 
 **依赖方向**：`pages → pages/components → components / hooks / utils / theme / api`；页面私有组件**不跨页引用**；`utils` / `theme` **不得**导入 `pages`。
 
-**约定**：一句话——「跨页才进 `components/`，单页下沉 `pages/map/components/`」；尺寸/时长/阈值/存储键集中在 `constants.ts`。
+**约定**：一句话——「跨页才进 `components/`，单页下沉 `pages/home/components/`」；尺寸/时长/阈值/存储键集中在 `constants.ts`。
 
 ## 5 · 命名与新增清单
 
@@ -119,3 +119,14 @@ client/src/
 | 学生端 | `cd client && npm run verify` | `check:contract` / `check:icon` / `check:ui` / `check:events` / `check:doc` / lint / `vue-tsc` / `vitest` / 构建 |
 
 文档一致性：`docs/api`、`docs/schema`、`docs/func`、`docs/ui` 为真源，改代码必须同步；运营端无 `check:doc` 脚本，靠评审与旧口径检索兜底。
+
+## 7 · 已知取舍
+
+| 项 | 取舍 | 理由 |
+|---|---|---|
+| 菜品属性 | 只保留少量结构化硬字段（`price` 在售卖点）+ 一段 `description`；口味交给语义向量 | 避免「每道菜 × 每个维度」打标的高维护成本 |
+| 售卖点 | 位置与价格落在 `dish_offering`，一菜可多食堂 / 多档口、各价独立 | 真实售卖情况是多对多带属性，单列装不下 |
+| 反馈 | 产品反馈 + 菜品反馈统一文本表，正文过内容安全 | 任意表达、单表少一套接口与索引 |
+| 图标资源库 | 两端**同源取形、分别入库**：矢量同源（Streamline Plump · Solid），着色按端落地 —— 学生端 `<image>` 不支持 `currentColor`，故写死 `fill="#8C7B6B"`；运营端一律 `fill="currentColor"` + `fill-rule="evenodd"` 挖孔（无描边）靠宿主上色。**未消费的图标键零消费即删** | 两端渲染机制不同，无法一端资源双端复用；不保留未消费资源，避免资源集漂移。CC BY 4.0 署名见 [`ui/client/图标资源.md`](./ui/client/图标资源.md) §6 |
+| 学生端字体 | 用**系统圆体**（`--font-sans`），不引入 M PLUS Rounded / 思源圆体自定义字体文件 | 小程序 `wx.loadFontFace` 需 CDN 域名白名单且中文字体包体大；系统圆体已命中圆润字形 |
+| 契约快照同步 | 走**自动链路**：本机有可用 conda 环境，后端契约变更后用 `gen:api:fresh` 重新抓取即可，**不维护手工同步脚本与副本** | 手工同步会与后端真源漂移；自动链路以 Backend Pydantic 模型为端上类型唯一真源 |

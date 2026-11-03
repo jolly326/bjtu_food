@@ -12,9 +12,9 @@
 | 文档 | 覆盖端点 | 消费方 |
 |---|---|---|
 | [client/auth.md](./client/auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
-| [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/{id}/likes` | 美食地图页 |
-| [client/canteens.md](./client/canteens.md) | `GET /canteens` | 美食地图页：地图聚合并非本期筛选项，端点用于支撑地图数据读取 |
-| [client/issues.md](./client/issues.md) | `GET /dish-issue-options` · `POST /dishes/{id}/issues` | 菜品纠错 |
+| [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/recommend` | 图标网格 + 搜索 dock |
+| [client/feedback.md](./client/feedback.md) | `POST /feedback` | 产品反馈 / 菜品反馈 |
+| [client/canteens.md](./client/canteens.md) | `GET /canteens` | 位置展示辅助（可选） |
 
 ### 运营端（`web/`）
 
@@ -24,7 +24,7 @@
 | [web/canteens.md](./web/canteens.md) | `/admin/canteens*` |
 | [web/stalls.md](./web/stalls.md) | `/admin/stalls*` |
 | [web/dishes.md](./web/dishes.md) | `/admin/dishes*` |
-| [web/issues.md](./web/issues.md) | `/admin/dish-issues*` · `/admin/dish-issue-options*` |
+| [web/feedback.md](./web/feedback.md) | `/admin/feedback*` |
 | [web/images.md](./web/images.md) | `POST /admin/images` |
 
 ---
@@ -140,7 +140,7 @@
 | 数组字段**恒为数组** | 无数据时返回 `[]`，**不为 null** |
 | 有意可空的字段 | 逐字段在资源文档中标「可空 = 是」并说明 `null` 的语义 |
 
-**有意可空字段（逐条登记）**：本阶段无「有意可空」展示字段 —— 点赞数 `likeCount` 恒非空（默认 0），`liked` 由登录态判定（恒非空）。
+**有意可空字段（逐条登记）**：`imageUrl`（`null` = 未配图）、`DishLocationVO.price`（`null` = 未录入）。
 
 ---
 

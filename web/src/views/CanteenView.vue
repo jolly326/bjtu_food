@@ -99,12 +99,14 @@ onMounted(load)
 
 <template>
   <section class="page">
-    <header class="page__bar">
+    <Teleport to="#layout-pageheader">
+      <header class="page__bar">
       <h2 class="page__title">食堂管理</h2>
       <button class="btn btn--primary" @click="onCreate">
         <AppIcon name="add" :size="16" />新建
       </button>
-    </header>
+      </header>
+    </Teleport>
 
     <div class="list-card-wrap">
       <div

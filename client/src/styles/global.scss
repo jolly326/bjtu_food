@@ -8,7 +8,7 @@ page {
   font-family: var(--font-sans);
 }
 
-/* 页面根视图：与 page 同底色 —— 深色主题下根视图解析深色组变量，覆盖整窗 */
+/* 页面根视图：与 page 同底色（单主题奶米纸色） */
 .page {
   background: var(--bg-page);
 }

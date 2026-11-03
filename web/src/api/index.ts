@@ -4,15 +4,16 @@ export { sessionApi } from './session'
 export { canteenApi } from './canteen'
 export { stallApi } from './stall'
 export { dishApi } from './dish'
-export { issueApi } from './issue'
-export { optionApi } from './option'
+export { feedbackApi } from './feedback'
 export { upload } from './request'
 export type {
   CanteenOut,
   DishBody,
+  DishOfferingInput,
+  DishOfferingOut,
   DishOut,
-  IssueOut,
-  OptionOut,
+  FeedbackOut,
+  FeedbackType,
   Page,
   StallBody,
   StallOut,

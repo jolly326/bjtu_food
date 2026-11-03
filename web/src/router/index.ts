@@ -16,7 +16,7 @@ const routes = [
       { path: 'canteens', name: 'canteens', component: () => import('@/views/CanteenView.vue') },
       { path: 'stalls', name: 'stalls', component: () => import('@/views/StallView.vue') },
       { path: 'dishes', name: 'dishes', component: () => import('@/views/DishView.vue') },
-      { path: 'issues', name: 'issues', component: () => import('@/views/IssueView.vue') },
+      { path: 'feedback', name: 'feedback', component: () => import('@/views/FeedbackView.vue') },
     ],
   },
 ]

@@ -16,7 +16,7 @@ from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
 from app.core.formatters import format_dt
 from app.core.storage import to_absolute, to_relative
-from app.models import Canteen, Stall
+from app.models import Canteen, DishOffering, Stall
 
 
 @dataclass(slots=True)
@@ -126,6 +126,12 @@ def delete(session: Session, *, canteen_id: int) -> None:
     )
     if stall_count:
         raise BadRequest("该食堂下仍有档口，请先清空档口")
+
+    offering_count = session.scalar(
+        select(func.count()).select_from(DishOffering).where(DishOffering.canteen_id == canteen.id)
+    )
+    if offering_count:
+        raise BadRequest("该食堂下仍有售卖点，请先清空售卖点")
 
     session.delete(canteen)
     session.flush()

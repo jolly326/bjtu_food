@@ -6,7 +6,7 @@
  *
  * 两个入口，共用同一套触发与浮层：
  * - `useCardMenu`：固定「编辑 / 删除」两类动作（主数据页）；
- * - `useCardActions`：任意动作列表（纠错处理页：去改菜品 / 标记已处理 / 撤销）。
+ * - `useCardActions`：任意业务动作列表。
  */
 import { reactive, ref } from 'vue'
 
@@ -21,7 +21,7 @@ export type CardAction = {
 export type CardMenuMeta = {
   /** 浮层标题（一般为行名，弱化展示） */
   title?: string
-  /** 删除行禁用（如纠错选项被引用） */
+  /** 删除行禁用（如被引用不可删） */
   removeDisabled?: boolean
   /** 删除禁用原因（删除行下方弱化说明） */
   removeHint?: string

@@ -1,10 +1,8 @@
 <script setup lang="ts">
 /**
  * 菜品管理（设计稿 docs/ui/web/菜品管理.md；业务规则 docs/func/web/A3）。
- * likeCount 是只读派生列（点赞数 = COUNT(dish_rating.liked = 1)）。
  *
- * 交互：点击卡片 → 直接进入编辑弹窗（删除在弹窗内整卡确认）；顶栏「批量」进入多选模式后
- * 点卡片 = 勾选、点图片 = 放大预览（页面与卡片排版不变），可批量上架 / 下架 / 改档口（逐条提交，非原子）。
+ * 菜品本体 + **售卖点列表逐行展示**（本页重点）；点卡片进编辑弹窗，删除在弹窗内整卡确认。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
@@ -13,10 +11,9 @@ import AppIcon from '@/components/AppIcon.vue'
 import DishEditDialog from '@/components/DishEditDialog.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { useBatchSelection } from '@/composables/useBatchSelection'
-import { fetchAllPages } from '@/composables/useOptions'
+import { fetchAllPages } from '@/composables/useAllPages'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
-import { canteenApi, dishApi, stallApi, type DishOut } from '@/api'
+import { canteenApi, dishApi, stallApi, type DishOfferingOut, type DishOut } from '@/api'
 import type { StallOut } from '@/api/types'
 
 const canteens = ref<{ id: number; name: string }[]>([])
@@ -24,43 +21,42 @@ const stalls = ref<StallOut[]>([])
 const filter = reactive({
   canteenId: undefined as number | undefined,
   stallId: undefined as number | undefined,
-  /** 只看未指定档口的菜品（归属食堂但无档口） */
-  noStall: undefined as boolean | undefined,
   /** 上架状态：undefined 全部 / true 在售 / false 已下架 */
   activate: undefined as boolean | undefined,
   /** 名称模糊搜索（防抖后生效） */
   name: '',
 })
 
+const filterStalls = reactive({ items: [] as StallOut[] })
+
 const editing = ref<DishOut | null>(null)
 const editVisible = ref(false)
 
-/** 指标行点赞数文案（派生缓存列，只读） */
-function likeText(row: DishOut): string {
-  return `${row.likeCount} 人赞`
+function priceText(price: number | null): string {
+  return price === null ? '价格待定' : `¥${(price / 100).toFixed(2)}`
 }
 
-/** 筛选用的档口：随食堂联动，未选食堂时列全部 */
-const filterStalls = reactive({ items: [] as StallOut[] })
+function offeringLine(offering: DishOfferingOut): string {
+  const floor = offering.floor || '—'
+  const stall = offering.stallName || '无档口'
+  return `${offering.canteenName} · ${floor} · ${stall} · ${priceText(offering.price)}`
+}
 
-async function loadCanteens() {
+async function loadCanteens(): Promise<void> {
   canteens.value = await fetchAllPages((page, pageSize) => canteenApi.list(page, pageSize))
 }
 
-/** 选择器取全量档口：逐页拉取，避免 pageSize=50 冒充全量导致漏项 */
-async function loadStalls(canteenId?: number) {
+async function loadStalls(canteenId?: number): Promise<void> {
   const list = await fetchAllPages((page, pageSize) => stallApi.list({ canteenId, page, pageSize }))
   stalls.value = list as StallOut[]
   filterStalls.items = list as StallOut[]
 }
 
-/** 分页状态机：翻页 / 加载态 / 末页删空回退 / 筛选回第 1 页单点收口（见基线 §2.3「分页」） */
 const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<DishOut>(
   (p) =>
     dishApi.list({
       stallId: filter.stallId,
       canteenId: filter.canteenId,
-      noStall: filter.noStall,
       activate: filter.activate,
       name: filter.name.trim() || undefined,
       page: p,
@@ -69,18 +65,17 @@ const { rows, total, page, loading, error, hasNext, load, go, reload } = usePage
 
 const totalPages = computed(() => Math.ceil(total.value / PAGE_SIZE))
 
-function onCreate() {
+function onCreate(): void {
   editing.value = null
   editVisible.value = true
 }
 
-function onEdit(row: DishOut) {
+function onEdit(row: DishOut): void {
   editing.value = row
   editVisible.value = true
 }
 
-/** 删除入口在编辑界面内（卡面无操作按钮、无卡片浮层）；二次确认已由弹窗承担 */
-async function onRemove(id: number) {
+async function onRemove(id: number): Promise<void> {
   try {
     await dishApi.remove(id)
     ElMessage.success('已删除')
@@ -91,13 +86,12 @@ async function onRemove(id: number) {
   }
 }
 
-function onFilterCanteenChange() {
+function onFilterCanteenChange(): void {
   filter.stallId = undefined
-  loadStalls(filter.canteenId)
+  void loadStalls(filter.canteenId)
   reload()
 }
 
-/** 名称搜索：输入防抖后回第 1 页重查 */
 let nameTimer: ReturnType<typeof setTimeout> | undefined
 watch(
   () => filter.name,
@@ -107,83 +101,6 @@ watch(
   },
 )
 
-/* ===== 批量模式 ===== */
-
-const {
-  batchMode,
-  selected,
-  batchBusy,
-  selectedCount,
-  allSelected,
-  toggleBatchMode,
-  clearSelection,
-  toggleSelect,
-  toggleSelectAll,
-  runBatch,
-} = useBatchSelection(rows)
-
-const batchStallDialog = reactive({ visible: false, stallId: undefined as number | undefined })
-
-/** 行 → 提交体（批量改单项字段时复用其余字段） */
-function bodyOf(row: DishOut) {
-  return {
-    canteenId: row.canteenId,
-    stallId: row.stallId,
-    floor: row.floor || null,
-    name: row.name,
-    imageUrl: row.imageUrl ?? null,
-    activate: row.activate,
-  }
-}
-
-/** 逐条提交批量变更（分批并发在 composable 内），汇总成功 / 失败 */
-async function applyBatch(patch: (row: DishOut) => ReturnType<typeof bodyOf>): Promise<void> {
-  const { ok, failed } = await runBatch((row) => dishApi.update(row.id, patch(row)))
-  if (!ok && !failed.length) return
-  clearSelection()
-  await load()
-  if (failed.length) {
-    const names = failed
-      .slice(0, 3)
-      .map((f) => f.name)
-      .join('、')
-    ElMessage.warning(
-      `已更新 ${ok} 项，${failed.length} 项失败（${names}${failed.length > 3 ? '…' : ''}）`,
-    )
-  } else {
-    ElMessage.success(`已更新 ${ok} 项`)
-  }
-}
-
-function onBatchOn() {
-  void applyBatch((row) => ({ ...bodyOf(row), activate: true }))
-}
-
-function onBatchOff() {
-  void applyBatch((row) => ({ ...bodyOf(row), activate: false }))
-}
-
-function onBatchStallOpen() {
-  batchStallDialog.stallId = undefined
-  batchStallDialog.visible = true
-}
-
-async function onBatchStallConfirm() {
-  if (!batchStallDialog.stallId) {
-    ElMessage.warning('请选择目标档口')
-    return
-  }
-  const stallId = batchStallDialog.stallId
-  batchStallDialog.visible = false
-  await applyBatch((row) => ({ ...bodyOf(row), stallId }))
-}
-
-/** 批量清空所属档口：菜品回落为不指定档口（仍保留食堂与楼层） */
-async function onBatchStallClear() {
-  batchStallDialog.visible = false
-  await applyBatch((row) => ({ ...bodyOf(row), stallId: null }))
-}
-
 onMounted(async () => {
   await Promise.all([loadCanteens(), loadStalls(), load()])
 })
@@ -191,8 +108,12 @@ onMounted(async () => {
 
 <template>
   <section class="page">
-    <header class="page__bar">
-      <h2 class="page__title">菜品管理</h2>
+    <Teleport to="#layout-pageheader">
+      <header class="page__bar">
+      <div class="page__titleGroup">
+        <h2 class="page__title">菜品管理</h2>
+        <p class="page__subtitle">维护菜品本体与多售卖点，学生端网格实时读取</p>
+      </div>
       <div class="filters">
         <input
           v-model="filter.name"
@@ -229,76 +150,27 @@ onMounted(async () => {
           <el-option label="在售" :value="true" />
           <el-option label="已下架" :value="false" />
         </el-select>
-        <el-select
-          v-model="filter.noStall"
-          class="filters__select"
-          placeholder="档口归属"
-          clearable
-          @change="reload"
-        >
-          <el-option label="全部归属" :value="undefined" />
-          <el-option label="未指定档口" :value="true" />
-        </el-select>
       </div>
       <div class="page__actions">
-        <button class="btn btn--outline" :aria-pressed="batchMode" @click="toggleBatchMode">
-          {{ batchMode ? '退出批量' : '批量' }}
-        </button>
         <button class="btn btn--primary" @click="onCreate">
           <AppIcon name="add" :size="16" />新建
         </button>
       </div>
-    </header>
-
-    <!-- 批量操作条：仅多选模式出现 -->
-    <div v-if="batchMode" class="batch-bar">
-      <label class="batch-bar__all">
-        <input type="checkbox" :checked="allSelected" @change="toggleSelectAll" />
-        <span>全选本页</span>
-      </label>
-      <span class="batch-bar__count">已选 {{ selectedCount }} 项</span>
-      <div class="batch-bar__ops">
-        <button class="btn btn--sm" :disabled="batchBusy || !selectedCount" @click="onBatchOn">
-          批量上架
-        </button>
-        <button class="btn btn--sm" :disabled="batchBusy || !selectedCount" @click="onBatchOff">
-          批量下架
-        </button>
-        <button
-          class="btn btn--sm"
-          :disabled="batchBusy || !selectedCount"
-          @click="onBatchStallOpen"
-        >
-          批量改档口
-        </button>
-      </div>
-    </div>
+      </header>
+    </Teleport>
 
     <div class="list-card-wrap">
       <div
         v-for="row in rows"
         :key="row.id"
         class="list-card"
-        :class="{
-          'list-card--selectable': batchMode,
-          'list-card--checked': batchMode && selected.has(row.id),
-        }"
-        :tabindex="batchMode ? -1 : 0"
-        :role="batchMode ? undefined : 'button'"
-        :aria-label="batchMode ? undefined : `编辑 ${row.name}`"
-        @click="batchMode ? toggleSelect(row) : onEdit(row)"
-        @keydown.enter.prevent="batchMode ? undefined : onEdit(row)"
-        @keydown.space.prevent="batchMode ? undefined : onEdit(row)"
+        tabindex="0"
+        role="button"
+        :aria-label="`编辑 ${row.name}`"
+        @click="onEdit(row)"
+        @keydown.enter.prevent="onEdit(row)"
+        @keydown.space.prevent="onEdit(row)"
       >
-        <input
-          v-if="batchMode"
-          class="list-card__check"
-          type="checkbox"
-          :checked="selected.has(row.id)"
-          :aria-label="`选择 ${row.name}`"
-          @click.stop
-          @change="toggleSelect(row)"
-        />
         <img
           v-if="row.imageUrl"
           v-zoomimg
@@ -310,23 +182,34 @@ onMounted(async () => {
         <span v-else class="list-card__cover list-card__cover--ph" aria-hidden="true">
           <AppIcon name="image" :size="28" />
         </span>
+
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
             <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
               {{ row.activate ? '在售' : '已下架' }}
             </span>
+            <span class="tag tag--count">{{ row.offerings.length }} 处售卖</span>
           </div>
-          <div class="list-card__path">{{ row.canteenName }} · {{ row.stallName }}</div>
-          <div class="list-card__stats">
-            <span class="list-card__like">
-              <AppIcon name="heart" :size="12" />
-              {{ likeText(row) }}
-            </span>
+
+          <div class="list-card__path">{{ row.description || '暂无描述' }}</div>
+
+          <div class="offering-list">
+            <div class="offering-list__head">售卖点</div>
+            <div v-for="offering in row.offerings" :key="offering.id" class="offering-row">
+              <span class="offering-row__text">{{ offeringLine(offering) }}</span>
+              <span class="tag" :class="offering.activate ? 'tag--on' : 'tag--off'">
+                {{ offering.activate ? '在售' : '已下架' }}
+              </span>
+            </div>
+            <div v-if="!row.offerings.length" class="offering-row">
+              <span class="offering-row__text offering-row__text--muted">暂无售卖点</span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="list-card" v-if="!rows.length && !loading">
+
+      <div v-if="!rows.length && !loading" class="list-card">
         <span class="list-card__empty">暂无数据</span>
       </div>
     </div>
@@ -345,30 +228,6 @@ onMounted(async () => {
       />
     </footer>
 
-    <!-- 批量改档口：选目标档口 -->
-    <div
-      v-if="batchStallDialog.visible"
-      class="mask"
-      @click.self="batchStallDialog.visible = false"
-    >
-      <div class="dialog">
-        <h3 class="dialog__title">批量改档口</h3>
-        <p class="dialog__hint">将所选 {{ selectedCount }} 道菜移到目标档口（名称与图片不变）。</p>
-        <label class="dialog__label" for="batch-stall">目标档口</label>
-        <select id="batch-stall" v-model="batchStallDialog.stallId" class="dialog__input">
-          <option :value="undefined">请选择</option>
-          <option v-for="s in stalls" :key="s.id" :value="s.id">
-            {{ s.canteenName }} · {{ s.name }}
-          </option>
-        </select>
-        <footer class="dialog__foot">
-          <button class="btn btn--outline" @click="batchStallDialog.visible = false">取消</button>
-          <button class="btn" @click="onBatchStallClear">清空档口</button>
-          <button class="btn btn--primary" @click="onBatchStallConfirm">确定</button>
-        </footer>
-      </div>
-    </div>
-
     <DishEditDialog
       v-model="editVisible"
       :dish="editing"
@@ -379,3 +238,43 @@ onMounted(async () => {
     />
   </section>
 </template>
+
+<style scoped>
+.offering-list {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--el-border-color-extra-light);
+}
+
+.offering-list__head {
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.offering-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.offering-row__text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--el-text-color-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.offering-row__text--muted {
+  color: var(--el-text-color-placeholder);
+}
+
+.tag--count {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
+}
+</style>

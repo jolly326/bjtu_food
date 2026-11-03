@@ -1,7 +1,7 @@
 {
   "pages": [
     {
-      "path": "pages/map/index",
+      "path": "pages/home/index",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false,
@@ -12,7 +12,7 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "知行食记",
-    "navigationBarBackgroundColor": "#FFFAF3",
-    "backgroundColor": "#FFFAF3"
+    "navigationBarBackgroundColor": "#FFF7E8",
+    "backgroundColor": "#FFF7E8"
   }
 }

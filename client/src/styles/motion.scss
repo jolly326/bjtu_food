@@ -1,0 +1,37 @@
+/* 动效层（学生端）：统一时长 / 缓动 / 进入动画 / 减弱动效。
+   口径见 docs/ui/client/公共组件与形态基线.md §1.10「动效」。 */
+
+@keyframes motion-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes motion-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--spacing-xs));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 尊重系统「减弱动效」：显式列出本端动效类（WXSS 不支持 `*` 通配符） */
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .dock__field,
+  .dock__btn,
+  .card,
+  .fb,
+  .fb__panel,
+  .pressable {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
