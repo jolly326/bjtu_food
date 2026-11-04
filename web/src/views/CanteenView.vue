@@ -115,7 +115,6 @@ onMounted(load)
     <header class="page__bar">
       <div class="page__titleGroup">
         <h2 class="page__title">食堂管理</h2>
-        <p class="page__subtitle">维护食堂名称、状态与封面图；一食堂可含多个档口</p>
       </div>
       <div class="page__actions">
         <button class="btn btn--primary" @click="onCreate">
@@ -186,7 +185,6 @@ onMounted(load)
       <div class="dialog">
         <ConfirmDeleteCard
           v-if="view === 'delete'"
-          message="删除后不可恢复。若该食堂下仍有档口，删除会被拒绝。"
           @cancel="view = 'form'"
           @confirm="confirmRemove"
         />

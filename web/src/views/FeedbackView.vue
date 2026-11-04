@@ -61,7 +61,6 @@ onMounted(load)
       <header class="page__bar">
         <div class="page__titleGroup">
           <h2 class="page__title">反馈处理</h2>
-          <p class="page__subtitle">集中查看学生反馈，标记处理进度；不修改正文、不给回执</p>
         </div>
         <div class="filters">
           <el-select
@@ -118,7 +117,7 @@ onMounted(load)
               :disabled="Boolean(row.handledAt)"
               @click="onHandle(row)"
             >
-              {{ row.handledAt ? '已处理' : '标记已处理' }}
+              {{ row.handledAt ? '已处理' : '标记处理' }}
             </button>
           </div>
         </div>
@@ -128,7 +127,7 @@ onMounted(load)
         <span class="list-card__empty">加载中…</span>
       </div>
       <div v-if="!rows.length && !loading" class="list-card">
-        <span class="list-card__empty">暂无数据</span>
+        <span class="list-card__empty">暂无反馈</span>
       </div>
     </div>
 

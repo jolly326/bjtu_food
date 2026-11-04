@@ -113,16 +113,13 @@ onMounted(async () => {
       <header class="page__bar">
         <div class="page__titleGroup">
           <h2 class="page__title">菜品管理</h2>
-          <p class="page__subtitle">
-            维护在售菜品（一行 = 一个食堂 / 档口 / 菜名），学生端实时读取
-          </p>
         </div>
         <div class="filters">
           <input
             v-model="filter.name"
             class="filters__search"
             type="search"
-            placeholder="搜索菜品名称"
+            placeholder="搜索菜品"
             aria-label="按名称搜索"
           />
           <el-select
@@ -146,7 +143,7 @@ onMounted(async () => {
         </div>
         <div class="page__actions">
           <button class="btn btn--primary" @click="onCreate">
-            <AppIcon name="add" :size="16" />新建
+            <AppIcon name="add" :size="16" />新建菜品
           </button>
         </div>
       </header>
@@ -203,7 +200,7 @@ onMounted(async () => {
         <span class="list-card__empty">加载中…</span>
       </div>
       <div v-if="!rows.length && !loading" class="list-card">
-        <span class="list-card__empty">暂无数据</span>
+        <span class="list-card__empty">暂无菜品</span>
       </div>
     </div>
 

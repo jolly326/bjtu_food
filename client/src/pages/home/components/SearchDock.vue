@@ -117,7 +117,7 @@ onMounted(sleep)
   <view class="hud" :class="{ 'hud--idle': idle }" @tap="wake">
     <view class="hud__filters">
       <text v-if="conditioned && !stale" class="hud__count">{{ count }} 处结果</text>
-      <text v-else-if="stale" class="hud__count hud__count--muted">按回车更新</text>
+      <text v-else-if="stale" class="hud__count hud__count--muted">点搜索更新</text>
 
       <view class="hud__chips">
         <template v-if="panel">
@@ -128,7 +128,7 @@ onMounted(sleep)
             hover-class="hud__chip--press"
             @tap="onPick(opt.c)"
           >{{ opt.c.label }}</view>
-          <view class="hud__entry" hover-class="hud__entry--press" @tap="closePanel">收起</view>
+          <view class="hud__entry" hover-class="hud__entry--press" @tap="closePanel">取消</view>
         </template>
         <template v-else>
           <view
@@ -143,7 +143,7 @@ onMounted(sleep)
           </view>
           <view class="hud__entry" hover-class="hud__entry--press" @tap="togglePanel('canteen')">食堂</view>
           <view class="hud__entry" hover-class="hud__entry--press" @tap="togglePanel('budget')">预算</view>
-          <view v-if="conditioned" class="hud__entry" hover-class="hud__entry--press" @tap="emit('clear')">清空</view>
+          <view v-if="conditioned" class="hud__entry" hover-class="hud__entry--press" @tap="emit('clear')">重置</view>
         </template>
       </view>
     </view>
@@ -155,7 +155,7 @@ onMounted(sleep)
           :value="modelValue"
           type="text"
           confirm-type="search"
-          placeholder="想吃点什么？一句话告诉我"
+          placeholder="想吃点什么？"
           placeholder-class="dock__ph"
           @input="onInput"
           @focus="wake"

@@ -99,20 +99,20 @@ async function onSave(): Promise<void> {
   }
   const price = dialog.priceYuan.trim() === '' ? null : Math.round(Number(dialog.priceYuan) * 100)
   if (price !== null && (!Number.isFinite(price) || price < 0)) {
-    ElMessage.warning('价格需为非负数字')
+    ElMessage.warning('价格不能为负')
     return
   }
 
   const payload: DishLocationInput[] = []
   for (const row of locations.value) {
     if (!row.canteenId) {
-      ElMessage.warning('位置需选择食堂')
+      ElMessage.warning('请选择位置的食堂')
       return
     }
     if (row.stallId) {
       const stall = props.stalls.find((item) => item.id === row.stallId)
       if (!stall || stall.canteenId !== row.canteenId) {
-        ElMessage.warning('位置所属食堂与档口不匹配')
+        ElMessage.warning('该档口不属于所选食堂')
         return
       }
     }
@@ -166,7 +166,6 @@ function confirmDelete(): void {
     <div class="dialog">
       <ConfirmDeleteCard
         v-if="view === 'delete'"
-        message="删除后不可恢复，该菜品的位置、向量与反馈将一并清除。"
         @cancel="view = 'form'"
         @confirm="confirmDelete"
       />
@@ -181,7 +180,7 @@ function confirmDelete(): void {
           id="dish-desc"
           v-model="dialog.description"
           class="dialog__input dialog__textarea"
-          placeholder="名称 + 口味 + 场景 + 特点"
+          placeholder="口味 / 场景 / 特点"
         />
 
         <label class="dialog__label">菜品图片</label>
@@ -195,12 +194,12 @@ function confirmDelete(): void {
           type="number"
           min="0"
           step="0.01"
-          placeholder="留空 = 价格待定（所有位置共用）"
+          placeholder="留空 = 价格待定"
         />
 
         <div class="offering-head">
           <span class="dialog__label">售卖位置</span>
-          <button class="btn btn--sm" type="button" @click="addRow">+ 添加位置</button>
+          <button class="btn btn--sm" type="button" @click="addRow">添加位置</button>
         </div>
 
         <div
@@ -228,10 +227,6 @@ function confirmDelete(): void {
             删除本行
           </button>
         </div>
-
-        <p class="dialog__hint">
-          位置只表达「在哪卖」，价格与图文由菜品本体共享；楼层随档口带出。图或口味不同的菜请新建另一道菜。
-        </p>
 
         <footer class="dialog__foot">
           <button v-if="dialog.id" class="btn btn--danger" @click="view = 'delete'">删除</button>

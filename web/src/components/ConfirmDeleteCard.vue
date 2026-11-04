@@ -35,7 +35,7 @@ function onConfirm() {
     <footer class="dialog__foot">
       <span class="dialog__spacer" />
       <button class="btn btn--outline" @click="emit('cancel')">取消</button>
-      <button class="btn btn--danger" @click="onConfirm">确认删除</button>
+      <button class="btn btn--danger" @click="onConfirm">删除</button>
     </footer>
   </div>
 </template>

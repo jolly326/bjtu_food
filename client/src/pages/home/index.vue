@@ -105,7 +105,7 @@ async function submit(text: string): Promise<void> {
     resultDishes.value = result.dishes
     conditioned.value = true
   } catch {
-    uni.showToast({ title: '搜索失败，请稍后再试', icon: 'none' })
+    uni.showToast({ title: '搜索失败，请重试', icon: 'none' })
   } finally {
     searching.value = false
   }

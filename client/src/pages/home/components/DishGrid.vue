@@ -53,16 +53,13 @@ watch(
   <scroll-view class="grid-scroll" scroll-y :scroll-into-view="scrollIntoView" scroll-with-animation>
     <view v-if="emptyKind !== 'none'" class="grid-empty">
       <text v-if="emptyKind === 'filtered'" class="grid-empty__text">
-        「{{ filterLabel }}」暂时没有符合的菜
+        「{{ filterLabel }}」没有结果
       </text>
-      <text v-else-if="emptyKind === 'plain'" class="grid-empty__text">没找到符合的菜，换个说法试试</text>
+      <text v-else-if="emptyKind === 'plain'" class="grid-empty__text">没找到，换个说法</text>
       <text v-else class="grid-empty__text">还没有菜品上架</text>
 
-      <view v-if="emptyKind === 'filtered'" class="grid-empty__actions">
-        <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('relax')">去掉该条件</view>
-        <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('clear')">看全部菜品</view>
-      </view>
-      <view v-else-if="emptyKind === 'plain'" class="grid-empty__actions">
+      <view v-if="emptyKind === 'filtered' || emptyKind === 'plain'" class="grid-empty__actions">
+        <view v-if="emptyKind === 'filtered'" class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('relax')">去掉条件</view>
         <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('clear')">看全部菜品</view>
       </view>
     </view>

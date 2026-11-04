@@ -155,7 +155,6 @@ onMounted(async () => {
     <header class="page__bar">
       <div class="page__titleGroup">
         <h2 class="page__title">档口管理</h2>
-        <p class="page__subtitle">维护档口名称、楼层、窗口号与封面图；归属食堂可随时调整</p>
       </div>
       <div class="filters">
         <el-select
@@ -239,7 +238,6 @@ onMounted(async () => {
       <div class="dialog">
         <ConfirmDeleteCard
           v-if="view === 'delete'"
-          message="删除后不可恢复。若该档口下仍有菜品，删除会被拒绝。"
           @cancel="view = 'form'"
           @confirm="confirmRemove"
         />

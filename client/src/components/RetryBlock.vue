@@ -16,7 +16,7 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
 <template>
   <StatusBlock
     name="warning"
-    text="加载失败"
+    text="加载失败，点击重试"
     aria-label="加载失败，点击重试"
     pressable
     @press="emit('retry')"

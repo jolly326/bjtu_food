@@ -46,10 +46,6 @@ async function submit(): Promise<void> {
     uni.showToast({ title: '请填写反馈内容', icon: 'none' })
     return
   }
-  if (type.value === 'dish' && !props.dishId) {
-    uni.showToast({ title: '请先选择菜品', icon: 'none' })
-    return
-  }
   submitting.value = true
   try {
     await feedbackApi.submit({

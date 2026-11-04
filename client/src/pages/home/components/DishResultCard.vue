@@ -33,9 +33,12 @@ const needFull = computed(
 const priceText = computed(() =>
   props.dish.price === null ? '价格待定' : `¥${(props.dish.price / 100).toFixed(2)}`,
 )
-const placeText = computed(
-  () => `${props.loc.floor || '暂无'} · ${props.loc.stallName || '暂无'}`,
-)
+const placeText = computed(() => {
+  const floor = props.loc.floor
+  const stall = props.loc.stallName
+  if (!floor && !stall) return '暂无位置'
+  return `${floor || '暂无'} · ${stall || '暂无'}`
+})
 </script>
 
 <template>
@@ -61,12 +64,12 @@ const placeText = computed(
             class="card__link"
             hover-class="card__link--press"
             @tap.stop="emit('open', loc.id)"
-          >{{ expanded ? '收起' : '全文' }}</view>
+          >{{ expanded ? '收起' : '展开' }}</view>
           <view
             class="card__link"
             hover-class="card__link--press"
             @tap.stop="emit('feedback', dish.id)"
-          >反馈这道菜</view>
+          >反馈</view>
         </view>
       </view>
 

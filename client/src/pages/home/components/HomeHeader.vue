@@ -13,7 +13,7 @@ defineProps<{ topInset: number; headerHeight: number }>()
 
 const todayLabel = computed(() => {
   const now = new Date()
-  return `${now.getMonth() + 1} 月 ${now.getDate()} 日 今天吃什么`
+  return `${now.getMonth() + 1} 月 ${now.getDate()} 日`
 })
 </script>
 
