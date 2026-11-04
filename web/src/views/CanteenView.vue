@@ -112,16 +112,18 @@ onMounted(load)
 
 <template>
   <section class="page">
-    <header class="page__bar">
-      <div class="page__titleGroup">
-        <h2 class="page__title">食堂管理</h2>
-      </div>
-      <div class="page__actions">
-        <button class="btn btn--primary" @click="onCreate">
-          <AppIcon name="add" :size="16" />新建食堂
-        </button>
-      </div>
-    </header>
+    <Teleport defer to="#layout-pageheader">
+      <header class="page__bar">
+        <div class="page__titleGroup">
+          <h2 class="page__title">食堂管理</h2>
+        </div>
+        <div class="page__actions">
+          <button class="btn btn--primary" @click="onCreate">
+            <AppIcon name="add" :size="16" />新建食堂
+          </button>
+        </div>
+      </header>
+    </Teleport>
 
     <div class="list-card-wrap">
       <div

@@ -174,9 +174,9 @@ onMounted(async () => {
         </span>
 
         <div class="list-card__main">
-          <div class="list-card__title">
+          <h3 class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
-          </div>
+          </h3>
 
           <div class="list-card__stats">
             <span class="list-card__stat">{{ row.locations.length }} 处售卖</span>

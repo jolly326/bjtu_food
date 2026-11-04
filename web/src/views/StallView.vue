@@ -152,27 +152,29 @@ onMounted(async () => {
 
 <template>
   <section class="page">
-    <header class="page__bar">
-      <div class="page__titleGroup">
-        <h2 class="page__title">档口管理</h2>
-      </div>
-      <div class="filters">
-        <el-select
-          v-model="filter.canteenId"
-          class="filters__select"
-          placeholder="全部食堂"
-          clearable
-          @change="reload"
-        >
-          <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
-        </el-select>
-      </div>
-      <div class="page__actions">
-        <button class="btn btn--primary" @click="onCreate">
-          <AppIcon name="add" :size="16" />新建档口
-        </button>
-      </div>
-    </header>
+    <Teleport defer to="#layout-pageheader">
+      <header class="page__bar">
+        <div class="page__titleGroup">
+          <h2 class="page__title">档口管理</h2>
+        </div>
+        <div class="filters">
+          <el-select
+            v-model="filter.canteenId"
+            class="filters__select"
+            placeholder="全部食堂"
+            clearable
+            @change="reload"
+          >
+            <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
+          </el-select>
+        </div>
+        <div class="page__actions">
+          <button class="btn btn--primary" @click="onCreate">
+            <AppIcon name="add" :size="16" />新建档口
+          </button>
+        </div>
+      </header>
+    </Teleport>
 
     <div class="list-card-wrap">
       <div

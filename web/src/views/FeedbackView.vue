@@ -95,12 +95,12 @@ onMounted(load)
         :class="{ 'list-card--dim': row.handledAt }"
       >
         <div class="list-card__main">
-          <div class="list-card__title">
+          <h3 class="list-card__title">
             <span class="list-card__titleText">{{ row.dishName || '—' }}</span>
             <span class="tag" :class="row.type === 'product' ? 'tag--on' : 'tag--off'">
               {{ typeLabel(row.type) }}
             </span>
-          </div>
+          </h3>
 
           <p class="feedback__content">{{ row.content }}</p>
 
