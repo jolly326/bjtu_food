@@ -67,7 +67,6 @@ onMounted(load)
             v-model="filter.type"
             class="filters__select"
             placeholder="全部类型"
-            clearable
             @change="reload"
           >
             <el-option label="全部类型" :value="ALL" />
@@ -97,17 +96,17 @@ onMounted(load)
       >
         <div class="list-card__main">
           <div class="list-card__title">
+            <span class="list-card__titleText">{{ row.dishName || '—' }}</span>
             <span class="tag" :class="row.type === 'product' ? 'tag--on' : 'tag--off'">
               {{ typeLabel(row.type) }}
             </span>
-            <span class="list-card__titleText">{{ row.dishName || '—' }}</span>
           </div>
 
           <p class="feedback__content">{{ row.content }}</p>
 
           <div class="list-card__stats">
-            <span>提交：{{ row.createdAt }}</span>
-            <span v-if="row.handledAt">处理：{{ row.handledAt }}</span>
+            <span class="list-card__stat">提交：{{ row.createdAt }}</span>
+            <span v-if="row.handledAt" class="list-card__stat">处理：{{ row.handledAt }}</span>
           </div>
 
           <div v-if="!row.handledAt" class="feedback__actions">
@@ -116,12 +115,8 @@ onMounted(load)
         </div>
       </div>
 
-      <div v-if="loading" class="list-card">
-        <span class="list-card__empty">加载中…</span>
-      </div>
-      <div v-if="!rows.length && !loading" class="list-card">
-        <span class="list-card__empty">暂无反馈</span>
-      </div>
+      <div v-if="loading" class="list-empty">加载中…</div>
+      <div v-if="!rows.length && !loading" class="list-empty">暂无反馈</div>
     </div>
 
     <ListError v-if="error" :message="error" @retry="load" />

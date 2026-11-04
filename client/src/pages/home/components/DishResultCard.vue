@@ -65,11 +65,6 @@ const placeText = computed(() => {
             hover-class="card__link--press"
             @tap.stop="emit('open', loc.id)"
           >{{ expanded ? '收起' : '展开' }}</view>
-          <view
-            class="card__link"
-            hover-class="card__link--press"
-            @tap.stop="emit('feedback', dish.id)"
-          >反馈</view>
         </view>
       </view>
 
@@ -78,6 +73,14 @@ const placeText = computed(() => {
         <text class="card__canteen">{{ loc.canteenName }}</text>
         <text class="card__place">{{ placeText }}</text>
       </view>
+    </view>
+
+    <view class="card__foot">
+      <view
+        class="card__link"
+        hover-class="card__link--press"
+        @tap.stop="emit('feedback', dish.id)"
+      >反馈</view>
     </view>
   </view>
 </template>
@@ -180,6 +183,12 @@ const placeText = computed(() => {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
+}
+
+/* 卡片底部：反馈固定在左下，与描述操作分离 */
+.card__foot {
+  display: flex;
+  padding: 0 var(--spacing-sm) var(--spacing-sm);
 }
 
 /* 文字链：视觉高 64rpx，命中区经 ::after 纵向补到触达下限 */

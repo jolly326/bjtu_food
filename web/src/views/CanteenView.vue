@@ -159,12 +159,8 @@ onMounted(load)
         </div>
       </div>
 
-      <div v-if="loading" class="list-card">
-        <span class="list-card__empty">加载中…</span>
-      </div>
-      <div v-if="!rows.length && !loading" class="list-card">
-        <span class="list-card__empty">暂无食堂</span>
-      </div>
+      <div v-if="loading" class="list-empty">加载中…</div>
+      <div v-if="!rows.length && !loading" class="list-empty">暂无食堂</div>
     </div>
 
     <ListError v-if="error" :message="error" @retry="load" />

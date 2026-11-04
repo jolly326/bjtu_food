@@ -67,41 +67,36 @@ async function submit(): Promise<void> {
   <view v-if="modelValue" class="fb">
     <view class="fb__scrim" @tap="close" />
     <view class="fb__panel" @tap.stop>
-      <text class="fb__title">意见反馈</text>
+      <view class="fb__head">
+        <text class="fb__title">意见反馈</text>
+        <text class="fb__count">{{ content.length }}/{{ FEEDBACK.MAX_LEN }}</text>
+      </view>
 
-      <view class="fb__types">
+      <view class="fb__seg">
         <view
-          class="fb__type"
-          :class="{ 'fb__type--on': type === 'product' }"
+          class="fb__seg-item"
+          :class="{ 'fb__seg-item--on': type === 'product' }"
           @tap="type = 'product'"
-        >
-          产品反馈
-        </view>
+        >产品</view>
         <view
-          class="fb__type"
-          :class="{ 'fb__type--on': type === 'dish', 'fb__type--disabled': !dishId }"
+          class="fb__seg-item"
+          :class="{ 'fb__seg-item--on': type === 'dish', 'fb__seg-item--off': !dishId }"
           @tap="dishId && (type = 'dish')"
-        >
-          菜品反馈
-        </view>
+        >菜品</view>
       </view>
 
       <textarea
         class="fb__input"
         :value="content"
         :maxlength="FEEDBACK.MAX_LEN"
-        placeholder="说说你的想法…"
+        placeholder="说说你的想法"
         placeholder-class="fb__ph"
         @input="onInput"
       />
 
       <view class="fb__foot">
-        <view class="fb__btn" hover-class="fb__btn--press" @tap="close">取消</view>
-        <view
-          class="fb__btn fb__btn--primary"
-          hover-class="fb__btn--press"
-          @tap="submit"
-        >
+        <view class="fb__cancel" hover-class="fb__btn--press" @tap="close">取消</view>
+        <view class="fb__submit" hover-class="fb__btn--press" @tap="submit">
           {{ submitting ? '提交中' : '提交' }}
         </view>
       </view>
@@ -118,7 +113,7 @@ async function submit(): Promise<void> {
   left: 0;
   z-index: var(--z-sheet);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   animation: motion-fade var(--duration-fast) var(--ease-out) both;
 }
@@ -136,18 +131,24 @@ async function submit(): Promise<void> {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
   box-sizing: border-box;
-  width: 84%;
-  max-height: 82vh;
+  width: 100%;
+  max-height: 80vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: var(--spacing-lg);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-card);
+  padding: var(--spacing-lg) var(--page-gutter);
+  padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
   background: var(--bg-card);
   will-change: transform, opacity;
   animation: motion-rise var(--duration-base) var(--ease-out) both;
+}
+
+.fb__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
 .fb__title {
@@ -155,42 +156,46 @@ async function submit(): Promise<void> {
   color: var(--text-title);
 }
 
-.fb__types {
-  display: flex;
-  gap: var(--spacing-xs);
+.fb__count {
+  font-size: var(--font-caption);
+  color: var(--text-disabled);
 }
 
-.fb__type {
+.fb__seg {
   display: flex;
+  gap: var(--spacing-2xs);
+  padding: var(--spacing-2xs);
+  border-radius: var(--radius-pill);
+  background: var(--bg-placeholder);
+}
+
+.fb__seg-item {
+  display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
   height: var(--control-height-sm);
-  padding: 0 var(--spacing-lg);
-  border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-pill);
   font-size: var(--font-subtitle);
   color: var(--text-body);
 }
 
-.fb__type--on {
-  border-color: var(--brand);
-  background: var(--brand);
-  color: var(--on-brand);
+.fb__seg-item--on {
+  background: var(--bg-card);
+  color: var(--brand);
 }
 
-.fb__type--disabled {
-  opacity: 0.5;
+.fb__seg-item--off {
+  opacity: 0.4;
 }
 
 .fb__input {
   box-sizing: border-box;
   width: 100%;
-  height: 40vh;
+  height: var(--feedback-input-height);
   padding: var(--spacing-sm);
-  border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-card);
-  background: var(--bg-card);
+  background: var(--bg-placeholder);
   font-size: var(--font-body);
   color: var(--text-title);
 }
@@ -201,27 +206,30 @@ async function submit(): Promise<void> {
 
 .fb__foot {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-lg);
 }
 
-.fb__btn {
+.fb__cancel {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0 var(--spacing-sm);
+  font-size: var(--font-body);
+  color: var(--text-body);
+}
+
+.fb__submit {
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   height: var(--control-height);
   padding: 0 var(--spacing-xl);
-  border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-pill);
-  background: var(--bg-card);
-  font-size: var(--font-body);
-  color: var(--text-body);
-}
-
-.fb__btn--primary {
-  border-color: var(--brand);
   background: var(--brand);
+  font-size: var(--font-body);
   color: var(--on-brand);
 }
 

@@ -499,11 +499,12 @@ h3 {
   color: var(--el-text-color-primary);
 }
 
-#app .list-card__empty {
+#app .list-empty {
   grid-column: 1 / -1;
-  padding: 48px 16px;
+  padding: 48px 0;
   text-align: center;
-  color: var(--el-text-color-placeholder);
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
 /* 图区（上）：满宽贴顶，16:9 —— 高度恒小于宽度；由卡片圆角裁切。无图数据不渲染本块 */

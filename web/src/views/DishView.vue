@@ -176,8 +176,11 @@ onMounted(async () => {
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
-            <span class="tag tag--count">{{ row.locations.length }} 处售卖</span>
-            <span class="tag">{{ priceText(row.price ?? null) }}</span>
+          </div>
+
+          <div class="list-card__stats">
+            <span class="list-card__stat">{{ row.locations.length }} 处售卖</span>
+            <span class="list-card__stat">{{ priceText(row.price ?? null) }}</span>
           </div>
 
           <div class="list-card__path">{{ row.description || '暂无描述' }}</div>
@@ -196,12 +199,8 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="loading" class="list-card">
-        <span class="list-card__empty">加载中…</span>
-      </div>
-      <div v-if="!rows.length && !loading" class="list-card">
-        <span class="list-card__empty">暂无菜品</span>
-      </div>
+      <div v-if="loading" class="list-empty">加载中…</div>
+      <div v-if="!rows.length && !loading" class="list-empty">暂无菜品</div>
     </div>
 
     <ListError v-if="error" :message="error" @retry="load" />
