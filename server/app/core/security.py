@@ -1,6 +1,6 @@
 """凭证：JWT（学生端 / 运营端双 secret）与 BCrypt。
 
-口径（docs/secur/S-01、docs/api/README.md「鉴权」）：
+口径（docs/secur/S-01、docs/api/CONVENTIONS.md「鉴权」）：
 
 * 学生端 JWT 有效期 7 天，端上缓存；``401`` ⇒ 端上静默重登并重试原请求一次
 * 运营端 JWT 用**独立 secret** —— 与学生端不通用，学生 token 无法冒充运营端

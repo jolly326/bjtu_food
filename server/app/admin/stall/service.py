@@ -1,4 +1,4 @@
-"""运营端档口业务规则（docs/func/web/A2-档口管理.md、docs/schema/stall.md）。
+"""运营端档口业务规则（docs/func/web/A-主数据维护/A2-档口管理.md、docs/schema/stall.md）。
 
 * **同一食堂下** ``name`` 唯一（应用层保证，无 DB 唯一索引）
 * ``floor`` 是**两端常量**受控字典（值即汉字），服务端按同一清单校验

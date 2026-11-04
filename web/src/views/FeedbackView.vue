@@ -52,33 +52,33 @@ onMounted(load)
   <section class="page">
     <Teleport to="#layout-pageheader">
       <header class="page__bar">
-      <div class="page__titleGroup">
-        <h2 class="page__title">反馈处理</h2>
-        <p class="page__subtitle">集中查看学生反馈，标记处理进度；不修改正文、不给回执</p>
-      </div>
-      <div class="filters">
-        <el-select
-          v-model="filter.type"
-          class="filters__select"
-          placeholder="全部类型"
-          clearable
-          @change="reload"
-        >
-          <el-option label="全部类型" :value="undefined" />
-          <el-option label="产品反馈" value="product" />
-          <el-option label="菜品反馈" value="dish" />
-        </el-select>
-        <el-select
-          v-model="filter.handled"
-          class="filters__select"
-          placeholder="全部状态"
-          @change="reload"
-        >
-          <el-option label="全部状态" :value="undefined" />
-          <el-option label="未处理" :value="false" />
-          <el-option label="已处理" :value="true" />
-        </el-select>
-      </div>
+        <div class="page__titleGroup">
+          <h2 class="page__title">反馈处理</h2>
+          <p class="page__subtitle">集中查看学生反馈，标记处理进度；不修改正文、不给回执</p>
+        </div>
+        <div class="filters">
+          <el-select
+            v-model="filter.type"
+            class="filters__select"
+            placeholder="全部类型"
+            clearable
+            @change="reload"
+          >
+            <el-option label="全部类型" :value="undefined" />
+            <el-option label="产品反馈" value="product" />
+            <el-option label="菜品反馈" value="dish" />
+          </el-select>
+          <el-select
+            v-model="filter.handled"
+            class="filters__select"
+            placeholder="全部状态"
+            @change="reload"
+          >
+            <el-option label="全部状态" :value="undefined" />
+            <el-option label="未处理" :value="false" />
+            <el-option label="已处理" :value="true" />
+          </el-select>
+        </div>
       </header>
     </Teleport>
 

@@ -1,4 +1,4 @@
-/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md 与风格指南）。
+/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md）。
    与学生端同源的 **Q 版动森**：暖奶油页面底 + 奶白卡面、卡片无实线描边、
    **极弱弥散阴影**（双层低透明、无硬堆叠）、圆润厚实的大圆角、无衬线圆体、
    Q 版暖橙主色 #FF8A4C、大面积留白。 */
@@ -387,65 +387,6 @@ h3 {
   flex: 1;
 }
 
-/* ===== 长按操作浮层（底部贴纸） ===== */
-#app .mask--sheet {
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 12px calc(12px + env(safe-area-inset-bottom));
-  z-index: 300;
-}
-
-#app .sheet {
-  display: flex;
-  flex-direction: column;
-  width: min(420px, 100%);
-  box-sizing: border-box;
-  padding: 10px;
-  border-radius: 20px;
-  background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-elevated);
-}
-
-#app .sheet__title {
-  margin: 0;
-  padding: 10px 12px 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  text-align: center;
-}
-
-#app .sheet__row {
-  height: 46px;
-  border: none;
-  border-radius: var(--el-border-radius-base);
-  background: transparent;
-  color: var(--el-text-color-primary);
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-#app .sheet__row:hover {
-  background: var(--el-fill-color-light);
-}
-
-#app .sheet__row:disabled {
-  color: var(--el-text-color-placeholder);
-  cursor: not-allowed;
-}
-
-#app .sheet__row--muted {
-  color: var(--el-text-color-secondary);
-}
-
-#app .sheet__hint {
-  margin: -4px 0 4px;
-  padding: 0 12px;
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-  text-align: center;
-}
-
 /* ===== 次要按钮：暖橙细描边 + 透明底（品牌标志性） ===== */
 #app .btn--outline {
   border-color: var(--el-color-primary);
@@ -593,12 +534,6 @@ h3 {
   font-size: 13px;
   font-weight: 500;
   color: var(--el-text-color-primary);
-}
-
-#app .list-card__like {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 /* 已处理 / 失效态整卡弱化（反馈处理页） */
@@ -817,14 +752,13 @@ h3 {
     min-width: 96px;
   }
 
-  /* 弹窗 → 底部整宽贴纸：顶圆角、底留安全区，提交 / 取消落在拇指可达区。
-     长按浮层 .mask--sheet 本身已是贴底形态，排除在外不动其留白规格 */
-  #app .mask:not(.mask--sheet) {
+  /* 弹窗 → 底部整宽贴纸：顶圆角、底留安全区，提交 / 取消落在拇指可达区 */
+  #app .mask {
     align-items: flex-end;
     padding: 0;
   }
 
-  #app .mask:not(.mask--sheet) .dialog {
+  #app .mask .dialog {
     width: 100%;
     max-height: 88vh;
     border-radius: 20px 20px 0 0;

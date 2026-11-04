@@ -30,6 +30,8 @@ server/app/
 │   ├── schemas.py         # 入参 / 出参基类（camelCase 别名）
 │   ├── security.py        # 口令 / 令牌
 │   ├── storage.py         # COS 路径换算（to_relative / to_absolute）
+│   ├── content_security.py # 微信 msgSecCheck（反馈正文）
+│   ├── embedding.py       # 菜品描述向量（语义匹配输入）
 │   └── formatters.py      # 时间等格式化
 ├── models/                # SQLAlchemy 模型（库结构唯一映射）
 │   ├── base.py / admin.py / user.py
@@ -38,7 +40,7 @@ server/app/
 │   ├── auth/  canteen/  stall/  dish/  feedback/  image/
 │   └── 每个域：router.py（路由 + Pydantic 入/出参）· service.py（业务/校验/缓存失效）· repo.py（查询）
 └── student/               # 学生端入口（只读 + 文本反馈）
-    ├── auth/  canteen/  dish/  feedback/
+    ├── auth/  dish/  feedback/
     └── 每个域同样 router → service → repo
 ```
 
@@ -48,7 +50,7 @@ server/app/
 
 **约定与例外**：
 - `admin/image/` 只有 `router.py` + `service.py`（无 `repo.py`）—— 它是上传中转，不落业务表。
-- 库结构变更**不走 alembic**：先改 `docs/schema/` 对应表文档，再执行手工 SQL（脚本放 `server/scripts/`），二者必须一致。
+- 库结构变更**不走 alembic、不维护 SQL 脚本**：先改 `docs/schema/` 对应表文档，再直连远程库执行，二者必须一致。
 - 分层依赖由 `server/pyproject.toml` 的 `[tool.importlinter]` 契约约束（禁止跨层反向依赖）；新增业务域时若引入新层，需同步补充契约。
 
 ## 3 · 运营端（web）分包
@@ -61,39 +63,39 @@ web/src/
 ├── views/                     # 页面：一个页面一个 *View.vue
 │   └── LoginView · CanteenView · StallView · DishView · FeedbackView
 ├── components/                # ≥2 页面复用的公共件
-│   └── AppIcon · CardActionSheet · ConfirmDeleteView · DishEditDialog · ImageField · ImageZoomOverlay · ListError · PaginationBar
+│   └── AppIcon · ConfirmDeleteCard · DishEditDialog · ImageField · ImageZoomOverlay · ListError · PaginationBar
 ├── composables/               # 可复用逻辑（无视图）
-│   └── usePagedList · useBatchSelection · useCardMenu · useImageZoom
+│   └── usePagedList · useAllPages · useBatchSelection · useImageZoom
 ├── directives/zoomImg.ts      # v-zoomimg（点图放大）
 ├── api/                       # 领域 API 封装 + 统一请求层
-│   └── request.ts · canteen · stall · dish · feedback · session · query · types
+│   └── request.ts · auth · canteen · stall · dish · feedback · query · types
 ├── stores/session.ts          # 登录态
-├── styles/theme.css           # 【唯一】主题覆盖层（Element Plus 变量 + 少量 --web-* 自建）
-├── utils/                     # 纯函数（image 压缩 / datetime）
-└── assets/icons/              # Plump Solid 实心图标（fill=currentColor，14 枚）
+├── styles/                    # theme.css（唯一主题覆盖层）+ motion.css
+├── utils/                     # 纯函数：image（上传前压缩 / 地址处理）
+└── assets/icons/              # Plump Solid 实心图标（fill=currentColor，13 枚）
 ```
 
 **依赖方向**：`views → components / composables → api → request`；`api/` **不得**导入 `views/` 或 `components/`；`components/` **不得**导入 `views/`；样式只从 `styles/theme.css` 与组件内 `scoped` 来。
 
 **组件归属判定**：先问「是否 ≥2 页面使用」——是 ⇒ `components/`；否 ⇒ 留在页面内联或页面私有（当前运营端页面较薄，个别页面私有逻辑先放 `views/*.vue`，超过阈值再抽 `views/<page>/components/`）。
 
-**弹层规范**：统一用自定义 `.mask` + `.dialog`（非 Element Plus Dialog）；删除确认用 `ConfirmDeleteView` **整卡切换**；图片字段统一 `ImageField`（16:9、延迟上传）。
+**弹层规范**：统一用自定义 `.mask` + `.dialog`（非 Element Plus Dialog）；删除确认用 `ConfirmDeleteCard` **整卡切换**；图片字段统一 `ImageField`（16:9、延迟上传）。
 
 ## 4 · 学生端（client）分包
 
 ```
 client/src/
 ├── pages/home/index.vue           # 唯一页面：菜品图标网格 + 搜索 dock
-│   └── components/                # 页面私有：DishGrid · DishTile · DishExpandCard · SearchDock · FeedbackPanel
+│   └── components/                # 页面私有：HomeHeader · DishGrid · DishTile · DishExpandCard · SearchDock · FeedbackPanel
 ├── components/                    # ≥2 页复用的公共件
-│   └── AppIcon · ImagePlaceholder · RetryBlock · PageLoading · BaseSheet · DashedRule · StatusBlock
-├── hooks/                         # 组合式逻辑：useDishSearch · useDishFeedback · useTimers
-├── utils/                         # 纯函数：backoff · image · feedbackLocal · request
-├── theme/                         # token 真源：tokens.ts · generated-colors.css · design-tokens.css · icons.ts · useTheme.ts
+│   └── AppIcon · ImagePlaceholder · RetryBlock · PageLoading · StatusBlock
+├── hooks/                         # 组合式逻辑：useImageSource · useTimers（统一出口 `hooks/index.ts`）
+├── utils/                         # 纯函数：backoff · image · request
+├── theme/                         # token 真源：tokens.ts · generated-colors.css · design-tokens.css · icons.ts · index.ts
 ├── api/                           # 学生端接口封装
 ├── types/generated/api.d.ts       # OpenAPI 生成类型
 ├── constants.ts                   # 魔法数字集中处
-└── styles/global.scss
+└── styles/                        # global.scss（基础样式）+ motion.scss（动效与减弱动效兜底）
 ```
 
 **依赖方向**：`pages → pages/components → components / hooks / utils / theme / api`；页面私有组件**不跨页引用**；`utils` / `theme` **不得**导入 `pages`。
@@ -107,6 +109,7 @@ client/src/
 | 服务端业务域 | `app/{admin,student}/<domain>/{router,service,repo}.py`；模型 `models/<entity>.py` |
 | 运营端页面 | `views/<Page>View.vue`；接口 `api/<domain>.ts`；公共件 `components/<Name>.vue` |
 | 学生端页面私有件 | `pages/<page>/components/<Name>.vue`；逻辑 `hooks/use<X>.ts`；纯函数 `utils/<x>.ts` |
+| 组件命名 | 组件一律 `<Name>.vue`（名词短语）；🔴 **`View` 后缀只给路由页面**（`views/<Page>View.vue`），公共件不得使用 |
 
 新增一个业务域的推荐顺序：`docs/schema` → `models` → `admin|student` 的 `repo/service/router` → `docs/api` → `web/client` 的 `api` 与页面 → `docs/func|ui` → 门禁。
 

@@ -46,13 +46,13 @@ def _auth(user_id: int = 1) -> dict[str, str]:
 
 def test_missing_token_returns_401(client: TestClient) -> None:
     """除 wechat-login 外，所有端点都要求凭证。"""
-    resp = client.get("/canteens")
+    resp = client.get("/dishes")
     assert resp.status_code == 200  # 信封模式：HTTP 恒 200
     assert resp.json()["code"] == CODE_UNAUTHORIZED
 
 
 def test_malformed_token_returns_401(client: TestClient) -> None:
-    resp = client.get("/canteens", headers={"Authorization": "Bearer not-a-jwt"})
+    resp = client.get("/dishes", headers={"Authorization": "Bearer not-a-jwt"})
     assert resp.json()["code"] == CODE_UNAUTHORIZED
 
 

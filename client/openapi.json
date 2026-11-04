@@ -46,32 +46,6 @@
         }
       }
     },
-    "/canteens": {
-      "get": {
-        "tags": [
-          "canteen"
-        ],
-        "summary": "食堂字典",
-        "operationId": "list_canteens_canteens_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_list_CanteenOut__"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/dishes": {
       "get": {
         "tags": [
@@ -1390,24 +1364,6 @@
         ],
         "title": "Body_upload_image_admin_images_post"
       },
-      "CanteenOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "CanteenOut"
-      },
       "CanteenSaveIn": {
         "properties": {
           "name": {
@@ -2060,36 +2016,6 @@
         },
         "type": "object",
         "title": "Envelope[TokenOut]"
-      },
-      "Envelope_list_CanteenOut__": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code",
-            "default": 200
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "操作成功"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/CanteenOut"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          }
-        },
-        "type": "object",
-        "title": "Envelope[list[CanteenOut]]"
       },
       "Envelope_list_DishVO__": {
         "properties": {

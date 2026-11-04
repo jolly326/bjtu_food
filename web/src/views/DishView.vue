@@ -110,52 +110,52 @@ onMounted(async () => {
   <section class="page">
     <Teleport to="#layout-pageheader">
       <header class="page__bar">
-      <div class="page__titleGroup">
-        <h2 class="page__title">菜品管理</h2>
-        <p class="page__subtitle">维护菜品本体与多售卖点，学生端网格实时读取</p>
-      </div>
-      <div class="filters">
-        <input
-          v-model="filter.name"
-          class="filters__search"
-          type="search"
-          placeholder="搜索菜品名称"
-          aria-label="按名称搜索"
-        />
-        <el-select
-          v-model="filter.canteenId"
-          class="filters__select"
-          placeholder="全部食堂"
-          clearable
-          @change="onFilterCanteenChange"
-        >
-          <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
-        </el-select>
-        <el-select
-          v-model="filter.stallId"
-          class="filters__select"
-          placeholder="全部档口"
-          clearable
-          @change="reload"
-        >
-          <el-option v-for="s in filterStalls.items" :key="s.id" :value="s.id" :label="s.name" />
-        </el-select>
-        <el-select
-          v-model="filter.activate"
-          class="filters__select"
-          placeholder="全部状态"
-          @change="reload"
-        >
-          <el-option label="全部状态" :value="undefined" />
-          <el-option label="在售" :value="true" />
-          <el-option label="已下架" :value="false" />
-        </el-select>
-      </div>
-      <div class="page__actions">
-        <button class="btn btn--primary" @click="onCreate">
-          <AppIcon name="add" :size="16" />新建
-        </button>
-      </div>
+        <div class="page__titleGroup">
+          <h2 class="page__title">菜品管理</h2>
+          <p class="page__subtitle">维护菜品本体与多售卖点，学生端网格实时读取</p>
+        </div>
+        <div class="filters">
+          <input
+            v-model="filter.name"
+            class="filters__search"
+            type="search"
+            placeholder="搜索菜品名称"
+            aria-label="按名称搜索"
+          />
+          <el-select
+            v-model="filter.canteenId"
+            class="filters__select"
+            placeholder="全部食堂"
+            clearable
+            @change="onFilterCanteenChange"
+          >
+            <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
+          </el-select>
+          <el-select
+            v-model="filter.stallId"
+            class="filters__select"
+            placeholder="全部档口"
+            clearable
+            @change="reload"
+          >
+            <el-option v-for="s in filterStalls.items" :key="s.id" :value="s.id" :label="s.name" />
+          </el-select>
+          <el-select
+            v-model="filter.activate"
+            class="filters__select"
+            placeholder="全部状态"
+            @change="reload"
+          >
+            <el-option label="全部状态" :value="undefined" />
+            <el-option label="在售" :value="true" />
+            <el-option label="已下架" :value="false" />
+          </el-select>
+        </div>
+        <div class="page__actions">
+          <button class="btn btn--primary" @click="onCreate">
+            <AppIcon name="add" :size="16" />新建
+          </button>
+        </div>
       </header>
     </Teleport>
 

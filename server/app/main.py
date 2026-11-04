@@ -48,7 +48,6 @@ from app.core.errors import (
 from app.core.ratelimit import RULE_READ_IP, client_ip, retry_after
 from app.student.auth import service as auth_service
 from app.student.auth.router import router as auth_router
-from app.student.canteen.router import router as canteen_router
 from app.student.dish.router import router as dish_router
 from app.student.feedback.router import router as feedback_router
 
@@ -144,7 +143,7 @@ def create_app() -> FastAPI:
         title="知行食记",
         version="1.0.0",
         docs_url="/docs" if docs_enabled else None,
-        # 契约快照路径与 docs/api/README.md「契约同步」一致
+        # 契约快照路径与 docs/api/CONVENTIONS.md「契约同步」一致
         openapi_url="/openapi.json" if docs_enabled else None,
         lifespan=lifespan,
     )
@@ -236,7 +235,6 @@ def create_app() -> FastAPI:
 
     # ---- 学生端 ----
     app.include_router(auth_router)
-    app.include_router(canteen_router)
     app.include_router(dish_router)
     app.include_router(feedback_router)
 

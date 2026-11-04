@@ -6,7 +6,7 @@
  */
 import { reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import ConfirmDeleteView from '@/components/ConfirmDeleteView.vue'
+import ConfirmDeleteCard from '@/components/ConfirmDeleteCard.vue'
 import ImageField from '@/components/ImageField.vue'
 import { dishApi, upload, type DishBody, type DishOfferingInput, type DishOut } from '@/api'
 import type { StallOut } from '@/api/types'
@@ -161,7 +161,7 @@ function confirmDelete(): void {
 <template>
   <div v-if="modelValue" class="mask" @click.self="emit('update:modelValue', false)">
     <div class="dialog">
-      <ConfirmDeleteView
+      <ConfirmDeleteCard
         v-if="view === 'delete'"
         message="删除后不可恢复，该菜品的售卖点与菜品反馈将一并清除。"
         @cancel="view = 'form'"

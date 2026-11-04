@@ -1,5 +1,5 @@
 /**
- * 统一请求层（口径见 docs/secur/S-01、docs/api/README.md）。
+ * 统一请求层（口径见 docs/secur/S-01、docs/api/CONVENTIONS.md）。
  *
  * 传输层双通道（构建期内联，由 env 决定）：
  * - **云调用（推荐，真机免域名白名单）**：配置 `VITE_TCB_ENV` ⇒ 走 `wx.cloud.callContainer`，

@@ -1,4 +1,4 @@
-"""运营端食堂管理（docs/func/web/A1-食堂管理.md、docs/api/web/canteens.md）。
+"""运营端食堂管理（docs/func/web/A-主数据维护/A1-食堂管理.md、docs/api/web/canteens.md）。
 
 端点：
     GET    /admin/canteens        分页

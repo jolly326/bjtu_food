@@ -1,7 +1,7 @@
 /**
  * 运营端请求层。
  *
- * 口径（docs/secur/S-01、docs/api/README.md）：
+ * 口径（docs/secur/S-01、docs/api/CONVENTIONS.md）：
  * - `/admin/**` 一律带 `Authorization: Bearer <运营端 JWT>`
  * - 401 => 清 token 并跳登录页
  * - 信封 {code,message,data}：code !== 200 视为业务失败

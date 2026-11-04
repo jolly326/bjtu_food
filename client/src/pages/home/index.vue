@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 菜品首页（单页）—— 设计稿 docs/ui/client/菜品首页.md；功能规则 docs/func/client/A1、B1。
+ * 菜品首页（单页）—— 设计稿 docs/ui/client/菜品首页.md；
+ * 功能规则 docs/func/client/A-浏览与发现/A1-搜索找菜.md、docs/func/client/B-轻量反馈/B1-文本反馈.md。
  *
  * 上方 3 列竖向菜品图标网格；下方常驻搜索框；点图标在网格内插入内联展开卡（不遮挡浏览）。
  * 一句话搜索：命中图标重排填位、未命中退场；零命中显示空态。

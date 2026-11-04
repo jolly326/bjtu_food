@@ -4,14 +4,11 @@
  * 单主题（奶米纸色）：色值只改这里，改完必须同步 `generated-colors.css` 的**同键变量声明**。
  *
  * 动森风移动端规范：奶米 `#FFF7E8`、卡片奶白 `#FFFDF7`、主文字深棕 `#44382E`、
- * 辅助浅棕 `#8C7B6B`、置灰 / 三级 `#9F927D`、浅杏 `#F9E9D8`、暖橙主色 `#FF8A4C`。
+ * 辅助浅棕 `#8C7B6B`、置灰 / 三级 `#9F927D`、浅杏 `#F9E9D8`。
  * 层级表达：仅 `--shadow-soft` / `--shadow-up` 极弱弥散阴影；🔴 无硬阴影 / 渐变 / 3D 堆叠。
  */
 
 export const COLOR_MAP = {
-  /* ===== 主色（暖橙保留给非 sheet 的品牌 CTA；品牌保留 token）===== */
-  primary: '#FF8A4C',
-
   /* ===== 文字（深棕 / 辅助浅棕 / 三级）===== */
   'text-title': '#44382E',
   'text-body': '#8C7B6B',
@@ -28,7 +25,7 @@ export const COLOR_MAP = {
   /* ===== 低透明度奶色蒙层 + 极弱弥散阴影 ===== */
   'overlay-scrim': 'rgba(255,247,232,0.60)',
   'overlay-panel-bg': '#FFF7E8',
-  'sheet-divider': '#D9C7B2',
+  'card-divider': '#D9C7B2',
   'shadow-soft': '0 2rpx 10rpx rgba(68, 56, 46, 0.08)',
   'shadow-up': '0 -2rpx 12rpx rgba(68, 56, 46, 0.10)',
 } as const

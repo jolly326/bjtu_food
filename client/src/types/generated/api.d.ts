@@ -9,10 +9,6 @@ export interface paths {
     /** 微信静默登录 */
     post: operations["wechat_login_auth_wechat_login_post"];
   };
-  "/canteens": {
-    /** 食堂字典 */
-    get: operations["list_canteens_canteens_get"];
-  };
   "/dishes": {
     /** 全量在售菜品 */
     get: operations["list_dishes_dishes_get"];
@@ -148,13 +144,6 @@ export interface components {
     Body_upload_image_admin_images_post: {
       /** File */
       file: string;
-    };
-    /** CanteenOut */
-    CanteenOut: {
-      /** Id */
-      id: number;
-      /** Name */
-      name: string;
     };
     /** CanteenSaveIn */
     CanteenSaveIn: {
@@ -446,21 +435,6 @@ export interface components {
       message?: string;
       data?: components["schemas"]["TokenOut"] | null;
     };
-    /** Envelope[list[CanteenOut]] */
-    Envelope_list_CanteenOut__: {
-      /**
-       * Code
-       * @default 200
-       */
-      code?: number;
-      /**
-       * Message
-       * @default 操作成功
-       */
-      message?: string;
-      /** Data */
-      data?: components["schemas"]["CanteenOut"][] | null;
-    };
     /** Envelope[list[DishVO]] */
     Envelope_list_DishVO__: {
       /**
@@ -618,17 +592,6 @@ export interface operations {
       422: {
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  /** 食堂字典 */
-  list_canteens_canteens_get: {
-    responses: {
-      /** @description Successful Response */
-      200: {
-        content: {
-          "application/json": components["schemas"]["Envelope_list_CanteenOut__"];
         };
       };
     };

@@ -54,7 +54,7 @@ describe('请求层：401 静默重登', () => {
       })
     })
 
-    await expect(request('GET', '/canteens')).resolves.toEqual([])
+    await expect(request('GET', '/dishes')).resolves.toEqual([])
     expect(uniMock.login).toHaveBeenCalledTimes(1)
     expect(storage.get('student_token')).toBe('fresh')
     expect(canteenCalls).toBe(2)
@@ -67,7 +67,7 @@ describe('请求层：401 静默重登', () => {
       options.success({ statusCode: 200, data: envelope(400, null, '服务端未配置微信小程序凭证') })
     })
 
-    await expect(request('GET', '/canteens')).rejects.toThrow('服务端未配置微信小程序凭证')
+    await expect(request('GET', '/dishes')).rejects.toThrow('服务端未配置微信小程序凭证')
     expect(uniMock.login).not.toHaveBeenCalled()
   })
 })
@@ -82,7 +82,7 @@ describe('请求层：429 退避', () => {
       options.success({ statusCode: 200, data: envelope(429, null, '操作过于频繁，请 45 秒后再试') })
     })
 
-    const failure = (await request('GET', '/canteens').catch((error: unknown) => error)) as {
+    const failure = (await request('GET', '/dishes').catch((error: unknown) => error)) as {
       code: number
       retryAfter?: number
     }

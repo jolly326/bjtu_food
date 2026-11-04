@@ -193,7 +193,7 @@ function placeText(loc: DishLocationVO): string {
   flex-direction: column;
   gap: var(--spacing-xs);
   padding-top: var(--spacing-sm);
-  border-top: var(--border-width) solid var(--sheet-divider);
+  border-top: var(--border-width) solid var(--card-divider);
 }
 
 .card__loc {

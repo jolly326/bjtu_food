@@ -1,4 +1,4 @@
-"""运营端档口管理（docs/func/web/A2-档口管理.md、docs/api/web/stalls.md）。
+"""运营端档口管理（docs/func/web/A-主数据维护/A2-档口管理.md、docs/api/web/stalls.md）。
 
 端点：
     GET    /admin/stalls?canteenId=   分页

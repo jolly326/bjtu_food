@@ -6,7 +6,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
-import ConfirmDeleteView from '@/components/ConfirmDeleteView.vue'
+import ConfirmDeleteCard from '@/components/ConfirmDeleteCard.vue'
 import ImageField from '@/components/ImageField.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
@@ -79,7 +79,7 @@ async function onSave() {
   }
 }
 
-/** 删除（由弹窗内整卡「确认删除」触发；不再用 ElMessageBox） */
+/** 删除（由弹窗内整卡「确认删除」触发） */
 async function onRemove() {
   if (!dialog.id) return
   try {
@@ -101,10 +101,10 @@ onMounted(load)
   <section class="page">
     <Teleport to="#layout-pageheader">
       <header class="page__bar">
-      <h2 class="page__title">食堂管理</h2>
-      <button class="btn btn--primary" @click="onCreate">
-        <AppIcon name="add" :size="16" />新建
-      </button>
+        <h2 class="page__title">食堂管理</h2>
+        <button class="btn btn--primary" @click="onCreate">
+          <AppIcon name="add" :size="16" />新建
+        </button>
       </header>
     </Teleport>
 
@@ -163,7 +163,7 @@ onMounted(load)
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
       <div class="dialog">
-        <ConfirmDeleteView
+        <ConfirmDeleteCard
           v-if="view === 'delete'"
           message="删除后不可恢复。若该食堂下仍有档口，删除会被拒绝。"
           @cancel="view = 'form'"

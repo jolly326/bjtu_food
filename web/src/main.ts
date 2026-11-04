@@ -3,11 +3,10 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { vZoomImg } from './directives/zoomImg'
-// Element Plus 仅消费 ElMessage / ElMessageBox：只引「基础变量 + 这两个组件样式」，
+// Element Plus 仅消费 el-select（筛选下拉）与 ElMessage（轻提示）：只引「基础变量 + 这几个组件样式」，
 // 不整包引入 index.css（首屏体积）；base.css 提供 --el-* 变量，theme.css 用 html:root 覆盖品牌色。
 import 'element-plus/theme-chalk/base.css'
 import 'element-plus/theme-chalk/el-message.css'
-import 'element-plus/theme-chalk/el-message-box.css'
 import 'element-plus/theme-chalk/el-select.css'
 import 'element-plus/theme-chalk/el-popper.css'
 import './styles/theme.css'

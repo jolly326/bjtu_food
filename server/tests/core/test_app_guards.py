@@ -55,7 +55,7 @@ def test_oversized_body_rejected_before_parsing(client: TestClient) -> None:
 
 def test_security_headers_on_responses(client: TestClient) -> None:
     """全部响应带 nosniff + no-store（docs/secur/S-04 §三）。"""
-    resp = client.get("/canteens")  # 无凭证 ⇒ 401 信封
+    resp = client.get("/dishes")  # 无凭证 ⇒ 401 信封
     assert resp.headers["X-Content-Type-Options"] == "nosniff"
     assert resp.headers["Cache-Control"] == "no-store"
     assert resp.json()["code"] == CODE_UNAUTHORIZED
@@ -65,7 +65,7 @@ def test_security_headers_on_rate_limit_envelope(client: TestClient) -> None:
     """中间件直出的兜底信封同样带安全响应头。"""
     last = None
     for _ in range(RULE_READ_IP.limit + 1):
-        last = client.get("/canteens")
+        last = client.get("/dishes")
     assert last is not None
     assert last.json()["code"] == CODE_RATE_LIMITED
     assert last.headers["X-Content-Type-Options"] == "nosniff"
@@ -79,7 +79,7 @@ def test_unknown_path_normalized_to_envelope(client: TestClient) -> None:
 
 
 def test_wrong_method_normalized_to_envelope(client: TestClient) -> None:
-    resp = client.delete("/canteens")
+    resp = client.delete("/dishes")
     assert resp.status_code == 200
     assert resp.json()["code"] == CODE_BAD_REQUEST
 

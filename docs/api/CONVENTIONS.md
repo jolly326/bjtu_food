@@ -14,7 +14,6 @@
 | [client/auth.md](./client/auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
 | [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/recommend` | 图标网格 + 搜索 dock |
 | [client/feedback.md](./client/feedback.md) | `POST /feedback` | 产品反馈 / 菜品反馈 |
-| [client/canteens.md](./client/canteens.md) | `GET /canteens` | 位置展示辅助（可选） |
 
 ### 运营端（`web/`）
 
@@ -90,21 +89,9 @@
 |---|---|
 | `GET /healthz` | 健康检查；🔴 **不走响应信封**，直接返回原始对象（探针直读）。不属业务资源，故不在上表登记。 |
 
-### 分页结构 `PageResult<T>`
+### 分页结构 `AdminPageResult<T>`
 
-**学生端分页壳只有 `records` 一个字段**：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `records` | T[] | 当前页数据行 |
-
-- **不回传** `total` / `page` / `pageSize` —— 页码信息由请求侧掌握。
-- **分页结束判据 = 本页返回条数 < 请求的 `pageSize`**。
-- 请求侧 `pageSize` 上限 **50**，超限服务端截断。
-
-### 运营端分页结构 `AdminPageResult<T>`
-
-**仅用于 `/admin/**`** —— 后台是「核对型」使用（要知道总数、要能翻页）：
+**只有运营端 `/admin/**` 分页**（学生端端点一律返回全量数组或者不使用分页）—— 后台是「核对型」使用（要知道总数、要能翻页）：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|

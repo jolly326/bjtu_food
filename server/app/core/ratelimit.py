@@ -29,7 +29,7 @@ class Rule:
 # ---------- 规则表（docs/secur/S-03 的「限频矩阵」） ----------
 RULE_RECOMMEND = Rule(60, 3600)     # POST /dishes/recommend（语义匹配）
 RULE_FEEDBACK = Rule(20, 3600)      # POST /feedback（文本反馈）
-RULE_READ_ACCOUNT = Rule(300, 3600)  # 读端点（账号维度，/dishes 与 /canteens 共享同一配额）
+RULE_READ_ACCOUNT = Rule(300, 3600)  # 读端点（账号维度，/dishes 使用）
 RULE_READ_IP = Rule(60, 60)         # 全局 IP 兜底（HTTP 层中间件）
 RULE_WECHAT_LOGIN = Rule(20, 3600)  # POST /auth/wechat-login
 RULE_ADMIN_LOGIN = Rule(10, 60)     # POST /admin/sessions

@@ -6,7 +6,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
-import ConfirmDeleteView from '@/components/ConfirmDeleteView.vue'
+import ConfirmDeleteCard from '@/components/ConfirmDeleteCard.vue'
 import ImageField from '@/components/ImageField.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
@@ -119,7 +119,7 @@ async function onSave() {
   }
 }
 
-/** 删除（由弹窗内整卡「确认删除」触发；不再用 ElMessageBox） */
+/** 删除（由弹窗内整卡「确认删除」触发） */
 async function onRemove() {
   if (!dialog.id) return
   try {
@@ -214,26 +214,26 @@ onMounted(async () => {
   <section class="page">
     <Teleport to="#layout-pageheader">
       <header class="page__bar">
-      <h2 class="page__title">档口管理</h2>
-      <div class="filters">
-        <el-select
-          v-model="filter.canteenId"
-          class="filters__select"
-          placeholder="全部食堂"
-          clearable
-          @change="reload"
-        >
-          <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
-        </el-select>
-      </div>
-      <div class="page__actions">
-        <button class="btn btn--outline" :aria-pressed="batchMode" @click="toggleBatchMode">
-          {{ batchMode ? '退出批量' : '批量' }}
-        </button>
-        <button class="btn btn--primary" @click="onCreate">
-          <AppIcon name="add" :size="16" />新建
-        </button>
-      </div>
+        <h2 class="page__title">档口管理</h2>
+        <div class="filters">
+          <el-select
+            v-model="filter.canteenId"
+            class="filters__select"
+            placeholder="全部食堂"
+            clearable
+            @change="reload"
+          >
+            <el-option v-for="c in canteens" :key="c.id" :value="c.id" :label="c.name" />
+          </el-select>
+        </div>
+        <div class="page__actions">
+          <button class="btn btn--outline" :aria-pressed="batchMode" @click="toggleBatchMode">
+            {{ batchMode ? '退出批量' : '批量' }}
+          </button>
+          <button class="btn btn--primary" @click="onCreate">
+            <AppIcon name="add" :size="16" />新建
+          </button>
+        </div>
       </header>
     </Teleport>
 
@@ -355,7 +355,7 @@ onMounted(async () => {
 
     <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
       <div class="dialog">
-        <ConfirmDeleteView
+        <ConfirmDeleteCard
           v-if="view === 'delete'"
           message="删除后不可恢复。若该档口下仍有菜品，删除会被拒绝。"
           @cancel="view = 'form'"

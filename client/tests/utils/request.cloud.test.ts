@@ -41,12 +41,12 @@ describe('请求层：云调用通道', () => {
       options.success({ statusCode: 200, data: { code: 200, message: '', data: [] } })
     })
 
-    await expect(request('GET', '/canteens')).resolves.toEqual([])
+    await expect(request('GET', '/dishes')).resolves.toEqual([])
     expect(transportMode).toBe('cloud')
     expect(cloudMock.init).toHaveBeenCalledTimes(1)
     expect(cloudMock.callContainer).toHaveBeenCalledWith(
       expect.objectContaining({
-        path: '/canteens',
+        path: '/dishes',
         method: 'GET',
         header: expect.objectContaining({
           Authorization: 'Bearer ok',
@@ -63,7 +63,7 @@ describe('请求层：云调用通道', () => {
       options.fail({ errMsg: 'callContainer:fail env not found' })
     })
 
-    await expect(request('GET', '/canteens')).rejects.toThrow('网络异常')
+    await expect(request('GET', '/dishes')).rejects.toThrow('网络异常')
     expect(cloudMock.callContainer).toHaveBeenCalledTimes(1)
   })
 })

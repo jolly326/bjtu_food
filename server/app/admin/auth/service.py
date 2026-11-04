@@ -1,4 +1,4 @@
-"""运营端登录业务规则（docs/func/web/C1-管理员登录.md、docs/secur/S-01）。"""
+"""运营端登录业务规则（docs/func/web/C-账号与访问/C1-管理员登录.md、docs/secur/S-01）。"""
 
 from __future__ import annotations
 
