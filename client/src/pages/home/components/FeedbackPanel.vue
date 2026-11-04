@@ -67,22 +67,19 @@ async function submit(): Promise<void> {
   <view v-if="modelValue" class="fb">
     <view class="fb__scrim" @tap="close" />
     <view class="fb__panel" @tap.stop>
-      <view class="fb__head">
-        <text class="fb__title">意见反馈</text>
-        <text class="fb__count">{{ content.length }}/{{ FEEDBACK.MAX_LEN }}</text>
-      </view>
+      <text class="fb__title">意见反馈</text>
 
-      <view class="fb__seg">
-        <view
-          class="fb__seg-item"
-          :class="{ 'fb__seg-item--on': type === 'product' }"
+      <view class="fb__types">
+        <text
+          class="fb__type"
+          :class="{ 'fb__type--on': type === 'product' }"
           @tap="type = 'product'"
-        >产品</view>
-        <view
-          class="fb__seg-item"
-          :class="{ 'fb__seg-item--on': type === 'dish', 'fb__seg-item--off': !dishId }"
+        >产品</text>
+        <text
+          class="fb__type"
+          :class="{ 'fb__type--on': type === 'dish', 'fb__type--off': !dishId }"
           @tap="dishId && (type = 'dish')"
-        >菜品</view>
+        >菜品</text>
       </view>
 
       <textarea
@@ -95,8 +92,8 @@ async function submit(): Promise<void> {
       />
 
       <view class="fb__foot">
-        <view class="fb__cancel" hover-class="fb__btn--press" @tap="close">取消</view>
-        <view class="fb__submit" hover-class="fb__btn--press" @tap="submit">
+        <text class="fb__cancel" @tap="close">取消</text>
+        <view class="fb__submit" hover-class="fb__submit--press" @tap="submit">
           {{ submitting ? '提交中' : '提交' }}
         </view>
       </view>
@@ -113,7 +110,7 @@ async function submit(): Promise<void> {
   left: 0;
   z-index: var(--z-sheet);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   animation: motion-fade var(--duration-fast) var(--ease-out) both;
 }
@@ -129,26 +126,18 @@ async function submit(): Promise<void> {
 
 .fb__panel {
   position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
   box-sizing: border-box;
-  width: 100%;
+  width: 86%;
   max-height: 80vh;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: var(--spacing-lg) var(--page-gutter);
-  padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-card);
   background: var(--bg-card);
-  will-change: transform, opacity;
   animation: motion-rise var(--duration-base) var(--ease-out) both;
-}
-
-.fb__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
 }
 
 .fb__title {
@@ -156,36 +145,24 @@ async function submit(): Promise<void> {
   color: var(--text-title);
 }
 
-.fb__count {
-  font-size: var(--font-caption);
-  color: var(--text-disabled);
+.fb__types {
+  display: flex;
+  gap: var(--spacing-lg);
 }
 
-.fb__seg {
-  display: flex;
-  gap: var(--spacing-2xs);
-  padding: var(--spacing-2xs);
-  border-radius: var(--radius-pill);
-  background: var(--bg-placeholder);
-}
-
-.fb__seg-item {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  height: var(--control-height-sm);
-  border-radius: var(--radius-pill);
+.fb__type {
+  padding-bottom: var(--spacing-2xs);
+  border-bottom: var(--border-width) solid transparent;
   font-size: var(--font-subtitle);
   color: var(--text-body);
 }
 
-.fb__seg-item--on {
-  background: var(--bg-card);
+.fb__type--on {
+  border-bottom-color: var(--brand);
   color: var(--brand);
 }
 
-.fb__seg-item--off {
+.fb__type--off {
   opacity: 0.4;
 }
 
@@ -194,8 +171,8 @@ async function submit(): Promise<void> {
   width: 100%;
   height: var(--feedback-input-height);
   padding: var(--spacing-sm);
+  border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-card);
-  background: var(--bg-placeholder);
   font-size: var(--font-body);
   color: var(--text-title);
 }
@@ -212,10 +189,7 @@ async function submit(): Promise<void> {
 }
 
 .fb__cancel {
-  display: flex;
-  align-items: center;
-  min-height: var(--control-height);
-  padding: 0 var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
   font-size: var(--font-body);
   color: var(--text-body);
 }
@@ -233,7 +207,7 @@ async function submit(): Promise<void> {
   color: var(--on-brand);
 }
 
-.fb__btn--press {
+.fb__submit--press {
   opacity: 0.7;
 }
 </style>

@@ -71,11 +71,11 @@ const placeText = computed(() => {
       <view class="card__side">
         <text class="card__price">{{ priceText }}</text>
         <text class="card__canteen">{{ loc.canteenName }}</text>
-        <text class="card__place">{{ placeText }}</text>
       </view>
     </view>
 
-    <view class="card__foot">
+    <view class="card__meta">
+      <text class="card__place">{{ placeText }}</text>
       <view
         class="card__link"
         hover-class="card__link--press"
@@ -185,9 +185,12 @@ const placeText = computed(() => {
   gap: var(--spacing-xs);
 }
 
-/* 卡片底部：反馈固定在左下，与描述操作分离 */
-.card__foot {
+/* 卡片底部：位置信息与反馈同一行，左右分置 */
+.card__meta {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
   padding: 0 var(--spacing-sm) var(--spacing-sm);
 }
 
@@ -230,8 +233,9 @@ const placeText = computed(() => {
 }
 
 .card__place {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  width: 100%;
   font-size: var(--font-caption);
   color: var(--text-body);
   white-space: nowrap;
