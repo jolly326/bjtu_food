@@ -48,8 +48,6 @@ page {
   --control-height: 96rpx;
   --control-height-sm: 64rpx;
   --header-height: 88rpx;
-  /* 结果卡信息区右栏（售价 / 位置）固定宽 */
-  --card-side-width: 200rpx;
   /* 反馈面板输入区高度 */
   --feedback-input-height: 240rpx;
   /* 悬浮 HUD 净空 = 胶囊外高 108rpx + 与底缘间距 16rpx + 末行呼吸 32rpx；

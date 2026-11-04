@@ -2,7 +2,7 @@
 /**
  * 菜品管理（设计稿 docs/ui/web/菜品管理.md；业务规则 docs/func/web/A3）。
  *
- * 菜品本体 + **售卖点列表逐行展示**（本页重点）；点卡片进编辑弹窗，删除在弹窗内整卡确认。
+ * 菜品本体 + **位置列表逐行展示**（本页重点）；点卡片进编辑弹窗，删除在弹窗内整卡确认。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
@@ -193,7 +193,7 @@ onMounted(async () => {
               </span>
             </div>
             <div v-if="!row.locations.length" class="offering-row">
-              <span class="offering-row__text offering-row__text--muted">暂无售卖点</span>
+              <span class="offering-row__text offering-row__text--muted">暂无位置</span>
             </div>
           </div>
         </div>

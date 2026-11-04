@@ -9,7 +9,7 @@
 ```
 src/
 ├── pages/home/index.vue           # 唯一页面
-│   └── components/                # 页面私有：HomeHeader · DishGrid · DishResultCard · SearchDock（含筛选行） · FeedbackPanel
+│   └── components/                # 页面私有：HomeHeader · DishGrid · DishResultCard · SearchDock · FeedbackPanel
 ├── components/                    # ≥2 页公共件（5）：AppIcon · ImagePlaceholder · RetryBlock · PageLoading · StatusBlock
 ├── hooks/                         # useImageSource · useTimers（统一出口 hooks/index.ts）
 ├── utils/                         # backoff · image · request

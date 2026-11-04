@@ -18,7 +18,7 @@ import FeedbackPanel from './components/FeedbackPanel.vue'
 import HomeHeader from './components/HomeHeader.vue'
 import SearchDock from './components/SearchDock.vue'
 
-/** 全量在售集：冷启动拉取并缓存，供清空回填与筛选行候选值 */
+/** 全量在售集：冷启动拉取并缓存，供清空回填 */
 const allDishes = ref<DishVO[]>([])
 /** 当前结果集：无条件时 = allDishes，条件结果由 recommend 返回 */
 const resultDishes = ref<DishVO[]>([])
@@ -34,7 +34,7 @@ const query = ref('')
 const submittedQuery = ref('')
 const searching = ref(false)
 const feedbackOpen = ref(false)
-/** 当前展开描述全文的售卖点 id；null = 无展开 */
+/** 当前展开描述全文的位置 id；null = 无展开 */
 const expandedId = ref<number | null>(null)
 const feedbackDishId = ref<number | null>(null)
 
@@ -100,8 +100,8 @@ function onSearch(text: string): Promise<void> {
   return submit(text)
 }
 
-function toggleFull(offeringId: number): void {
-  expandedId.value = expandedId.value === offeringId ? null : offeringId
+function toggleFull(locationId: number): void {
+  expandedId.value = expandedId.value === locationId ? null : locationId
 }
 
 function collapseFull(): void {

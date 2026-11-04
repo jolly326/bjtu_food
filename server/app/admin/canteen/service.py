@@ -132,7 +132,7 @@ def delete(session: Session, *, canteen_id: int) -> None:
         select(func.count()).select_from(DishLocation).where(DishLocation.canteen_id == canteen.id)
     )
     if offering_count:
-        raise BadRequest("该食堂下仍有售卖点，请先清空售卖点")
+        raise BadRequest("该食堂下仍有位置，请先清空位置")
 
     session.delete(canteen)
     session.flush()
