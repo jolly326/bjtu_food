@@ -12,7 +12,7 @@
 | 文档 | 覆盖端点 | 消费方 |
 |---|---|---|
 | [client/auth.md](./client/auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
-| [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/recommend` | 图标网格 + 搜索 dock |
+| [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/recommend` | 结果信息卡 + 搜索 dock |
 | [client/feedback.md](./client/feedback.md) | `POST /feedback` | 产品反馈 / 菜品反馈 |
 
 ### 运营端（`web/`）

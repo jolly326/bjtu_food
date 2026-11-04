@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -19,7 +18,6 @@ class Dish(Base):
     __tablename__ = "dish"
     __table_args__ = (
         Index("uk_dish_name", "name", unique=True),
-        Index("idx_dish_activate", "activate"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -30,7 +28,6 @@ class Dish(Base):
     # description 的语义向量，保存时预计算；embedding_model 记录模型标识
     embedding: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    activate: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 菜品首页页头（docs/ui/client/菜品首页.md §1）。
+ * 菜品首页页头（docs/ui/client/菜品首页.md「页面结构」）。
  *
  * 轻量 brand strip：安全区 + 一行内容区（wordmark + 日期/提示），
  * 无操作按钮、无阴影；内容区高 = 微信胶囊行高，品牌块与胶囊垂直居中对齐。

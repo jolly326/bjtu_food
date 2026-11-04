@@ -19,6 +19,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    // dev 代理：把相对基地址 `/api` 转发到本机后端，避免浏览器直连 `127.0.0.1:8000`
+    // 的跨域 / 主机连通问题（生产走 `.env.production` 的绝对地址，不经此代理）。
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
   build: {
     // 生产：源码映射无用途，显式关闭（默认即 false，此处显式声明口径）
     sourcemap: false,

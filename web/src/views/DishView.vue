@@ -21,8 +21,6 @@ const stalls = ref<StallOut[]>([])
 const filter = reactive({
   canteenId: undefined as number | undefined,
   stallId: undefined as number | undefined,
-  /** 上架状态：undefined 全部 / true 在售 / false 已下架 */
-  activate: undefined as boolean | undefined,
   /** 名称模糊搜索（防抖后生效） */
   name: '',
 })
@@ -57,7 +55,6 @@ const { rows, total, page, loading, error, hasNext, load, go, reload } = usePage
     dishApi.list({
       stallId: filter.stallId,
       canteenId: filter.canteenId,
-      activate: filter.activate,
       name: filter.name.trim() || undefined,
       page: p,
     }),
@@ -108,7 +105,11 @@ onMounted(async () => {
 
 <template>
   <section class="page">
-    <Teleport to="#layout-pageheader">
+    <!-- defer：目标 #layout-pageheader 在 AdminLayout 内，是本视图的兄弟节点。
+         Vue 挂载时先渲染子组件、后把父元素插入 document，故挂载瞬间目标尚不在 document 中，
+         直接 Teleport 会解析成 null 并在每次 update 抛未处理异常（列表停在初始空态）。
+         defer 让目标推迟到挂载后解析，此时布局已在 document 中。 -->
+    <Teleport defer to="#layout-pageheader">
       <header class="page__bar">
         <div class="page__titleGroup">
           <h2 class="page__title">菜品管理</h2>
@@ -139,16 +140,6 @@ onMounted(async () => {
             @change="reload"
           >
             <el-option v-for="s in filterStalls.items" :key="s.id" :value="s.id" :label="s.name" />
-          </el-select>
-          <el-select
-            v-model="filter.activate"
-            class="filters__select"
-            placeholder="全部状态"
-            @change="reload"
-          >
-            <el-option label="全部状态" :value="undefined" />
-            <el-option label="在售" :value="true" />
-            <el-option label="已下架" :value="false" />
           </el-select>
         </div>
         <div class="page__actions">
@@ -186,9 +177,6 @@ onMounted(async () => {
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
-            <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
-              {{ row.activate ? '在售' : '已下架' }}
-            </span>
             <span class="tag tag--count">{{ row.offerings.length }} 处售卖</span>
           </div>
 
@@ -209,6 +197,9 @@ onMounted(async () => {
         </div>
       </div>
 
+      <div v-if="loading" class="list-card">
+        <span class="list-card__empty">加载中…</span>
+      </div>
       <div v-if="!rows.length && !loading" class="list-card">
         <span class="list-card__empty">暂无数据</span>
       </div>

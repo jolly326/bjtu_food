@@ -36,7 +36,7 @@ def _seed(session: Session, *, with_offering: bool = False, with_feedback: bool 
             User(id=1, openid="o1"),
             Canteen(id=1, name="学一食堂"),
             Stall(id=1, canteen_id=1, name="川味小炒"),
-            Dish(id=9, name="辣子鸡", description="川味 重辣 下饭", activate=True),
+            Dish(id=9, name="辣子鸡", description="川味 重辣 下饭"),
         ]
     )
     session.flush()

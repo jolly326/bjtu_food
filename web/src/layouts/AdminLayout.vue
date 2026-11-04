@@ -2,10 +2,10 @@
 /**
  * 运营端布局（知行食记 · 运营端）：
  * - 顶层固定导航栏：品牌名 知行食记（无衬线圆体）+ 日期；右侧操作员用户名文本（弱化，非按钮）
- * - 底部应用坞（Dock 式全局导航，规格见 docs/ui/web/公共组件与形态基线.md §2.3）：
+ * - 底部应用坞（Dock 式全局导航）：
  *   四个功能入口（主数据组：食堂 / 档口 / 菜品 ｜ 反馈组：反馈处理，分组分隔线），始终水平居中；
  *   悬停放大上浮 + 名称气泡、激活项主色 + 圆点指示；桌面 / 移动同构（无隐藏态）
- * - 退出登录：顶栏右上角图标按钮（不再放在坞内，避免危险操作混入导航）
+ * - 退出登录：顶栏右上角图标按钮（放在顶栏，不放进坞内，避免危险操作混入导航）
  * - 内容区（唯一滚动容器）：页头吸顶于滚动区上界，内容自其下方穿过；底部留白让出应用坞，防遮挡
  */
 import { useRoute, useRouter } from 'vue-router'
@@ -75,7 +75,7 @@ function onLogout() {
           <router-link
             :to="item.path"
             class="dock__item"
-            :class="{ 'dock__item--on': route.path.startsWith(item.path) }"
+            :class="{ 'dock__item--on': route.name === item.path.replace(/^\//, '') }"
             :data-label="item.label"
             :aria-label="item.label"
           >

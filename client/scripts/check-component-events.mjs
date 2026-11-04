@@ -9,7 +9,7 @@
  * 组件边界冒泡**的原生事件，于是「组件主动 emit」与「原生 tap 冒泡到组件节点」各触发一次
  * ⇒ 一次点击触发两次跳转。全仓统一用业务语义名（`enter` / `press` / `back` / `select` / …）。
  *
- * 口径真源：docs/ui/client/公共组件与形态基线.md（组件对外事件命名约定）
+ * 口径真源：docs/ui/client/菜品首页.md（组件对外事件命名约定）
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'

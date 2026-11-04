@@ -1,16 +1,11 @@
 /* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
-   口径见 docs/ui/client/设计变量.md；改值只改这里，再同步文档。
-
-   形状语言 = Q 版动森：**块越大越圆**，圆角整体比常规设计大一档；
-   动效 = Q 弹（`--ease-bounce` 带过冲的弹性缓动），用于磁贴点按 / 弹窗升起。 */
+   口径见 docs/ui/client/菜品首页.md；改值只改这里，再同步文档。
+   层级靠字号与颜色，动效统一 ease-out，不做过冲。 */
 
 page {
-  /* ===== 圆角（Q 版：整体加大，圆润厚实）===== */
-  /* 全站卡片统一大圆角（菜品图标 / 弹窗面板） */
-  --radius-card: 44rpx;
-  --radius-modal: 56rpx;
+  /* ===== 圆角 / 线宽 ===== */
+  --radius-card: 24rpx;
   --radius-pill: 999rpx;
-  /* 常规描边线宽：图片 / 卡片 / 弹层顶边统一，图片 border 加粗在此集中控制 */
   --border-width: 2rpx;
 
   /* ===== 间距（4pt 栅格）===== */
@@ -21,53 +16,37 @@ page {
   --spacing-lg: 32rpx;
   --spacing-xl: 40rpx;
   --spacing-2xl: 48rpx;
-  /* 全站页面左右统一边距（弹窗面板与页面内容共用） */
   --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
-  /* Q 版动森：优先**系统圆体**（Yuanti SC / 幼圆），命中即得手写松弛感；
-     iOS 若无圆体回退 PingFang SC（本身圆润），Android 回退系统 sans */
   --font-sans: 'Yuanti SC', 'YouYuan', 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC',
     system-ui, sans-serif;
 
-
-  /* ===== 字号（零消费即删：只保留实际消费的档位）===== */
+  /* ===== 字号（只保留实际消费的档位）===== */
   --font-display: 48rpx;
   --font-title: 40rpx;
-  --font-h2: 36rpx;
   --font-h3: 32rpx;
   --font-body: 28rpx;
   --font-subtitle: 26rpx;
   --font-caption: 24rpx;
 
-  /* ===== 字重（Q 版靠字号与颜色立层级，不靠加粗）===== */
+  /* ===== 字重 ===== */
   --weight-regular: 400;
-  --weight-semibold: 600;
 
-  /* ===== 动效（Q 弹）===== */
+  /* ===== 动效 ===== */
   --duration-fast: 140ms;
   --duration-base: 240ms;
-  --duration-slow: 420ms;
-  /* 加载旋转：一圈 2s 匀速（慢速克制） */
   --duration-spin: 2000ms;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  /* 过冲弹性：点按 / 弹窗升起的「Q 弹」缓动 */
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ===== 层级 ===== */
-  /* 悬浮 dock：高于滚动内容、低于弹层 */
   --z-dock: 10;
   --z-sheet: 2000;
 
   /* ===== 高度 ===== */
   --tap-target-size: 96rpx;
-  /* 主可点控件竖直高度：搜索输入 / 搜索按钮 / 主胶囊按钮（饱满厚实，等于触达下限） */
   --control-height: 96rpx;
-  /* 行内小控件竖直高度：与标题同行的「收起」一类胶囊，命中区由组件纵向补足到 --tap-target-size */
   --control-height-sm: 64rpx;
   --header-height: 88rpx;
-  /* 悬浮 dock 净空（156rpx = 胶囊外高 108rpx + 与底缘间距 16rpx + 末行呼吸 32rpx）：
-     胶囊外高 = 控件 96 + 上下内距 4×2 + 描边 2×2；单值以免 calc 嵌套在端上失效，
-     滚动内容按此让出底部净空，末行可滚到胶囊之上（安全区在消费处另加 env） */
   --dock-reserve: 156rpx;
 }

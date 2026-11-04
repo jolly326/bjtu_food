@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 图片占位（口径见 docs/ui/client/公共组件与形态基线.md §1.9）。
+ * 图片占位（口径见 docs/ui/client/菜品首页.md）。
  * 场景：图片缺失 / 加载失败 / 破图；宿主自带底色时用 bare。
  */
 import AppIcon from './AppIcon.vue'

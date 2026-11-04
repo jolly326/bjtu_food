@@ -1,60 +1,46 @@
 <script setup lang="ts">
 /**
- * 菜品图标网格（docs/ui/client/公共组件与形态基线.md §2.2 `DishGrid`）。
+ * 结果区（docs/ui/client/菜品首页.md `DishGrid`）。
  *
- * 3 列竖向滚动；内联展开卡插在被点磁贴所在行的下方（整行），
- * 网格其余部分保持可滚动 / 可点选，不出现遮罩或弹窗。
+ * 1 列竖向滚动结果卡；每个 locations 项渲染一张卡，以 offeringId 为稳定键。
+ * 描述全文展开由 expandedId 单点控制，展开后用 scroll-into-view 把该卡带入可视区。
  */
 import { computed, nextTick, ref, watch } from 'vue'
 
-import type { DishVO } from '@/api'
-import DishExpandCard from './DishExpandCard.vue'
-import DishTile from './DishTile.vue'
+import type { DishLocationVO, DishVO } from '@/api'
+import DishResultCard from './DishResultCard.vue'
 
 defineOptions({ options: { virtualHost: true } })
 
+type CardItem = { dish: DishVO; loc: DishLocationVO; offeringId: number }
+
 const props = defineProps<{
   dishes: DishVO[]
-  empty: boolean
   expandedId: number | null
+  filterLabel: string
+  /** 空态类型：none 正常 / filtered 有约束 0 命中 / plain 无约束 0 命中 / catalog 全量无菜 */
+  emptyKind: 'none' | 'filtered' | 'plain' | 'catalog'
 }>()
 
 const emit = defineEmits<{
-  (e: 'open', dish: DishVO): void
-  (e: 'clear'): void
+  (e: 'open', offeringId: number): void
   (e: 'collapse'): void
-  (e: 'feedback'): void
+  (e: 'feedback', dishId: number): void
+  (e: 'pick', canteenName: string): void
+  (e: 'clear'): void
+  (e: 'relax'): void
 }>()
 
-type Cell =
-  | { type: 'tile'; dish: DishVO }
-  | { type: 'card'; dish: DishVO }
+/** 结果集版本：submittedQuery 变化时递增，用于交叉淡入 */
+const fadeKey = computed(() => props.dishes.map((d) => d.id).join(','))
 
-const cells = computed<Cell[]>(() => {
-  const list = props.dishes
-  const result: Cell[] = []
-
-  if (props.expandedId === null) {
-    list.forEach((dish) => result.push({ type: 'tile', dish }))
-    return result
-  }
-
-  const index = list.findIndex((dish) => dish.id === props.expandedId)
-  if (index < 0) {
-    list.forEach((dish) => result.push({ type: 'tile', dish }))
-    return result
-  }
-
-  // 插到被点磁贴所在行的末尾，避免整行出现空位
-  const rowEnd = Math.min(Math.ceil((index + 1) / 3) * 3, list.length)
-  list.slice(0, rowEnd).forEach((dish) => result.push({ type: 'tile', dish }))
-  result.push({ type: 'card', dish: list[index] })
-  list.slice(rowEnd).forEach((dish) => result.push({ type: 'tile', dish }))
-  return result
-})
+const cards = computed<CardItem[]>(() =>
+  props.dishes.flatMap((dish) =>
+    dish.locations.map((loc) => ({ dish, loc, offeringId: loc.offeringId })),
+  ),
+)
 
 const scrollIntoView = ref('')
-
 watch(
   () => props.expandedId,
   async (id) => {
@@ -63,42 +49,45 @@ watch(
       return
     }
     await nextTick()
-    scrollIntoView.value = `dish-expand-${id}`
+    scrollIntoView.value = `dish-result-${id}`
   },
 )
 </script>
 
 <template>
-  <scroll-view
-    class="grid-scroll"
-    scroll-y
-    :scroll-into-view="scrollIntoView"
-    scroll-with-animation
-  >
-    <view v-if="empty" class="grid-empty">
-      <text class="grid-empty__text">没找到符合的菜，换个说法试试</text>
-      <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('clear')">
-        清空搜索
+  <scroll-view class="grid-scroll" scroll-y :scroll-into-view="scrollIntoView" scroll-with-animation>
+    <view v-if="emptyKind !== 'none'" class="grid-empty">
+      <text v-if="emptyKind === 'filtered'" class="grid-empty__text">
+        「{{ filterLabel }}」暂时没有符合的菜
+      </text>
+      <text v-else-if="emptyKind === 'plain'" class="grid-empty__text">没找到符合的菜，换个说法试试</text>
+      <text v-else class="grid-empty__text">还没有菜品上架</text>
+
+      <view v-if="emptyKind === 'filtered'" class="grid-empty__actions">
+        <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('relax')">去掉该条件</view>
+        <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('clear')">看全部菜品</view>
+      </view>
+      <view v-else-if="emptyKind === 'plain'" class="grid-empty__actions">
+        <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('clear')">看全部菜品</view>
       </view>
     </view>
 
-    <view v-else class="grid">
-      <template v-for="cell in cells" :key="cell.type === 'card' ? `card-${cell.dish.id}` : `tile-${cell.dish.id}`">
-        <view
-          v-if="cell.type === 'card'"
-          :id="`dish-expand-${cell.dish.id}`"
-          class="grid__cell grid__cell--full"
-        >
-          <DishExpandCard
-            :dish="cell.dish"
-            @collapse="emit('collapse')"
-            @feedback="emit('feedback')"
-          />
-        </view>
-        <view v-else class="grid__cell">
-          <DishTile :dish="cell.dish" @open="emit('open', $event)" />
-        </view>
-      </template>
+    <view v-else :key="fadeKey" class="grid">
+      <view
+        v-for="card in cards"
+        :id="`dish-result-${card.offeringId}`"
+        :key="card.offeringId"
+        class="grid__cell"
+      >
+        <DishResultCard
+          :dish="card.dish"
+          :loc="card.loc"
+          :expanded="expandedId === card.offeringId"
+          @open="emit('open', $event)"
+          @feedback="emit('feedback', $event)"
+          @pick="emit('pick', $event)"
+        />
+      </view>
     </view>
   </scroll-view>
 </template>
@@ -110,24 +99,28 @@ watch(
   height: 0;
 }
 
-/* 留白写在滚动内容内层：scroll-view 自身的内边距不参与滚动裁剪，会让内容顶到页头。
-   底部按 `--dock-reserve` 让空，末行才能滚到悬浮搜索胶囊之上，不被遮挡。
-   底部内距分两层声明：先给纯变量兜底，再叠加安全区 —— 后者失效时前者仍生效。 */
 .grid {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  box-sizing: border-box;
   padding: var(--spacing-lg) var(--page-gutter);
   padding-bottom: var(--dock-reserve);
-  padding-bottom: calc(var(--dock-reserve) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--dock-reserve) + env(safe-area-inset-bottom));
+  animation: grid-in var(--duration-base) var(--ease-out);
+}
+
+@keyframes grid-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .grid__cell {
-  width: calc((100% - var(--spacing-md) * 2) / 3);
-  margin-bottom: var(--spacing-md);
-}
-
-.grid__cell--full {
   width: 100%;
 }
 
@@ -146,6 +139,11 @@ watch(
   text-align: center;
 }
 
+.grid-empty__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
 .grid-empty__btn {
   display: flex;
   align-items: center;
@@ -153,11 +151,11 @@ watch(
   box-sizing: border-box;
   height: var(--control-height);
   padding: 0 var(--spacing-xl);
-  border: var(--border-width) solid var(--border-color);
+  border: var(--border-width) solid var(--brand);
   border-radius: var(--radius-pill);
-  background: var(--pill-bg);
+  background: var(--brand);
   font-size: var(--font-subtitle);
-  color: var(--text-title);
+  color: var(--on-brand);
 }
 
 .grid-empty__btn--press {

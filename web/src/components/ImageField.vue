@@ -4,9 +4,11 @@
  *
  * 🔴 延迟上传：选图只做前端压缩与本地预览（blob），**不上传**；由父组件在「保存」时
  * 取 `pending` 事件抛出的文件再上传 COS，避免「选了又取消」也落桶。关闭弹窗即释放 blob。
+ *
+ * 🔴 回滚机制：选图后 modelValue 临时变为本地 blob URL。若用户取消或保存失败，
+ * 父组件将 modelValue 还原为原服务器 URL，本组件监听到该回填即丢弃本地预览、释放 blob 并清空 pending。
  */
-import { onBeforeUnmount, watch } from 'vue'
-import { ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { compressImage } from '@/utils/image'
 
@@ -16,10 +18,12 @@ const props = withDefaults(defineProps<{ modelValue: string; label?: string }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  /** 待上传文件（选图后为非空，移除 / 重置为 null） */
+  /** 待上传文件（选图后为非空，移除 / 回滚为 null） */
   pending: [file: File | null]
 }>()
 
+/** 进入组件前的原始服务器 URL，用于回滚 */
+const originalValue = ref(props.modelValue || '')
 /** 本地预览 blob URL（仅当本次选了新图时存在） */
 const objectUrl = ref('')
 
@@ -52,12 +56,22 @@ function onClear() {
   emit('update:modelValue', '')
 }
 
-// 外部把值清空（如打开编辑重置）时，一并释放本地预览
+// 外部把值清空（如打开编辑重置）或改回服务器 URL（取消 / 保存失败回滚）时，
+// 一并丢弃本地预览、释放 blob 并清空待上传文件；
+// modelValue 为 blob 时是本地预览自身回填，不作处理。
+// 当 modelValue 为非 blob 的服务器 URL 时，持续刷新 originalValue，保证回滚到当前编辑对象的原图。
 watch(
   () => props.modelValue,
   (value) => {
-    if (!value) revoke()
+    if (value && !value.startsWith('blob:')) {
+      originalValue.value = value
+    }
+    if (objectUrl.value && (!value || !value.startsWith('blob:'))) {
+      revoke()
+      emit('pending', null)
+    }
   },
+  { immediate: true },
 )
 
 onBeforeUnmount(revoke)

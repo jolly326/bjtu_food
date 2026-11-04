@@ -86,6 +86,28 @@ class Settings(BaseSettings):
     wechat_appid: str = ""
     wechat_secret: str = ""
 
+    # ---- 语义向量服务（菜品一句话搜索）----
+    # local（默认，本地哈希，零依赖离线）| http（OpenAI 兼容 POST {base}/embeddings）
+    embedding_provider: str = "local"
+    embedding_base_url: str = ""
+    embedding_model: str = ""
+    embedding_api_key: str = ""
+    # 外部调用超时（秒）—— 超时即失败，不拖死搜索请求
+    embedding_timeout: float = 8.0
+    # 可选：>0 时校验返回维度，防「配置了 A 模型却拿到 B 维度」
+    embedding_dim: int = 0
+
+    # ---- System 1 精排服务（可选，失败自动退回向量排序）----
+    system1_enabled: bool = False
+    # rerank：对向量召回 top-N 精排（当前唯一支持的形态）
+    system1_role: str = "rerank"
+    system1_base_url: str = ""
+    system1_model: str = ""
+    system1_api_key: str = ""
+    system1_timeout: float = 6.0
+    # 精排后保留条数
+    system1_top_k: int = 10
+
     # ---- 腾讯云 COS ----
     cos_bucket: str = ""
     cos_region: str = ""
@@ -136,6 +158,11 @@ settings = get_settings()
 def is_production() -> bool:
     """是否生产模式：``APP_ENV`` 取 dev / development / local 之外的值（含缺省）均视为生产。"""
     return settings.app_env.strip().lower() not in {"dev", "development", "local"}
+
+
+def embedding_is_remote() -> bool:
+    """向量服务是否为外部 HTTP 服务（决定「向量缺失/模型不符」时的处置：跳过还是实时补算）。"""
+    return settings.embedding_provider.strip().lower() == "http"
 
 
 def require_cos_domain() -> str:

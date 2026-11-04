@@ -30,7 +30,6 @@ class DishRow:
     name: str
     description: str
     image: str | None
-    activate: bool
     updated_at: str
     offerings: list[OfferingRow]
 
@@ -74,7 +73,6 @@ def _to_row(dish: Dish, offerings: list[OfferingRow]) -> DishRow:
         name=dish.name,
         description=dish.description or "",
         image=to_absolute(dish.image),
-        activate=dish.activate,
         updated_at=format_dt(dish.updated_at) or "",
         offerings=offerings,
     )
@@ -97,11 +95,16 @@ def list_page(
     page: int,
     size: int,
 ) -> tuple[list[DishRow], int]:
+    """
+    查询口径：不按 dish 本体 activate 过滤（状态由 dish_offering 承载）。
+    - canteen_id / stall_id：按售卖点归属过滤
+    - activate：若传入，按“该菜品是否至少有一个售卖点 activate 匹配”过滤
+    - name：按菜品名模糊匹配
+    """
     stmt = select(Dish).order_by(Dish.id)
-    if activate is not None:
-        stmt = stmt.where(Dish.activate == activate)
     if name:
         stmt = stmt.where(Dish.name.like(f"%{name}%"))
+
     if canteen_id is not None:
         stmt = stmt.where(
             Dish.id.in_(select(DishOffering.dish_id).where(DishOffering.canteen_id == canteen_id))
@@ -109,6 +112,12 @@ def list_page(
     if stall_id is not None:
         stmt = stmt.where(
             Dish.id.in_(select(DishOffering.dish_id).where(DishOffering.stall_id == stall_id))
+        )
+    if activate is not None:
+        stmt = stmt.where(
+            Dish.id.in_(
+                select(DishOffering.dish_id).where(DishOffering.activate == activate)
+            )
         )
 
     total = session.scalar(select(func.count()).select_from(stmt.subquery()))

@@ -12,9 +12,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.admin.canteen import repo
-from app.core.cache import invalidate
 from app.core.errors import BadRequest, NotFound
 from app.core.formatters import format_dt
+from app.core.runtime.cache import invalidate
+from app.core.runtime.ratelimit import RULE_ADMIN_LOGIN, check, client_ip
 from app.core.storage import to_absolute, to_relative
 from app.models import Canteen, DishOffering, Stall
 

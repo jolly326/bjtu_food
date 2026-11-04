@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * 请求层：配置 `VITE_TCB_ENV` 后必须走云调用（`wx.cloud.callContainer`），
- * 不再触发 `uni.request` —— 真机免域名白名单（口径见 docs/api/README.md §服务基路径）。
+ * 不触发 `uni.request` —— 真机免域名白名单（口径见 docs/api/CONVENTIONS.md）。
  */
 
 const storage = new Map<string, string>()

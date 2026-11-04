@@ -12,6 +12,7 @@ from app.models import Canteen, Dish, DishOffering, Stall
 
 @dataclass(slots=True)
 class OfferingRow:
+    offering_id: int
     canteen_name: str
     stall_name: str
     floor: str
@@ -25,13 +26,25 @@ class DishRow:
     image: str | None
     description: str
     embedding: list[float] | None
+    embedding_model: str | None
     locations: list[OfferingRow]
 
 
 def list_on_sale(session: Session) -> list[DishRow]:
-    """全部在售菜品 + 其**在售**售卖点（无档口时档口名 / 楼层用空串）。"""
+    """至少有一个在售售卖点的菜品 + 其**在售**售卖点（无档口时档口名 / 楼层用空串）。"""
     dishes = list(
-        session.scalars(select(Dish).where(Dish.activate == True).order_by(Dish.id))
+        session.scalars(
+            select(Dish)
+            .where(
+                select(DishOffering.id)
+                .where(
+                    DishOffering.dish_id == Dish.id,
+                    DishOffering.activate == True,
+                )
+                .exists()
+            )
+            .order_by(Dish.id)
+        )
     )
     if not dishes:
         return []
@@ -54,6 +67,7 @@ def list_on_sale(session: Session) -> list[DishRow]:
     for offering, canteen_name, stall_name, floor in offerings:
         by_dish.setdefault(offering.dish_id, []).append(
             OfferingRow(
+                offering_id=offering.id,
                 canteen_name=canteen_name,
                 stall_name=stall_name,
                 floor=floor,
@@ -68,6 +82,7 @@ def list_on_sale(session: Session) -> list[DishRow]:
             image=d.image,
             description=d.description or "",
             embedding=d.embedding,
+            embedding_model=d.embedding_model,
             locations=by_dish.get(d.id, []),
         )
         for d in dishes

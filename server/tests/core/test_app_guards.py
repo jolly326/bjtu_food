@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.errors import CODE_BAD_REQUEST, CODE_NOT_FOUND, CODE_RATE_LIMITED, CODE_UNAUTHORIZED
-from app.core.ratelimit import RULE_READ_IP, limiter
+from app.core.runtime.ratelimit import RULE_READ_IP, limiter
 from app.main import MAX_REQUEST_BYTES, app
 
 if TYPE_CHECKING:

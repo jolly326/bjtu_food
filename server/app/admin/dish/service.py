@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.admin.dish import repo
 from app.admin.dish.repo import DishRow
-from app.core.cache import invalidate
-from app.core.embedding import LOCAL_MODEL, embed
+from app.core.runtime.cache import invalidate
+from app.core.search.embedding import current_model, embed
 from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
 from app.models import Canteen, Dish, DishOffering, Stall
@@ -23,8 +23,6 @@ from app.models import Canteen, Dish, DishOffering, Stall
 def _validate(payload) -> None:
     if not (payload.name or "").strip():
         raise BadRequest("菜品名称不能为空")
-    if not isinstance(payload.activate, bool):
-        raise BadRequest("activate 必须为布尔值")
 
 
 def _check_offering(session: Session, item) -> None:
@@ -40,9 +38,10 @@ def _check_offering(session: Session, item) -> None:
 
 
 def _set_embedding(dish: Dish) -> None:
+    """保存时按当前生效模型重算向量，并记录模型标识（检索端据此判断能否复用）。"""
     text = (dish.description or dish.name or "").strip()
     dish.embedding = embed(text)
-    dish.embedding_model = LOCAL_MODEL
+    dish.embedding_model = current_model()
 
 
 def _replace_offerings(session: Session, dish: Dish, items: list) -> None:
@@ -88,7 +87,6 @@ def create(session: Session, *, payload) -> DishRow:
         name=name,
         description=payload.description or None,
         image=to_relative(payload.image_url),
-        activate=payload.activate,
     )
     _set_embedding(dish)
     session.add(dish)
@@ -113,7 +111,6 @@ def update(session: Session, *, dish_id: int, payload) -> DishRow:
     dish.name = name
     dish.description = payload.description or None
     dish.image = to_relative(payload.image_url)
-    dish.activate = payload.activate
     _set_embedding(dish)
 
     _replace_offerings(session, dish, payload.offerings or [])

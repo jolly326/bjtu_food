@@ -26,7 +26,7 @@ class Rule:
     window: int  # 秒
 
 
-# ---------- 规则表（docs/secur/S-03 的「限频矩阵」） ----------
+# ---------- 规则表（docs/secur/S-03 的「限频矩阵」）----------
 RULE_RECOMMEND = Rule(60, 3600)     # POST /dishes/recommend（语义匹配）
 RULE_FEEDBACK = Rule(20, 3600)      # POST /feedback（文本反馈）
 RULE_READ_ACCOUNT = Rule(300, 3600)  # 读端点（账号维度，/dishes 使用）

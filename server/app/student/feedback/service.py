@@ -7,11 +7,12 @@
 
 from __future__ import annotations
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.content_security import check_text
 from app.core.errors import BadRequest, NotFound
-from app.models import Dish
+from app.models import Dish, DishOffering
 from app.student.feedback import repo
 
 _TYPES = {"product", "dish"}
@@ -37,7 +38,14 @@ def submit(
         if dish_id is None:
             raise BadRequest("菜品反馈需指定菜品")
         dish = session.get(Dish, dish_id)
-        if dish is None or dish.activate != True:
+        on_sale = dish is not None and bool(
+            session.scalar(
+                select(func.count())
+                .select_from(DishOffering)
+                .where(DishOffering.dish_id == dish_id, DishOffering.activate == True)
+            )
+        )
+        if not on_sale:
             raise NotFound("菜品不存在或已下架")
     else:
         if dish_id is not None:

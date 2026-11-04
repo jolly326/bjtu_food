@@ -1,5 +1,5 @@
 /* 动效层（学生端）：统一时长 / 缓动 / 进入动画 / 减弱动效。
-   口径见 docs/ui/client/公共组件与形态基线.md §1.7「动效 / 层级 / 关键高度」。 */
+   口径见 docs/ui/client/菜品首页.md。 */
 
 @keyframes motion-fade {
   from {
@@ -23,7 +23,9 @@
 
 /* 尊重系统「减弱动效」：显式列出本端动效类（WXSS 不支持 `*` 通配符） */
 @media (prefers-reduced-motion: reduce) {
-  .tile,
+  .bar__extra,
+  .grid,
+  .card__desc--full,
   .dock__field,
   .dock__btn,
   .card,

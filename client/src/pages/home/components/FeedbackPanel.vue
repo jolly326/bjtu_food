@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 文本反馈面板（docs/ui/client/公共组件与形态基线.md §2.2 `FeedbackPanel`）。 */
+/** 文本反馈面板（docs/ui/client/菜品首页.md `FeedbackPanel`）。 */
 import { ref, watch } from 'vue'
 
 import { feedbackApi } from '@/api'
@@ -148,9 +148,8 @@ async function submit(): Promise<void> {
   -webkit-overflow-scrolling: touch;
   padding: var(--spacing-lg);
   border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-modal);
-  background: var(--overlay-panel-bg);
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-card);
+  background: var(--bg-card);
   will-change: transform, opacity;
   animation: motion-rise var(--duration-base) var(--ease-out) both;
 }
@@ -179,8 +178,9 @@ async function submit(): Promise<void> {
 }
 
 .fb__type--on {
-  background: var(--pill-bg);
-  color: var(--text-title);
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .fb__type--disabled {
@@ -218,13 +218,15 @@ async function submit(): Promise<void> {
   padding: 0 var(--spacing-xl);
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-pill);
+  background: var(--bg-card);
   font-size: var(--font-body);
   color: var(--text-body);
 }
 
 .fb__btn--primary {
-  background: var(--pill-bg);
-  color: var(--text-title);
+  border-color: var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 .fb__btn--press {

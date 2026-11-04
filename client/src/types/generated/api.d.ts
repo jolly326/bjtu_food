@@ -159,6 +159,8 @@ export interface components {
     };
     /** DishLocationVO */
     DishLocationVO: {
+      /** Offeringid */
+      offeringId: number;
       /** Canteenname */
       canteenName: string;
       /** Stallname */
@@ -213,8 +215,6 @@ export interface components {
       description: string;
       /** Imageurl */
       imageUrl?: string | null;
-      /** Activate */
-      activate: boolean;
       /** Offerings */
       offerings: components["schemas"]["DishOfferingOut"][];
       /** Updatedat */
@@ -228,11 +228,6 @@ export interface components {
       description?: string | null;
       /** Imageurl */
       imageUrl?: string | null;
-      /**
-       * Activate
-       * @default true
-       */
-      activate?: boolean;
       /**
        * Offerings
        * @default []

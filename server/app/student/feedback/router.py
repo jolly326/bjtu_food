@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.db import get_session
 from app.core.deps import current_student_id
 from app.core.envelope import Envelope, ok
-from app.core.ratelimit import RULE_FEEDBACK, check
+from app.core.runtime.ratelimit import RULE_FEEDBACK, check
 from app.core.schemas import InModel
 from app.student.feedback import service
 

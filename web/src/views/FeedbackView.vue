@@ -13,17 +13,20 @@ import PaginationBar from '@/components/PaginationBar.vue'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
 import { feedbackApi, type FeedbackOut, type FeedbackType } from '@/api'
 
+/** 「全部」哨兵：Element Plus 的 el-option 不接受 undefined 的 value（会触发 prop 校验警告） */
+const ALL = 'all' as const
+
 const filter = reactive({
-  type: undefined as FeedbackType | undefined,
-  /** 处理状态：undefined 全部 / true 已处理 / false 未处理 */
-  handled: undefined as boolean | undefined,
+  type: ALL as FeedbackType | typeof ALL,
+  /** 处理状态：ALL 全部 / true 已处理 / false 未处理 */
+  handled: ALL as boolean | typeof ALL,
 })
 
 const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<FeedbackOut>(
   (p) =>
     feedbackApi.list({
-      type: filter.type,
-      handled: filter.handled,
+      type: filter.type === ALL ? undefined : filter.type,
+      handled: filter.handled === ALL ? undefined : filter.handled,
       page: p,
     }),
 )
@@ -50,7 +53,11 @@ onMounted(load)
 
 <template>
   <section class="page">
-    <Teleport to="#layout-pageheader">
+    <!-- defer：目标 #layout-pageheader 在 AdminLayout 内，是本视图的兄弟节点。
+         Vue 挂载时先渲染子组件、后把父元素插入 document，故挂载瞬间目标尚不在 document 中，
+         直接 Teleport 会解析成 null 并在每次 update 抛未处理异常（列表停在初始空态）。
+         defer 让目标推迟到挂载后解析，此时布局已在 document 中。 -->
+    <Teleport defer to="#layout-pageheader">
       <header class="page__bar">
         <div class="page__titleGroup">
           <h2 class="page__title">反馈处理</h2>
@@ -64,7 +71,7 @@ onMounted(load)
             clearable
             @change="reload"
           >
-            <el-option label="全部类型" :value="undefined" />
+            <el-option label="全部类型" :value="ALL" />
             <el-option label="产品反馈" value="product" />
             <el-option label="菜品反馈" value="dish" />
           </el-select>
@@ -74,7 +81,7 @@ onMounted(load)
             placeholder="全部状态"
             @change="reload"
           >
-            <el-option label="全部状态" :value="undefined" />
+            <el-option label="全部状态" :value="ALL" />
             <el-option label="未处理" :value="false" />
             <el-option label="已处理" :value="true" />
           </el-select>
@@ -117,6 +124,9 @@ onMounted(load)
         </div>
       </div>
 
+      <div v-if="loading" class="list-card">
+        <span class="list-card__empty">加载中…</span>
+      </div>
       <div v-if="!rows.length && !loading" class="list-card">
         <span class="list-card__empty">暂无数据</span>
       </div>

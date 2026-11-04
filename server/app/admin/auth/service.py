@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.admin.auth import repo
 from app.core.errors import Unauthorized
-from app.core.security import ADMIN, create_token, dummy_hash, verify_password
+from app.core.runtime.security import ADMIN, create_token, dummy_hash, verify_password
 from app.models import Admin
 
 

@@ -13,8 +13,8 @@ from fastapi.testclient import TestClient
 
 from app.core import config
 from app.core.errors import CODE_BAD_REQUEST, CODE_RATE_LIMITED, CODE_UNAUTHORIZED
-from app.core.ratelimit import RULE_RECOMMEND, limiter
-from app.core.security import STUDENT, create_token
+from app.core.runtime.ratelimit import RULE_RECOMMEND, limiter
+from app.core.runtime.security import STUDENT, create_token
 from app.main import app
 
 STUDENT_SECRET = "student-secret-0123456789abcdef-0123456789abcdef"

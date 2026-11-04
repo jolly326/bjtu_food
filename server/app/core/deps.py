@@ -10,7 +10,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.errors import Unauthorized
-from app.core.security import ADMIN, STUDENT, current_subject
+from app.core.runtime.security import ADMIN, STUDENT, current_subject
 
 _bearer = HTTPBearer(auto_error=False, description="Bearer <token>")
 

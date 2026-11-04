@@ -1,11 +1,15 @@
 <script setup lang="ts">
 /**
- * 运营端图标：**Streamline Plump Solid 实心 SVG**（`assets/icons`，14 枚，CC BY 4.0；
- * 🔴「零消费即删」—— 新增前先全仓查引用，无消费的不入库，见 docs/ui/web/设计变量.md §2.4）。
- * SVG 一律 `fill="currentColor"` + `fill-rule="evenodd"`（实心、挖孔靠 evenodd，无描边）⇒ 图标跟随宿主 `color` 上色（默认深棕 `#44382E`、弱化态 `#8C7B6B`、激活 / 主操作态暖橙 `#FF8A4C`）。
- * 图标与尺寸口径见 docs/ui/web/公共组件与形态基线.md。
+ * 运营端图标：**Streamline Plump Solid 实心 SVG**（`assets/icons`，13 枚，CC BY 4.0；
+ * 🔴「零消费即删」—— 新增前先全仓查引用，无消费的不入库，口径见各页面稿）。
+ * SVG 一律 `fill="currentColor"`（实心、挖孔靠 evenodd，无描边）⇒ 图标跟随宿主 `color`
+ * （默认深棕 `#44382E`、弱化态 `#8C7B6B`、激活 / 主操作态暖橙 `#FF8A4C`）。
+ *
+ * 实现：Plump 资源以 `?raw` **eager 全量内联**（图标体积极小，13 枚合计 < 8KB），
+ * 同步取值 ⇒ 首屏零闪烁、无按需 chunk、**渲染结果与资源文件绝对一致**
+ * （渲染结果与资源文件同源）。
  */
-import { computed, ref, watchEffect } from 'vue'
+import { computed } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -17,42 +21,19 @@ const props = withDefaults(
   { size: 16 },
 )
 
-/** 按需加载：每个图标独立 chunk，首次使用时才拉取；加载结果缓存 */
-const loaders = import.meta.glob('../assets/icons/*.svg', {
+/** 全部图标同步内联（Plump 资源本体，保留 fill="currentColor" 以跟随宿主 color） */
+const ICONS = import.meta.glob('../assets/icons/*.svg', {
   query: '?raw',
   import: 'default',
-}) as Record<string, () => Promise<string>>
+  eager: true,
+}) as Record<string, string>
 
-const cache = new Map<string, string>()
-const svg = ref('')
+/** 未知键回退 help，避免空白 */
 const FALLBACK_KEY = '../assets/icons/help.svg'
 
-async function loadSvg(key: string): Promise<string> {
-  const load = loaders[key]
-  if (!load) return ''
-  try {
-    return await load()
-  } catch {
-    return ''
-  }
-}
-
-watchEffect(() => {
-  const key = `../assets/icons/${props.name}.svg`
-  const cached = cache.get(key)
-  if (cached !== undefined) {
-    svg.value = cached
-    return
-  }
-  svg.value = ''
-  void (async () => {
-    let text = await loadSvg(key)
-    // 加载失败回退到兜底图标，避免导航出现空白
-    if (!text) text = await loadSvg(FALLBACK_KEY)
-    cache.set(key, text)
-    // 加载期间 name 可能已变，仅当仍是当前图标时写入
-    if (key === `../assets/icons/${props.name}.svg`) svg.value = text
-  })()
+const svg = computed(() => {
+  const raw = ICONS[`../assets/icons/${props.name}.svg`] ?? ICONS[FALLBACK_KEY] ?? ''
+  return raw.trim()
 })
 
 const box = computed(() => ({ width: `${props.size}px`, height: `${props.size}px` }))

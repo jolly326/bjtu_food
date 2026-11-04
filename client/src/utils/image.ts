@@ -1,5 +1,5 @@
 /**
- * 图片 URL 工具：菜品图缩略图（docs/ui/client/公共组件与形态基线.md §1.9）。
+ * 图片 URL 工具：菜品图缩略图（docs/ui/client/菜品首页.md）。
  *
  * 开关 `VITE_USE_COS_THUMB=true` 时给 COS / CDN 图片追加腾讯云数据万象的
  * `imageMogr2/thumbnail/<w>x/quality/80/format/webp` 处理参数（菜品图存于腾讯云 COS，原生支持 imageMogr2）；

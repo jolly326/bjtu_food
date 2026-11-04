@@ -8,7 +8,7 @@ import pytest
 
 from app.core import config
 from app.core.errors import Unauthorized
-from app.core.security import (
+from app.core.runtime.security import (
     ADMIN,
     STUDENT,
     create_token,

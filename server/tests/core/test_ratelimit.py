@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.errors import RateLimited
-from app.core.ratelimit import FixedWindowCounter, Rule, check
+from app.core.runtime.ratelimit import FixedWindowCounter, Rule, check
 
 
 def test_allows_exactly_limit_then_blocks() -> None:

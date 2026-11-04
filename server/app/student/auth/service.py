@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.errors import BadRequest
-from app.core.security import STUDENT, create_token
+from app.core.runtime.security import STUDENT, create_token
 from app.models import User
 
 logger = logging.getLogger(__name__)

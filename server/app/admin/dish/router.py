@@ -33,7 +33,6 @@ class DishSaveIn(InModel):
     name: str
     description: str | None = None
     image_url: str | None = None
-    activate: bool = True
     offerings: list[DishOfferingIn] = []
 
 
@@ -53,7 +52,6 @@ class DishOut(OutModel):
     name: str
     description: str
     image_url: str | None = None
-    activate: bool
     offerings: list[DishOfferingOut]
     updated_at: str
 
@@ -64,7 +62,6 @@ def _to_out(row) -> DishOut:
         name=row.name,
         description=row.description,
         image_url=row.image,
-        activate=row.activate,
         offerings=[
             DishOfferingOut(
                 id=o.id,

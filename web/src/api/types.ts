@@ -48,9 +48,7 @@ export type DishBody = {
   /** 档案富文本：名称 + 口味 + 场景 + 特点 */
   description?: string | null
   imageUrl?: string | null
-  /** 上架状态：true 在售 / false 已下架 */
-  activate?: boolean
-  /** 售卖点列表（整表替换） */
+  /** 售卖点列表（整表替换）：每个售卖点自行携带 activate 状态 */
   offerings?: DishOfferingInput[]
 }
 
@@ -72,7 +70,7 @@ export type DishOut = {
   name: string
   description: string
   imageUrl?: string | null
-  activate: boolean
+  /** 菜品本体不持有上下架状态；状态由每个售卖点 `offerings[].activate` 独立承载 */
   offerings: DishOfferingOut[]
   updatedAt: string
 }

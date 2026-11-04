@@ -38,8 +38,9 @@ const dialog = reactive({
   name: '',
   description: '',
   imageUrl: '',
-  activate: true,
 })
+/** 编辑对象的原图片 URL，用于取消/保存失败时回滚 ImageField 的本地 blob 预览 */
+const originalImageUrl = ref('')
 
 const offerings = ref<OfferingRow[]>([])
 const saving = ref(false)
@@ -62,7 +63,7 @@ watch(
     dialog.name = props.dish?.name ?? ''
     dialog.description = props.dish?.description ?? ''
     dialog.imageUrl = props.dish?.imageUrl ?? ''
-    dialog.activate = props.dish?.activate ?? true
+    originalImageUrl.value = props.dish?.imageUrl ?? ''
     offerings.value = (props.dish?.offerings ?? []).map((offering) => ({
       id: offering.id,
       canteenId: offering.canteenId,
@@ -80,8 +81,16 @@ function stallsOf(canteenId: number | undefined): StallOut[] {
 }
 
 function onCanteenChange(row: OfferingRow): void {
-  // 换食堂后原档口可能失效 ⇒ 重置
+  // 换食堂后原档口可能失效 ⇒ 重置选中档口，下拉选项会随 canteenId 响应式重新计算
   row.stallId = null
+}
+
+/** 判断当前选中的 stallId 是否仍属于所选食堂，不属于则置空（防御性清理） */
+function validateOffering(row: OfferingRow): void {
+  if (row.canteenId && row.stallId) {
+    const belongs = props.stalls.some((s) => s.id === row.stallId && s.canteenId === row.canteenId)
+    if (!belongs) row.stallId = null
+  }
 }
 
 function addRow(): void {
@@ -109,6 +118,10 @@ async function onSave(): Promise<void> {
     ElMessage.warning('菜品名称不能为空')
     return
   }
+  // 保存前防御性校验：确保每个售卖点的 stallId 属于所选食堂
+  for (const row of offerings.value) {
+    validateOffering(row)
+  }
   const payload: DishOfferingInput[] = []
   for (const row of offerings.value) {
     const body = offeringBody(row)
@@ -119,7 +132,7 @@ async function onSave(): Promise<void> {
     if (row.stallId) {
       const stall = props.stalls.find((item) => item.id === row.stallId)
       if (!stall || stall.canteenId !== row.canteenId) {
-        ElMessage.warning('档口所属食堂与售卖点食堂不一致')
+        ElMessage.warning('售卖点所属食堂不匹配')
         return
       }
     }
@@ -137,7 +150,6 @@ async function onSave(): Promise<void> {
       name: dialog.name.trim(),
       description: dialog.description || null,
       imageUrl,
-      activate: dialog.activate,
       offerings: payload,
     }
     if (dialog.id) await dishApi.update(dialog.id, body)
@@ -150,6 +162,12 @@ async function onSave(): Promise<void> {
   } finally {
     saving.value = false
   }
+}
+
+/** 取消：回滚图片预览到原服务器 URL（释放本地 blob）并关闭弹窗 */
+function onCancel(): void {
+  dialog.imageUrl = originalImageUrl.value
+  emit('update:modelValue', false)
 }
 
 function confirmDelete(): void {
@@ -180,12 +198,6 @@ function confirmDelete(): void {
           class="dialog__input dialog__textarea"
           placeholder="名称 + 口味 + 场景 + 特点"
         />
-
-        <label class="dialog__label" for="dish-activate">状态</label>
-        <select id="dish-activate" v-model="dialog.activate" class="dialog__input">
-          <option :value="true">在售</option>
-          <option :value="false">已下架</option>
-        </select>
 
         <label class="dialog__label">菜品图片</label>
         <ImageField v-model="dialog.imageUrl" label="菜品图片" @pending="pendingFile = $event" />
@@ -227,10 +239,28 @@ function confirmDelete(): void {
 
         <p class="dialog__hint">楼层随档口带出；不指定档口时楼层显示「—」。价格留空 = 价格待定。</p>
 
+        <template
+          v-if="
+            offerings.some(
+              (r) =>
+                r.canteenId &&
+                r.stallId &&
+                !props.stalls.some((s) => s.id === r.stallId && s.canteenId === r.canteenId),
+            )
+          "
+        >
+          <p
+            class="dialog__hint"
+            style="color: var(--el-color-danger); font-size: 12px; margin-top: 6px"
+          >
+            部分售卖点的档口与所属食堂不匹配，已自动清空，请重新选择。
+          </p>
+        </template>
+
         <footer class="dialog__foot">
           <button v-if="dialog.id" class="btn btn--danger" @click="view = 'delete'">删除</button>
           <span class="dialog__spacer" />
-          <button class="btn btn--outline" @click="emit('update:modelValue', false)">取消</button>
+          <button class="btn btn--outline" @click="onCancel">取消</button>
           <button class="btn btn--primary" :disabled="saving" @click="onSave">
             {{ saving ? '保存中…' : '保存' }}
           </button>

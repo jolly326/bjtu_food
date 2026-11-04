@@ -1396,6 +1396,10 @@
       },
       "DishLocationVO": {
         "properties": {
+          "offeringId": {
+            "type": "integer",
+            "title": "Offeringid"
+          },
           "canteenName": {
             "type": "string",
             "title": "Canteenname"
@@ -1422,6 +1426,7 @@
         },
         "type": "object",
         "required": [
+          "offeringId",
           "canteenName",
           "stallName",
           "floor",
@@ -1566,10 +1571,6 @@
             ],
             "title": "Imageurl"
           },
-          "activate": {
-            "type": "boolean",
-            "title": "Activate"
-          },
           "offerings": {
             "items": {
               "$ref": "#/components/schemas/DishOfferingOut"
@@ -1587,7 +1588,6 @@
           "id",
           "name",
           "description",
-          "activate",
           "offerings",
           "updatedAt"
         ],
@@ -1620,11 +1620,6 @@
               }
             ],
             "title": "Imageurl"
-          },
-          "activate": {
-            "type": "boolean",
-            "title": "Activate",
-            "default": true
           },
           "offerings": {
             "items": {

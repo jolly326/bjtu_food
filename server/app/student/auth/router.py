@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_session
 from app.core.envelope import Envelope, ok
-from app.core.ratelimit import RULE_WECHAT_LOGIN, check, client_ip
+from app.core.runtime.ratelimit import RULE_WECHAT_LOGIN, check, client_ip
 from app.core.schemas import InModel, OutModel
 from app.student.auth import service
 

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.admin.stall import repo
 from app.admin.stall.repo import StallRow
-from app.core.cache import invalidate
+from app.core.runtime.cache import invalidate
 from app.core.errors import BadRequest, NotFound
 from app.core.storage import to_relative
 from app.models import Canteen, DishOffering, Stall

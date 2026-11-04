@@ -1,31 +1,27 @@
 /**
  * 颜色取值真源（唯一）。
  *
- * 单主题（奶米纸色）：色值只改这里，改完必须同步 `generated-colors.css` 的**同键变量声明**。
- *
- * 动森风移动端规范：奶米 `#FFF7E8`、卡片奶白 `#FFFDF7`、主文字深棕 `#44382E`、
- * 辅助浅棕 `#8C7B6B`、置灰 / 三级 `#9F927D`、浅杏 `#F9E9D8`。
- * 层级表达：仅 `--shadow-soft` / `--shadow-up` 极弱弥散阴影；🔴 无硬阴影 / 渐变 / 3D 堆叠。
+ * 单一色相：中性灰阶承载底色 / 卡面 / 文字 / 描边，唯一彩色是主色 `brand`。
+ * 改值只改这里，改完必须同步 `generated-colors.css` 的同键变量声明。
+ * 无半透明叠加 / 渐变 / 投影；层级靠描边与圆角区分。
  */
 
 export const COLOR_MAP = {
-  /* ===== 文字（深棕 / 辅助浅棕 / 三级）===== */
-  'text-title': '#44382E',
-  'text-body': '#8C7B6B',
-  'text-disabled': '#9F927D',
+  /* ===== 文字 ===== */
+  'text-title': '#1F2937',
+  'text-body': '#6B7280',
+  'text-disabled': '#9CA3AF',
 
   /* ===== 背景 / 边框 ===== */
-  'bg-page': '#FFF7E8',
-  'bg-card': '#FFFDF7',
-  'bg-placeholder': '#F3E7D3',
-  'border-color': '#E6D8C6',
-  /* 浅杏胶囊底：软胶囊按钮（反馈 / 导航）的浅杏承载底 */
-  'pill-bg': '#F9E9D8',
+  'bg-page': '#FFFFFF',
+  'bg-card': '#FFFFFF',
+  'bg-placeholder': '#F3F4F6',
+  'border-color': '#E5E7EB',
 
-  /* ===== 低透明度奶色蒙层 + 极弱弥散阴影 ===== */
-  'overlay-scrim': 'rgba(255,247,232,0.60)',
-  'overlay-panel-bg': '#FFF7E8',
-  'card-divider': '#D9C7B2',
-  'shadow-soft': '0 2rpx 10rpx rgba(68, 56, 46, 0.08)',
-  'shadow-up': '0 -2rpx 12rpx rgba(68, 56, 46, 0.10)',
+  /* ===== 主色与反白色 ===== */
+  brand: '#EA580C',
+  'on-brand': '#FFFFFF',
+
+  /* ===== 浮层遮罩（纯色不透明）===== */
+  'overlay-scrim': '#F3F4F6',
 } as const

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 图标唯一实现（口径见 docs/ui/client/公共组件与形态基线.md §1.8、资源清单 docs/ui/client/图标资源.md）。
- * 资源 = **Streamline Plump（Solid）中性棕实心 SVG**（CC BY 4.0），几何**不自行绘制**。
- * 填充色以显式 `fill`（`#8C7B6B`）落盘，微信 `<image>` 直接渲染，不做运行时换色。
+ * 图标唯一实现（口径见 docs/ui/client/菜品首页.md，键表与署名见 src/theme/icons.ts）。
+ * 资源 = **Streamline Plump（Solid）中性灰实心 SVG**（CC BY 4.0），几何**不自行绘制**。
+ * 填充色以显式 `fill`（`#6B7280`）落盘，微信 `<image>` 直接渲染；主色实底上用 `inverse` 反白。
  */
 import { computed } from 'vue'
 
@@ -15,18 +15,25 @@ const props = withDefaults(
   defineProps<{
     name: string
     size?: number
+    /** 主色实底上反白显示 */
+    inverse?: boolean
   }>(),
-  { size: 28 },
+  { size: 28, inverse: false },
 )
 
 const src = computed(() => iconSrc(props.name))
+const style = computed(() => ({
+  width: props.size + 'rpx',
+  height: props.size + 'rpx',
+  filter: props.inverse ? 'brightness(0) invert(1)' : undefined,
+}))
 </script>
 
 <template>
   <image
     class="icon"
     :src="src"
-    :style="{ width: size + 'rpx', height: size + 'rpx' }"
+    :style="style"
     mode="aspectFit"
     aria-hidden="true"
   />

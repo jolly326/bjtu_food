@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 公共分页条（口径见 docs/ui/web/公共组件与形态基线.md §2.3「分页」）。
+ * 公共分页条。
  * 视图只传当前页 / 是否有下一页 / 总页数（可选，供跳页），翻页事件回抛给 `usePagedList.go`。
  */
 import { ref, watch } from 'vue'

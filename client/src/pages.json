@@ -12,7 +12,7 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "知行食记",
-    "navigationBarBackgroundColor": "#FFF7E8",
-    "backgroundColor": "#FFF7E8"
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#FFFFFF"
   }
 }

@@ -21,10 +21,15 @@ export const SEARCH_DOCK = {
 } as const
 
 export const IMAGE = {
-  /** 磁贴缩略图限宽（px）：3 列磁贴在 3x 屏约 318px */
-  TILE_THUMB_WIDTH: 400,
-  /** 展开卡大图缩略图限宽（px）：整行 16:9 大图在 3x 屏约 933px */
-  CARD_THUMB_WIDTH: 800,
+  /** 结果卡封面缩略图限宽（px）：1 列 16:9 满宽封面在 3x 屏约 1000px */
+  RESULT_THUMB_WIDTH: 1000,
+} as const
+
+export const RESULT = {
+  /** 结果条预算约束档位（元）：与服务端「N 元 / N 块」硬约束同口径 */
+  BUDGET_OPTIONS: [10, 15, 20, 30],
+  /** 描述常驻 3 行的字数阈值，超过则提供「全文」入口 */
+  DESCRIPTION_PREVIEW_CHARS: 72,
 } as const
 
 export const STORAGE = {

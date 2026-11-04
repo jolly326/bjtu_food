@@ -25,7 +25,7 @@
 
 ## 关键设计
 
-> 档口删除后其售卖点保留（`dish_offering.stall_id` 置空），不再构成删除阻力。
+> 档口删除后其售卖点保留（`dish_offering.stall_id` 置空），不构成删除阻力。
 
 ### `floor` 是受控字典（取值清单）
 

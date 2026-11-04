@@ -1,20 +1,25 @@
-/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md）。
-   与学生端同源的 **Q 版动森**：暖奶油页面底 + 奶白卡面、卡片无实线描边、
-   **极弱弥散阴影**（双层低透明、无硬堆叠）、圆润厚实的大圆角、无衬线圆体、
-   Q 版暖橙主色 #FF8A4C、大面积留白。 */
+/* 运营端主题：**唯一**覆盖层（取值唯一真源）。
+   融合 **animal-island-ui 治愈系海岛** 与 **cafe 温馨咖啡厅**：
+   暖羊皮纸页面底 + 奶白卡面、大地棕文字（绝不用纯黑）、
+   薄荷/暖橙主色、大圆角 pill 形控件（交互元素圆角 ≥12px、按钮/输入 pill 形）、
+   极弱弥散双层阴影（卡片靠阴影浮起，不画描边）、3D 堆叠阴影仅用于 primary 按钮、
+   圆体无衬线字体、cubic-bezier(0.4, 0, 0.2, 1) 柔和动效（0.15–0.35s）、大面积留白。 */
 
 /* 🔴 html:root（特异性 0-1-1）而非 :root（0-1-0）：即使按需引入的组件样式
    （如 element-plus base）在懒加载时晚于本文件注入 <head>，其自带的
    `:root { --el-color-primary: #409eff }` 也无法覆盖此处的品牌变量（主题变蓝防线） */
 html:root {
-  /* ===== 品牌主色（与学生端 --color-primary 逐字一致：Q 版暖橙） ===== */
+  /* ===== 品牌主色（animal-island 薄荷 + cafe 暖橙融合：主操作暖橙，辅助薄荷） ===== */
   --el-color-primary: #ff8a4c;
-  --el-color-primary-light-3: #ffa873;
-  --el-color-primary-light-5: #ffc09a;
-  --el-color-primary-light-7: #ffd8c0;
-  --el-color-primary-light-8: #ffe4d2;
-  --el-color-primary-light-9: #fff0e5;
+  --el-color-primary-light-3: #ffb38c;
+  --el-color-primary-light-5: #ffd0b4;
+  --el-color-primary-light-7: #ffe4d2;
+  --el-color-primary-light-8: #ffefdf;
+  --el-color-primary-light-9: #fff7e8;
   --el-color-primary-dark-2: #e06a2e;
+  /* 辅助薄荷（成功 / 待处理标签，animal-island 薄荷青绿） */
+  --el-color-mint: #7fd6a8;
+  --el-color-mint-light-9: #e8f5ee;
   /* 🔴 light-3/5/7、dark-2 与下方 info / border-color-light 由 Element Plus 组件内部消费
      （按钮 hover、弹层边框、MessageBox 图标等）—— 静态扫描不可见，check:tokens 列为
      「零引用」属预期，按「EP 内部消费」保留，🔴 不得零消费即删 */
@@ -30,17 +35,17 @@ html:root {
   --el-color-warning-light-9: #fdf3e3;
   --el-color-danger-light-9: #fcedea;
 
-  /* ===== 页面 / 卡面（暖奶油底 + 奶白卡） ===== */
-  --el-bg-color-page: #fff7e8;
+  /* ===== 页面 / 卡面（暖羊皮纸底 #F9F7F5 + 奶白卡 #FFFDF7） ===== */
+  --el-bg-color-page: #f9f7f5;
   --el-bg-color: #fffdf7;
   --el-bg-color-overlay: #fffdf7;
   /* 卡面：奶白（卡片靠极弱弥散阴影浮起，不画描边） */
   --web-bg-card: #fffdf7;
-  --el-fill-color-light: #f6eee1;
+  --el-fill-color-light: #f3e7d2;
   --el-fill-color-lighter: #fbf6ee;
   --el-fill-color: #f1e7d6;
 
-  /* ===== 文字层级（暖棕阶，与学生端同值） ===== */
+  /* ===== 文字层级（大地棕阶，绝不用纯黑；cafe #3E2B1E + animal-island 大地棕） ===== */
   --el-text-color-primary: #44382e;
   --el-text-color-regular: #6b5140;
   --el-text-color-secondary: #7a6049;
@@ -52,17 +57,19 @@ html:root {
   --el-border-color-lighter: #f8f2e9;
   --el-border-color-extra-light: #fbf7f0;
 
-  /* ===== 圆角（Q 版：整体加大，圆润厚实） ===== */
+  /* ===== 圆角（大圆角 pill：交互元素 ≥12px，按钮/输入 pill 999px） ===== */
   --el-border-radius-base: 16px;
-  --el-border-radius-large: 22px;
+  --el-border-radius-large: 24px;
   --web-radius-sm: 12px;
-  --web-radius-card: 22px;
+  --web-radius-card: 24px;
   --web-radius-pill: 999px;
 
-  /* ===== 阴影（极弱弥散：贴合 cozy 软阴影，无硬堆叠） ===== */
+  /* ===== 阴影（极弱弥散双层：card 浮起；primary 按钮额外 3D 堆叠阴影见 btn 定义） ===== */
   --el-box-shadow-light: 0 2px 8px rgba(68, 56, 46, 0.08), 0 8px 20px rgba(68, 56, 46, 0.06);
   --el-box-shadow-elevated: 0 4px 16px rgba(68, 56, 46, 0.1), 0 12px 32px rgba(68, 56, 46, 0.08);
   --web-shadow-card: 0 2px 8px rgba(68, 56, 46, 0.08), 0 8px 20px rgba(68, 56, 46, 0.06);
+  /* 3D 堆叠阴影（仅 primary 按钮 opt-in，animal-island 规则 #6） */
+  --web-shadow-btn-3d: 0 4px 0 rgba(68, 56, 46, 0.18), 0 8px 16px rgba(68, 56, 46, 0.12);
 
   /* ===== 间距节奏（留白优先） ===== */
   --web-gap-tight: 10px;
@@ -305,12 +312,20 @@ h3 {
   border-color: var(--el-color-primary);
   background: var(--el-color-primary);
   color: #fff;
+  box-shadow: var(--web-shadow-btn-3d);
 }
 
 #app .btn--primary:hover {
   border-color: var(--el-color-primary-dark-2);
   background: var(--el-color-primary-dark-2);
   color: #fff;
+  box-shadow: var(--web-shadow-btn-3d);
+}
+
+#app .btn--primary:active {
+  transform: translateY(4px);
+  box-shadow: none;
+  opacity: 1;
 }
 
 /* ===== 弹窗：贴纸 + 柔和阴影 + 暖色遮罩（无描边） ===== */
@@ -353,10 +368,10 @@ h3 {
 
 #app .dialog__input {
   width: 100%;
-  height: 34px;
-  padding: 0 12px;
+  height: 44px;
+  padding: 0 14px;
   border: 1px solid var(--el-border-color-light);
-  border-radius: var(--el-border-radius-base);
+  border-radius: var(--web-radius-pill);
   background: var(--el-bg-color);
   color: var(--el-text-color-primary);
   font-family: inherit;
@@ -626,23 +641,32 @@ h3 {
   box-shadow: var(--el-box-shadow-light);
 }
 
-/* ===== 状态标签（基础形态全站收口） ===== */
+/* ===== 状态标签（基础形态全站收口：pill 形） ===== */
 #app .tag {
-  display: inline-block;
-  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: var(--web-radius-pill);
   font-size: 12px;
   line-height: 18px;
+  font-weight: 500;
 }
 
 #app .tag--on {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
+  background: var(--el-color-mint-light-9);
+  color: var(--el-color-mint);
 }
 
 #app .tag--off {
   background: var(--el-fill-color);
   color: var(--el-text-color-secondary);
+}
+
+/* 薄荷标签（待处理 / 未标记） */
+#app .tag--mint {
+  background: var(--el-color-mint-light-9);
+  color: var(--el-color-mint);
 }
 
 /* ===== 响应式：≥1200 宽松 / 900–1199 收紧 / ≤767 手机触控 / ≤640 窄屏纵排 =====

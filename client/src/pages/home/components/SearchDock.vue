@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * 底部搜索胶囊（docs/ui/client/公共组件与形态基线.md §2.2 `SearchDock`）。
+ * 底部搜索胶囊（docs/ui/client/菜品首页.md `SearchDock`）。
  *
- * 悬浮胶囊：输入框 + 放大镜搜索按钮；无聚焦变色，长时间无交互整体淡出待机。
+ * 悬浮胶囊：输入框 + 主色实底放大镜按钮；无聚焦变色，长时间无交互整体淡出待机。
  */
 import { onMounted, ref, watch } from 'vue'
 
@@ -86,9 +86,9 @@ onMounted(sleep)
       @tap="submit"
     >
       <view v-if="searching" class="dock__spinner">
-        <AppIcon name="loading" :size="40" />
+        <AppIcon name="loading" :size="40" inverse />
       </view>
-      <AppIcon v-else name="search" :size="40" />
+      <AppIcon v-else name="search" :size="40" inverse />
     </view>
   </view>
 </template>
@@ -111,8 +111,7 @@ onMounted(sleep)
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-pill);
   background: var(--bg-card);
-  box-shadow: var(--shadow-soft);
-  transition: opacity var(--duration-slow) var(--ease-out);
+  transition: opacity var(--duration-base) var(--ease-out);
 }
 
 /* 待机：长时间无交互 ⇒ 整体淡出，任意点击 / 输入立即回到常态 */
@@ -151,7 +150,7 @@ onMounted(sleep)
   opacity: 0.6;
 }
 
-/* 搜索按钮：圆形浅杏底 + 放大镜图标（不做变色反馈） */
+/* 搜索按钮：主色实底 + 反白放大镜（不做变色反馈） */
 .dock__btn {
   display: flex;
   align-items: center;
@@ -160,17 +159,14 @@ onMounted(sleep)
   box-sizing: border-box;
   width: var(--control-height);
   height: var(--control-height);
+  border: var(--border-width) solid var(--brand);
   border-radius: var(--radius-pill);
-  background: var(--pill-bg);
-  border: var(--border-width) solid var(--border-color);
-  transition:
-    transform var(--duration-fast) var(--ease-out),
-    opacity var(--duration-fast) var(--ease-out);
+  background: var(--brand);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 
 .dock__btn--press {
   opacity: 0.7;
-  transform: scale(0.97);
 }
 
 .dock__btn--busy {
@@ -187,6 +183,7 @@ onMounted(sleep)
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
