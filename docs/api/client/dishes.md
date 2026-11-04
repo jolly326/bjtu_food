@@ -1,66 +1,58 @@
-# 学生端接口 · 菜品
+# 菜品（学生端）
 
-> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/CONVENTIONS.md`](../CONVENTIONS.md)。
-> 列定义见 [`schema/dish.md`](../../schema/dish.md) 与 [`schema/dish_offering.md`](../../schema/dish_offering.md)。
+> 真源：端点 / 入参 / 出参 / 错误码。页面形态见 [`docs/ui/client/菜品首页.md`](../../ui/client/菜品首页.md)，业务流程见 [`docs/func/client/A-浏览与发现/A1-搜索找菜.md`](../../func/client/A-浏览与发现/A1-搜索找菜.md)。
 
-## `GET /dishes`
+## `GET /dishes` — 全量在售菜品
 
-🔑 需携带静默身份 `student_token` —— 全量在售菜品，供学生端无条件结果集渲染。
+**鉴权**：🔑 匿名（静默 `student_token`）｜**限频**：读接口账户级
 
 | 项 | 口径 |
 |---|---|
-| 入参 | 无（不分页） |
-| 出参 | `DishVO[]` —— 全量在售菜品 |
-| 过滤 | 仅返回至少有一个在售售卖点的菜品（由 `dish_offering.activate = true` 判定） |
-| 排序 | 服务端不排序（网格顺序由端上决定） |
-| 缓存 | 响应带 `ETag` + `Cache-Control: private, max-age=30`；后台写操作后立即失效 |
-| 错误码 | `401` 缺少 / 无效身份 token |
+| 过滤 | 只返回**至少有一个在售位置**的菜品；`locations` 只含 `activate = true` 的位置 |
+| 缓存 | `ETag` + `Cache-Control: private, max-age=30`；`If-None-Match` 命中返回 `304` |
+| 排序 | 菜品 `id` 升序，位置 `id` 升序（端上按菜名做一次稳定序） |
 
-**`DishVO`**
+**出参 `data: DishVO[]`**
 
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 菜品 ID |
-| `name` | string | 否 | 菜品名称 |
-| `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 未配图 |
-| `description` | string | 否 | 档案富文本（缺失为 `''`） |
-| `locations` | `DishLocationVO[]` | 否 | 售卖点列表，恒为数组 |
+| `name` | string | 否 | 菜名；不同档口同名是不同 `id` |
+| `imageUrl` | string | **是** | 菜品图（绝对 URL）；`null` = 无图 |
+| `description` | string | 否 | 档案富文本（无描述为空串） |
+| `price` | number | **是** | 售价（**分**），同一菜品多位置共用；`null` = 未录入 |
+| `locations` | `DishLocationVO[]` | 否 | 该菜品的在售位置，恒为数组 |
 
 **`DishLocationVO`**
 
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
-| `offeringId` | number | 否 | 售卖点 ID（`dish_offering.id`）；端上作结果卡稳定键 |
+| `id` | number | 否 | 位置 ID（学生端卡片身份） |
 | `canteenName` | string | 否 | 食堂名 |
 | `stallName` | string | 否 | 档口名；无档口为 `''` ⇒ 展示「暂无」 |
-| `floor` | string | 否 | 楼层；缺失为 `''` ⇒ 展示「暂无」 |
-| `price` | number | **是** | 售价（**分**）；`null` = 未录入 |
+| `floor` | string | 否 | 楼层（取档口）；缺失为 `''` ⇒ 展示「暂无」 |
 
-> 一菜多售卖点 ⇒ `locations` 多项，端上按每项渲染一张结果卡；`description` 属菜品本体，随各卡展示。
+> 一道菜挂 N 个在售位置 ⇒ 端上渲染 N 张卡：图 / 描述 / 价格相同，`食堂 · 楼层 · 档口` 不同。
 
-## `POST /dishes/recommend`
+## `POST /dishes/recommend` — 一句话匹配
 
-🔑 需携带静默身份 `student_token` —— **输入一句话，返回匹配菜品**。
+**鉴权**：🔑 匿名｜**限频**：推荐接口账户级
 
-| 项 | 口径 |
+**入参**：`{ query: string }`，≤200 字。
+
+**出参 `data: { dishes: DishVO[] }`**（字段同上）
+
+| 环节 | 口径 |
 |---|---|
-| 入参 | `{ query: string }` —— 用户原话，1–200 字 |
-| 出参 | `{ dishes: DishVO[] }` —— 命中菜品，按相关度降序 |
-| 处理 | ① 抽取硬约束（**完整菜名 / 食堂名 / 价格上限**）→ ② 在售菜品与售卖点精确过滤 → ③ 语义向量余弦排序（取前 30）→ ④（可选）System 1 精排（取前 10） |
-| 硬约束 | 完整菜名命中 ⇒ 只返回该菜；食堂名 / `N 元` 命中 ⇒ 只保留符合条件的**售卖点**（`locations` 同步收窄）；三类都未命中 ⇒ 不过滤 |
-| 条数 | 未开精排最多 `30` 条、开精排最多 `10` 条；🔴 **不设相似度下限** —— 过滤后的结果全部按相关度降序返回（`dishes = []` 仅出现在硬约束过滤后为空、或向量未回填时） |
-| 向量服务 | `EMBEDDING_PROVIDER=local`（本地哈希）或 `http`（OpenAI 兼容）；**只使用 `embedding_model` 与当前模型一致的预计算向量**，不符的行在外部模式下**跳过**（由回填脚本补齐） |
-| 空结果 | `dishes = []` |
-| 缓存 | 同一 `query` **30 秒内复用结果**（含向量与精排结果）；后台任何菜品 / 食堂 / 档口写操作立即失效 |
-| 降级 | **向量服务**超时 / 失败 ⇒ `500`（端上提示稍后再试）；**精排失败 ⇒ 退化为向量排序**，不报错 |
-| 限频 | 见 [`secur/S-03`](../../secur/S-03-限频与接口防护.md) |
-| 错误码 | `400` query 缺失 / 超长 ｜ `401` 身份无效 ｜ `429` 命中限频 ｜ `500` 模型异常 |
+| 硬约束 | 完整菜名 / 食堂名 / 价格上限（`N 元` / `N 块`，不超过）；按位置过滤后按菜品聚合 |
+| 排序 | 车型向量余弦降序（一道菜共享向量），同分保持服务端原始顺序；端上不二次排序 |
+| 条数 | 未开精排最多 30 条、开精排最多 10 条；不设相似度下限 |
+| 精排 | `SYSTEM1_ENABLED=true` 时对 top-30 rerank 取前 10；失败退回向量排序 |
 
-> 业务规则见 [`func/client/A1`](../../func/client/A-浏览与发现/A1-搜索找菜.md)；“软意图”直接由 `query` 原文计算向量，不做自由文本抽取；硬约束只认三类。
+**错误码**
 
-## 契约摘要
-
-| 端点 | 用途 |
+| 码 | 场景 |
 |---|---|
-| `GET /dishes` | 初始网格：全量在售菜品 |
-| `POST /dishes/recommend` | 一句话匹配：返回命中菜品 |
+| `400` | 查询为空 / 超过 200 字 |
+| `401` | 身份无效 |
+| `429` | 命中限频（带 `Retry-After`） |

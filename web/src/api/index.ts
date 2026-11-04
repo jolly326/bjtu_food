@@ -9,8 +9,8 @@ export { upload } from './request'
 export type {
   CanteenOut,
   DishBody,
-  DishOfferingInput,
-  DishOfferingOut,
+  DishLocationInput,
+  DishLocationOut,
   DishOut,
   FeedbackOut,
   FeedbackType,

@@ -48,5 +48,10 @@ page {
   --control-height: 96rpx;
   --control-height-sm: 64rpx;
   --header-height: 88rpx;
-  --dock-reserve: 156rpx;
+  /* 结果卡信息区右栏（售价 / 位置）固定宽 */
+  --card-side-width: 200rpx;
+  /* 悬浮 HUD 净空 = 常态高度 212rpx（筛选行 96 + 行间距 8 + 胶囊外高 108）
+     + 候选值展开余量 96rpx + 与底缘间距 16rpx + 末行呼吸 32rpx；
+     单值落盘以免嵌套 calc 在端上失效，安全区在消费处叠加 env */
+  --dock-reserve: 356rpx;
 }

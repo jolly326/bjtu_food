@@ -1394,47 +1394,7 @@
         ],
         "title": "CanteenSaveIn"
       },
-      "DishLocationVO": {
-        "properties": {
-          "offeringId": {
-            "type": "integer",
-            "title": "Offeringid"
-          },
-          "canteenName": {
-            "type": "string",
-            "title": "Canteenname"
-          },
-          "stallName": {
-            "type": "string",
-            "title": "Stallname"
-          },
-          "floor": {
-            "type": "string",
-            "title": "Floor"
-          },
-          "price": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price"
-          }
-        },
-        "type": "object",
-        "required": [
-          "offeringId",
-          "canteenName",
-          "stallName",
-          "floor",
-          "price"
-        ],
-        "title": "DishLocationVO"
-      },
-      "DishOfferingIn": {
+      "DishLocationIn": {
         "properties": {
           "id": {
             "anyOf": [
@@ -1461,17 +1421,6 @@
               }
             ],
             "title": "Stallid"
-          },
-          "price": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price"
           },
           "activate": {
             "type": "boolean",
@@ -1484,9 +1433,9 @@
         "required": [
           "canteenId"
         ],
-        "title": "DishOfferingIn"
+        "title": "DishLocationIn"
       },
-      "DishOfferingOut": {
+      "DishLocationOut": {
         "properties": {
           "id": {
             "type": "integer",
@@ -1518,17 +1467,6 @@
           "floor": {
             "type": "string",
             "title": "Floor"
-          },
-          "price": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price"
           },
           "activate": {
             "type": "boolean",
@@ -1544,7 +1482,35 @@
           "floor",
           "activate"
         ],
-        "title": "DishOfferingOut"
+        "title": "DishLocationOut"
+      },
+      "DishLocationVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "canteenName": {
+            "type": "string",
+            "title": "Canteenname"
+          },
+          "stallName": {
+            "type": "string",
+            "title": "Stallname"
+          },
+          "floor": {
+            "type": "string",
+            "title": "Floor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "canteenName",
+          "stallName",
+          "floor"
+        ],
+        "title": "DishLocationVO"
       },
       "DishOut": {
         "properties": {
@@ -1571,12 +1537,23 @@
             ],
             "title": "Imageurl"
           },
-          "offerings": {
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "locations": {
             "items": {
-              "$ref": "#/components/schemas/DishOfferingOut"
+              "$ref": "#/components/schemas/DishLocationOut"
             },
             "type": "array",
-            "title": "Offerings"
+            "title": "Locations"
           },
           "updatedAt": {
             "type": "string",
@@ -1588,7 +1565,7 @@
           "id",
           "name",
           "description",
-          "offerings",
+          "locations",
           "updatedAt"
         ],
         "title": "DishOut"
@@ -1621,12 +1598,23 @@
             ],
             "title": "Imageurl"
           },
-          "offerings": {
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "locations": {
             "items": {
-              "$ref": "#/components/schemas/DishOfferingIn"
+              "$ref": "#/components/schemas/DishLocationIn"
             },
             "type": "array",
-            "title": "Offerings",
+            "title": "Locations",
             "default": []
           }
         },
@@ -1662,6 +1650,17 @@
             "type": "string",
             "title": "Description"
           },
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
           "locations": {
             "items": {
               "$ref": "#/components/schemas/DishLocationVO"
@@ -1676,6 +1675,7 @@
           "name",
           "imageUrl",
           "description",
+          "price",
           "locations"
         ],
         "title": "DishVO"

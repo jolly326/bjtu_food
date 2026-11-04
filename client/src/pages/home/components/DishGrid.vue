@@ -2,17 +2,14 @@
 /**
  * 结果区（docs/ui/client/菜品首页.md `DishGrid`）。
  *
- * 1 列竖向滚动结果卡；每个 locations 项渲染一张卡，以 offeringId 为稳定键。
- * 描述全文展开由 expandedId 单点控制，展开后用 scroll-into-view 把该卡带入可视区。
+ * 1 列竖向滚动结果卡；一道菜的每个在售位置渲染一张卡，以 `dish_location.id` 为稳定键。
  */
 import { computed, nextTick, ref, watch } from 'vue'
 
-import type { DishLocationVO, DishVO } from '@/api'
+import type { DishVO } from '@/api'
 import DishResultCard from './DishResultCard.vue'
 
 defineOptions({ options: { virtualHost: true } })
-
-type CardItem = { dish: DishVO; loc: DishLocationVO; offeringId: number }
 
 const props = defineProps<{
   dishes: DishVO[]
@@ -23,22 +20,20 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'open', offeringId: number): void
+  (e: 'open', locationId: number): void
   (e: 'collapse'): void
   (e: 'feedback', dishId: number): void
-  (e: 'pick', canteenName: string): void
   (e: 'clear'): void
   (e: 'relax'): void
 }>()
 
-/** 结果集版本：submittedQuery 变化时递增，用于交叉淡入 */
-const fadeKey = computed(() => props.dishes.map((d) => d.id).join(','))
-
-const cards = computed<CardItem[]>(() =>
-  props.dishes.flatMap((dish) =>
-    dish.locations.map((loc) => ({ dish, loc, offeringId: loc.offeringId })),
-  ),
+/** 菜品 × 位置摊平：每个在售位置一张卡 */
+const cards = computed(() =>
+  props.dishes.flatMap((dish) => dish.locations.map((loc) => ({ dish, loc }))),
 )
+
+/** 结果集版本：结果行变化时递增，用于交叉淡入 */
+const fadeKey = computed(() => cards.value.map((card) => card.loc.id).join(','))
 
 const scrollIntoView = ref('')
 watch(
@@ -75,17 +70,16 @@ watch(
     <view v-else :key="fadeKey" class="grid">
       <view
         v-for="card in cards"
-        :id="`dish-result-${card.offeringId}`"
-        :key="card.offeringId"
+        :id="`dish-result-${card.loc.id}`"
+        :key="card.loc.id"
         class="grid__cell"
       >
         <DishResultCard
           :dish="card.dish"
           :loc="card.loc"
-          :expanded="expandedId === card.offeringId"
+          :expanded="expandedId === card.loc.id"
           @open="emit('open', $event)"
           @feedback="emit('feedback', $event)"
-          @pick="emit('pick', $event)"
         />
       </view>
     </view>

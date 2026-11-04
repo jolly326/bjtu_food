@@ -1,4 +1,4 @@
-"""ORM 模型层（跨域共享，7 张表，按表拆文件）。
+"""ORM 模型层（跨域共享，8 张表，按表拆文件）。
 
 🔴 列 / 类型 / 可空 / 默认 / 索引 / 外键 / 级联规则**全部对应** ``docs/schema/*.md``，
 在此处**新增列 / 改类型 / 加唯一键**都视为违反真源，须先改文档。
@@ -13,7 +13,8 @@ from app.models.admin import Admin
 from app.models.base import Base
 from app.models.canteen import Canteen
 from app.models.dish import Dish
-from app.models.dish_offering import DishOffering
+from app.models.dish_embedding import DishEmbedding
+from app.models.dish_location import DishLocation
 from app.models.feedback import Feedback
 from app.models.stall import Stall
 from app.models.user import User
@@ -23,7 +24,8 @@ __all__ = [
     "Base",
     "Canteen",
     "Dish",
-    "DishOffering",
+    "DishEmbedding",
+    "DishLocation",
     "Feedback",
     "Stall",
     "User",

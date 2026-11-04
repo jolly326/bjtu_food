@@ -8,6 +8,6 @@
 
 import type { components } from '@/types/generated/api'
 
-export type DishVO = components['schemas']['DishVO']
 export type DishLocationVO = components['schemas']['DishLocationVO']
+export type DishVO = components['schemas']['DishVO']
 export type RecommendOut = components['schemas']['RecommendOut']

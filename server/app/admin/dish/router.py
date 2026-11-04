@@ -1,8 +1,8 @@
 """运营端菜品管理（docs/api/web/dishes.md）。
 
     GET    /admin/dishes?canteenId=&stallId=&activate=&name=   分页
-    POST   /admin/dishes                                        新建（含售卖点）
-    PUT    /admin/dishes/{id}                                   修改（售卖点整表替换）
+    POST   /admin/dishes                                        新建（含位置）
+    PUT    /admin/dishes/{id}                                   修改（位置整表替换）
     DELETE /admin/dishes/{id}                                   删除
 """
 
@@ -21,11 +21,10 @@ from app.core.schemas import InModel, OutModel
 router = APIRouter(prefix="/admin/dishes", tags=["admin-dish"])
 
 
-class DishOfferingIn(InModel):
+class DishLocationIn(InModel):
     id: int | None = None
     canteen_id: int
     stall_id: int | None = None
-    price: int | None = None
     activate: bool = True
 
 
@@ -33,17 +32,17 @@ class DishSaveIn(InModel):
     name: str
     description: str | None = None
     image_url: str | None = None
-    offerings: list[DishOfferingIn] = []
+    price: int | None = None
+    locations: list[DishLocationIn] = []
 
 
-class DishOfferingOut(OutModel):
+class DishLocationOut(OutModel):
     id: int
     canteen_id: int
     canteen_name: str
     stall_id: int | None = None
     stall_name: str
     floor: str
-    price: int | None = None
     activate: bool
 
 
@@ -52,7 +51,8 @@ class DishOut(OutModel):
     name: str
     description: str
     image_url: str | None = None
-    offerings: list[DishOfferingOut]
+    price: int | None = None
+    locations: list[DishLocationOut]
     updated_at: str
 
 
@@ -62,18 +62,18 @@ def _to_out(row) -> DishOut:
         name=row.name,
         description=row.description,
         image_url=row.image,
-        offerings=[
-            DishOfferingOut(
-                id=o.id,
-                canteen_id=o.canteen_id,
-                canteen_name=o.canteen_name,
-                stall_id=o.stall_id,
-                stall_name=o.stall_name,
-                floor=o.floor,
-                price=o.price,
-                activate=o.activate,
+        price=row.price,
+        locations=[
+            DishLocationOut(
+                id=loc.id,
+                canteen_id=loc.canteen_id,
+                canteen_name=loc.canteen_name,
+                stall_id=loc.stall_id,
+                stall_name=loc.stall_name,
+                floor=loc.floor,
+                activate=loc.activate,
             )
-            for o in row.offerings
+            for loc in row.locations
         ],
         updated_at=row.updated_at,
     )

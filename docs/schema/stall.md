@@ -1,6 +1,6 @@
 # stall — 档口
 
-**用途**：档口 —— 运营端录入售卖点时的**下拉源**，承载楼层 / 窗口号等位置信息。
+**用途**：档口 —— 运营端录入菜品时的**下拉源**，承载楼层 / 窗口号等位置信息。
 
 ## 列定义
 
@@ -25,7 +25,7 @@
 
 ## 关键设计
 
-> 档口删除后其售卖点保留（`dish_offering.stall_id` 置空），不构成删除阻力。
+> 档口删除后其菜品位置保留（`dish_location.stall_id` 置空），不构成删除阻力。
 
 ### `floor` 是受控字典（取值清单）
 
@@ -42,13 +42,13 @@
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
 | N→1 | `canteen.id` | 所属食堂 | 无级联（外键 `fk_stall_canteen`） |
-| 1→n | `dish_offering.stall_id` | 该档口的售卖点 | **`ON DELETE SET NULL`**（档口删除后售卖点保留、档口置空） |
+| 1→n | `dish_location.stall_id` | 该档口下的菜品位置 | **`ON DELETE SET NULL`**（档口删除后菜品位置保留、档口置空） |
 
 ## 注意事项
 
-- `name` 在**同一食堂下**的唯一性由**应用层**保证（无 DB 唯一索引）。
+- `(canteen_id, name)` 由唯一键 `uk_stall_canteen_name` 保证唯一。
 - **未归位档口**：`canteen_id` 为空的档口允许存在，运营端列表标注「未归位」并可后续归位。
 - 管理端维护入口：运营端「档口管理」。
 - **封面图** `image`：运营端展示用（相对路径入库、出参绝对 URL）；学生端不消费。
 - `floor`：菜品详情「位置」展示（食堂 · 楼层 · 档口）的来源。
-- **一次性清库口径**：先删子表 `feedback` / `dish_offering` / `dish`，再删无引用的 `stall`，最后删无引用的 `canteen`（`dish_offering.canteen_id` 为 `RESTRICT`，须在售卖点删尽后删）。
+- **一次性清库口径**：先删子表 `feedback` / `dish`，再删无引用的 `stall`，最后删无引用的 `canteen`（`dish_location.canteen_id` 为 `RESTRICT`，须在菜品位置删尽后删）。

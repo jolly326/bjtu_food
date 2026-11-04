@@ -157,37 +157,22 @@ export interface components {
       /** Imageurl */
       imageUrl?: string | null;
     };
-    /** DishLocationVO */
-    DishLocationVO: {
-      /** Offeringid */
-      offeringId: number;
-      /** Canteenname */
-      canteenName: string;
-      /** Stallname */
-      stallName: string;
-      /** Floor */
-      floor: string;
-      /** Price */
-      price: number | null;
-    };
-    /** DishOfferingIn */
-    DishOfferingIn: {
+    /** DishLocationIn */
+    DishLocationIn: {
       /** Id */
       id?: number | null;
       /** Canteenid */
       canteenId: number;
       /** Stallid */
       stallId?: number | null;
-      /** Price */
-      price?: number | null;
       /**
        * Activate
        * @default true
        */
       activate?: boolean;
     };
-    /** DishOfferingOut */
-    DishOfferingOut: {
+    /** DishLocationOut */
+    DishLocationOut: {
       /** Id */
       id: number;
       /** Canteenid */
@@ -200,10 +185,19 @@ export interface components {
       stallName: string;
       /** Floor */
       floor: string;
-      /** Price */
-      price?: number | null;
       /** Activate */
       activate: boolean;
+    };
+    /** DishLocationVO */
+    DishLocationVO: {
+      /** Id */
+      id: number;
+      /** Canteenname */
+      canteenName: string;
+      /** Stallname */
+      stallName: string;
+      /** Floor */
+      floor: string;
     };
     /** DishOut */
     DishOut: {
@@ -215,8 +209,10 @@ export interface components {
       description: string;
       /** Imageurl */
       imageUrl?: string | null;
-      /** Offerings */
-      offerings: components["schemas"]["DishOfferingOut"][];
+      /** Price */
+      price?: number | null;
+      /** Locations */
+      locations: components["schemas"]["DishLocationOut"][];
       /** Updatedat */
       updatedAt: string;
     };
@@ -228,11 +224,13 @@ export interface components {
       description?: string | null;
       /** Imageurl */
       imageUrl?: string | null;
+      /** Price */
+      price?: number | null;
       /**
-       * Offerings
+       * Locations
        * @default []
        */
-      offerings?: components["schemas"]["DishOfferingIn"][];
+      locations?: components["schemas"]["DishLocationIn"][];
     };
     /** DishVO */
     DishVO: {
@@ -244,6 +242,8 @@ export interface components {
       imageUrl: string | null;
       /** Description */
       description: string;
+      /** Price */
+      price: number | null;
       /** Locations */
       locations: components["schemas"]["DishLocationVO"][];
     };

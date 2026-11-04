@@ -16,7 +16,6 @@ import { abortAllRequests, isAbortedRequest } from '@/utils/request'
 import type { Constraint } from '@/utils/constraints'
 import {
   buildQuery,
-  canteenConstraint,
   parseConstraints,
   stripConstraints,
   toggleConstraint,
@@ -24,10 +23,9 @@ import {
 import DishGrid from './components/DishGrid.vue'
 import FeedbackPanel from './components/FeedbackPanel.vue'
 import HomeHeader from './components/HomeHeader.vue'
-import ResultBar from './components/ResultBar.vue'
 import SearchDock from './components/SearchDock.vue'
 
-/** 全量在售集：冷启动拉取并缓存，供清空回填与食堂取值行 */
+/** 全量在售集：冷启动拉取并缓存，供清空回填与筛选行候选值 */
 const allDishes = ref<DishVO[]>([])
 /** 当前结果集：无条件时 = allDishes，条件结果由 recommend 返回 */
 const resultDishes = ref<DishVO[]>([])
@@ -49,8 +47,9 @@ const expandedId = ref<number | null>(null)
 const feedbackDishId = ref<number | null>(null)
 
 const visibleDishes = computed(() => (conditioned.value ? resultDishes.value : allDishes.value))
-const cardCount = computed(() => visibleDishes.value.reduce((n, dish) => n + dish.locations.length, 0))
-const dishCount = computed(() => visibleDishes.value.length)
+const cardCount = computed(() =>
+  visibleDishes.value.reduce((n, dish) => n + dish.locations.length, 0),
+)
 const stale = computed(() => query.value.trim() !== submittedQuery.value)
 const filtered = computed(() => constraints.value.length > 0)
 const filterLabel = computed(() => constraints.value.map((c) => c.label).join(' / '))
@@ -67,7 +66,7 @@ const canteenOptions = computed(() => {
 })
 
 const emptyKind = computed<'none' | 'filtered' | 'plain' | 'catalog'>(() => {
-  if (visibleDishes.value.length > 0) return 'none'
+  if (cardCount.value > 0) return 'none'
   if (!conditioned.value) return 'catalog'
   return filtered.value ? 'filtered' : 'plain'
 })
@@ -140,11 +139,6 @@ function onRemove(constraint: Constraint): Promise<void> {
   return applyConstraints(constraints.value.filter((c) => c !== constraint))
 }
 
-/** 卡面点食堂名：等价于追加/替换食堂约束 */
-function onPickCanteen(name: string): Promise<void> {
-  return onPick(canteenConstraint(name))
-}
-
 function onRelax(): Promise<void> {
   return applyConstraints(constraints.value.slice(0, -1))
 }
@@ -209,19 +203,6 @@ onUnmounted(abortAllRequests)
   <view class="home">
     <HomeHeader :top-inset="topInset" :header-height="headerHeight" />
     <view class="home__body">
-      <ResultBar
-        v-if="!loading && !failed"
-        :submitted-query="submittedQuery"
-        :count="cardCount"
-        :dish-count="dishCount"
-        :constraints="constraints"
-        :canteen-options="canteenOptions"
-        :stale="stale"
-        @pick="onPick"
-        @remove="onRemove"
-        @clear="clearSearch"
-      />
-
       <PageLoading v-if="loading" />
       <RetryBlock v-else-if="failed" @retry="load" />
       <DishGrid
@@ -233,7 +214,6 @@ onUnmounted(abortAllRequests)
         @open="toggleFull"
         @collapse="collapseFull"
         @feedback="openFeedback"
-        @pick="onPickCanteen"
         @clear="clearSearch"
         @relax="onRelax"
       />
@@ -242,8 +222,15 @@ onUnmounted(abortAllRequests)
         v-if="!loading && !failed"
         v-model="query"
         :searching="searching"
+        :conditioned="conditioned"
+        :count="cardCount"
+        :constraints="constraints"
+        :canteen-options="canteenOptions"
+        :stale="stale"
         @search="onSearch"
         @clear="clearSearch"
+        @pick="onPick"
+        @remove="onRemove"
       />
     </view>
 

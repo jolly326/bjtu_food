@@ -1,4 +1,4 @@
-"""运营端菜品数据访问（docs/schema/dish.md、dish_offering.md）。"""
+"""运营端菜品数据访问（docs/schema/dish.md、dish_location.md）。"""
 
 from __future__ import annotations
 
@@ -9,18 +9,17 @@ from sqlalchemy.orm import Session
 
 from app.core.formatters import format_dt
 from app.core.storage import to_absolute
-from app.models import Canteen, Dish, DishOffering, Stall
+from app.models import Canteen, Dish, DishLocation, Stall
 
 
 @dataclass(slots=True)
-class OfferingRow:
+class LocationRow:
     id: int
     canteen_id: int
     canteen_name: str
     stall_id: int | None
     stall_name: str
     floor: str
-    price: int | None
     activate: bool
 
 
@@ -30,51 +29,51 @@ class DishRow:
     name: str
     description: str
     image: str | None
+    price: int | None
     updated_at: str
-    offerings: list[OfferingRow]
+    locations: list[LocationRow]
 
 
-def _offerings_for(session: Session, dish_ids: list[int]) -> dict[int, list[OfferingRow]]:
+def _locations_for(session: Session, dish_ids: list[int]) -> dict[int, list[LocationRow]]:
     if not dish_ids:
         return {}
     rows = session.execute(
         select(
-            DishOffering,
+            DishLocation,
             Canteen.name,
             func.coalesce(Stall.name, ""),
             func.coalesce(Stall.floor, ""),
         )
-        .join(Canteen, Canteen.id == DishOffering.canteen_id)
-        .outerjoin(Stall, Stall.id == DishOffering.stall_id)
-        .where(DishOffering.dish_id.in_(dish_ids))
-        .order_by(DishOffering.id)
+        .join(Canteen, Canteen.id == DishLocation.canteen_id)
+        .outerjoin(Stall, Stall.id == DishLocation.stall_id)
+        .where(DishLocation.dish_id.in_(dish_ids))
+        .order_by(DishLocation.id)
     ).all()
-
-    grouped: dict[int, list[OfferingRow]] = {}
-    for offering, canteen_name, stall_name, floor in rows:
-        grouped.setdefault(offering.dish_id, []).append(
-            OfferingRow(
-                id=offering.id,
-                canteen_id=offering.canteen_id,
+    grouped: dict[int, list[LocationRow]] = {}
+    for location, canteen_name, stall_name, floor in rows:
+        grouped.setdefault(location.dish_id, []).append(
+            LocationRow(
+                id=location.id,
+                canteen_id=location.canteen_id,
                 canteen_name=canteen_name,
-                stall_id=offering.stall_id,
+                stall_id=location.stall_id,
                 stall_name=stall_name,
                 floor=floor,
-                price=offering.price,
-                activate=offering.activate,
+                activate=location.activate,
             )
         )
     return grouped
 
 
-def _to_row(dish: Dish, offerings: list[OfferingRow]) -> DishRow:
+def _to_row(dish: Dish, locations: list[LocationRow]) -> DishRow:
     return DishRow(
         id=dish.id,
         name=dish.name,
         description=dish.description or "",
         image=to_absolute(dish.image),
+        price=dish.price,
         updated_at=format_dt(dish.updated_at) or "",
-        offerings=offerings,
+        locations=locations,
     )
 
 
@@ -82,7 +81,7 @@ def find_row(session: Session, *, dish_id: int) -> DishRow | None:
     dish = session.get(Dish, dish_id)
     if dish is None:
         return None
-    return _to_row(dish, _offerings_for(session, [dish_id]).get(dish_id, []))
+    return _to_row(dish, _locations_for(session, [dish_id]).get(dish_id, []))
 
 
 def list_page(
@@ -95,40 +94,24 @@ def list_page(
     page: int,
     size: int,
 ) -> tuple[list[DishRow], int]:
-    """
-    查询口径：不按 dish 本体 activate 过滤（状态由 dish_offering 承载）。
-    - canteen_id / stall_id：按售卖点归属过滤
-    - activate：若传入，按“该菜品是否至少有一个售卖点 activate 匹配”过滤
-    - name：按菜品名模糊匹配
-    """
+    """列表口径：菜品本体，按位置归属 / 状态 / 名称过滤。"""
     stmt = select(Dish).order_by(Dish.id)
     if name:
         stmt = stmt.where(Dish.name.like(f"%{name}%"))
-
     if canteen_id is not None:
         stmt = stmt.where(
-            Dish.id.in_(select(DishOffering.dish_id).where(DishOffering.canteen_id == canteen_id))
+            Dish.id.in_(select(DishLocation.dish_id).where(DishLocation.canteen_id == canteen_id))
         )
     if stall_id is not None:
         stmt = stmt.where(
-            Dish.id.in_(select(DishOffering.dish_id).where(DishOffering.stall_id == stall_id))
+            Dish.id.in_(select(DishLocation.dish_id).where(DishLocation.stall_id == stall_id))
         )
     if activate is not None:
         stmt = stmt.where(
-            Dish.id.in_(
-                select(DishOffering.dish_id).where(DishOffering.activate == activate)
-            )
+            Dish.id.in_(select(DishLocation.dish_id).where(DishLocation.activate == activate))
         )
 
     total = session.scalar(select(func.count()).select_from(stmt.subquery()))
     dishes = list(session.scalars(stmt.offset((page - 1) * size).limit(size)))
-    grouped = _offerings_for(session, [d.id for d in dishes])
+    grouped = _locations_for(session, [d.id for d in dishes])
     return [_to_row(d, grouped.get(d.id, [])) for d in dishes], int(total or 0)
-
-
-def find_by_name(session: Session, *, name: str, exclude_id: int | None = None) -> Dish | None:
-    """全局同名菜品；``exclude_id`` 用于修改时排除自身。"""
-    stmt = select(Dish).where(Dish.name == name)
-    if exclude_id is not None:
-        stmt = stmt.where(Dish.id != exclude_id)
-    return session.scalar(stmt)

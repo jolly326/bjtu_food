@@ -26,7 +26,7 @@ export const IMAGE = {
 } as const
 
 export const RESULT = {
-  /** 结果条预算约束档位（元）：与服务端「N 元 / N 块」硬约束同口径 */
+  /** 筛选行预算约束档位（元）：与服务端「N 元 / N 块」硬约束同口径 */
   BUDGET_OPTIONS: [10, 15, 20, 30],
   /** 描述常驻 3 行的字数阈值，超过则提供「全文」入口 */
   DESCRIPTION_PREVIEW_CHARS: 72,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import replace
 
 from sqlalchemy.orm import Session
 
@@ -23,11 +22,10 @@ _QUERY_MAX_LEN = 200
 
 
 class DishLocationVO(OutModel):
-    offering_id: int
+    id: int
     canteen_name: str
     stall_name: str
     floor: str
-    price: int | None
 
 
 class DishVO(OutModel):
@@ -35,6 +33,7 @@ class DishVO(OutModel):
     name: str
     image_url: str | None
     description: str
+    price: int | None
     locations: list[DishLocationVO]
 
 
@@ -42,89 +41,90 @@ class RecommendOut(OutModel):
     dishes: list[DishVO]
 
 
-def _rows(session: Session) -> list[repo.DishRow]:
+def _rows(session: Session) -> list[repo.LocationRow]:
     # 缓存按向量模型分区：切换模型后不复用旧向量行
     return ttl_cached(
         f"student:dishes:on_sale:{current_model()}",
         _TTL_SECONDS,
-        lambda: repo.list_on_sale(session),
+        lambda: repo.list_on_sale(session, model=current_model()),
     )
 
 
-def _to_vo(row: repo.DishRow) -> DishVO:
-    return DishVO(
-        id=row.id,
-        name=row.name,
-        image_url=to_absolute(row.image),
-        description=row.description,
-        locations=[
-            DishLocationVO(
-                offering_id=loc.offering_id,
-                canteen_name=loc.canteen_name,
-                stall_name=loc.stall_name,
-                floor=loc.floor,
-                price=loc.price,
+def _group_vos(
+    rows: list[repo.LocationRow], order: list[int] | None = None
+) -> list[DishVO]:
+    grouped: dict[int, list[repo.LocationRow]] = {}
+    for row in rows:
+        grouped.setdefault(row.dish_id, []).append(row)
+    ids = order if order is not None else list(grouped)
+    vos: list[DishVO] = []
+    for dish_id in ids:
+        dish_rows = grouped.get(dish_id)
+        if not dish_rows:
+            continue
+        first = dish_rows[0]
+        vos.append(
+            DishVO(
+                id=first.dish_id,
+                name=first.name,
+                image_url=to_absolute(first.image),
+                description=first.description,
+                price=first.price,
+                locations=[
+                    DishLocationVO(
+                        id=r.location_id,
+                        canteen_name=r.canteen_name,
+                        stall_name=r.stall_name,
+                        floor=r.floor,
+                    )
+                    for r in dish_rows
+                ],
             )
-            for loc in row.locations
-        ],
-    )
+        )
+    return vos
 
 
 def list_dishes(session: Session) -> list[DishVO]:
-    return [_to_vo(row) for row in _rows(session)]
+    return _group_vos(_rows(session))
 
 
 _PRICE_RE = re.compile(r"(\d+)\s*(?:元|块)")
 
 
-def _apply_hard_constraints(rows: list[repo.DishRow], query: str) -> list[repo.DishRow]:
-    """硬约束只认**完整菜名** / 食堂名 / 价格上限三类；其余交给向量相似度。
-
-    - 菜名命中 ⇒ 只保留命中菜名的菜品；
-    - 食堂 / 价格命中 ⇒ 只保留符合条件的**售卖点**，返回行的 ``locations`` 同步收窄；
-    - 三类都未命中 ⇒ 不过滤，全部交给余弦排序。
-    """
-    canteen_names = {loc.canteen_name for row in rows for loc in row.locations}
+def _apply_hard_constraints(
+    rows: list[repo.LocationRow], query: str
+) -> list[repo.LocationRow]:
+    """硬约束只认**完整菜名** / 食堂名 / 价格上限三类；按位置行过滤。"""
+    canteen_names = {row.canteen_name for row in rows}
     hit_canteens = {name for name in canteen_names if name and name in query}
-    # 单字菜名（如「粥」）出现在任意句子里会造成过度收窄，只认 ≥2 字的完整菜名
-    hit_names = {row.name for row in rows if row.name and len(row.name) >= 2 and row.name in query}
-
+    hit_names = {
+        row.name for row in rows if row.name and len(row.name) >= 2 and row.name in query
+    }
     price_match = _PRICE_RE.search(query)
     max_cents = int(price_match.group(1)) * 100 if price_match else None
-    filter_locations = bool(hit_canteens) or max_cents is not None
 
-    result: list[repo.DishRow] = []
+    result: list[repo.LocationRow] = []
     for row in rows:
         if hit_names and row.name not in hit_names:
             continue
-        locations = row.locations
-        if hit_canteens:
-            locations = [loc for loc in locations if loc.canteen_name in hit_canteens]
-        if max_cents is not None:
-            locations = [
-                loc for loc in locations if loc.price is not None and loc.price <= max_cents
-            ]
-        if filter_locations and not locations:
+        if hit_canteens and row.canteen_name not in hit_canteens:
             continue
-        result.append(replace(row, locations=locations) if filter_locations else row)
+        if max_cents is not None and (row.price is None or row.price > max_cents):
+            continue
+        result.append(row)
     return result
 
 
-def _row_vector(row: repo.DishRow) -> list[float] | None:
-    """只信任与当前模型一致的预计算向量。
-
-    * 本地模型：缺失 / 不符时实时补算（零成本）；
-    * 外部向量服务：**跳过该行**（返回 ``None``），由回填脚本补齐 ——
-      否则一次搜索会打 N 次外部请求。
-    """
-    if row.embedding and row.embedding_model == current_model():
+def _row_vector(row: repo.LocationRow) -> list[float] | None:
+    """向量已按当前模型 join 出来；外部模型下缺失则跳过，不现场补算。"""
+    if row.embedding:
         return row.embedding
     if embedding_is_remote():
         return None
     return embed(row.description or row.name)
 
 
-def _reranked(query: str, rows: list[repo.DishRow]) -> list[repo.DishRow]:
+def _reranked(query: str, rows: list[repo.LocationRow]) -> list[repo.LocationRow]:
     """System 1 精排：未启用 / 失败 / 候选不足时原样返回（🔴 精排故障不升级为 500）。"""
     if not rerank.enabled() or len(rows) < 2:
         return rows
@@ -132,16 +132,11 @@ def _reranked(query: str, rows: list[repo.DishRow]) -> list[repo.DishRow]:
     order = rerank.rerank(query, [row.description or row.name for row in rows], top_k)
     if order is None:
         return rows
-    picked = [rows[index] for index in order if 0 <= index < len(rows)]
-    return picked[: settings.system1_top_k]
+    return [rows[index] for index in order if 0 <= index < len(rows)][:top_k]
 
 
 def recommend(session: Session, *, query: str) -> list[DishVO]:
-    """一句话匹配：硬约束过滤 + 向量余弦排序（+ 可选精排）。
-
-    同一句话 30 秒内复用结果：键前缀与「在售菜品」一致，后台写操作会把两者一起失效，
-    避免重复付费调用向量 / 精排服务。
-    """
+    """一句话匹配：硬约束过滤 + 向量余弦排序（+ 可选精排）。"""
     text = (query or "").strip()
     if not text:
         raise BadRequest("请输入想吃的菜")
@@ -158,17 +153,28 @@ def _search(session: Session, text: str) -> list[DishVO]:
     if not rows:
         return []
 
+    # 一道菜多位置共享向量：按 dish 去重后打分，命中位置随之收窄
+    by_dish: dict[int, repo.LocationRow] = {}
+    for row in rows:
+        by_dish.setdefault(row.dish_id, row)
+
     query_vec = embed(text)
-    scored: list[tuple[float, int, repo.DishRow]] = []
-    for index, row in enumerate(rows):
+    scored: list[tuple[float, int, int]] = []
+    for index, (dish_id, row) in enumerate(by_dish.items()):
         vector = _row_vector(row)
         if vector is None:
-            continue  # 外部模型下未回填的行不参与召回
-        scored.append((cosine(query_vec, vector), index, row))
+            continue
+        scored.append((cosine(query_vec, vector), index, dish_id))
     if not scored:
         return []
 
-    # 相似度降序；同分保持原始顺序（稳定）
     scored.sort(key=lambda item: (-item[0], item[1]))
-    hits = _reranked(text, [item[2] for item in scored[:_MAX_RESULTS]])
-    return [_to_vo(row) for row in hits]
+    ordered_ids = [item[2] for item in scored[:_MAX_RESULTS]]
+    reps = [by_dish[dish_id] for dish_id in ordered_ids]
+    reranked = _reranked(text, reps)
+    if not reranked:
+        return []
+    ordered = [row.dish_id for row in reranked]
+    allowed = set(ordered)
+    hit_rows = [row for row in rows if row.dish_id in allowed]
+    return _group_vos(hit_rows, ordered)

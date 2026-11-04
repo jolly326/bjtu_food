@@ -32,27 +32,26 @@ export type StallOut = StallBody & {
   updatedAt: string
 }
 
-/** 售卖点入参：带 `id` 更新、不带 `id` 新增、未出现即删除（整表替换）。 */
-export type DishOfferingInput = {
+/** 位置入参：带 `id` 更新、不带 `id` 新增、未出现即删除（整表替换）。 */
+export type DishLocationInput = {
   id?: number
   canteenId: number
   stallId?: number | null
-  /** 售价（分）；`null` = 未录入 */
-  price?: number | null
   activate?: boolean
 }
 
 export type DishBody = {
-  /** 菜品名称：全库唯一 */
   name: string
   /** 档案富文本：名称 + 口味 + 场景 + 特点 */
   description?: string | null
   imageUrl?: string | null
-  /** 售卖点列表（整表替换）：每个售卖点自行携带 activate 状态 */
-  offerings?: DishOfferingInput[]
+  /** 售价（分）；同一道菜的所有位置共用 */
+  price?: number | null
+  /** 位置列表（整表替换） */
+  locations?: DishLocationInput[]
 }
 
-export type DishOfferingOut = {
+export type DishLocationOut = {
   id: number
   canteenId: number
   canteenName: string
@@ -60,8 +59,6 @@ export type DishOfferingOut = {
   stallName: string
   /** 楼层（取档口）；无档口为空串 */
   floor: string
-  /** 售价（分）；`null` = 未录入 */
-  price: number | null
   activate: boolean
 }
 
@@ -70,8 +67,10 @@ export type DishOut = {
   name: string
   description: string
   imageUrl?: string | null
-  /** 菜品本体不持有上下架状态；状态由每个售卖点 `offerings[].activate` 独立承载 */
-  offerings: DishOfferingOut[]
+  /** 售价（分） */
+  price?: number | null
+  /** 位置列表 */
+  locations: DishLocationOut[]
   updatedAt: string
 }
 

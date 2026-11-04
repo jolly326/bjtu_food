@@ -13,7 +13,7 @@ import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { fetchAllPages } from '@/composables/useAllPages'
 import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
-import { canteenApi, dishApi, stallApi, type DishOfferingOut, type DishOut } from '@/api'
+import { canteenApi, dishApi, stallApi, type DishLocationOut, type DishOut } from '@/api'
 import type { StallOut } from '@/api/types'
 
 const canteens = ref<{ id: number; name: string }[]>([])
@@ -34,10 +34,10 @@ function priceText(price: number | null): string {
   return price === null ? '价格待定' : `¥${(price / 100).toFixed(2)}`
 }
 
-function offeringLine(offering: DishOfferingOut): string {
+function offeringLine(offering: DishLocationOut): string {
   const floor = offering.floor || '—'
   const stall = offering.stallName || '无档口'
-  return `${offering.canteenName} · ${floor} · ${stall} · ${priceText(offering.price)}`
+  return `${offering.canteenName} · ${floor} · ${stall}`
 }
 
 async function loadCanteens(): Promise<void> {
@@ -113,7 +113,9 @@ onMounted(async () => {
       <header class="page__bar">
         <div class="page__titleGroup">
           <h2 class="page__title">菜品管理</h2>
-          <p class="page__subtitle">维护菜品本体与多售卖点，学生端网格实时读取</p>
+          <p class="page__subtitle">
+            维护在售菜品（一行 = 一个食堂 / 档口 / 菜名），学生端实时读取
+          </p>
         </div>
         <div class="filters">
           <input
@@ -177,20 +179,20 @@ onMounted(async () => {
         <div class="list-card__main">
           <div class="list-card__title">
             <span class="list-card__titleText">{{ row.name }}</span>
-            <span class="tag tag--count">{{ row.offerings.length }} 处售卖</span>
+            <span class="tag tag--count">{{ row.locations.length }} 处售卖</span>
+            <span class="tag">{{ priceText(row.price ?? null) }}</span>
           </div>
 
           <div class="list-card__path">{{ row.description || '暂无描述' }}</div>
 
           <div class="offering-list">
-            <div class="offering-list__head">售卖点</div>
-            <div v-for="offering in row.offerings" :key="offering.id" class="offering-row">
+            <div v-for="offering in row.locations" :key="offering.id" class="offering-row">
               <span class="offering-row__text">{{ offeringLine(offering) }}</span>
               <span class="tag" :class="offering.activate ? 'tag--on' : 'tag--off'">
                 {{ offering.activate ? '在售' : '已下架' }}
               </span>
             </div>
-            <div v-if="!row.offerings.length" class="offering-row">
+            <div v-if="!row.locations.length" class="offering-row">
               <span class="offering-row__text offering-row__text--muted">暂无售卖点</span>
             </div>
           </div>

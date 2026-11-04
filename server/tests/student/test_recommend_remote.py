@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.core.search import rerank as rerank_mod
 from app.core.runtime.cache import invalidate
 from app.core.config import settings
-from app.models import Base, Canteen, Dish, DishOffering, Stall
+from app.models import Base, Canteen, Dish, DishEmbedding, DishLocation, Stall
 from app.student.dish import service
 
 REMOTE_MODEL = "test/bge-m3"
@@ -46,23 +46,24 @@ def _seed(session: Session, *, model: str, with_vectors: bool = True) -> None:
     )
     session.flush()
     dishes = [
-        Dish(id=1, name="辣子鸡", description="川味 重辣"),
-        Dish(id=2, name="番茄炒蛋", description="清淡 家常"),
+        Dish(id=1, name="辣子鸡", description="川味 重辣", price=1200),
+        Dish(id=2, name="番茄炒蛋", description="清淡 家常", price=800),
+        Dish(id=3, name="待回填菜", description="川味", price=1000),
     ]
-    if with_vectors:
-        dishes[0].embedding = [1.0, 0.0]
-        dishes[0].embedding_model = model
-        dishes[1].embedding = [0.0, 1.0]
-        dishes[1].embedding_model = model
-    # 未回填（或模型不符）的菜品
-    dishes.append(Dish(id=3, name="待回填菜", description="川味"))
     session.add_all(dishes)
     session.flush()
+    if with_vectors:
+        session.add_all(
+            [
+                DishEmbedding(dish_id=1, model=model, vector=[1.0, 0.0]),
+                DishEmbedding(dish_id=2, model=model, vector=[0.0, 1.0]),
+            ]
+        )
     session.add_all(
         [
-            DishOffering(id=1, dish_id=1, canteen_id=1, stall_id=1, price=1200, activate=True),
-            DishOffering(id=2, dish_id=2, canteen_id=1, stall_id=1, price=800, activate=True),
-            DishOffering(id=3, dish_id=3, canteen_id=1, stall_id=1, price=1000, activate=True),
+            DishLocation(id=1, dish_id=1, canteen_id=1, stall_id=1, activate=True),
+            DishLocation(id=2, dish_id=2, canteen_id=1, stall_id=1, activate=True),
+            DishLocation(id=3, dish_id=3, canteen_id=1, stall_id=1, activate=True),
         ]
     )
     session.commit()

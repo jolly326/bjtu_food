@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.content_security import check_text
 from app.core.errors import BadRequest, NotFound
-from app.models import Dish, DishOffering
+from app.models import Dish, DishLocation
 from app.student.feedback import repo
 
 _TYPES = {"product", "dish"}
@@ -41,8 +41,8 @@ def submit(
         on_sale = dish is not None and bool(
             session.scalar(
                 select(func.count())
-                .select_from(DishOffering)
-                .where(DishOffering.dish_id == dish_id, DishOffering.activate == True)
+                .select_from(DishLocation)
+                .where(DishLocation.dish_id == dish_id, DishLocation.activate == True)
             )
         )
         if not on_sale:

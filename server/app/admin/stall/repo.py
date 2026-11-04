@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.formatters import format_dt
 from app.core.storage import to_absolute
-from app.models import Canteen, DishOffering, Stall
+from app.models import Canteen, Dish, Stall, DishLocation
 
 
 @dataclass(slots=True)
@@ -54,7 +54,7 @@ def find_row(session: Session, *, stall_id: int) -> StallRow | None:
         return None
     stall, canteen_name = found
     dish_count = session.scalar(
-        select(func.count()).select_from(DishOffering).where(DishOffering.stall_id == stall.id)
+        select(func.count()).select_from(DishLocation).where(DishLocation.stall_id == stall.id)
     )
     return _to_row(stall, canteen_name, int(dish_count or 0))
 
@@ -89,9 +89,9 @@ def list_page(
     if ids:
         dish_counts = dict(
             session.execute(
-                select(DishOffering.stall_id, func.count())
-                .where(DishOffering.stall_id.in_(ids))
-                .group_by(DishOffering.stall_id)
+                select(DishLocation.stall_id, func.count())
+                .where(DishLocation.stall_id.in_(ids))
+                .group_by(DishLocation.stall_id)
             ).all()
         )
     return [

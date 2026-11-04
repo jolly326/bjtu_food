@@ -1,4 +1,4 @@
-"""dish 域数据访问：在售菜品 + 售卖点（docs/schema/dish.md、dish_offering.md）。"""
+"""dish 域数据访问：在售位置 → 菜品本体（docs/schema/dish.md、dish_location.md）。"""
 
 from __future__ import annotations
 
@@ -7,83 +7,57 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Canteen, Dish, DishOffering, Stall
+from app.models import Canteen, Dish, DishEmbedding, DishLocation, Stall
 
 
 @dataclass(slots=True)
-class OfferingRow:
-    offering_id: int
-    canteen_name: str
-    stall_name: str
-    floor: str
-    price: int | None
-
-
-@dataclass(slots=True)
-class DishRow:
-    id: int
+class LocationRow:
+    dish_id: int
+    location_id: int
     name: str
-    image: str | None
     description: str
+    image: str | None
+    price: int | None
     embedding: list[float] | None
-    embedding_model: str | None
-    locations: list[OfferingRow]
+    canteen_name: str
+    floor: str
+    stall_name: str
 
 
-def list_on_sale(session: Session) -> list[DishRow]:
-    """至少有一个在售售卖点的菜品 + 其**在售**售卖点（无档口时档口名 / 楼层用空串）。"""
-    dishes = list(
-        session.scalars(
-            select(Dish)
-            .where(
-                select(DishOffering.id)
-                .where(
-                    DishOffering.dish_id == Dish.id,
-                    DishOffering.activate == True,
-                )
-                .exists()
-            )
-            .order_by(Dish.id)
-        )
-    )
-    if not dishes:
-        return []
-
-    dish_ids = [d.id for d in dishes]
-    offerings = session.execute(
+def list_on_sale(session: Session, *, model: str) -> list[LocationRow]:
+    """全部在售位置（一个位置一行；向量只取当前模型）。"""
+    rows = session.execute(
         select(
-            DishOffering,
+            Dish,
+            DishLocation,
             Canteen.name,
-            func.coalesce(Stall.name, ""),
             func.coalesce(Stall.floor, ""),
+            func.coalesce(Stall.name, ""),
+            DishEmbedding.vector,
         )
-        .join(Canteen, Canteen.id == DishOffering.canteen_id)
-        .outerjoin(Stall, Stall.id == DishOffering.stall_id)
-        .where(DishOffering.dish_id.in_(dish_ids), DishOffering.activate == True)
-        .order_by(DishOffering.id)
+        .join(DishLocation, DishLocation.dish_id == Dish.id)
+        .join(Canteen, Canteen.id == DishLocation.canteen_id)
+        .outerjoin(Stall, Stall.id == DishLocation.stall_id)
+        .outerjoin(
+            DishEmbedding,
+            (DishEmbedding.dish_id == Dish.id) & (DishEmbedding.model == model),
+        )
+        .where(DishLocation.activate == True)
+        .order_by(Dish.id, DishLocation.id)
     ).all()
 
-    by_dish: dict[int, list[OfferingRow]] = {}
-    for offering, canteen_name, stall_name, floor in offerings:
-        by_dish.setdefault(offering.dish_id, []).append(
-            OfferingRow(
-                offering_id=offering.id,
-                canteen_name=canteen_name,
-                stall_name=stall_name,
-                floor=floor,
-                price=offering.price,
-            )
-        )
-
     return [
-        DishRow(
-            id=d.id,
-            name=d.name,
-            image=d.image,
-            description=d.description or "",
-            embedding=d.embedding,
-            embedding_model=d.embedding_model,
-            locations=by_dish.get(d.id, []),
+        LocationRow(
+            dish_id=dish.id,
+            location_id=location.id,
+            name=dish.name,
+            description=dish.description or "",
+            image=dish.image,
+            price=dish.price,
+            embedding=vector,
+            canteen_name=canteen_name,
+            floor=floor,
+            stall_name=stall_name,
         )
-        for d in dishes
+        for dish, location, canteen_name, floor, stall_name, vector in rows
     ]

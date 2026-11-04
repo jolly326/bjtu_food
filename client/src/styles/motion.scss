@@ -23,7 +23,7 @@
 
 /* 尊重系统「减弱动效」：显式列出本端动效类（WXSS 不支持 `*` 通配符） */
 @media (prefers-reduced-motion: reduce) {
-  .bar__extra,
+  .hud__chips,
   .grid,
   .card__desc--full,
   .dock__field,

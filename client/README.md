@@ -1,6 +1,6 @@
 # client · 学生端（微信小程序）
 
-单页「菜品首页」：常驻结果条 + 2 列结果信息卡（卡内就地展开）+ 底部悬浮搜索胶囊 + 文字反馈。视觉口径见 [`docs/ui/client/`](../docs/ui/client/)。
+单页「菜品首页」：页头 + 1 列结果卡（描述常驻）+ 底部筛选与搜索 HUD + 文字反馈。视觉口径见 [`docs/ui/client/`](../docs/ui/client/)。
 
 - 技术栈：uni-app · Vue 3 · TypeScript · 构建目标 `mp-weixin`
 
@@ -9,7 +9,7 @@
 ```
 src/
 ├── pages/home/index.vue           # 唯一页面
-│   └── components/                # 页面私有：HomeHeader · ResultBar · DishGrid · DishResultCard · SearchDock · FeedbackPanel
+│   └── components/                # 页面私有：HomeHeader · DishGrid · DishResultCard · SearchDock（含筛选行） · FeedbackPanel
 ├── components/                    # ≥2 页公共件（5）：AppIcon · ImagePlaceholder · RetryBlock · PageLoading · StatusBlock
 ├── hooks/                         # useImageSource · useTimers（统一出口 hooks/index.ts）
 ├── utils/                         # backoff · image · request

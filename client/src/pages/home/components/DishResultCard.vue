@@ -2,8 +2,8 @@
 /**
  * 结果卡（docs/ui/client/菜品首页.md `DishResultCard`）。
  *
- * 一卡对应一个在售位置：封面 + 菜名 + 位置 + 确定售价 + 常驻描述 + 反馈入口；
- * 描述超长时在卡内展开全文，无售卖点明细、无遮罩、不跳位。
+ * 一卡 = 一道菜的一个在售位置：16:9 封面 + 左内容 / 右数据两栏信息区；
+ * 图文与价格取自菜品本体，食堂 / 楼层 / 档口取自位置。
  */
 import { computed } from 'vue'
 
@@ -21,9 +21,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'open', offeringId: number): void
+  (e: 'open', locationId: number): void
   (e: 'feedback', dishId: number): void
-  (e: 'pick', canteenName: string): void
 }>()
 
 const { src, onError } = useImageSource(() => props.dish.imageUrl, IMAGE.RESULT_THUMB_WIDTH)
@@ -32,7 +31,7 @@ const needFull = computed(
   () => props.dish.description.length > RESULT.DESCRIPTION_PREVIEW_CHARS,
 )
 const priceText = computed(() =>
-  props.loc.price === null ? '价格待定' : `¥${(props.loc.price / 100).toFixed(2)}`,
+  props.dish.price === null ? '价格待定' : `¥${(props.dish.price / 100).toFixed(2)}`,
 )
 const placeText = computed(
   () => `${props.loc.floor || '暂无'} · ${props.loc.stallName || '暂无'}`,
@@ -47,34 +46,34 @@ const placeText = computed(
     </view>
 
     <view class="card__info">
-      <text class="card__name">{{ dish.name }}</text>
+      <view class="card__main">
+        <text class="card__name">{{ dish.name }}</text>
 
-      <view class="card__place">
         <text
-          class="card__canteen"
-          hover-class="card__canteen--press"
-          @tap.stop="emit('pick', loc.canteenName)"
-        >{{ loc.canteenName }}</text>
-        <text class="card__placeRest"> · {{ placeText }}</text>
+          v-if="dish.description"
+          class="card__desc"
+          :class="{ 'card__desc--clamp': needFull && !expanded, 'card__desc--full': expanded }"
+        >{{ dish.description }}</text>
+
+        <view class="card__actions">
+          <view
+            v-if="needFull"
+            class="card__link"
+            hover-class="card__link--press"
+            @tap.stop="emit('open', loc.id)"
+          >{{ expanded ? '收起' : '全文' }}</view>
+          <view
+            class="card__link"
+            hover-class="card__link--press"
+            @tap.stop="emit('feedback', dish.id)"
+          >反馈这道菜</view>
+        </view>
       </view>
 
-      <text class="card__price">{{ priceText }}</text>
-
-      <text
-        class="card__desc"
-        :class="{ 'card__desc--clamp': needFull && !expanded, 'card__desc--full': expanded }"
-      >{{ dish.description || '暂无描述' }}</text>
-
-      <view class="card__actions">
-        <text
-          v-if="needFull"
-          class="card__more"
-          hover-class="card__more--press"
-          @tap.stop="emit('open', loc.offeringId)"
-        >{{ expanded ? '收起' : '全文' }}</text>
-        <view class="card__btn" hover-class="card__btn--press" @tap.stop="emit('feedback', dish.id)">
-          反馈这道菜
-        </view>
+      <view class="card__side">
+        <text class="card__price">{{ priceText }}</text>
+        <text class="card__canteen">{{ loc.canteenName }}</text>
+        <text class="card__place">{{ placeText }}</text>
       </view>
     </view>
   </view>
@@ -111,12 +110,31 @@ const placeText = computed(
   height: 100%;
 }
 
+/* 信息区：左内容 / 右数据两栏，靠留白分组，无分割线 */
 .card__info {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+  align-items: flex-start;
+  gap: var(--spacing-md);
   box-sizing: border-box;
   padding: var(--spacing-sm);
+}
+
+.card__main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.card__side {
+  display: flex;
+  flex-shrink: 0;
+  width: var(--card-side-width);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-xs);
+  text-align: right;
 }
 
 .card__name {
@@ -127,33 +145,9 @@ const placeText = computed(
   text-overflow: ellipsis;
 }
 
-.card__place {
-  overflow: hidden;
-  font-size: var(--font-caption);
-  color: var(--text-body);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.card__canteen {
-  color: var(--text-title);
-}
-
-.card__canteen--press {
-  opacity: 0.6;
-}
-
-.card__placeRest {
-  color: var(--text-body);
-}
-
-.card__price {
-  font-size: var(--font-body);
-  color: var(--brand);
-}
-
 .card__desc {
   font-size: var(--font-body);
+  line-height: 1.5;
   color: var(--text-body);
   overflow-wrap: anywhere;
 }
@@ -182,33 +176,53 @@ const placeText = computed(
 .card__actions {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
 }
 
-.card__more {
+/* 文字链：视觉高 64rpx，命中区经 ::after 纵向补到触达下限 */
+.card__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--spacing-md);
   font-size: var(--font-caption);
   color: var(--text-title);
 }
 
-.card__more--press {
+.card__link::after {
+  position: absolute;
+  top: calc((var(--tap-target-size) - var(--control-height-sm)) / -2);
+  right: 0;
+  left: 0;
+  height: var(--tap-target-size);
+  content: '';
+}
+
+.card__link--press {
   opacity: 0.6;
 }
 
-.card__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  height: var(--control-height-sm);
-  padding: 0 var(--spacing-md);
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--radius-pill);
-  background: var(--bg-card);
-  font-size: var(--font-caption);
-  color: var(--text-title);
+.card__price {
+  font-size: var(--font-h3);
+  color: var(--brand);
 }
 
-.card__btn--press {
-  opacity: 0.7;
+.card__canteen {
+  width: 100%;
+  overflow: hidden;
+  font-size: var(--font-caption);
+  color: var(--text-title);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.card__place {
+  overflow: hidden;
+  width: 100%;
+  font-size: var(--font-caption);
+  color: var(--text-body);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 </style>
