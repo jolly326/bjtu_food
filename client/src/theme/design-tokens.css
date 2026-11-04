@@ -52,8 +52,7 @@ page {
   --card-side-width: 200rpx;
   /* 反馈面板输入区高度 */
   --feedback-input-height: 240rpx;
-  /* 悬浮 HUD 净空 = 常态高度 212rpx（筛选行 96 + 行间距 8 + 胶囊外高 108）
-     + 候选值展开余量 96rpx + 与底缘间距 16rpx + 末行呼吸 32rpx；
+  /* 悬浮 HUD 净空 = 胶囊外高 108rpx + 与底缘间距 16rpx + 末行呼吸 32rpx；
      单值落盘以免嵌套 calc 在端上失效，安全区在消费处叠加 env */
-  --dock-reserve: 356rpx;
+  --dock-reserve: 156rpx;
 }

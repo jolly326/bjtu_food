@@ -14,17 +14,14 @@ defineOptions({ options: { virtualHost: true } })
 const props = defineProps<{
   dishes: DishVO[]
   expandedId: number | null
-  filterLabel: string
-  /** 空态类型：none 正常 / filtered 有约束 0 命中 / plain 无约束 0 命中 / catalog 全量无菜 */
-  emptyKind: 'none' | 'filtered' | 'plain' | 'catalog'
+  /** 空态类型：none 正常 / plain 有条件 0 命中 / catalog 全量无菜 */
+  emptyKind: 'none' | 'plain' | 'catalog'
 }>()
 
 const emit = defineEmits<{
   (e: 'open', locationId: number): void
-  (e: 'collapse'): void
   (e: 'feedback', dishId: number): void
   (e: 'clear'): void
-  (e: 'relax'): void
 }>()
 
 /** 菜品 × 位置摊平：每个在售位置一张卡 */
@@ -52,14 +49,10 @@ watch(
 <template>
   <scroll-view class="grid-scroll" scroll-y :scroll-into-view="scrollIntoView" scroll-with-animation>
     <view v-if="emptyKind !== 'none'" class="grid-empty">
-      <text v-if="emptyKind === 'filtered'" class="grid-empty__text">
-        「{{ filterLabel }}」没有结果
-      </text>
-      <text v-else-if="emptyKind === 'plain'" class="grid-empty__text">没找到，换个说法</text>
+      <text v-if="emptyKind === 'plain'" class="grid-empty__text">没找到，换个说法</text>
       <text v-else class="grid-empty__text">还没有菜品上架</text>
 
-      <view v-if="emptyKind === 'filtered' || emptyKind === 'plain'" class="grid-empty__actions">
-        <view v-if="emptyKind === 'filtered'" class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('relax')">去掉条件</view>
+      <view v-if="emptyKind === 'plain'" class="grid-empty__actions">
         <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('clear')">看全部菜品</view>
       </view>
     </view>
