@@ -48,7 +48,6 @@ async function onSubmit() {
         v-model="form.username"
         class="login__input"
         type="text"
-        placeholder="账号"
         autocomplete="username"
       />
 
@@ -58,7 +57,6 @@ async function onSubmit() {
         v-model="form.password"
         class="login__input"
         type="password"
-        placeholder="密码"
         autocomplete="current-password"
       />
 

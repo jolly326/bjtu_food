@@ -158,12 +158,6 @@ h3 {
   color: var(--el-text-color-primary);
 }
 
-#app .page__subtitle {
-  margin: 0;
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
 /* 顶栏右侧操作组（多按钮时统一间距） */
 #app .page__actions {
   display: flex;

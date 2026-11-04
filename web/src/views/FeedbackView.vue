@@ -110,15 +110,8 @@ onMounted(load)
             <span v-if="row.handledAt">处理：{{ row.handledAt }}</span>
           </div>
 
-          <div class="feedback__actions">
-            <button
-              class="btn btn--sm"
-              type="button"
-              :disabled="Boolean(row.handledAt)"
-              @click="onHandle(row)"
-            >
-              {{ row.handledAt ? '已处理' : '标记处理' }}
-            </button>
+          <div v-if="!row.handledAt" class="feedback__actions">
+            <button class="btn btn--sm" type="button" @click="onHandle(row)">标记处理</button>
           </div>
         </div>
       </div>
