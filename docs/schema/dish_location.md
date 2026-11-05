@@ -56,4 +56,4 @@
 ## 注意事项
 
 - 同一 `dish_id + canteen_id + stall_id` 只允许一条（`stall_id` 为 `NULL` 时由应用层按 `dish_id + canteen_id` 判重）。
-- 学生端卡片身份是 `dish_location.id`；同一道菜多位置会出现多张卡，图 / 描述 / 价格相同，位置不同。
+- 学生端按 `dish.id` 聚合展示，各在售位置在卡内并列；卡片形态见 [`ui/client/菜品首页.md`](../ui/client/菜品首页.md)。

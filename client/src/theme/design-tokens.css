@@ -1,7 +1,6 @@
 /* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
    口径见 docs/ui/client/菜品首页.md；改值只改这里，再同步文档。
    层级靠字号与颜色，动效统一 ease-out，不做过冲。 */
-
 page {
   /* ===== 圆角 / 线宽 ===== */
   --radius-card: 24rpx;
@@ -22,8 +21,7 @@ page {
   --font-sans: 'Yuanti SC', 'YouYuan', 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC',
     system-ui, sans-serif;
 
-  /* ===== 字号（只保留实际消费的档位）===== */
-  --font-display: 48rpx;
+  /* ===== 字号（单调递减，位置 · 描述 · 操作各占一档） ===== */
   --font-title: 40rpx;
   --font-h3: 32rpx;
   --font-body: 28rpx;
@@ -39,18 +37,26 @@ page {
   --duration-spin: 2000ms;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
 
-  /* ===== 层级 ===== */
+  /* ===== 层级：同一层叠上下文内递增 ===== */
   --z-dock: 10;
-  --z-sheet: 2000;
+  --z-header: 20;
 
   /* ===== 高度 ===== */
   --tap-target-size: 96rpx;
   --control-height: 96rpx;
   --control-height-sm: 64rpx;
-  --header-height: 88rpx;
-  /* 反馈面板输入区高度 */
-  --feedback-input-height: 240rpx;
-  /* 悬浮 HUD 净空 = 胶囊外高 108rpx + 与底缘间距 16rpx + 末行呼吸 32rpx；
-     单值落盘以免嵌套 calc 在端上失效，安全区在消费处叠加 env */
+  --feedback-input-height: 200rpx;
+  /* 悬浮 HUD 净空 = 胶囊外高 108rpx + 底缘间距 16rpx + 末行呼吸 32rpx */
   --dock-reserve: 156rpx;
+
+  /* ===== 结构尺寸 ===== */
+  --cover-aspect-pad: 56.25%;
+
+  /* ===== 图标着色：落盘 SVG 为中性灰实心（小程序 <image> 不支持 currentColor），
+     浅色直接呈现原色，深色由本 token 反白并压到与深色正文同档亮度 ===== */
+  --icon-filter: none;
+}
+
+.theme-dark {
+  --icon-filter: brightness(0) invert(1) brightness(0.62);
 }

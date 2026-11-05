@@ -2,13 +2,15 @@
 /**
  * 结果卡（docs/ui/client/菜品首页.md `DishResultCard`）。
  *
- * 一卡 = 一道菜的一个在售位置：16:9 封面 + 单列三段信息区。
- * 头部（菜名 / 售价）→ 描述（最多 3 行，超长「展开」）→ 底行（左「反馈」、右位置）。
+ * 一卡 = 一道菜：16:9 封面 + 单列四段信息区，该菜全部在售位置在卡内并列。
+ * 段 1 头部（菜名 / 售价）→ 段 2 位置列表 → 段 3 描述（2 行）→ 段 4 操作栏（反馈左 / 展开右）。
+ * 反馈表单在四段之下就地展开，始终处于卡片正常文档流内。
  */
 import { computed } from 'vue'
 
-import type { DishLocationVO, DishVO } from '@/api'
+import type { DishVO } from '@/api'
 import ImagePlaceholder from '@/components/ImagePlaceholder.vue'
+import FeedbackForm from './FeedbackForm.vue'
 import { IMAGE, RESULT } from '@/constants'
 import { useImageSource } from '@/hooks'
 
@@ -16,13 +18,14 @@ defineOptions({ options: { virtualHost: true } })
 
 const props = defineProps<{
   dish: DishVO
-  loc: DishLocationVO
   expanded: boolean
+  /** 本卡反馈表单是否展开（由父级全局唯一控制） */
+  feedbackOpen: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'open', locationId: number): void
-  (e: 'feedback', dishId: number): void
+  (e: 'open', dishId: number): void
+  (e: 'feedback-open', dishId: number | null): void
 }>()
 
 const { src, onError } = useImageSource(() => props.dish.imageUrl, IMAGE.RESULT_THUMB_WIDTH)
@@ -33,46 +36,75 @@ const needFull = computed(
 const priceText = computed(() =>
   props.dish.price === null ? '价格待定' : `¥${(props.dish.price / 100).toFixed(2)}`,
 )
-const placeText = computed(() =>
-  [props.loc.canteenName, props.loc.floor, props.loc.stallName].filter(Boolean).join(' · '),
+/** 每个在售位置一行：食堂 楼层 档口，省去中间分隔符 */
+const places = computed(() =>
+  props.dish.locations
+    .map((loc) => ({
+      id: loc.id,
+      text: [loc.canteenName, loc.floor, loc.stallName].filter(Boolean).join(' '),
+    }))
+    .filter((place) => place.text),
 )
+
+function toggleFeedback(): void {
+  emit('feedback-open', props.feedbackOpen ? null : props.dish.id)
+}
 </script>
 
 <template>
-  <view class="card" hover-class="card--press">
+  <view class="card">
     <view class="card__cover">
       <image v-if="src" class="card__img" :src="src" mode="aspectFill" @error="onError" />
       <view v-else class="card__ph"><ImagePlaceholder /></view>
     </view>
 
     <view class="card__info">
+      <!-- 段 1 · 头部：菜名 + 售价 -->
       <view class="card__head">
-        <text class="card__name">{{ dish.name }}</text>
+        <text class="card__name">{{ props.dish.name }}</text>
         <text class="card__price">{{ priceText }}</text>
       </view>
 
+      <!-- 段 2 · 位置列表：一菜多位置并列 -->
+      <view class="card__places">
+        <text v-for="place in places" :key="place.id" class="card__place">{{ place.text }}</text>
+        <text v-if="!places.length" class="card__place">暂无位置</text>
+      </view>
+
+      <!-- 段 3 · 描述：常驻 2 行 -->
       <text
-        v-if="dish.description"
+        v-if="props.dish.description"
         class="card__desc"
-        :class="{ 'card__desc--clamp': needFull && !expanded, 'card__desc--full': expanded }"
-      >{{ dish.description }}</text>
+        :class="{ 'card__desc--clamp': needFull && !props.expanded, 'card__desc--full': props.expanded }"
+      >{{ props.dish.description }}</text>
 
-      <view
-        v-if="needFull"
-        class="card__more"
-        hover-class="card__link--press"
-        @tap.stop="emit('open', loc.id)"
-      >{{ expanded ? '收起' : '展开' }}</view>
-
+      <!-- 段 4 · 操作栏：反馈左、展开 / 收起右 -->
       <view class="card__meta">
         <view
           class="card__link"
           hover-class="card__link--press"
-          @tap.stop="emit('feedback', dish.id)"
-        >反馈</view>
-        <text class="card__place">{{ placeText }}</text>
+          aria-role="button"
+          :aria-label="props.feedbackOpen ? '收起反馈' : '反馈这道菜'"
+          @tap.stop="toggleFeedback"
+        >{{ props.feedbackOpen ? '收起反馈' : '反馈' }}</view>
+        <view
+          v-if="needFull"
+          class="card__more"
+          hover-class="card__link--press"
+          aria-role="button"
+          :aria-label="props.expanded ? '收起描述' : '展开描述'"
+          @tap.stop="emit('open', props.dish.id)"
+        >{{ props.expanded ? '收起' : '展开' }}</view>
       </view>
     </view>
+
+    <FeedbackForm
+      v-if="props.feedbackOpen"
+      type="dish"
+      variant="inline"
+      :dish-id="props.dish.id"
+      @close="emit('feedback-open', null)"
+    />
   </view>
 </template>
 
@@ -86,14 +118,10 @@ const placeText = computed(() =>
   background: var(--bg-card);
 }
 
-.card--press {
-  opacity: 0.7;
-}
-
 .card__cover {
   position: relative;
   height: 0;
-  padding-top: 56.25%;
+  padding-top: var(--cover-aspect-pad);
   overflow: hidden;
   background: var(--bg-placeholder);
 }
@@ -107,7 +135,7 @@ const placeText = computed(() =>
   height: 100%;
 }
 
-/* 信息区：单列三段 —— 头部 / 描述 / 底行 */
+/* 信息区：单列四段 —— 头部 / 位置列表 / 描述 / 操作栏 */
 .card__info {
   display: flex;
   flex-direction: column;
@@ -139,54 +167,62 @@ const placeText = computed(() =>
   color: var(--brand);
 }
 
-.card__desc {
+.card__places {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2xs);
+}
+
+/* 位置是「在哪吃」的关键信息：字号与色阶都强于描述 */
+.card__place {
+  overflow: hidden;
   font-size: var(--font-body);
-  line-height: 1.5;
+  color: var(--text-title);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.card__desc {
+  font-size: var(--font-subtitle);
   color: var(--text-body);
-  overflow-wrap: anywhere;
 }
 
 .card__desc--clamp {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .card__desc--full {
-  animation: desc-in var(--duration-base) var(--ease-out);
+  animation: motion-fade var(--duration-base) var(--ease-out);
 }
 
-@keyframes desc-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+/* 操作栏：反馈左、展开 / 收起右；命中区经 ::after 补到触达下限 */
+.card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
 }
 
-/* 展开 / 反馈：视觉小字，命中区经 ::after 补到触达下限 */
-.card__more,
-.card__link {
+.card__link,
+.card__more {
   position: relative;
   display: inline-flex;
   align-items: center;
   min-height: var(--control-height-sm);
   padding: 0 var(--spacing-md);
   font-size: var(--font-caption);
-  color: var(--text-title);
-}
-
-.card__more {
-  align-self: flex-start;
-  padding-left: 0;
   color: var(--text-body);
 }
 
-.card__more::after,
-.card__link::after {
+.card__link {
+  padding-left: 0;
+}
+
+.card__link::after,
+.card__more::after {
   position: absolute;
   top: calc((var(--tap-target-size) - var(--control-height-sm)) / -2);
   right: 0;
@@ -197,29 +233,5 @@ const placeText = computed(() =>
 
 .card__link--press {
   opacity: 0.6;
-}
-
-/* 底行：反馈在左下，位置在右并省略 */
-.card__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-sm);
-}
-
-.card__meta .card__link {
-  padding-left: 0;
-  color: var(--text-title);
-}
-
-.card__place {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  font-size: var(--font-caption);
-  color: var(--text-body);
-  text-align: right;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 </style>

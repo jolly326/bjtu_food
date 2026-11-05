@@ -6,7 +6,7 @@
  * 取 `pending` 事件抛出的文件再上传 COS，避免「选了又取消」也落桶。关闭弹窗即释放 blob。
  *
  * 🔴 回滚机制：选图后 modelValue 临时变为本地 blob URL。若用户取消或保存失败，
- * 父组件将 modelValue 还原为原服务器 URL，本组件监听到该回填即丢弃本地预览、释放 blob 并清空 pending。
+ * 父组件将 modelValue 恢复为服务器 URL，本组件监听到该回填即丢弃本地预览、释放 blob 并清空 pending。
  */
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -97,10 +97,11 @@ onBeforeUnmount(revoke)
   flex-direction: column;
   gap: 8px;
 }
-/* 16:9 横向预览：与列表封面统一 */
+/* 16:9 横向预览：限宽，宽版弹窗下不会按满宽把卡片撑高 */
 .image-field__thumb {
   display: block;
   width: 100%;
+  max-width: 320px;
   aspect-ratio: 16 / 9;
   object-fit: cover;
   border-radius: 10px;
@@ -111,6 +112,7 @@ onBeforeUnmount(revoke)
   align-items: center;
   justify-content: center;
   width: 100%;
+  max-width: 320px;
   aspect-ratio: 16 / 9;
   border-radius: 10px;
   border: 1px dashed var(--el-border-color-light);
@@ -120,5 +122,11 @@ onBeforeUnmount(revoke)
 .image-field__ops {
   display: flex;
   gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .image-field__ops .btn {
+    flex: 1;
+  }
 }
 </style>

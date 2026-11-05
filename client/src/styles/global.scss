@@ -7,12 +7,3 @@ page {
   font-size: var(--font-body);
   font-family: var(--font-sans);
 }
-
-/* 统一按压反馈：卡片 / 行 / 图片 用 .7，文字 / 图标小件用 .6 */
-.pressable {
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-.pressable:active {
-  opacity: 0.7;
-}

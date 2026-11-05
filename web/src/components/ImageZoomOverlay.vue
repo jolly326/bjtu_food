@@ -2,7 +2,7 @@
 /**
  * 全屏图片预览（Teleport 到 body，z-index 高于所有弹层）。
  * 能力：滚轮缩放(1–4x)、点击切换适应/2x、放大后拖拽平移、Esc / 点遮罩 / 关闭按钮退出；
- * 打开期间锁定 body 滚动。状态见 composables/useImageZoom。
+ * 打开期间锁定 body 与内容区滚动。状态见 composables/useImageZoom。
  */
 import { onBeforeUnmount, ref, watch } from 'vue'
 import {
@@ -13,6 +13,13 @@ import {
 } from '@/composables/useImageZoom'
 
 const dragging = ref(false)
+
+/** 内容区才是真实滚动容器；只锁 body 会留下背景可滚的第二滚动区 */
+function lockScroller(locked: boolean): void {
+  const scroller = document.querySelector<HTMLElement>('.layout__main')
+  if (scroller) scroller.style.overflowY = locked ? 'hidden' : ''
+}
+
 let sx = 0
 let sy = 0
 let stx = 0
@@ -52,9 +59,11 @@ watch(
     if (open) {
       window.addEventListener('keydown', onKey)
       document.body.style.overflow = 'hidden'
+      lockScroller(true)
     } else {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
+      lockScroller(false)
     }
   },
 )
@@ -143,7 +152,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  color: var(--el-text-color-primary);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;

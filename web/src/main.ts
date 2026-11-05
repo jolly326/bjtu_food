@@ -14,8 +14,6 @@ import 'element-plus/theme-chalk/el-select.css'
 import 'element-plus/theme-chalk/el-popper.css'
 import 'element-plus/theme-chalk/el-scrollbar.css'
 import 'element-plus/theme-chalk/el-input.css'
-import 'element-plus/theme-chalk/el-tag.css'
-import 'element-plus/theme-chalk/el-icon.css'
 import './styles/theme.css'
 import './styles/motion.css'
 

@@ -4,15 +4,16 @@
  *
  * 菜品本体 + **位置列表逐行展示**（本页重点）；点卡片进编辑弹窗，删除在弹窗内整卡确认。
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import DishEditDialog from '@/components/DishEditDialog.vue'
+import ListCard from '@/components/ListCard.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
 import { fetchAllPages } from '@/composables/useAllPages'
-import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
+import { usePagedList } from '@/composables/usePagedList'
 import { canteenApi, dishApi, stallApi, type DishLocationOut, type DishOut } from '@/api'
 import type { StallOut } from '@/api/types'
 
@@ -50,17 +51,15 @@ async function loadStalls(canteenId?: number): Promise<void> {
   filterStalls.items = list as StallOut[]
 }
 
-const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<DishOut>(
-  (p) =>
+const { rows, total, page, loading, error, hasNext, totalPages, load, go, reload } =
+  usePagedList<DishOut>((p) =>
     dishApi.list({
       stallId: filter.stallId,
       canteenId: filter.canteenId,
       name: filter.name.trim() || undefined,
       page: p,
     }),
-)
-
-const totalPages = computed(() => Math.ceil(total.value / PAGE_SIZE))
+  )
 
 function onCreate(): void {
   editing.value = null
@@ -150,57 +149,33 @@ onMounted(async () => {
     </Teleport>
 
     <div class="list-card-wrap">
-      <div
+      <ListCard
         v-for="row in rows"
         :key="row.id"
-        class="list-card"
-        tabindex="0"
-        role="button"
+        :title="row.name"
+        :image-url="row.imageUrl"
+        :meta="`${row.locations.length} 处售卖 · ${priceText(row.price ?? null)}`"
+        cover
+        interactive
         :aria-label="`编辑 ${row.name}`"
-        @click="onEdit(row)"
-        @keydown.enter.prevent="onEdit(row)"
-        @keydown.space.prevent="onEdit(row)"
+        @activate="onEdit(row)"
       >
-        <img
-          v-if="row.imageUrl"
-          v-zoomimg
-          :src="row.imageUrl"
-          class="list-card__cover"
-          :alt="row.name"
-          loading="lazy"
-        />
-        <span v-else class="list-card__cover list-card__cover--ph" aria-hidden="true">
-          <AppIcon name="image" :size="28" />
-        </span>
-
-        <div class="list-card__main">
-          <h3 class="list-card__title">
-            <span class="list-card__titleText">{{ row.name }}</span>
-          </h3>
-
-          <div class="list-card__stats">
-            <span class="list-card__stat">{{ row.locations.length }} 处售卖</span>
-            <span class="list-card__stat">{{ priceText(row.price ?? null) }}</span>
-          </div>
-
-          <div class="list-card__path">{{ row.description || '暂无描述' }}</div>
-
-          <div class="offering-list">
-            <div v-for="offering in row.locations" :key="offering.id" class="offering-row">
-              <span class="offering-row__text">{{ offeringLine(offering) }}</span>
-              <span class="tag" :class="offering.activate ? 'tag--on' : 'tag--off'">
-                {{ offering.activate ? '在售' : '已下架' }}
-              </span>
-            </div>
-            <div v-if="!row.locations.length" class="offering-row">
-              <span class="offering-row__text offering-row__text--muted">暂无位置</span>
-            </div>
-          </div>
+        <p class="card-note">{{ row.description || '暂无描述' }}</p>
+        <div class="card-lines">
+          <span v-for="offering in row.locations" :key="offering.id" class="card-line">
+            <span class="card-line__text">{{ offeringLine(offering) }}</span>
+            <span class="tag tag--sm" :class="offering.activate ? 'tag--on' : 'tag--off'">
+              {{ offering.activate ? '在售' : '已下架' }}
+            </span>
+          </span>
+          <span v-if="!row.locations.length" class="card-line">
+            <span class="card-line__text card-line__text--muted">暂无位置</span>
+          </span>
         </div>
-      </div>
+      </ListCard>
 
       <div v-if="loading" class="list-empty">加载中…</div>
-      <div v-if="!rows.length && !loading" class="list-empty">暂无菜品</div>
+      <div v-if="!rows.length && !loading && !error" class="list-empty">暂无菜品</div>
     </div>
 
     <ListError v-if="error" :message="error" @retry="load" />
@@ -229,28 +204,37 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.offering-list {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--el-border-color-extra-light);
-}
-
-.offering-list__head {
-  margin-bottom: 4px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.offering-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
+.card-note {
+  margin: 0;
+  overflow: hidden;
   font-size: 13px;
+  color: var(--el-text-color-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.offering-row__text {
+/* 售卖位置收紧为可换行标签：多个位置同行并列，减少卡片高度 */
+.card-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--el-border-color-lighter);
+}
+
+.card-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: var(--web-radius-sm);
+  background: var(--el-fill-color-lighter);
+  font-size: 12px;
+}
+
+.card-line__text {
   min-width: 0;
   overflow: hidden;
   color: var(--el-text-color-regular);
@@ -258,12 +242,7 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.offering-row__text--muted {
+.card-line__text--muted {
   color: var(--el-text-color-placeholder);
-}
-
-.tag--count {
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
 }
 </style>

@@ -48,6 +48,7 @@ async function onSubmit() {
         v-model="form.username"
         class="login__input"
         type="text"
+        placeholder="账号"
         autocomplete="username"
       />
 
@@ -57,6 +58,7 @@ async function onSubmit() {
         v-model="form.password"
         class="login__input"
         type="password"
+        placeholder="密码"
         autocomplete="current-password"
       />
 
@@ -77,14 +79,15 @@ async function onSubmit() {
   min-height: 100vh;
 }
 
-/* 登录卡：极浅灰白卡面 + 双层极弱阴影，无实线描边；窄屏自适应 */
+/* 登录卡：深灰卡面 + 细描边 + 弱暗影；窄屏自适应 */
 .login__card {
   display: flex;
   flex-direction: column;
   width: min(400px, 92vw);
   box-sizing: border-box; /* 无全局重置：不定死则 padding 外溢，手机上卡片超出视口产生横滚 */
   padding: 32px;
-  border-radius: 20px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--web-radius-card);
   background: var(--web-bg-card);
   box-shadow: var(--el-box-shadow-elevated);
 }
@@ -110,7 +113,7 @@ async function onSubmit() {
   padding: 0 14px;
   border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
+  background: var(--el-fill-color-blank);
   color: var(--el-text-color-primary);
   font-family: inherit;
   outline: none;
@@ -127,13 +130,13 @@ async function onSubmit() {
   color: var(--el-color-danger);
 }
 
-/* 主操作：胶囊按钮（圆角 = 半高） */
+/* 主操作：主色实底按钮 */
 .login__submit {
   height: 40px;
   border: none;
-  border-radius: var(--web-radius-pill);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-color-primary);
-  color: #fff;
+  color: var(--web-on-primary);
   font-size: 14px;
   cursor: pointer;
   transition: opacity 0.15s ease;

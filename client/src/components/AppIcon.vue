@@ -2,7 +2,8 @@
 /**
  * 图标唯一实现（口径见 docs/ui/client/菜品首页.md，键表与署名见 src/theme/icons.ts）。
  * 资源 = **Streamline Plump（Solid）中性灰实心 SVG**（CC BY 4.0），几何**不自行绘制**。
- * 填充色以显式 `fill`（`#6B7280`）落盘，微信 `<image>` 直接渲染；主色实底上用 `inverse` 反白。
+ * 填充色以显式 `fill`（`#6B7280`）落盘，微信 `<image>` 直接渲染；深浅主题的着色差异走
+ * `--icon-filter`，主色实底上用 `inverse` 反白。
  */
 import { computed } from 'vue'
 
@@ -22,11 +23,10 @@ const props = withDefaults(
 )
 
 const src = computed(() => iconSrc(props.name))
-const style = computed(() => ({
-  width: props.size + 'rpx',
-  height: props.size + 'rpx',
-  filter: props.inverse ? 'brightness(0) invert(1)' : undefined,
-}))
+const style = computed(() => {
+  const box = { width: props.size + 'rpx', height: props.size + 'rpx' }
+  return props.inverse ? { ...box, filter: 'brightness(0) invert(1)' } : box
+})
 </script>
 
 <template>
@@ -43,5 +43,7 @@ const style = computed(() => ({
 .icon {
   display: block;
   flex-shrink: 0;
+  /* 主题着色：浅色 = 落盘中性灰原色，深色 = 反白并压到深色正文档亮度 */
+  filter: var(--icon-filter);
 }
 </style>

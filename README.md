@@ -14,9 +14,9 @@
 
 ## 产品形态（学生端单页全屏）
 
-- **单一结果态**：首页即当前条件下的在售位置结果集。冷启动是全部在售，输入一句话是推荐结果，清空回全量；布局恒定，只有数据变化。
-- **结果卡**：1 列竖向滚动，一卡 = 一个在售位置（16:9 菜品图 + 菜名 + 食堂 / 楼层 / 档口 + 确定售价 + 描述常驻）；描述超长时在卡内展开全文，无遮罩、无弹窗、无独立详情页。
-- **页头**：轻量 brand strip（品牌 + 日期），无操作按钮；页头之下直接是结果区。
+- **单一结果态**：首页即当前条件下的在售菜品结果集。冷启动是全部在售，输入一句话是推荐结果，清空回全量；布局恒定，只有数据变化。
+- **结果卡**：1 列竖向滚动，一卡 = 一道菜（16:9 菜品图 + 菜名 + 售价 + 各在售位置 + 描述常驻 2 行）；描述超长时在卡内展开全文，反馈在卡内就地展开，无全屏遮罩、无独立详情页。
+- **页头**：轻量 brand strip（左侧品牌 + 右侧「问题反馈」胶囊入口），无日期；页头之下直接是结果区。
 - **搜索**：底部单行悬浮胶囊（输入框 + 主色放大镜），输入一句话即替换结果集；不设筛选入口、不设结果条。
 - **无 TabBar / 无「我的」/ 无左右翻页**；全匿名（微信 `openid` 静默识别，身份不在任何界面展示）。
 - **反馈 = 一段文字**（产品 / 菜品两类，≤500 字），提交前走微信内容安全检测 `msgSecCheck`。
@@ -102,7 +102,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 | `SYSTEM1_*` | 可选精排服务（`rerank`）；开启后对向量 top-30 重排，失败自动退回向量排序 |
 | `CORS_ALLOW_ORIGINS` | 管理后台来源白名单 |
 
-**管理后台**：`web/.env.development`（连本机）/ `web/.env.production`（连云端），Vite 标准机制，开箱即用。
+**管理后台**：`web/.env.*` 的 `VITE_API_BASE_URL` 缺省 `/api`，浏览器同源请求无跨域。`npm run dev` 与 `npm run preview` 由 Vite 代理转发到本机后端（默认 `127.0.0.1:8000`，可用 `VITE_API_PROXY_TARGET` 改指），部署时由网关把 `/api` 反代到后端；需要直连独立部署的后端时，在构建前用进程环境变量 `VITE_API_BASE_URL` 设为完整域名。
 
 **小程序**：两套 env 已入库，本地开发**开箱即用**，无需复制：
 
@@ -169,9 +169,11 @@ npm run verify && npm run build:mp-weixin   # 发布构建（连云端）
 
    ```bash
    cd server && pytest                # 后端：单测 + 分层护栏
-   cd client && npm run verify        # 小程序：契约 / 图标 / UI token / 文档一致性 / 类型 / 单测 / 构建
+   cd client && npm run verify        # 小程序：契约 / 图标 / UI token / 事件名 / 文档一致性(strict) / 类型 / 单测 / 构建
    cd web && npm run verify           # 管理后台：token 门禁 / 单测 / lint / 类型 / 构建
    ```
+
+   `client` 的 `check:doc --strict` 覆盖 `docs/`、三端手写源码、根与三端 README 的零旧方案残留与相对链接；`check:events` 覆盖公共组件与各页面私有组件。
 
 4. 使用 [Conventional Commits](https://www.conventionalcommits.org/) 风格提交（如 `feat(client): ...`、`fix(server): ...`、`docs: ...`）
 5. 发起 PR，说明改动动机与影响范围，等待 Review

@@ -3,4 +3,5 @@
  */
 
 export { useImageSource } from './useImageSource'
+export { useTheme } from './useTheme'
 export { useTimers } from './useTimers'

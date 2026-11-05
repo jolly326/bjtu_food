@@ -2,17 +2,18 @@
 /**
  * 档口管理。
  * 范式：顶栏内联筛选（所属食堂 el-select）+「新建」→ 列表卡片 → 底部分页；
- * 编辑走居中弹窗（.dialog），删除在编辑界面内整卡切换确认（ConfirmDeleteCard）。
+ * 编辑走宽版弹窗（.dialog--wide + .edit-grid 两列栅格），删除在编辑界面内整卡切换确认（ConfirmDeleteCard）。
  * 规格见 docs/ui/web/档口管理.md。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
 import ImageField from '@/components/ImageField.vue'
+import ListCard from '@/components/ListCard.vue'
 import ConfirmDeleteCard from '@/components/ConfirmDeleteCard.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
+import { usePagedList } from '@/composables/usePagedList'
 import { canteenApi, stallApi, upload, type StallBody, type StallOut } from '@/api'
 
 const FLOORS = ['负一层', '一层', '二层', '三层', '四层']
@@ -35,9 +36,8 @@ const originalImageUrl = ref('')
 const saving = ref(false)
 const pendingFile = ref<File | null>(null)
 
-const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<StallOut>(
-  (p) => stallApi.list({ canteenId: filter.canteenId, page: p }),
-)
+const { rows, total, page, loading, error, hasNext, totalPages, load, go, reload } =
+  usePagedList<StallOut>((p) => stallApi.list({ canteenId: filter.canteenId, page: p }))
 
 function locText(row: StallOut): string {
   return [row.floor, row.windowNo ? `窗口 ${row.windowNo}` : ''].filter(Boolean).join(' · ')
@@ -177,44 +177,27 @@ onMounted(async () => {
     </Teleport>
 
     <div class="list-card-wrap">
-      <div
+      <ListCard
         v-for="row in rows"
         :key="row.id"
-        class="list-card"
-        tabindex="0"
-        role="button"
+        :title="row.name"
+        :image-url="row.imageUrl"
+        cover-icon="store"
+        :meta="`${row.dishCount} 个菜品 · ${locText(row) || '位置未填写'}`"
+        cover
+        interactive
         :aria-label="`编辑 ${row.name}`"
-        @click="onEdit(row)"
-        @keydown.enter.prevent="onEdit(row)"
-        @keydown.space.prevent="onEdit(row)"
+        @activate="onEdit(row)"
       >
-        <img
-          v-if="row.imageUrl"
-          v-zoomimg
-          :src="row.imageUrl"
-          class="list-card__cover"
-          :alt="row.name"
-          loading="lazy"
-        />
-        <span v-else class="list-card__cover list-card__cover--ph" aria-hidden="true">
-          <AppIcon name="store" :size="28" />
-        </span>
-        <div class="list-card__main">
-          <h3 class="list-card__title">
-            <span class="list-card__titleText">{{ row.name }}</span>
-            <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
-              {{ row.activate ? '正常' : '已停用' }}
-            </span>
-          </h3>
-          <div class="list-card__stats">
-            <span class="list-card__stat">{{ row.dishCount }} 个菜品</span>
-          </div>
-          <div class="list-card__path">{{ locText(row) || '位置未填写' }}</div>
-        </div>
-      </div>
+        <template #badge>
+          <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
+            {{ row.activate ? '正常' : '已停用' }}
+          </span>
+        </template>
+      </ListCard>
 
       <div v-if="loading" class="list-empty">加载中…</div>
-      <div v-if="!rows.length && !loading" class="list-empty">暂无档口</div>
+      <div v-if="!rows.length && !loading && !error" class="list-empty">暂无档口</div>
     </div>
 
     <ListError v-if="error" :message="error" @retry="load" />
@@ -224,7 +207,7 @@ onMounted(async () => {
       <PaginationBar
         :page="page"
         :has-next="hasNext"
-        :total-pages="Math.ceil(total / PAGE_SIZE)"
+        :total-pages="totalPages"
         @prev="go(page - 1)"
         @next="go(page + 1)"
         @go="go"
@@ -232,53 +215,83 @@ onMounted(async () => {
     </footer>
 
     <!-- 新建 / 编辑档口：居中弹窗 -->
-    <div v-if="dialog.visible" class="mask" @click.self="onCancel">
-      <div class="dialog">
-        <ConfirmDeleteCard
-          v-if="view === 'delete'"
-          @cancel="view = 'form'"
-          @confirm="confirmRemove"
-        />
-        <template v-else>
-          <h3 class="dialog__title">{{ dialog.id ? '编辑档口' : '新建档口' }}</h3>
+    <Teleport defer to="#overlay-root">
+      <div v-if="dialog.visible" class="mask" @click.self="onCancel">
+        <div class="dialog dialog--wide" role="dialog" aria-modal="true" aria-label="档口编辑">
+          <ConfirmDeleteCard
+            v-if="view === 'delete'"
+            message="删除后不可恢复。若该档口下仍有菜品，删除会被拒绝。"
+            @cancel="view = 'form'"
+            @confirm="confirmRemove"
+          />
+          <template v-else>
+            <h3 class="dialog__title">{{ dialog.id ? '编辑档口' : '新建档口' }}</h3>
 
-          <label class="dialog__label" for="stall-canteen">所属食堂</label>
-          <select id="stall-canteen" v-model="dialog.canteenId" class="dialog__input">
-            <option :value="null">请选择</option>
-            <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </select>
+            <div class="dialog__body">
+              <div class="edit-grid">
+                <div class="edit-field">
+                  <label class="dialog__label" for="stall-canteen">所属食堂</label>
+                  <select id="stall-canteen" v-model="dialog.canteenId" class="dialog__input">
+                    <option :value="null">请选择</option>
+                    <option v-for="c in canteens" :key="c.id" :value="c.id">{{ c.name }}</option>
+                  </select>
+                </div>
 
-          <label class="dialog__label" for="stall-name">名称</label>
-          <input id="stall-name" v-model="dialog.name" class="dialog__input" type="text" />
+                <div class="edit-field">
+                  <label class="dialog__label" for="stall-name">名称</label>
+                  <input id="stall-name" v-model="dialog.name" class="dialog__input" type="text" />
+                </div>
 
-          <label class="dialog__label" for="stall-floor">楼层</label>
-          <select id="stall-floor" v-model="dialog.floor" class="dialog__input">
-            <option value="">不填</option>
-            <option v-for="f in FLOORS" :key="f" :value="f">{{ f }}</option>
-          </select>
+                <div class="edit-field">
+                  <label class="dialog__label" for="stall-floor">楼层</label>
+                  <select id="stall-floor" v-model="dialog.floor" class="dialog__input">
+                    <option value="">不填</option>
+                    <option v-for="f in FLOORS" :key="f" :value="f">{{ f }}</option>
+                  </select>
+                </div>
 
-          <label class="dialog__label" for="stall-window">窗口号</label>
-          <input id="stall-window" v-model="dialog.windowNo" class="dialog__input" type="text" />
+                <div class="edit-field">
+                  <label class="dialog__label" for="stall-window">窗口号</label>
+                  <input
+                    id="stall-window"
+                    v-model="dialog.windowNo"
+                    class="dialog__input"
+                    type="text"
+                  />
+                </div>
 
-          <label class="dialog__label" for="stall-activate">状态</label>
-          <select id="stall-activate" v-model="dialog.activate" class="dialog__input">
-            <option :value="true">正常</option>
-            <option :value="false">已停用</option>
-          </select>
+                <div class="edit-field">
+                  <label class="dialog__label" for="stall-activate">状态</label>
+                  <select id="stall-activate" v-model="dialog.activate" class="dialog__input">
+                    <option :value="true">正常</option>
+                    <option :value="false">已停用</option>
+                  </select>
+                </div>
 
-          <label class="dialog__label">档口图片</label>
-          <ImageField v-model="dialog.imageUrl" label="档口图片" @pending="pendingFile = $event" />
+                <div class="edit-field">
+                  <label class="dialog__label">档口图片</label>
+                  <ImageField
+                    v-model="dialog.imageUrl"
+                    label="档口图片"
+                    @pending="pendingFile = $event"
+                  />
+                </div>
+              </div>
+            </div>
 
-          <footer class="dialog__foot">
-            <button v-if="dialog.id" class="btn btn--danger" @click="view = 'delete'">删除</button>
-            <span class="dialog__spacer" />
-            <button class="btn btn--outline" @click="onCancel">取消</button>
-            <button class="btn btn--primary" :disabled="saving" @click="onSave">
-              {{ saving ? '保存中…' : '保存' }}
-            </button>
-          </footer>
-        </template>
+            <footer class="dialog__foot">
+              <button v-if="dialog.id" class="btn btn--danger" @click="view = 'delete'">
+                删除
+              </button>
+              <span class="dialog__spacer" />
+              <button class="btn btn--outline" @click="onCancel">取消</button>
+              <button class="btn btn--primary" :disabled="saving" @click="onSave">
+                {{ saving ? '保存中…' : '保存' }}
+              </button>
+            </footer>
+          </template>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </section>
 </template>

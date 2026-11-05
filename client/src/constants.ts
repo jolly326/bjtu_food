@@ -18,6 +18,8 @@ export const FEEDBACK = {
 export const SEARCH_DOCK = {
   /** 无点击 / 输入多久后进入待机淡出态（ms） */
   IDLE_MS: 5000,
+  /** 输入框聚焦时与键盘的间距（px，平台单位） */
+  CURSOR_SPACING: 24,
 } as const
 
 export const IMAGE = {
@@ -26,11 +28,25 @@ export const IMAGE = {
 } as const
 
 export const RESULT = {
-  /** 描述常驻 3 行的字数阈值，超过则提供「展开」入口 */
+  /** 描述常驻 2 行的字数阈值，超过则提供「展开」入口 */
   DESCRIPTION_PREVIEW_CHARS: 72,
 } as const
 
 export const STORAGE = {
   /** 学生端 token 存储键 */
   STUDENT_TOKEN: 'student_token',
+  /** 主题模式存储键（`light` / `dark`） */
+  THEME: 'theme_mode',
+} as const
+
+export const NAV = {
+  /** 微信胶囊行兜底高度（px）：运行时测量不可用时使用 */
+  DEFAULT_HEADER_HEIGHT_PX: 44,
+  /** 页头右侧为原生胶囊预留的兜底宽度（px） */
+  DEFAULT_RIGHT_RESERVE_PX: 100,
+  /** 页头内容与原生胶囊之间的呼吸间距（px） */
+  CAPSULE_GAP_PX: 8,
+  /** 状态栏前景色：自定义导航下由平台 API 取反，仅接受 #FFFFFF / #000000 */
+  STATUS_BAR_FRONT_LIGHT: '#000000',
+  STATUS_BAR_FRONT_DARK: '#FFFFFF',
 } as const

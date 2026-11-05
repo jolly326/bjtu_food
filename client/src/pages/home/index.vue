@@ -12,11 +12,16 @@ import { dishApi } from '@/api'
 import type { DishVO } from '@/api'
 import PageLoading from '@/components/PageLoading.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
+import { useTheme } from '@/hooks'
 import { abortAllRequests, isAbortedRequest } from '@/utils/request'
+import { NAV } from '@/constants'
 import DishGrid from './components/DishGrid.vue'
-import FeedbackPanel from './components/FeedbackPanel.vue'
+import ProductFeedbackEntry from './components/ProductFeedbackEntry.vue'
 import HomeHeader from './components/HomeHeader.vue'
 import SearchDock from './components/SearchDock.vue'
+
+/** 主题：根容器挂 `.theme-dark` 即整页切深色（token 取值随之切换） */
+const { themeClass, applyChrome } = useTheme()
 
 /** 全量在售集：冷启动拉取并缓存，供清空回填 */
 const allDishes = ref<DishVO[]>([])
@@ -26,33 +31,27 @@ const conditioned = ref(false)
 const loading = ref(true)
 const failed = ref(false)
 /** 页头顶部偏移（px）：= 状态栏高度，页头内容区自状态栏下沿起算 */
-const topInset = ref(0)
+const topInset = ref<number>(0)
 /** 页头内容区高（px）：= 微信胶囊行高，品牌块与胶囊垂直居中对齐 */
-const headerHeight = ref(44)
+const headerHeight = ref<number>(NAV.DEFAULT_HEADER_HEIGHT_PX)
+/** 页头右侧为微信胶囊预留的宽度（px），保证反馈入口不被原生胶囊遮挡 */
+const headerRightReserve = ref<number>(NAV.DEFAULT_RIGHT_RESERVE_PX)
 
 const query = ref('')
-const submittedQuery = ref('')
 const searching = ref(false)
-const feedbackOpen = ref(false)
-/** 当前展开描述全文的位置 id；null = 无展开 */
+const productFeedbackOpen = ref(false)
+/** 当前展开反馈表单的菜品 id；null = 无卡展开 */
+const feedbackOpenId = ref<number | null>(null)
+/** 当前展开描述全文的菜品 id；null = 无展开 */
 const expandedId = ref<number | null>(null)
-const feedbackDishId = ref<number | null>(null)
 
 const visibleDishes = computed(() => (conditioned.value ? resultDishes.value : allDishes.value))
-const cardCount = computed(() =>
-  visibleDishes.value.reduce((n, dish) => n + dish.locations.length, 0),
-)
-
-
-const emptyKind = computed<'none' | 'plain' | 'catalog'>(() => {
-  if (cardCount.value > 0) return 'none'
-  return conditioned.value ? 'plain' : 'catalog'
-})
 
 async function load(): Promise<void> {
   loading.value = true
   failed.value = false
   expandedId.value = null
+  feedbackOpenId.value = null
   try {
     const list = await dishApi.list()
     allDishes.value = [...list].sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN'))
@@ -70,6 +69,7 @@ async function load(): Promise<void> {
 async function submit(text: string): Promise<void> {
   const keyword = text.trim()
   expandedId.value = null
+  feedbackOpenId.value = null
   if (!keyword) {
     clearSearch()
     return
@@ -78,7 +78,6 @@ async function submit(text: string): Promise<void> {
   try {
     const result = await dishApi.recommend(keyword)
     query.value = keyword
-    submittedQuery.value = keyword
     resultDishes.value = result.dishes
     conditioned.value = true
   } catch {
@@ -90,10 +89,10 @@ async function submit(text: string): Promise<void> {
 
 function clearSearch(): void {
   query.value = ''
-  submittedQuery.value = ''
   resultDishes.value = []
   conditioned.value = false
   expandedId.value = null
+  feedbackOpenId.value = null
 }
 
 function onSearch(text: string): Promise<void> {
@@ -104,28 +103,26 @@ function toggleFull(locationId: number): void {
   expandedId.value = expandedId.value === locationId ? null : locationId
 }
 
-function collapseFull(): void {
-  expandedId.value = null
-}
-
-function openFeedback(dishId: number): void {
-  feedbackDishId.value = dishId
-  feedbackOpen.value = true
-}
-
 function measureTopInset(): void {
   try {
     const windowInfoApi = (
-      uni as unknown as { getWindowInfo?: () => { statusBarHeight?: number } }
+      uni as unknown as {
+        getWindowInfo?: () => { statusBarHeight?: number; windowWidth?: number }
+      }
     ).getWindowInfo
-    const statusBar = windowInfoApi
-      ? windowInfoApi.call(uni).statusBarHeight || 0
-      : uni.getSystemInfoSync().statusBarHeight || 0
+    const win = windowInfoApi ? windowInfoApi.call(uni) : uni.getSystemInfoSync()
+    const statusBar = win.statusBarHeight || 0
+    const windowWidth = win.windowWidth || 0
 
-    let navHeight = 44
+    let navHeight: number = NAV.DEFAULT_HEADER_HEIGHT_PX
+    let rightReserve: number = NAV.DEFAULT_RIGHT_RESERVE_PX
     const menuApi = (
       uni as unknown as {
-        getMenuButtonBoundingClientRect?: () => { top?: number; height?: number }
+        getMenuButtonBoundingClientRect?: () => {
+          top?: number
+          height?: number
+          left?: number
+        }
       }
     ).getMenuButtonBoundingClientRect
     if (typeof menuApi === 'function') {
@@ -139,37 +136,55 @@ function measureTopInset(): void {
       ) {
         navHeight = (menu.top - statusBar) * 2 + menu.height
       }
+      if (menu && typeof menu.left === 'number' && windowWidth > 0) {
+        rightReserve = Math.max(0, windowWidth - menu.left) + NAV.CAPSULE_GAP_PX
+      }
     }
 
     topInset.value = statusBar
     headerHeight.value = navHeight
+    headerRightReserve.value = rightReserve
   } catch {
     topInset.value = 0
-    headerHeight.value = 44
+    headerHeight.value = NAV.DEFAULT_HEADER_HEIGHT_PX
+    headerRightReserve.value = NAV.DEFAULT_RIGHT_RESERVE_PX
   }
 }
 
 onMounted(() => {
   measureTopInset()
+  applyChrome()
   void load()
 })
 onUnmounted(abortAllRequests)
 </script>
 
 <template>
-  <view class="home">
-    <HomeHeader :top-inset="topInset" :header-height="headerHeight" />
+  <view class="home" :class="themeClass">
+    <HomeHeader
+      :top-inset="topInset"
+      :header-height="headerHeight"
+      :right-reserve="headerRightReserve"
+    >
+      <template #feedback>
+        <ProductFeedbackEntry
+          :open="productFeedbackOpen"
+          @update:open="productFeedbackOpen = $event"
+        />
+      </template>
+    </HomeHeader>
+
     <view class="home__body">
       <PageLoading v-if="loading" />
       <RetryBlock v-else-if="failed" @retry="load" />
       <DishGrid
         v-else
         :dishes="visibleDishes"
+        :conditioned="conditioned"
         :expanded-id="expandedId"
-        :empty-kind="emptyKind"
+        :feedback-open-id="feedbackOpenId"
         @open="toggleFull"
-        @collapse="collapseFull"
-        @feedback="openFeedback"
+        @feedback-open="feedbackOpenId = $event"
         @clear="clearSearch"
       />
 
@@ -181,8 +196,6 @@ onUnmounted(abortAllRequests)
         @clear="clearSearch"
       />
     </view>
-
-    <FeedbackPanel v-model="feedbackOpen" :dish-id="feedbackDishId" />
   </view>
 </template>
 
@@ -203,7 +216,6 @@ onUnmounted(abortAllRequests)
 
 .home__body {
   position: relative;
-  z-index: 1;
   display: flex;
   flex: 1;
   min-height: 0;

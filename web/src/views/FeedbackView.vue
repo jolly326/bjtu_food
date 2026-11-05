@@ -5,12 +5,13 @@
  * 列表卡片 + 内联筛选（类型 / 处理状态）；唯一动作 = 标记已处理（幂等）。
  * 不编辑正文、不删除、不给学生回执。
  */
-import { computed, onMounted, reactive } from 'vue'
+import { onMounted, reactive } from 'vue'
 
 import { ElMessage } from 'element-plus'
+import ListCard from '@/components/ListCard.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
+import { usePagedList } from '@/composables/usePagedList'
 import { feedbackApi, type FeedbackOut, type FeedbackType } from '@/api'
 
 /** 「全部」哨兵：Element Plus 的 el-option 不接受 undefined 的 value（会触发 prop 校验警告） */
@@ -22,16 +23,14 @@ const filter = reactive({
   handled: ALL as boolean | typeof ALL,
 })
 
-const { rows, total, page, loading, error, hasNext, load, go, reload } = usePagedList<FeedbackOut>(
-  (p) =>
+const { rows, total, page, loading, error, hasNext, totalPages, load, go, reload } =
+  usePagedList<FeedbackOut>((p) =>
     feedbackApi.list({
       type: filter.type === ALL ? undefined : filter.type,
       handled: filter.handled === ALL ? undefined : filter.handled,
       page: p,
     }),
-)
-
-const totalPages = computed(() => Math.ceil(total.value / PAGE_SIZE))
+  )
 
 function typeLabel(type: FeedbackType): string {
   return type === 'product' ? '产品反馈' : '菜品反馈'
@@ -88,35 +87,29 @@ onMounted(load)
     </Teleport>
 
     <div class="list-card-wrap">
-      <div
+      <ListCard
         v-for="row in rows"
         :key="row.id"
-        class="list-card"
-        :class="{ 'list-card--dim': row.handledAt }"
+        :title="row.dishName || '—'"
+        :dim="!!row.handledAt"
       >
-        <div class="list-card__main">
-          <h3 class="list-card__title">
-            <span class="list-card__titleText">{{ row.dishName || '—' }}</span>
-            <span class="tag" :class="row.type === 'product' ? 'tag--on' : 'tag--off'">
-              {{ typeLabel(row.type) }}
-            </span>
-          </h3>
+        <template #badge>
+          <span class="tag" :class="row.type === 'product' ? 'tag--on' : 'tag--off'">
+            {{ typeLabel(row.type) }}
+          </span>
+        </template>
 
-          <p class="feedback__content">{{ row.content }}</p>
+        <p class="card-content">{{ row.content }}</p>
 
-          <div class="list-card__stats">
-            <span class="list-card__stat">提交：{{ row.createdAt }}</span>
-            <span v-if="row.handledAt" class="list-card__stat">处理：{{ row.handledAt }}</span>
+        <template #actions>
+          <div v-if="!row.handledAt" class="card-actions">
+            <button class="btn btn--sm" type="button" @click.stop="onHandle(row)">标记处理</button>
           </div>
-
-          <div v-if="!row.handledAt" class="feedback__actions">
-            <button class="btn btn--sm" type="button" @click="onHandle(row)">标记处理</button>
-          </div>
-        </div>
-      </div>
+        </template>
+      </ListCard>
 
       <div v-if="loading" class="list-empty">加载中…</div>
-      <div v-if="!rows.length && !loading" class="list-empty">暂无反馈</div>
+      <div v-if="!rows.length && !loading && !error" class="list-empty">暂无反馈</div>
     </div>
 
     <ListError v-if="error" :message="error" @retry="load" />
@@ -136,20 +129,20 @@ onMounted(load)
 </template>
 
 <style scoped>
-.feedback__content {
-  margin: 6px 0;
+.card-content {
+  margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--el-text-color-regular);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.feedback__actions {
-  margin-top: 8px;
+.card-actions {
+  margin-top: 4px;
 }
 </style>

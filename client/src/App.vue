@@ -1,5 +1,5 @@
 <script lang="ts">
-// 全局入口（单主题，无启动期主题逻辑）
+// 全局入口（主题状态由 hooks/useTheme 承载：页面根容器挂 theme-dark 即整页切深色）
 export default {}
 </script>
 

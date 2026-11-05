@@ -1,11 +1,28 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig } from 'vite'
+import { defineConfig, type ProxyOptions } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 /** 是否生产构建（`vite build` ⇒ NODE_ENV=production） */
 const isProduction = process.env.NODE_ENV === 'production'
+
+/** 后端实例地址：默认本机 8000，可用 `VITE_API_PROXY_TARGET` 指向其它实例 */
+const proxyTarget = process.env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8000'
+
+/** dev 与 preview 共用：浏览器始终同源请求 `/api`，由服务端转发，无跨域 */
+const apiProxy: Record<string, ProxyOptions> = {
+  '/api': {
+    target: proxyTarget,
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/api/, ''),
+    configure(proxy) {
+      proxy.on('error', (err) => {
+        console.error(`[api proxy] 后端 ${proxyTarget} 不可达：${err.message}`)
+      })
+    },
+  },
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -20,15 +37,12 @@ export default defineConfig({
     },
   },
   server: {
-    // dev 代理：把相对基地址 `/api` 转发到本机后端，避免浏览器直连 `127.0.0.1:8000`
-    // 的跨域 / 主机连通问题（生产走 `.env.production` 的绝对地址，不经此代理）。
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-    },
+    port: 5173,
+    proxy: apiProxy,
+  },
+  preview: {
+    port: 4173,
+    proxy: apiProxy,
   },
   build: {
     // 生产：源码映射无用途，显式关闭（默认即 false，此处显式声明口径）

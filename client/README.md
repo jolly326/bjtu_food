@@ -1,6 +1,6 @@
 # client · 学生端（微信小程序）
 
-单页「菜品首页」：页头 + 1 列结果卡（描述常驻）+ 底部筛选与搜索 HUD + 文字反馈。视觉口径见 [`docs/ui/client/`](../docs/ui/client/)。
+单页「菜品首页」：页头 + 1 列结果卡（描述常驻）+ 底部搜索 HUD + 文字反馈。视觉口径见 [`docs/ui/client/`](../docs/ui/client/)。
 
 - 技术栈：uni-app · Vue 3 · TypeScript · 构建目标 `mp-weixin`
 
@@ -9,7 +9,7 @@
 ```
 src/
 ├── pages/home/index.vue           # 唯一页面
-│   └── components/                # 页面私有：HomeHeader · DishGrid · DishResultCard · SearchDock · FeedbackPanel
+│   └── components/                # 页面私有：HomeHeader · DishGrid · DishResultCard · SearchDock · FeedbackForm（两类反馈共用） · ProductFeedbackEntry
 ├── components/                    # ≥2 页公共件（5）：AppIcon · ImagePlaceholder · RetryBlock · PageLoading · StatusBlock
 ├── hooks/                         # useImageSource · useTimers（统一出口 hooks/index.ts）
 ├── utils/                         # backoff · image · request
@@ -23,7 +23,7 @@ src/
 - **依赖方向**：`pages → pages/components → components / hooks / utils / theme / api`；页面私有件不跨页引用；`utils` / `theme` 不导入 `pages`。
 - **归属判定**：≥2 页使用才进 `components/`，否则下沉 `pages/home/components/`。
 - **图标**：`assets/icons/<key>.svg` 为 Plump **Solid** 实心，`fill` 为单一中性色（`<image>` 不支持 `currentColor`），键表与 CC BY 4.0 署名见 `src/theme/icons.ts`。
-- **设计 token**：颜色只改 `theme/tokens.ts`（`generated-colors.css` 与其逐键一致）；非颜色 token 在 `theme/design-tokens.css`；🔥 零消费即删。
+- **设计 token**：颜色只改 `theme/tokens.ts`（`generated-colors.css` 与其逐键一致）；非颜色 token 在 `theme/design-tokens.css`；零消费即删。
 
 ## 脚本
 
@@ -34,8 +34,10 @@ npm run dev:mp-weixin          # 连本机后端（.env.development）
 npm run dev:mp-weixin:cloud    # 连云端（.env.production）
 npm run build:mp-weixin        # 发布构建
 npm run gen:api:fresh          # 后端起服务后刷新契约快照（openapi.json + api.d.ts）
-npm run verify                 # check:contract · check:icon · check:ui · check:events · check:doc · lint · type-check · test · build
+npm run verify                 # check:contract · check:icon · check:ui · check:events · check:doc --strict · lint · type-check · test · build
 ```
+
+`check:doc --strict` 覆盖 `docs/`、三端手写源码、仓库根与三端 README 的零旧方案残留与相对链接；`check:events` 覆盖 `src/components/` 与各页面私有组件目录。
 
 环境变量**构建期内联**，改 env 必须重新编译；真机联调用 `.env.development.local` 写局域网 IP（不入库）。环境变量清单见仓库根 [`README.md`](../README.md)「快速开始 · 3. 配置环境变量」。
 

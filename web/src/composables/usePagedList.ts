@@ -1,8 +1,9 @@
 /**
  * 列表页分页状态机（见 web/src/components/PaginationBar.vue）。
  *
- * <p>解耦点：视图只声明「取一页数据」的 fetcher，翻页 / 总数 / 加载态 / 下一页可用性 /
- * 末页删空回退 / 筛选回第 1 页 / 加载失败提示统一在此单点维护 —— 各列表视图共享同一份状态机。
+ * <p>解耦点：视图只声明「取一页数据」的 fetcher，翻页 / 总数 / 总页数 / 加载态 /
+ * 下一页可用性 / 末页删空回退 / 筛选回第 1 页 / 加载失败提示统一在此单点维护 ——
+ * 各列表视图共享同一份状态机。
  */
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -20,6 +21,8 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
   const error = ref('')
   /** 还有下一页（`page * PAGE_SIZE < total`） */
   const hasNext = computed(() => page.value * PAGE_SIZE < total.value)
+  /** 总页数（分页器单点计算，页面不各自 `Math.ceil`） */
+  const totalPages = computed(() => Math.ceil(total.value / PAGE_SIZE))
 
   async function load(): Promise<void> {
     loading.value = true
@@ -53,5 +56,5 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
     return load()
   }
 
-  return { rows, total, page, loading, error, hasNext, load, go, reload }
+  return { rows, total, page, loading, error, hasNext, totalPages, load, go, reload }
 }

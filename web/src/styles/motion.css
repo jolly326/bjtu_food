@@ -10,9 +10,9 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* 页面进入：轻微上浮 + 淡入，不做大幅位移动画 */
+  /* 页面进入：纯淡入 —— .page 上保留 transform 会成为 fixed 弹窗的包含块 */
   #app .page {
-    animation: web-page-in var(--web-duration-base) var(--web-ease-out) both;
+    animation: web-fade-in var(--web-duration-base) var(--web-ease-out) both;
   }
 
   /* 列表：整组淡入（不对单卡叠 opacity，避免覆盖 `.list-card--dim` 的变暗） */
@@ -46,10 +46,6 @@
   #app .btn:active {
     transform: scale(0.97);
   }
-
-  #app .list-card:active {
-    transform: translateY(0) scale(0.995);
-  }
 }
 
 @keyframes web-fade-in {
@@ -58,17 +54,6 @@
   }
   to {
     opacity: 1;
-  }
-}
-
-@keyframes web-page-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 

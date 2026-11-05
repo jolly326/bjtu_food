@@ -1,5 +1,6 @@
 /* 由 theme/tokens.ts 生成的色值产物 —— 改值只改 tokens.ts，再同步本文件（逐键一致）。
-   单一色相：中性灰阶 + 唯一主色 --brand；无半透明叠加 / 渐变 / 投影。 */
+   单一色相：中性灰阶 + 唯一主色 --brand；无半透明叠加 / 渐变 / 投影。
+   浅色取值挂在 page，深色取值挂在 .theme-dark（页面根容器挂该类即整页切深色）。 */
 page {
   /* ===== 文字 ===== */
   --text-title: #1F2937;
@@ -15,7 +16,21 @@ page {
   /* ===== 主色与反白色 ===== */
   --brand: #EA580C;
   --on-brand: #FFFFFF;
+}
 
-  /* ===== 浮层遮罩（纯色不透明）===== */
-  --overlay-scrim: #F3F4F6;
+.theme-dark {
+  /* ===== 文字 ===== */
+  --text-title: #E8EAED;
+  --text-body: #9CA2AC;
+  --text-disabled: #6F747E;
+
+  /* ===== 背景 / 边框 ===== */
+  --bg-page: #17181B;
+  --bg-card: #202228;
+  --bg-placeholder: #262930;
+  --border-color: #3A3E46;
+
+  /* ===== 主色与反白色 ===== */
+  --brand: #F97316;
+  --on-brand: #FFFFFF;
 }

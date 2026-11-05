@@ -39,7 +39,7 @@
 | 小程序 · 本地开发 | 直连 `uni.request` → 本机后端 | `client/.env.development` 的 `VITE_API_BASE_URL`（`http://127.0.0.1:8000`；**真机调试**用个人 `client/.env.development.local` 覆盖为本机局域网 IP —— 🔴 真机**预览**（扫码）不受「不校验合法域名」保护，`http` 会被拦，只有**真机调试**才可绕过） |
 | 小程序 · 云上 / 发布 | **云调用（推荐）** `wx.cloud.callContainer` —— 真机**免域名白名单** | `client/.env.production` 的 `VITE_TCB_ENV`（云托管环境 ID）+ 可选 `VITE_TCB_SERVICE` |
 | 小程序 · 云上（回退） | 直连 `uni.request` | `client/.env.production` 的 `VITE_API_BASE_URL`（https 域名；体验版 / 正式版须已 ICP 备案并登记 request 合法域名） |
-| 运营端（`web/`） | 浏览器直连 | `web/.env.*` 的 `VITE_API_BASE_URL` |
+| 运营端（`web/`） | 默认同源 `/api` 反代（`dev` / `preview` 由 Vite 代理转发本机后端，部署由网关反代）；`VITE_API_BASE_URL` 设为完整域名时直连独立部署的后端 | `web/.env.*` 的 `VITE_API_BASE_URL`（缺省 `/api`；构建期进程环境变量可覆盖） |
 
 🔴 小程序端**同时配置**时以云调用为准（`client/src/utils/request.ts::USE_CLOUD`）；同一份 env 内两者都存在时，`VITE_TCB_ENV` 非空即走云调用。
 

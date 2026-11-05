@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 48 48" id="Sun--Streamline-Plump">
+  <desc>
+    Sun Streamline Icon: https://streamlinehq.com
+  </desc>
+  <g id="sun--sunny-bright-light-day-weather" fill="#6B7280">
+    <circle id="Glow" cx="24" cy="24" r="10"></circle>
+    <rect id="Ray-Up" x="21.5" y="1.5" width="5" height="8.5" rx="2.5"></rect>
+    <rect id="Ray-Up-Right" x="21.5" y="1.5" width="5" height="8.5" rx="2.5" transform="rotate(45 24 24)"></rect>
+    <rect id="Ray-Right" x="21.5" y="1.5" width="5" height="8.5" rx="2.5" transform="rotate(90 24 24)"></rect>
+    <rect id="Ray-Down-Right" x="21.5" y="1.5" width="5" height="8.5" rx="2.5" transform="rotate(135 24 24)"></rect>
+    <rect id="Ray-Down" x="21.5" y="1.5" width="5" height="8.5" rx="2.5" transform="rotate(180 24 24)"></rect>
+    <rect id="Ray-Down-Left" x="21.5" y="1.5" width="5" height="8.5" rx="2.5" transform="rotate(225 24 24)"></rect>
+    <rect id="Ray-Left" x="21.5" y="1.5" width="5" height="8.5" rx="2.5" transform="rotate(270 24 24)"></rect>
+    <rect id="Ray-Up-Left" x="21.5" y="1.5" width="5" height="8.5" rx="2.5" transform="rotate(315 24 24)"></rect>
+  </g>
+</svg>

@@ -73,6 +73,8 @@ onMounted(sleep)
           confirm-type="search"
           placeholder="想吃点什么？"
           placeholder-class="dock__ph"
+          :cursor-spacing="SEARCH_DOCK.CURSOR_SPACING"
+          adjust-position
           @input="onInput"
           @focus="wake"
           @confirm="submit"
@@ -81,6 +83,8 @@ onMounted(sleep)
           v-if="modelValue"
           class="dock__clear"
           hover-class="dock__clear--press"
+          aria-role="button"
+          aria-label="清空搜索"
           @tap="emit('clear')"
         >清空</view>
       </view>
@@ -88,6 +92,8 @@ onMounted(sleep)
         class="dock__btn"
         :class="{ 'dock__btn--busy': searching }"
         hover-class="dock__btn--press"
+        aria-role="button"
+        aria-label="搜索菜品"
         @tap="submit"
       >
         <view v-if="searching" class="dock__spinner">
@@ -121,7 +127,10 @@ onMounted(sleep)
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--radius-pill);
   background: var(--bg-card);
-  transition: opacity var(--duration-base) var(--ease-out);
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
 }
 
 /* 待机：长时间无交互 ⇒ 胶囊淡出，任意点击 / 输入立即回到常态 */
@@ -151,7 +160,12 @@ onMounted(sleep)
 }
 
 .dock__clear {
-  padding: 0 var(--spacing-2xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-target-size);
+  min-height: var(--tap-target-size);
+  padding: 0 var(--spacing-xs);
   font-size: var(--font-subtitle);
   color: var(--text-body);
 }
@@ -171,7 +185,10 @@ onMounted(sleep)
   border: var(--border-width) solid var(--brand);
   border-radius: var(--radius-pill);
   background: var(--brand);
-  transition: opacity var(--duration-fast) var(--ease-out);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
 }
 
 .dock__btn--press {

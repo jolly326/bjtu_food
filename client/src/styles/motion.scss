@@ -1,5 +1,5 @@
 /* 动效层（学生端）：统一时长 / 缓动 / 进入动画 / 减弱动效。
-   口径见 docs/ui/client/菜品首页.md。 */
+   口径见 docs/ui/client/菜品首页.md；组件统一引用本文件的 keyframes。 */
 
 @keyframes motion-fade {
   from {
@@ -21,17 +21,31 @@
   }
 }
 
-/* 尊重系统「减弱动效」：显式列出本端动效类（WXSS 不支持 `*` 通配符） */
+/* 主题切换：底色 / 文字 / 描边随 token 取值平滑过渡；只过渡颜色，不介入透明度与位移 */
+page,
+view,
+text,
+textarea,
+input {
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out);
+}
+
+/* 尊重系统「减弱动效」：WXSS 不支持 `*` 通配符，显式列出本端动效类 */
 @media (prefers-reduced-motion: reduce) {
-  .hud__chips,
+  page,
+  view,
+  text,
+  textarea,
+  input,
   .grid,
   .card__desc--full,
-  .dock__field,
+  .dock,
   .dock__btn,
-  .card,
-  .fb,
-  .fb__panel,
-  .pressable {
+  .dock__spinner,
+  .feedback-form {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

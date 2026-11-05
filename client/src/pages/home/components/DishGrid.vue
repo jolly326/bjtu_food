@@ -2,7 +2,8 @@
 /**
  * 结果区（docs/ui/client/菜品首页.md `DishGrid`）。
  *
- * 1 列竖向滚动结果卡；一道菜的每个在售位置渲染一张卡，以 `dish_location.id` 为稳定键。
+ * 1 列竖向滚动结果卡；一道菜一张卡，以 `dish.id` 为稳定键，卡内并列该菜全部在售位置。
+ * 描述展开态与反馈表单展开态由父级全局唯一控制，同一时间仅一张卡展开。
  */
 import { computed, nextTick, ref, watch } from 'vue'
 
@@ -13,24 +14,25 @@ defineOptions({ options: { virtualHost: true } })
 
 const props = defineProps<{
   dishes: DishVO[]
+  conditioned: boolean
   expandedId: number | null
-  /** 空态类型：none 正常 / plain 有条件 0 命中 / catalog 全量无菜 */
-  emptyKind: 'none' | 'plain' | 'catalog'
+  feedbackOpenId: number | null
 }>()
 
 const emit = defineEmits<{
-  (e: 'open', locationId: number): void
-  (e: 'feedback', dishId: number): void
+  (e: 'open', dishId: number): void
+  (e: 'feedback-open', dishId: number | null): void
   (e: 'clear'): void
 }>()
 
-/** 菜品 × 位置摊平：每个在售位置一张卡 */
-const cards = computed(() =>
-  props.dishes.flatMap((dish) => dish.locations.map((loc) => ({ dish, loc }))),
-)
+/** 空态由结果集与条件态派生：none 正常 / plain 有条件 0 命中 / catalog 全量无菜 */
+const emptyKind = computed<'none' | 'plain' | 'catalog'>(() => {
+  if (props.dishes.length > 0) return 'none'
+  return props.conditioned ? 'plain' : 'catalog'
+})
 
-/** 结果集版本：结果行变化时递增，用于交叉淡入 */
-const fadeKey = computed(() => cards.value.map((card) => card.loc.id).join(','))
+/** 结果集版本：菜品行变化时递增，用于新列表淡入 */
+const fadeKey = computed(() => props.dishes.map((dish) => dish.id).join(','))
 
 const scrollIntoView = ref('')
 watch(
@@ -53,23 +55,29 @@ watch(
       <text v-else class="grid-empty__text">还没有菜品上架</text>
 
       <view v-if="emptyKind === 'plain'" class="grid-empty__actions">
-        <view class="grid-empty__btn" hover-class="grid-empty__btn--press" @tap="emit('clear')">看全部菜品</view>
+        <view
+          class="grid-empty__btn"
+          hover-class="grid-empty__btn--press"
+          aria-role="button"
+          aria-label="看全部菜品"
+          @tap="emit('clear')"
+        >看全部菜品</view>
       </view>
     </view>
 
     <view v-else :key="fadeKey" class="grid">
       <view
-        v-for="card in cards"
-        :id="`dish-result-${card.loc.id}`"
-        :key="card.loc.id"
+        v-for="dish in dishes"
+        :id="`dish-result-${dish.id}`"
+        :key="dish.id"
         class="grid__cell"
       >
         <DishResultCard
-          :dish="card.dish"
-          :loc="card.loc"
-          :expanded="expandedId === card.loc.id"
+          :dish="dish"
+          :expanded="expandedId === dish.id"
+          :feedback-open="feedbackOpenId === dish.id"
           @open="emit('open', $event)"
-          @feedback="emit('feedback', $event)"
+          @feedback-open="emit('feedback-open', $event)"
         />
       </view>
     </view>
@@ -91,17 +99,7 @@ watch(
   padding: var(--spacing-lg) var(--page-gutter);
   padding-bottom: var(--dock-reserve);
   padding-bottom: calc(var(--dock-reserve) + env(safe-area-inset-bottom));
-  animation: grid-in var(--duration-base) var(--ease-out);
-}
-
-@keyframes grid-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  animation: motion-fade var(--duration-base) var(--ease-out);
 }
 
 .grid__cell {
@@ -137,9 +135,9 @@ watch(
   padding: 0 var(--spacing-xl);
   border: var(--border-width) solid var(--brand);
   border-radius: var(--radius-pill);
-  background: var(--brand);
+  background: var(--bg-card);
   font-size: var(--font-subtitle);
-  color: var(--on-brand);
+  color: var(--brand);
 }
 
 .grid-empty__btn--press {
