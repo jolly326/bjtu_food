@@ -50,10 +50,10 @@ export const NAV = {
   DEFAULT_RIGHT_RESERVE_PX: 100,
   /** 页头内容与原生胶囊之间的呼吸间距（px） */
   CAPSULE_GAP_PX: 8,
-  /** 状态栏前景色：自定义导航下由平台 API 取反，仅接受 #FFFFFF / #000000 */
+  /** 状态栏前景色：自定义导航下由平台 API 取反，仅接受 #ffffff / #000000（🔴 必须小写，大写被拒） */
   STATUS_BAR_FRONT_LIGHT: '#000000',
-  STATUS_BAR_FRONT_DARK: '#FFFFFF',
-  /** 状态栏背景色：平台 API 必填（自定义导航下不渲染，但缺省即报 parameter error），与 --bg-page 同值 */
-  STATUS_BAR_BG_LIGHT: '#FFFFFF',
-  STATUS_BAR_BG_DARK: '#17181B',
+  STATUS_BAR_FRONT_DARK: '#ffffff',
+  /** 状态栏背景色：平台 API 必填（自定义导航下不渲染，缺省即报 parameter error），与 --bg-page 同值 */
+  STATUS_BAR_BG_LIGHT: '#ffffff',
+  STATUS_BAR_BG_DARK: '#17181b',
 } as const
