@@ -1,17 +1,19 @@
 /**
- * 图片 URL 工具：地图磁贴缩略图（docs/ui/client/美食地图.md §5）。
+ * 图片 URL 工具：菜品图缩略图（docs/ui/client/菜品首页.md）。
  *
- * 开关由构建期 env 决定：`VITE_USE_COS_THUMB=true` 时给 COS / CDN 图片追加
- * `imageMogr2/thumbnail/...` 处理参数；缺省（false）原图直出，确保任何环境
- * 都不会因处理参数不可用而加载失败。
+ * 开关 `VITE_USE_COS_THUMB=true` 时给 COS / CDN 图片追加腾讯云数据万象的
+ * `imageMogr2/thumbnail/<w>x/quality/<q>/format/webp` 处理参数（菜品图存于腾讯云 COS，原生支持 imageMogr2）；
+ * 按承载区真实像素尺寸派生缩略图，绝不把原图塞进小格。缩略图加载失败时经 `useImageSource` 回落原图、再失败才占位。
  */
+import { IMAGE } from '@/constants'
+
 const THUMB_ENABLED =
   ((import.meta.env.VITE_USE_COS_THUMB as string | undefined) ?? '').trim() === 'true'
 
-/** 按需派生缩略图 URL；未开启或无 URL 时原样返回。 */
-export function thumbUrl(url: string | null | undefined, width = 400): string {
+/** 按需派生缩略图 URL（限宽 + 质量 + webp）；未开启或无 URL 时原样返回。 */
+export function thumbUrl(url: string | null | undefined, width: number = IMAGE.THUMB_WIDTH): string {
   if (!url) return ''
   if (!THUMB_ENABLED || url.includes('imageMogr2')) return url
   const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}imageMogr2/thumbnail/${width}x`
+  return `${url}${sep}imageMogr2/thumbnail/${width}x/quality/${IMAGE.THUMB_QUALITY}/format/webp`
 }

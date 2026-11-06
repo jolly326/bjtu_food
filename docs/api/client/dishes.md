@@ -1,46 +1,58 @@
-# 学生端接口 · 食单
+# 菜品（学生端）
 
-> **契约真源**：端点 / 入参 / 出参 / 错误码。通用约定见 [`api/README.md`](../CONVENTIONS.md)。
+> 真源：端点 / 入参 / 出参 / 错误码。页面形态见 [`docs/ui/client/菜品首页.md`](../../ui/client/菜品首页.md)，业务流程见 [`docs/func/client/A-浏览与发现/A1-搜索找菜.md`](../../func/client/A-浏览与发现/A1-搜索找菜.md)。
 
-## `GET /dishes`
+## `GET /dishes` — 全量在售菜品
 
-🔑 需携带静默身份 `student_token`（openid 静默换取，非前台登录）—— 美食地图的全量在售菜品（端上排布、可平移缩放）。
+**鉴权**：🔑 匿名（静默 `student_token`）｜**限频**：读接口账户级
 
 | 项 | 口径 |
 |---|---|
-| 入参 | 无（不做食堂筛选 / 分页） |
-| 出参 | `DishVO[]` —— **全量在售菜品**（地图全量铺放，不做分页） |
-| 过滤 | 仅 `activate = true`（在售） |
-| 排序 | 服务端**不排序**（卡片排布由端上完成）；可按任意顺序下发 |
-| 缓存 | 响应带 `ETag` + `Cache-Control: private, max-age=30`；端上带 `If-None-Match` 可命中 `304`。全量在售菜品服务端短 TTL 缓存 30s，**点赞 / 后台写操作后立即失效**，TTL 仅作兜底 |
-| 错误码 | `401` 缺少 / 无效身份 token |
+| 过滤 | 只返回**至少有一个在售位置**的菜品；`locations` 只含 `activate = true` 的位置 |
+| 缓存 | `ETag` + `Cache-Control: private, max-age=30`；`If-None-Match` 命中返回 `304` |
+| 排序 | 菜品 `id` 升序，位置 `id` 升序（端上按菜名做一次稳定序） |
 
-**`DishVO`**
+**出参 `data: DishVO[]`**
 
 | 字段 | 类型 | 可空 | 说明 |
 |---|---|---|---|
 | `id` | number | 否 | 菜品 ID |
-| `name` | string | 否 | 菜品名称 |
-| `imageUrl` | string | **是** | 菜品大图绝对 URL；`null` = 该菜未配图 |
-| `likeCount` | number | 否 | **群体点赞数** = `COUNT(dish_rating.liked = TRUE)` |
-| `liked` | boolean | 否 | 当前用户是否已赞（取静默身份态，禁止前端传入） |
-| `canteenName` | string | 否 | 食堂名（位置）；**恒非空**（后端强校验 + 外键保证，无缺失分支） |
-| `stallName` | string | 否 | 档口名（位置）；档口未知时为 `''` ⇒ 展示占位「暂无」 |
-| `floor` | string | 否 | 楼层（受控字典：负一层…四层）；缺失时为 `''` ⇒ 展示占位「暂无」 |
+| `name` | string | 否 | 菜名；不同档口同名是不同 `id` |
+| `imageUrl` | string | **是** | 菜品图（绝对 URL）；`null` = 无图 |
+| `description` | string | 否 | 档案富文本（无描述为空串） |
+| `price` | number | **是** | 售价（**分**），同一菜品多位置共用；`null` = 未录入 |
+| `locations` | `DishLocationVO[]` | 否 | 该菜品的在售位置，恒为数组 |
 
-> 列定义见 [`schema/dish.md`](../../schema/dish.md) · 业务规则见 [`func/client/A1`](../../func/client/A-浏览与发现/A1-美食地图.md) · 点赞口径见 [`func/client/B1`](../../func/client/B-轻量反馈/B1-点赞反馈.md)。
+**`DishLocationVO`**
 
-## `POST /dishes/{id}/likes`
+| 字段 | 类型 | 可空 | 说明 |
+|---|---|---|---|
+| `id` | number | 否 | 位置 ID（学生端卡片身份） |
+| `canteenName` | string | 否 | 食堂名 |
+| `stallName` | string | 否 | 档口名；无档口为 `''` ⇒ 展示「暂无」 |
+| `floor` | string | 否 | 楼层（取档口）；缺失为 `''` ⇒ 展示「暂无」 |
 
-🔑 需携带静默身份 `student_token` —— **两态点赞 toggle**（抖音式）：已赞 ⇒ 取消，未赞 ⇒ 点赞。
+> 一道菜挂 N 个在售位置 ⇒ 端上渲染 N 张卡：图 / 描述 / 价格相同，`食堂 · 楼层 · 档口` 不同。
 
-| 项 | 口径 |
+## `POST /dishes/recommend` — 一句话匹配
+
+**鉴权**：🔑 匿名｜**限频**：推荐接口账户级
+
+**入参**：`{ query: string }`，≤200 字。
+
+**出参 `data: { dishes: DishVO[] }`**（字段同上）
+
+| 环节 | 口径 |
 |---|---|
-| 入参 | 无（`{id}` 路径参数） |
-| 行为 | 该行不存在 ⇒ INSERT（`liked = true`）；已存在 ⇒ 取反 `liked`（`true`→`false` 取消，`false`→`true` 再次点赞）；同事务重算 `dish.like_count` |
-| 出参 | `{ id, likeCount, liked }` —— `likeCount` 为该菜**最新点赞数**，`liked` 为当前用户**操作后**状态 |
-| 归属 | 只能操作本人点赞；用户取自静默身份态，**禁止前端传入** |
-| 频控 | 限频（见 [`secur/S-03`](../../secur/S-03-限频与接口防护.md)） |
-| 错误码 | `4001` 菜品不存在 / 已下架 ｜ `429` 命中限频 |
+| 硬约束 | 完整菜名 / 食堂名 / 价格上限（`N 元` / `N 块`，不超过）；按位置过滤后按菜品聚合 |
+| 排序 | 车型向量余弦降序（一道菜共享向量），同分保持服务端原始顺序；端上不二次排序 |
+| 条数 | 未开精排最多 30 条、开精排最多 10 条；不设相似度下限 |
+| 精排 | `SYSTEM1_ENABLED=true` 时对 top-30 rerank 取前 10；失败退回向量排序 |
 
-> 点赞真源见 [`schema/dish_rating.md`](../../schema/dish_rating.md) · 业务规则见 [`func/client/B1`](../../func/client/B-轻量反馈/B1-点赞反馈.md)。
+**错误码**
+
+| 码 | 场景 |
+|---|---|
+| `400` | 查询为空 / 超过 200 字 |
+| `401` | 身份无效 |
+| `429` | 命中限频（带 `Retry-After`） |

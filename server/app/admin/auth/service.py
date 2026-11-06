@@ -1,4 +1,4 @@
-"""运营端登录业务规则（docs/func/web/C1-管理员登录.md、docs/secur/S-01）。"""
+"""运营端登录业务规则（docs/func/web/C-账号与访问/C1-管理员登录.md、docs/secur/S-01）。"""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.admin.auth import repo
 from app.core.errors import Unauthorized
-from app.core.security import ADMIN, create_token, dummy_hash, verify_password
+from app.core.runtime.security import ADMIN, create_token, dummy_hash, verify_password
 from app.models import Admin
 
 

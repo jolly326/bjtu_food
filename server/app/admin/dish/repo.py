@@ -1,4 +1,4 @@
-"""运营端菜品数据访问。"""
+"""运营端菜品数据访问（docs/schema/dish.md、dish_location.md）。"""
 
 from __future__ import annotations
 
@@ -9,114 +9,109 @@ from sqlalchemy.orm import Session
 
 from app.core.formatters import format_dt
 from app.core.storage import to_absolute
-from app.models import Canteen, Dish, Stall
+from app.models import Canteen, Dish, DishLocation, Stall
 
 
 @dataclass(slots=True)
-class DishRow:
-    """菜品行 + 位置链路（image 为**绝对 URL**）。
-
-    档口 / 楼层可缺失 ⇒ **用空串表达**（保持非空类型，列表展示占位「暂无」）。
-    """
-
+class LocationRow:
     id: int
     canteen_id: int
     canteen_name: str
     stall_id: int | None
     stall_name: str
     floor: str
-    name: str
-    image: str | None
     activate: bool
-    like_count: int
+
+
+@dataclass(slots=True)
+class DishRow:
+    id: int
+    name: str
+    description: str
+    image: str | None
+    price: int | None
     updated_at: str
+    locations: list[LocationRow]
 
 
-def _to_row(dish: Dish, stall_name: str, canteen_name: str, floor: str) -> DishRow:
+def _locations_for(session: Session, dish_ids: list[int]) -> dict[int, list[LocationRow]]:
+    if not dish_ids:
+        return {}
+    rows = session.execute(
+        select(
+            DishLocation,
+            Canteen.name,
+            func.coalesce(Stall.name, ""),
+            func.coalesce(Stall.floor, ""),
+        )
+        .join(Canteen, Canteen.id == DishLocation.canteen_id)
+        .outerjoin(Stall, Stall.id == DishLocation.stall_id)
+        .where(DishLocation.dish_id.in_(dish_ids))
+        .order_by(DishLocation.id)
+    ).all()
+    grouped: dict[int, list[LocationRow]] = {}
+    for location, canteen_name, stall_name, floor in rows:
+        grouped.setdefault(location.dish_id, []).append(
+            LocationRow(
+                id=location.id,
+                canteen_id=location.canteen_id,
+                canteen_name=canteen_name,
+                stall_id=location.stall_id,
+                stall_name=stall_name,
+                floor=floor,
+                activate=location.activate,
+            )
+        )
+    return grouped
+
+
+def _to_row(dish: Dish, locations: list[LocationRow]) -> DishRow:
     return DishRow(
         id=dish.id,
-        canteen_id=dish.canteen_id,
-        canteen_name=canteen_name,
-        stall_id=dish.stall_id,
-        stall_name=stall_name,
-        floor=floor,
         name=dish.name,
+        description=dish.description or "",
         image=to_absolute(dish.image),
-        activate=dish.activate,
-        like_count=dish.like_count,
+        price=dish.price,
         updated_at=format_dt(dish.updated_at) or "",
-    )
-
-
-def _select_row():
-    """位置链路：食堂必填走 INNER JOIN，**档口可空走 LEFT JOIN**；
-    楼层优先取菜品自身 ``floor``，缺失时回落档口楼层。"""
-    return (
-        select(
-            Dish,
-            func.coalesce(Stall.name, ""),
-            Canteen.name,
-            func.coalesce(Dish.floor, Stall.floor, ""),
-        )
-        .join(Canteen, Canteen.id == Dish.canteen_id)
-        .outerjoin(Stall, Stall.id == Dish.stall_id)
+        locations=locations,
     )
 
 
 def find_row(session: Session, *, dish_id: int) -> DishRow | None:
-    found = session.execute(_select_row().where(Dish.id == dish_id)).first()
-    if found is None:
+    dish = session.get(Dish, dish_id)
+    if dish is None:
         return None
-    dish, stall_name, canteen_name, floor = found
-    return _to_row(dish, stall_name, canteen_name, floor)
+    return _to_row(dish, _locations_for(session, [dish_id]).get(dish_id, []))
 
 
 def list_page(
     session: Session,
     *,
-    stall_id: int | None,
     canteen_id: int | None,
-    no_stall: bool | None,
+    stall_id: int | None,
     activate: bool | None,
     name: str | None,
     page: int,
     size: int,
 ) -> tuple[list[DishRow], int]:
-    stmt = _select_row().order_by(Dish.id)
-    if stall_id is not None:
-        stmt = stmt.where(Dish.stall_id == stall_id)
-    if no_stall:
-        stmt = stmt.where(Dish.stall_id.is_(None))
-    if canteen_id is not None:
-        stmt = stmt.where(Dish.canteen_id == canteen_id)
-    if activate is not None:
-        stmt = stmt.where(Dish.activate == activate)
+    """列表口径：菜品本体，按位置归属 / 状态 / 名称过滤。"""
+    stmt = select(Dish).order_by(Dish.id)
     if name:
         stmt = stmt.where(Dish.name.like(f"%{name}%"))
-
-    # 计数：食堂已是 dish 自身字段，无需再 join
-    count_stmt = select(func.count(Dish.id)).select_from(Dish)
-    if stall_id is not None:
-        count_stmt = count_stmt.where(Dish.stall_id == stall_id)
-    if no_stall:
-        count_stmt = count_stmt.where(Dish.stall_id.is_(None))
     if canteen_id is not None:
-        count_stmt = count_stmt.where(Dish.canteen_id == canteen_id)
+        stmt = stmt.where(
+            Dish.id.in_(select(DishLocation.dish_id).where(DishLocation.canteen_id == canteen_id))
+        )
+    if stall_id is not None:
+        stmt = stmt.where(
+            Dish.id.in_(select(DishLocation.dish_id).where(DishLocation.stall_id == stall_id))
+        )
     if activate is not None:
-        count_stmt = count_stmt.where(Dish.activate == activate)
-    if name:
-        count_stmt = count_stmt.where(Dish.name.like(f"%{name}%"))
-    total = session.scalar(count_stmt)
+        stmt = stmt.where(
+            Dish.id.in_(select(DishLocation.dish_id).where(DishLocation.activate == activate))
+        )
 
-    pairs = session.execute(stmt.offset((page - 1) * size).limit(size)).all()
-    return [_to_row(d, s, c, f) for d, s, c, f in pairs], int(total or 0)
-
-
-def find_by_canteen_name(
-    session: Session, *, canteen_id: int, name: str, exclude_id: int | None = None
-) -> Dish | None:
-    """同一食堂下同名菜品；可排除自身（update 用）"""
-    stmt = select(Dish).where(Dish.canteen_id == canteen_id, Dish.name == name)
-    if exclude_id is not None:
-        stmt = stmt.where(Dish.id != exclude_id)
-    return session.scalar(stmt)
+    total = session.scalar(select(func.count()).select_from(stmt.subquery()))
+    dishes = list(session.scalars(stmt.offset((page - 1) * size).limit(size)))
+    grouped = _locations_for(session, [d.id for d in dishes])
+    return [_to_row(d, grouped.get(d.id, [])) for d in dishes], int(total or 0)

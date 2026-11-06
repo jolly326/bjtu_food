@@ -12,9 +12,8 @@
 | 文档 | 覆盖端点 | 消费方 |
 |---|---|---|
 | [client/auth.md](./client/auth.md) | `POST /auth/wechat-login` | openid 静默识别 |
-| [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/{id}/likes` | 美食地图页 |
-| [client/canteens.md](./client/canteens.md) | `GET /canteens` | 美食地图页：地图聚合并非本期筛选项，端点用于支撑地图数据读取 |
-| [client/issues.md](./client/issues.md) | `GET /dish-issue-options` · `POST /dishes/{id}/issues` | 菜品纠错 |
+| [client/dishes.md](./client/dishes.md) | `GET /dishes` · `POST /dishes/recommend` | 结果信息卡 + 搜索 dock |
+| [client/feedback.md](./client/feedback.md) | `POST /feedback` | 产品反馈 / 菜品反馈 |
 
 ### 运营端（`web/`）
 
@@ -24,7 +23,7 @@
 | [web/canteens.md](./web/canteens.md) | `/admin/canteens*` |
 | [web/stalls.md](./web/stalls.md) | `/admin/stalls*` |
 | [web/dishes.md](./web/dishes.md) | `/admin/dishes*` |
-| [web/issues.md](./web/issues.md) | `/admin/dish-issues*` · `/admin/dish-issue-options*` |
+| [web/feedback.md](./web/feedback.md) | `/admin/feedback*` |
 | [web/images.md](./web/images.md) | `POST /admin/images` |
 
 ---
@@ -40,7 +39,7 @@
 | 小程序 · 本地开发 | 直连 `uni.request` → 本机后端 | `client/.env.development` 的 `VITE_API_BASE_URL`（`http://127.0.0.1:8000`；**真机调试**用个人 `client/.env.development.local` 覆盖为本机局域网 IP —— 🔴 真机**预览**（扫码）不受「不校验合法域名」保护，`http` 会被拦，只有**真机调试**才可绕过） |
 | 小程序 · 云上 / 发布 | **云调用（推荐）** `wx.cloud.callContainer` —— 真机**免域名白名单** | `client/.env.production` 的 `VITE_TCB_ENV`（云托管环境 ID）+ 可选 `VITE_TCB_SERVICE` |
 | 小程序 · 云上（回退） | 直连 `uni.request` | `client/.env.production` 的 `VITE_API_BASE_URL`（https 域名；体验版 / 正式版须已 ICP 备案并登记 request 合法域名） |
-| 运营端（`web/`） | 浏览器直连 | `web/.env.*` 的 `VITE_API_BASE_URL` |
+| 运营端（`web/`） | 默认同源 `/api` 反代（`dev` / `preview` 由 Vite 代理转发本机后端，部署由网关反代）；`VITE_API_BASE_URL` 设为完整域名时直连独立部署的后端 | `web/.env.*` 的 `VITE_API_BASE_URL`（缺省 `/api`；构建期进程环境变量可覆盖） |
 
 🔴 小程序端**同时配置**时以云调用为准（`client/src/utils/request.ts::USE_CLOUD`）；同一份 env 内两者都存在时，`VITE_TCB_ENV` 非空即走云调用。
 
@@ -90,21 +89,9 @@
 |---|---|
 | `GET /healthz` | 健康检查；🔴 **不走响应信封**，直接返回原始对象（探针直读）。不属业务资源，故不在上表登记。 |
 
-### 分页结构 `PageResult<T>`
+### 分页结构 `AdminPageResult<T>`
 
-**学生端分页壳只有 `records` 一个字段**：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `records` | T[] | 当前页数据行 |
-
-- **不回传** `total` / `page` / `pageSize` —— 页码信息由请求侧掌握。
-- **分页结束判据 = 本页返回条数 < 请求的 `pageSize`**。
-- 请求侧 `pageSize` 上限 **50**，超限服务端截断。
-
-### 运营端分页结构 `AdminPageResult<T>`
-
-**仅用于 `/admin/**`** —— 后台是「核对型」使用（要知道总数、要能翻页）：
+**只有运营端 `/admin/**` 分页**（学生端端点一律返回全量数组或者不使用分页）—— 后台是「核对型」使用（要知道总数、要能翻页）：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -140,7 +127,7 @@
 | 数组字段**恒为数组** | 无数据时返回 `[]`，**不为 null** |
 | 有意可空的字段 | 逐字段在资源文档中标「可空 = 是」并说明 `null` 的语义 |
 
-**有意可空字段（逐条登记）**：本阶段无「有意可空」展示字段 —— 点赞数 `likeCount` 恒非空（默认 0），`liked` 由登录态判定（恒非空）。
+**有意可空字段（逐条登记）**：`imageUrl`（`null` = 未配图）、`DishLocationVO.price`（`null` = 未录入）。
 
 ---
 

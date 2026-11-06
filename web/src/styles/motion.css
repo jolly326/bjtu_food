@@ -1,0 +1,100 @@
+/* 动效层（运营端）：统一时长 / 缓动 / 进入动画 / 减弱动效 / 键盘焦点。
+   统一时长 / 缓动口径。 */
+
+:root {
+  --web-duration-fast: 120ms;
+  --web-duration-base: 240ms;
+  --web-duration-slow: 420ms;
+  --web-ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --web-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 页面进入：纯淡入 —— .page 上保留 transform 会成为 fixed 弹窗的包含块 */
+  #app .page {
+    animation: web-fade-in var(--web-duration-base) var(--web-ease-out) both;
+  }
+
+  /* 列表：整组淡入（不对单卡叠 opacity，避免覆盖 `.list-card--dim` 的变暗） */
+  #app .list-card-wrap {
+    animation: web-fade-in var(--web-duration-base) var(--web-ease-out) both;
+  }
+
+  /* 弹窗 / 遮罩：遮罩淡入、弹窗轻微弹入 */
+  #app .mask {
+    animation: web-fade-in var(--web-duration-fast) var(--web-ease-out) both;
+  }
+
+  #app .dialog {
+    animation: web-dialog-in var(--web-duration-base) var(--web-ease-bounce) both;
+  }
+
+  /* 登录卡：缓慢上浮 */
+  #app .login__card {
+    animation: web-rise-in var(--web-duration-slow) var(--web-ease-out) both;
+  }
+
+  /* 按压反馈：按钮 / 卡片轻微收缩 */
+  #app .btn {
+    transition:
+      transform var(--web-duration-fast) var(--web-ease-out),
+      opacity var(--web-duration-fast) var(--web-ease-out),
+      border-color var(--web-duration-fast) var(--web-ease-out),
+      background var(--web-duration-fast) var(--web-ease-out);
+  }
+
+  #app .btn:active {
+    transform: scale(0.97);
+  }
+}
+
+@keyframes web-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes web-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes web-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 键盘可达：统一主色外环（按钮 / 搜索框 / 弹窗输入） */
+#app .btn:focus-visible,
+#app .filters__search:focus-visible,
+#app .dialog__input:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+/* 尊重系统「减弱动效」 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

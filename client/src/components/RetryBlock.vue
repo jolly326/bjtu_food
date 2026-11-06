@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 加载失败块（规格见 docs/ui/client/公共组件与形态基线.md §2.1.3）。
+ * 加载失败块（规格见 docs/ui/client/菜品首页.md）。
  *
  * 与「加载中」共用 `StatusBlock` 骨架 ⇒ 图标尺寸 / 文案字阶 / 居中位置完全一致；
  * 整块可点即重试，点击后父级立即切到加载态，本块随之卸载。
@@ -16,7 +16,7 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
 <template>
   <StatusBlock
     name="warning"
-    text="加载失败"
+    text="加载失败，点击重试"
     aria-label="加载失败，点击重试"
     pressable
     @press="emit('retry')"

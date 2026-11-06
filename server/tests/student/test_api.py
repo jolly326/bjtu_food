@@ -13,8 +13,8 @@ from fastapi.testclient import TestClient
 
 from app.core import config
 from app.core.errors import CODE_BAD_REQUEST, CODE_RATE_LIMITED, CODE_UNAUTHORIZED
-from app.core.ratelimit import RULE_LIKE, limiter
-from app.core.security import STUDENT, create_token
+from app.core.runtime.ratelimit import RULE_RECOMMEND, limiter
+from app.core.runtime.security import STUDENT, create_token
 from app.main import app
 
 STUDENT_SECRET = "student-secret-0123456789abcdef-0123456789abcdef"
@@ -46,41 +46,43 @@ def _auth(user_id: int = 1) -> dict[str, str]:
 
 def test_missing_token_returns_401(client: TestClient) -> None:
     """除 wechat-login 外，所有端点都要求凭证。"""
-    resp = client.get("/canteens")
+    resp = client.get("/dishes")
     assert resp.status_code == 200  # 信封模式：HTTP 恒 200
     assert resp.json()["code"] == CODE_UNAUTHORIZED
 
 
 def test_malformed_token_returns_401(client: TestClient) -> None:
-    resp = client.get("/canteens", headers={"Authorization": "Bearer not-a-jwt"})
+    resp = client.get("/dishes", headers={"Authorization": "Bearer not-a-jwt"})
     assert resp.json()["code"] == CODE_UNAUTHORIZED
 
 
-def test_missing_option_id_returns_400(client: TestClient) -> None:
-    resp = client.post("/dishes/1/issues", json={}, headers=_auth())
+def test_missing_query_returns_400(client: TestClient) -> None:
+    resp = client.post("/dishes/recommend", json={}, headers=_auth())
     assert resp.json()["code"] == CODE_BAD_REQUEST
 
 
 def test_extra_identity_field_returns_400(client: TestClient) -> None:
     """请求体带 userId 一类身份字段 ⇒ 参数非法（docs/secur/S-02）。"""
-    resp = client.post("/dishes/1/issues", json={"optionId": 1, "userId": 2}, headers=_auth())
+    resp = client.post(
+        "/feedback",
+        json={"type": "product", "content": "希望支持语音", "userId": 2},
+        headers=_auth(),
+    )
     assert resp.json()["code"] == CODE_BAD_REQUEST
 
 
-def test_like_rate_limit_returns_429(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_recommend_rate_limit_returns_429(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """超过阈值的第 N+1 次请求返回 429 + 可等待秒数。"""
     from app.student.dish import service as dish_service
 
-    monkeypatch.setattr(
-        dish_service,
-        "toggle_like",
-        lambda *_args, **_kwargs: dish_service.DishLikeOut(id=1, like_count=1, liked=True),
-    )
+    monkeypatch.setattr(dish_service, "recommend", lambda *_args, **_kwargs: [])
 
     headers = _auth(user_id=424242)
     last = None
-    for _ in range(RULE_LIKE.limit + 1):
-        last = client.post("/dishes/1/likes", headers=headers)
+    for _ in range(RULE_RECOMMEND.limit + 1):
+        last = client.post("/dishes/recommend", json={"query": "想吃辣"}, headers=headers)
 
     assert last is not None
     assert last.json()["code"] == CODE_RATE_LIMITED

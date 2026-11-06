@@ -1,28 +1,48 @@
 <script setup lang="ts">
 /**
- * 食堂管理（设计稿 docs/ui/web/食堂管理.md；业务规则 docs/func/web/A1）。
- * 范式：顶栏 + 列表卡片 + 分页；新建 / 编辑走 520px 弹窗；删除二次确认。
+ * 食堂管理。
+ * 范式：顶栏标题 + 新建 → 列表卡片 → 底部分页；
+ * 编辑走宽版弹窗（.dialog--wide + .edit-grid 两列栅格），删除在编辑界面内整卡切换确认（ConfirmDeleteCard）。
+ * 规格见 docs/ui/web/食堂管理.md。
  */
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import AppIcon from '@/components/AppIcon.vue'
+import ImageField from '@/components/ImageField.vue'
+import ListCard from '@/components/ListCard.vue'
+import ConfirmDeleteCard from '@/components/ConfirmDeleteCard.vue'
 import ListError from '@/components/ListError.vue'
 import PaginationBar from '@/components/PaginationBar.vue'
-import { PAGE_SIZE, usePagedList } from '@/composables/usePagedList'
-import { canteenApi, type CanteenOut } from '@/api'
+import { usePagedList } from '@/composables/usePagedList'
+import { canteenApi, upload, type CanteenOut } from '@/api'
 
-const dialog = reactive({ visible: false, id: 0 as number, name: '', activate: true })
+const dialog = reactive({
+  visible: false,
+  id: 0 as number,
+  name: '',
+  activate: true,
+  imageUrl: '',
+})
+const view = ref<'form' | 'delete'>('form')
+const originalImageUrl = ref('')
 const saving = ref(false)
+const pendingFile = ref<File | null>(null)
 
-/** 分页状态机：翻页 / 加载态 / 末页删空回退单点收口（见基线 §2.3「分页」） */
-const { rows, total, page, loading, error, hasNext, load, go } = usePagedList<CanteenOut>((p) =>
-  canteenApi.list(p),
-)
+const { rows, total, page, loading, error, hasNext, totalPages, load, go } =
+  usePagedList<CanteenOut>((p) => canteenApi.list(p))
+
+function openForm() {
+  view.value = 'form'
+}
 
 function onCreate() {
   dialog.id = 0
   dialog.name = ''
   dialog.activate = true
+  dialog.imageUrl = ''
+  pendingFile.value = null
+  originalImageUrl.value = ''
+  openForm()
   dialog.visible = true
 }
 
@@ -30,6 +50,10 @@ function onEdit(row: CanteenOut) {
   dialog.id = row.id
   dialog.name = row.name
   dialog.activate = row.activate
+  dialog.imageUrl = row.imageUrl ?? ''
+  originalImageUrl.value = row.imageUrl ?? ''
+  pendingFile.value = null
+  openForm()
   dialog.visible = true
 }
 
@@ -40,7 +64,12 @@ async function onSave() {
   }
   saving.value = true
   try {
-    const body = { name: dialog.name.trim(), activate: dialog.activate }
+    let imageUrl: string | null = dialog.imageUrl || null
+    if (pendingFile.value) {
+      imageUrl = await upload(pendingFile.value)
+      pendingFile.value = null
+    }
+    const body = { name: dialog.name.trim(), activate: dialog.activate, imageUrl }
     if (dialog.id) {
       await canteenApi.update(dialog.id, body)
     } else {
@@ -50,31 +79,31 @@ async function onSave() {
     dialog.visible = false
     await load()
   } catch (e) {
+    originalImageUrl.value =
+      dialog.imageUrl && !dialog.imageUrl.startsWith('blob:')
+        ? dialog.imageUrl
+        : originalImageUrl.value
     ElMessage.error((e as Error).message)
   } finally {
     saving.value = false
   }
 }
 
-/** 删除入口在编辑界面内（卡面无操作按钮、无卡片浮层） */
-async function onRemove() {
-  if (!dialog.id) return
-  try {
-    await ElMessageBox.confirm('删除后不可恢复。若该食堂下仍有档口，删除会被拒绝。', '确认删除', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
-  } catch {
-    return
-  }
+function onCancel(): void {
+  dialog.imageUrl = originalImageUrl.value
+  dialog.visible = false
+}
+
+async function confirmRemove() {
   try {
     await canteenApi.remove(dialog.id)
     ElMessage.success('已删除')
     dialog.visible = false
-    await load() /* 末页删空自动回退由 usePagedList 单点处理 */
+    if (rows.value.length === 1 && page.value > 1) go(page.value - 1)
+    else await load()
   } catch (e) {
     ElMessage.error((e as Error).message)
+    view.value = 'form'
   }
 }
 
@@ -83,40 +112,40 @@ onMounted(load)
 
 <template>
   <section class="page">
-    <header class="page__bar">
-      <h2 class="page__title">食堂管理</h2>
-      <button class="btn btn--primary" @click="onCreate">
-        <AppIcon name="add" :size="16" />新建
-      </button>
-    </header>
+    <Teleport defer to="#layout-pageheader">
+      <header class="page__bar">
+        <div class="page__titleGroup">
+          <h2 class="page__title">食堂管理</h2>
+        </div>
+        <div class="page__actions">
+          <button class="btn btn--primary" @click="onCreate">
+            <AppIcon name="add" :size="16" />新建食堂
+          </button>
+        </div>
+      </header>
+    </Teleport>
 
     <div class="list-card-wrap">
-      <div
+      <ListCard
         v-for="row in rows"
         :key="row.id"
-        class="list-card"
-        tabindex="0"
-        role="button"
+        :title="row.name"
+        :image-url="row.imageUrl"
+        :meta="`${row.stallCount} 个档口`"
+        cover
+        interactive
         :aria-label="`编辑 ${row.name}`"
-        @click="onEdit(row)"
-        @keydown.enter.prevent="onEdit(row)"
-        @keydown.space.prevent="onEdit(row)"
+        @activate="onEdit(row)"
       >
-        <div class="list-card__main">
-          <h3 class="list-card__title">
-            <span class="list-card__titleText">{{ row.name }}</span>
-            <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
-              {{ row.activate ? '正常' : '已停用' }}
-            </span>
-          </h3>
-          <div class="list-card__stats">
-            <span class="list-card__stat">{{ row.stallCount }} 个档口</span>
-          </div>
-        </div>
-      </div>
-      <div class="list-card" v-if="!rows.length && !loading">
-        <span class="list-card__empty">暂无数据</span>
-      </div>
+        <template #badge>
+          <span class="tag" :class="row.activate ? 'tag--on' : 'tag--off'">
+            {{ row.activate ? '正常' : '已停用' }}
+          </span>
+        </template>
+      </ListCard>
+
+      <div v-if="loading" class="list-empty">加载中…</div>
+      <div v-if="!rows.length && !loading && !error" class="list-empty">暂无食堂</div>
     </div>
 
     <ListError v-if="error" :message="error" @retry="load" />
@@ -126,31 +155,69 @@ onMounted(load)
       <PaginationBar
         :page="page"
         :has-next="hasNext"
-        :total-pages="Math.ceil(total / PAGE_SIZE)"
+        :total-pages="totalPages"
         @prev="go(page - 1)"
         @next="go(page + 1)"
+        @go="go"
       />
     </footer>
 
-    <div v-if="dialog.visible" class="mask" @click.self="dialog.visible = false">
-      <div class="dialog">
-        <h3 class="dialog__title">{{ dialog.id ? '编辑食堂' : '新建食堂' }}</h3>
-        <label class="dialog__label" for="canteen-name">名称</label>
-        <input id="canteen-name" v-model="dialog.name" class="dialog__input" type="text" />
-        <label class="dialog__label" for="canteen-activate">状态</label>
-        <select id="canteen-activate" v-model="dialog.activate" class="dialog__input">
-          <option :value="true">正常</option>
-          <option :value="false">已停用</option>
-        </select>
-        <footer class="dialog__foot">
-          <button v-if="dialog.id" class="btn btn--danger" @click="onRemove">删除</button>
-          <span class="dialog__spacer" />
-          <button class="btn btn--outline" @click="dialog.visible = false">取消</button>
-          <button class="btn btn--primary" :disabled="saving" @click="onSave">
-            {{ saving ? '保存中…' : '保存' }}
-          </button>
-        </footer>
+    <Teleport defer to="#overlay-root">
+      <div v-if="dialog.visible" class="mask" @click.self="onCancel">
+        <div class="dialog dialog--wide" role="dialog" aria-modal="true" aria-label="食堂编辑">
+          <ConfirmDeleteCard
+            v-if="view === 'delete'"
+            message="删除后不可恢复。若该食堂下仍有档口，删除会被拒绝。"
+            @cancel="view = 'form'"
+            @confirm="confirmRemove"
+          />
+          <template v-else>
+            <h3 class="dialog__title">{{ dialog.id ? '编辑食堂' : '新建食堂' }}</h3>
+
+            <div class="dialog__body">
+              <div class="edit-grid">
+                <div class="edit-field">
+                  <label class="dialog__label" for="canteen-name">名称</label>
+                  <input
+                    id="canteen-name"
+                    v-model="dialog.name"
+                    class="dialog__input"
+                    type="text"
+                  />
+                </div>
+
+                <div class="edit-field">
+                  <label class="dialog__label" for="canteen-activate">状态</label>
+                  <select id="canteen-activate" v-model="dialog.activate" class="dialog__input">
+                    <option :value="true">正常</option>
+                    <option :value="false">已停用</option>
+                  </select>
+                </div>
+
+                <div class="edit-field edit-field--wide">
+                  <label class="dialog__label">食堂图片</label>
+                  <ImageField
+                    v-model="dialog.imageUrl"
+                    label="食堂图片"
+                    @pending="pendingFile = $event"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <footer class="dialog__foot">
+              <button v-if="dialog.id" class="btn btn--danger" @click="view = 'delete'">
+                删除
+              </button>
+              <span class="dialog__spacer" />
+              <button class="btn btn--outline" @click="onCancel">取消</button>
+              <button class="btn btn--primary" :disabled="saving" @click="onSave">
+                {{ saving ? '保存中…' : '保存' }}
+              </button>
+            </footer>
+          </template>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </section>
 </template>

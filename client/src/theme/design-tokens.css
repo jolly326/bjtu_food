@@ -1,16 +1,10 @@
 /* 非颜色 token（圆角 / 间距 / 字号 / 字重 / 动效 / 层级 / 高度 / 结构尺寸）。
-   口径见 docs/ui/client/设计变量.md；改值只改这里，再同步文档。
-
-   形状语言 = Q 版动森：**块越大越圆**，圆角整体比常规设计大一档；
-   动效 = Q 弹（`--ease-bounce` 带过冲的弹性缓动），用于磁贴点按 / 弹窗升起 / 点赞反馈。 */
-
+   口径见 docs/ui/client/菜品首页.md；改值只改这里，再同步文档。
+   层级靠字号与颜色，动效统一 ease-out，不做过冲。 */
 page {
-  /* ===== 圆角（Q 版：整体加大，圆润厚实）===== */
-  /* 全站卡片统一大圆角（美食地图磁贴 / 弹窗面板） */
-  --radius-card: 44rpx;
-  --radius-modal: 56rpx;
+  /* ===== 圆角 / 线宽 ===== */
+  --radius-card: 24rpx;
   --radius-pill: 999rpx;
-  /* 常规描边线宽：图片 / 卡片 / 弹层顶边统一，图片 border 加粗在此集中控制 */
   --border-width: 2rpx;
 
   /* ===== 间距（4pt 栅格）===== */
@@ -21,43 +15,48 @@ page {
   --spacing-lg: 32rpx;
   --spacing-xl: 40rpx;
   --spacing-2xl: 48rpx;
-  /* 全站页面左右统一边距（弹窗面板与页面内容共用） */
   --page-gutter: 32rpx;
 
   /* ===== 字体族 ===== */
-  /* Q 版动森：优先**系统圆体**（Yuanti SC / 幼圆），命中即得手写松弛感；
-     iOS 若无圆体回退 PingFang SC（本身圆润），Android 回退系统 sans */
   --font-sans: 'Yuanti SC', 'YouYuan', 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC',
     system-ui, sans-serif;
 
-
-  /* ===== 字号（零消费即删：只保留实际消费的档位）===== */
+  /* ===== 字号（单调递减，位置 · 描述 · 操作各占一档） ===== */
   --font-title: 40rpx;
-  --font-h2: 36rpx;
   --font-h3: 32rpx;
   --font-body: 28rpx;
   --font-subtitle: 26rpx;
+  --font-caption: 24rpx;
 
-  /* ===== 字重（Q 版靠字号与颜色立层级，不靠加粗）===== */
+  /* ===== 字重 ===== */
   --weight-regular: 400;
-  --weight-semibold: 600;
 
-  /* ===== 动效（Q 弹）===== */
+  /* ===== 动效 ===== */
   --duration-fast: 140ms;
   --duration-base: 240ms;
-  --duration-slow: 420ms;
-  /* 加载旋转：一圈 2s 匀速（慢速克制） */
   --duration-spin: 2000ms;
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  /* 过冲弹性：点按 / 弹窗升起 / 点赞反馈的「Q 弹」缓动 */
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ===== 层级 ===== */
-  --z-sheet: 2000;
+  /* ===== 层级：同一层叠上下文内递增 ===== */
+  --z-dock: 10;
+  --z-header: 20;
 
   /* ===== 高度 ===== */
   --tap-target-size: 96rpx;
-  /* Sheet 三段骨架高度：信息页 / 纠错页强同步（虚线固定在中线的前提） */
-  --sheet-block-top: calc(var(--tap-target-size) + var(--spacing-lg));
-  --sheet-block-bottom: var(--spacing-xl);
+  --control-height: 96rpx;
+  --control-height-sm: 64rpx;
+  --feedback-input-height: 200rpx;
+  /* 悬浮 HUD 净空 = 胶囊外高 108rpx + 底缘间距 16rpx + 末行呼吸 32rpx */
+  --dock-reserve: 156rpx;
+
+  /* ===== 结构尺寸 ===== */
+  --cover-aspect-pad: 56.25%;
+
+  /* ===== 图标着色：落盘 SVG 为中性灰实心（小程序 <image> 不支持 currentColor），
+     浅色直接呈现原色，深色由本 token 反白并压到与深色正文同档亮度 ===== */
+  --icon-filter: none;
+}
+
+.theme-dark {
+  --icon-filter: brightness(0) invert(1) brightness(0.62);
 }

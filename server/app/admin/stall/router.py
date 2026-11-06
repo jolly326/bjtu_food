@@ -1,4 +1,4 @@
-"""运营端档口管理（docs/func/web/A2-档口管理.md、docs/api/web/stalls.md）。
+"""运营端档口管理（docs/func/web/A-主数据维护/A2-档口管理.md、docs/api/web/stalls.md）。
 
 端点：
     GET    /admin/stalls?canteenId=   分页
@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 from sqlalchemy.orm import Session
 
 from app.admin.stall import service
@@ -23,11 +24,14 @@ router = APIRouter(prefix="/admin/stalls", tags=["admin-stall"])
 
 
 class StallSaveIn(InModel):
+    """入参长度与库列定义对齐：越界在参数层即 `400`。"""
+
     canteen_id: int
-    name: str
+    name: str = Field(min_length=1, max_length=32)
     activate: bool = True
-    floor: str | None = None
-    window_no: str | None = None
+    floor: str | None = Field(default=None, max_length=8)
+    window_no: str | None = Field(default=None, max_length=16)
+    image_url: str | None = Field(default=None, max_length=255)
 
 
 class StallOut(OutModel):
@@ -38,6 +42,7 @@ class StallOut(OutModel):
     activate: bool
     floor: str | None = None
     window_no: str | None = None
+    image_url: str | None = None
     dish_count: int
     updated_at: str
 
@@ -51,6 +56,7 @@ def _to_out(row) -> StallOut:
         activate=row.activate,
         floor=row.floor,
         window_no=row.window_no,
+        image_url=row.image,
         dish_count=row.dish_count,
         updated_at=row.updated_at,
     )

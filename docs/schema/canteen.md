@@ -1,6 +1,6 @@
 # canteen — 食堂
 
-**用途**：食堂。作为档口的上级归属，并用于美食地图弹窗展示菜品所属「食堂 / 档口」位置。
+**用途**：食堂 —— 运营端录入菜品时的**下拉源**，并在菜品详情 / 推荐出参中作为位置展示。
 
 ## 列定义
 
@@ -9,7 +9,8 @@
 | `id` | BIGINT | NO | AUTO_INCREMENT | PK | 食堂 ID |
 | `name` | VARCHAR(32) | NO | `''` | | 食堂名称 |
 | `activate` | BOOLEAN | NO | `TRUE` | | 食堂状态：`TRUE` 正常 / `FALSE` 已停用 |
-| `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间（管理端列表出参） |
+| `image` | VARCHAR(255) | YES | NULL | | 封面图（相对路径，出参转绝对 URL；运营端展示用） |
+| `updated_at` | DATETIME | NO | `CURRENT_TIMESTAMP ON UPDATE` | | 更新时间 |
 
 ## 索引
 
@@ -17,18 +18,20 @@
 |---|---|---|---|
 | `PRIMARY` | `id` | 主键 | — |
 
-> **无唯一索引**：`name` 的去重由**应用层**保证（见 [README §库级约束的边界](CONVENTIONS.md)）。
+> `name` 由唯一键 `uk_canteen_name` 保证唯一。
 
 ## 关键设计
 
-- **不存图片 / 地点 / 描述** —— 这些信息在档口承载（见 [stall.md](./stall.md)），公开侧不消费。
-- 食堂是档口的上级归属；美食地图弹窗以「食堂 / 档口」展示菜品位置（位置由服务端联表带出，端上不单独拉取筛选）。
+- **下拉源**：运营端新增 / 编辑 `dish` 时，食堂从本表下拉选择，避免手输造成同名异构。
+- **位置展示**：菜品详情按 `dish_location.canteen_id` 联表带出食堂名；学生端不单独拉取食堂列表。
+- 食堂是档口的上级归属（见 [stall.md](./stall.md)）。
 
 ## 关联
 
 | 方向 | 目标表 | 关系 | 级联 |
 |---|---|---|---|
 | 1→n | `stall.canteen_id` | 该食堂下的档口 | 见 [stall.md](./stall.md) |
+| 1→n | `dish_location.canteen_id` | 该食堂下的菜品位置 | **`ON DELETE RESTRICT`**（有菜品位置引用时不可删除） |
 
 ## 注意事项
 

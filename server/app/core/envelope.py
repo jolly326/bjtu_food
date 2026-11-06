@@ -2,7 +2,7 @@
 
 信封：``{code, message, data}``
 分页：学生端 ``{records}``；运营端 ``{records, total}``
-（见 docs/api/README.md「响应信封」「分页结构」）
+（见 docs/api/CONVENTIONS.md「响应信封」「分页结构」）
 """
 
 from __future__ import annotations

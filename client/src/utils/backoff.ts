@@ -10,7 +10,7 @@ import { computed, ref } from 'vue'
 
 import type { ComputedRef } from 'vue'
 
-/** 限频业务码（docs/api/README.md「业务状态码」） */
+/** 限频业务码（docs/api/CONVENTIONS.md「业务状态码」） */
 export const CODE_RATE_LIMITED = 429
 
 /** 各入口的退避截止时刻（毫秒时间戳） */

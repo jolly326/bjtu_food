@@ -46,38 +46,12 @@
         }
       }
     },
-    "/canteens": {
-      "get": {
-        "tags": [
-          "canteen"
-        ],
-        "summary": "食堂字典",
-        "operationId": "list_canteens_canteens_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_list_CanteenOut__"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
     "/dishes": {
       "get": {
         "tags": [
           "dish"
         ],
-        "summary": "美食地图全量在售菜品",
+        "summary": "全量在售菜品",
         "operationId": "list_dishes_dishes_get",
         "security": [
           {
@@ -126,36 +100,30 @@
         }
       }
     },
-    "/dishes/{dish_id}/likes": {
+    "/dishes/recommend": {
       "post": {
         "tags": [
           "dish"
         ],
-        "summary": "两态点赞 toggle",
-        "operationId": "toggle_like_dishes__dish_id__likes_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "dish_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Dish Id"
+        "summary": "一句话匹配菜品",
+        "operationId": "recommend_dishes_recommend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendIn"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Envelope_DishLikeOut_"
+                  "$ref": "#/components/schemas/Envelope_RecommendOut_"
                 }
               }
             }
@@ -170,27 +138,6 @@
               }
             }
           }
-        }
-      }
-    },
-    "/dish-issue-options": {
-      "get": {
-        "tags": [
-          "issue"
-        ],
-        "summary": "纠错选项字典",
-        "operationId": "list_options_dish_issue_options_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_list_IssueOptionOut__"
-                }
-              }
-            }
-          }
         },
         "security": [
           {
@@ -199,38 +146,22 @@
         ]
       }
     },
-    "/dishes/{dish_id}/issues": {
+    "/feedback": {
       "post": {
         "tags": [
-          "issue"
+          "feedback"
         ],
-        "summary": "提交菜品纠错",
-        "operationId": "submit_issue_dishes__dish_id__issues_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "dish_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Dish Id"
-            }
-          }
-        ],
+        "summary": "提交文本反馈",
+        "operationId": "submit_feedback_feedback_post",
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/IssueIn"
+                "$ref": "#/components/schemas/FeedbackIn"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -253,7 +184,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/admin/sessions": {
@@ -527,22 +463,6 @@
         ],
         "parameters": [
           {
-            "name": "stallId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Stallid"
-            }
-          },
-          {
             "name": "canteenId",
             "in": "query",
             "required": false,
@@ -559,22 +479,20 @@
             }
           },
           {
-            "name": "noStall",
+            "name": "stallId",
             "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "boolean"
+                  "type": "integer"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "只看未指定档口的菜品",
-              "title": "Nostall"
-            },
-            "description": "只看未指定档口的菜品"
+              "title": "Stallid"
+            }
           },
           {
             "name": "activate",
@@ -815,6 +733,155 @@
         }
       }
     },
+    "/admin/feedback": {
+      "get": {
+        "tags": [
+          "admin-feedback"
+        ],
+        "summary": "反馈列表",
+        "operationId": "list_feedback_admin_feedback_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "name": "handled",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Handled"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminPageResult_FeedbackOut__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/feedback/{feedback_id}/handled": {
+      "patch": {
+        "tags": [
+          "admin-feedback"
+        ],
+        "summary": "标记已处理",
+        "operationId": "mark_handled_admin_feedback__feedback_id__handled_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "feedback_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Feedback Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FeedbackOut_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/images": {
       "post": {
         "tags": [
@@ -859,337 +926,6 @@
             "HTTPBearer": []
           }
         ]
-      }
-    },
-    "/admin/dish-issues": {
-      "get": {
-        "tags": [
-          "admin-issue"
-        ],
-        "summary": "纠错列表",
-        "operationId": "list_issues_admin_dish_issues_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "handled",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Handled"
-            }
-          },
-          {
-            "name": "dishId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Dishid"
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Page"
-            }
-          },
-          {
-            "name": "pageSize",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Pagesize"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_AdminPageResult_DishIssueOut__"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/dish-issues/{issue_id}": {
-      "patch": {
-        "tags": [
-          "admin-issue"
-        ],
-        "summary": "标记已处理",
-        "operationId": "handle_issue_admin_dish_issues__issue_id__patch",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "issue_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Issue Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HandleIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_DishIssueOut_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/admin/dish-issue-options": {
-      "get": {
-        "tags": [
-          "admin-option"
-        ],
-        "summary": "纠错选项字典",
-        "operationId": "list_options_admin_dish_issue_options_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_list_OptionOut__"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      },
-      "post": {
-        "tags": [
-          "admin-option"
-        ],
-        "summary": "新建选项",
-        "operationId": "create_option_admin_dish_issue_options_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OptionSaveIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_OptionOut_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/admin/dish-issue-options/{option_id}": {
-      "put": {
-        "tags": [
-          "admin-option"
-        ],
-        "summary": "改选项文案",
-        "operationId": "update_option_admin_dish_issue_options__option_id__put",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "option_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Option Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OptionSaveIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_OptionOut_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "admin-option"
-        ],
-        "summary": "删除选项",
-        "operationId": "delete_option_admin_dish_issue_options__option_id__delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "option_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Option Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_NoneType_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/admin/stalls": {
@@ -1463,6 +1199,17 @@
             "type": "boolean",
             "title": "Activate"
           },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
           "stallCount": {
             "type": "integer",
             "title": "Stallcount"
@@ -1522,27 +1269,6 @@
         ],
         "title": "AdminPageResult[AdminCanteenOut]"
       },
-      "AdminPageResult_DishIssueOut_": {
-        "properties": {
-          "records": {
-            "items": {
-              "$ref": "#/components/schemas/DishIssueOut"
-            },
-            "type": "array",
-            "title": "Records"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          }
-        },
-        "type": "object",
-        "required": [
-          "records",
-          "total"
-        ],
-        "title": "AdminPageResult[DishIssueOut]"
-      },
       "AdminPageResult_DishOut_": {
         "properties": {
           "records": {
@@ -1563,6 +1289,27 @@
           "total"
         ],
         "title": "AdminPageResult[DishOut]"
+      },
+      "AdminPageResult_FeedbackOut_": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackOut"
+            },
+            "type": "array",
+            "title": "Records"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "records",
+          "total"
+        ],
+        "title": "AdminPageResult[FeedbackOut]"
       },
       "AdminPageResult_StallOut_": {
         "properties": {
@@ -1617,24 +1364,6 @@
         ],
         "title": "Body_upload_image_admin_images_post"
       },
-      "CanteenOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "CanteenOut"
-      },
       "CanteenSaveIn": {
         "properties": {
           "name": {
@@ -1645,6 +1374,17 @@
             "type": "boolean",
             "title": "Activate",
             "default": true
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
           }
         },
         "additionalProperties": false,
@@ -1654,103 +1394,22 @@
         ],
         "title": "CanteenSaveIn"
       },
-      "DishIssueOut": {
+      "DishLocationIn": {
         "properties": {
           "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "dishId": {
-            "type": "integer",
-            "title": "Dishid"
-          },
-          "dishName": {
-            "type": "string",
-            "title": "Dishname"
-          },
-          "canteenName": {
-            "type": "string",
-            "title": "Canteenname"
-          },
-          "stallName": {
-            "type": "string",
-            "title": "Stallname"
-          },
-          "optionName": {
-            "type": "string",
-            "title": "Optionname"
-          },
-          "createdAt": {
-            "type": "string",
-            "title": "Createdat"
-          },
-          "handledAt": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Handledat"
-          },
-          "dishFeedbackCount": {
-            "type": "integer",
-            "title": "Dishfeedbackcount"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "dishId",
-          "dishName",
-          "canteenName",
-          "stallName",
-          "optionName",
-          "createdAt",
-          "handledAt",
-          "dishFeedbackCount"
-        ],
-        "title": "DishIssueOut"
-      },
-      "DishLikeOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "likeCount": {
-            "type": "integer",
-            "title": "Likecount"
-          },
-          "liked": {
-            "type": "boolean",
-            "title": "Liked"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "likeCount",
-          "liked"
-        ],
-        "title": "DishLikeOut",
-        "description": "点赞 toggle 出参（docs/api/client/dishes.md）。"
-      },
-      "DishOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
             "title": "Id"
           },
           "canteenId": {
             "type": "integer",
             "title": "Canteenid"
-          },
-          "canteenName": {
-            "type": "string",
-            "title": "Canteenname"
           },
           "stallId": {
             "anyOf": [
@@ -1762,99 +1421,6 @@
               }
             ],
             "title": "Stallid"
-          },
-          "stallName": {
-            "type": "string",
-            "title": "Stallname"
-          },
-          "floor": {
-            "type": "string",
-            "title": "Floor"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "imageUrl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Imageurl"
-          },
-          "activate": {
-            "type": "boolean",
-            "title": "Activate"
-          },
-          "likeCount": {
-            "type": "integer",
-            "title": "Likecount"
-          },
-          "updatedAt": {
-            "type": "string",
-            "title": "Updatedat"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "canteenId",
-          "canteenName",
-          "stallName",
-          "floor",
-          "name",
-          "activate",
-          "likeCount",
-          "updatedAt"
-        ],
-        "title": "DishOut"
-      },
-      "DishSaveIn": {
-        "properties": {
-          "canteenId": {
-            "type": "integer",
-            "title": "Canteenid"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "stallId": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stallid"
-          },
-          "floor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Floor"
-          },
-          "imageUrl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Imageurl"
           },
           "activate": {
             "type": "boolean",
@@ -1865,7 +1431,196 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "canteenId"
+        ],
+        "title": "DishLocationIn"
+      },
+      "DishLocationOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "canteenId": {
+            "type": "integer",
+            "title": "Canteenid"
+          },
+          "canteenName": {
+            "type": "string",
+            "title": "Canteenname"
+          },
+          "stallId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stallid"
+          },
+          "stallName": {
+            "type": "string",
+            "title": "Stallname"
+          },
+          "floor": {
+            "type": "string",
+            "title": "Floor"
+          },
+          "activate": {
+            "type": "boolean",
+            "title": "Activate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
           "canteenId",
+          "canteenName",
+          "stallName",
+          "floor",
+          "activate"
+        ],
+        "title": "DishLocationOut"
+      },
+      "DishLocationVO": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "canteenName": {
+            "type": "string",
+            "title": "Canteenname"
+          },
+          "stallName": {
+            "type": "string",
+            "title": "Stallname"
+          },
+          "floor": {
+            "type": "string",
+            "title": "Floor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "canteenName",
+          "stallName",
+          "floor"
+        ],
+        "title": "DishLocationVO"
+      },
+      "DishOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/DishLocationOut"
+            },
+            "type": "array",
+            "title": "Locations"
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "locations",
+          "updatedAt"
+        ],
+        "title": "DishOut"
+      },
+      "DishSaveIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/DishLocationIn"
+            },
+            "type": "array",
+            "title": "Locations",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
           "name"
         ],
         "title": "DishSaveIn"
@@ -1891,32 +1646,27 @@
             ],
             "title": "Imageurl"
           },
-          "likeCount": {
-            "type": "integer",
-            "title": "Likecount"
-          },
-          "liked": {
-            "type": "boolean",
-            "title": "Liked"
-          },
-          "canteenName": {
+          "description": {
             "type": "string",
-            "title": "Canteenname"
+            "title": "Description"
           },
-          "stallName": {
-            "type": "string",
-            "title": "Stallname"
-          },
-          "floor": {
+          "price": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Floor"
+            "title": "Price"
+          },
+          "locations": {
+            "items": {
+              "$ref": "#/components/schemas/DishLocationVO"
+            },
+            "type": "array",
+            "title": "Locations"
           }
         },
         "type": "object",
@@ -1924,14 +1674,11 @@
           "id",
           "name",
           "imageUrl",
-          "likeCount",
-          "liked",
-          "canteenName",
-          "stallName",
-          "floor"
+          "description",
+          "price",
+          "locations"
         ],
-        "title": "DishVO",
-        "description": "美食地图磁贴出参（docs/api/client/dishes.md 的 DishVO）。"
+        "title": "DishVO"
       },
       "Envelope_AdminCanteenOut_": {
         "properties": {
@@ -1985,32 +1732,6 @@
         "type": "object",
         "title": "Envelope[AdminPageResult[AdminCanteenOut]]"
       },
-      "Envelope_AdminPageResult_DishIssueOut__": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code",
-            "default": 200
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "操作成功"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AdminPageResult_DishIssueOut_"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "title": "Envelope[AdminPageResult[DishIssueOut]]"
-      },
       "Envelope_AdminPageResult_DishOut__": {
         "properties": {
           "code": {
@@ -2036,6 +1757,32 @@
         },
         "type": "object",
         "title": "Envelope[AdminPageResult[DishOut]]"
+      },
+      "Envelope_AdminPageResult_FeedbackOut__": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "操作成功"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminPageResult_FeedbackOut_"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "Envelope[AdminPageResult[FeedbackOut]]"
       },
       "Envelope_AdminPageResult_StallOut__": {
         "properties": {
@@ -2089,58 +1836,6 @@
         "type": "object",
         "title": "Envelope[AdminSessionOut]"
       },
-      "Envelope_DishIssueOut_": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code",
-            "default": 200
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "操作成功"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DishIssueOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "title": "Envelope[DishIssueOut]"
-      },
-      "Envelope_DishLikeOut_": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code",
-            "default": 200
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "操作成功"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/DishLikeOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "type": "object",
-        "title": "Envelope[DishLikeOut]"
-      },
       "Envelope_DishOut_": {
         "properties": {
           "code": {
@@ -2166,6 +1861,32 @@
         },
         "type": "object",
         "title": "Envelope[DishOut]"
+      },
+      "Envelope_FeedbackOut_": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "default": 200
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "操作成功"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeedbackOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "Envelope[FeedbackOut]"
       },
       "Envelope_ImageOut_": {
         "properties": {
@@ -2213,7 +1934,7 @@
         "type": "object",
         "title": "Envelope[NoneType]"
       },
-      "Envelope_OptionOut_": {
+      "Envelope_RecommendOut_": {
         "properties": {
           "code": {
             "type": "integer",
@@ -2228,7 +1949,7 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/OptionOut"
+                "$ref": "#/components/schemas/RecommendOut"
               },
               {
                 "type": "null"
@@ -2237,7 +1958,7 @@
           }
         },
         "type": "object",
-        "title": "Envelope[OptionOut]"
+        "title": "Envelope[RecommendOut]"
       },
       "Envelope_StallOut_": {
         "properties": {
@@ -2291,36 +2012,6 @@
         "type": "object",
         "title": "Envelope[TokenOut]"
       },
-      "Envelope_list_CanteenOut__": {
-        "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code",
-            "default": 200
-          },
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "default": "操作成功"
-          },
-          "data": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/CanteenOut"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Data"
-          }
-        },
-        "type": "object",
-        "title": "Envelope[list[CanteenOut]]"
-      },
       "Envelope_list_DishVO__": {
         "properties": {
           "code": {
@@ -2351,65 +2042,90 @@
         "type": "object",
         "title": "Envelope[list[DishVO]]"
       },
-      "Envelope_list_IssueOptionOut__": {
+      "FeedbackIn": {
         "properties": {
-          "code": {
-            "type": "integer",
-            "title": "Code",
-            "default": 200
-          },
-          "message": {
+          "type": {
             "type": "string",
-            "title": "Message",
-            "default": "操作成功"
+            "title": "Type"
           },
-          "data": {
+          "dishId": {
             "anyOf": [
               {
-                "items": {
-                  "$ref": "#/components/schemas/IssueOptionOut"
-                },
-                "type": "array"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Data"
+            "title": "Dishid"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "Envelope[list[IssueOptionOut]]"
+        "required": [
+          "type",
+          "content"
+        ],
+        "title": "FeedbackIn"
       },
-      "Envelope_list_OptionOut__": {
+      "FeedbackOut": {
         "properties": {
-          "code": {
+          "id": {
             "type": "integer",
-            "title": "Code",
-            "default": 200
+            "title": "Id"
           },
-          "message": {
+          "type": {
             "type": "string",
-            "title": "Message",
-            "default": "操作成功"
+            "title": "Type"
           },
-          "data": {
+          "dishId": {
             "anyOf": [
               {
-                "items": {
-                  "$ref": "#/components/schemas/OptionOut"
-                },
-                "type": "array"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Data"
+            "title": "Dishid"
+          },
+          "dishName": {
+            "type": "string",
+            "title": "Dishname"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "handledAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handledat"
           }
         },
         "type": "object",
-        "title": "Envelope[list[OptionOut]]"
+        "required": [
+          "id",
+          "type",
+          "dishName",
+          "content",
+          "createdAt"
+        ],
+        "title": "FeedbackOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -2424,20 +2140,6 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "HandleIn": {
-        "properties": {
-          "handled": {
-            "type": "boolean",
-            "title": "Handled"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "handled"
-        ],
-        "title": "HandleIn"
-      },
       "ImageOut": {
         "properties": {
           "url": {
@@ -2451,79 +2153,35 @@
         ],
         "title": "ImageOut"
       },
-      "IssueIn": {
+      "RecommendIn": {
         "properties": {
-          "optionId": {
-            "type": "integer",
-            "title": "Optionid"
+          "query": {
+            "type": "string",
+            "title": "Query"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "optionId"
+          "query"
         ],
-        "title": "IssueIn"
+        "title": "RecommendIn"
       },
-      "IssueOptionOut": {
+      "RecommendOut": {
         "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
+          "dishes": {
+            "items": {
+              "$ref": "#/components/schemas/DishVO"
+            },
+            "type": "array",
+            "title": "Dishes"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "name"
+          "dishes"
         ],
-        "title": "IssueOptionOut"
-      },
-      "OptionOut": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "refCount": {
-            "type": "integer",
-            "title": "Refcount"
-          },
-          "updatedAt": {
-            "type": "string",
-            "title": "Updatedat"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "refCount",
-          "updatedAt"
-        ],
-        "title": "OptionOut"
-      },
-      "OptionSaveIn": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "OptionSaveIn"
+        "title": "RecommendOut"
       },
       "StallOut": {
         "properties": {
@@ -2568,6 +2226,17 @@
               }
             ],
             "title": "Windowno"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
           },
           "dishCount": {
             "type": "integer",
@@ -2626,6 +2295,17 @@
               }
             ],
             "title": "Windowno"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
           }
         },
         "additionalProperties": false,

@@ -7,27 +7,3 @@ page {
   font-size: var(--font-body);
   font-family: var(--font-sans);
 }
-
-/* 页面根视图：与 page 同底色 —— 深色主题下根视图解析深色组变量，覆盖整窗 */
-.page {
-  background: var(--bg-page);
-}
-
-/* 统一按压反馈：卡片 / 行 / 图片 用 .7，主色实底 CTA 用 .85，小件用 .6 */
-.pressable {
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
-
-.pressable:active {
-  opacity: 0.7;
-}
-
-/* 禁用态由全局 .is-disabled 承担 */
-.is-disabled {
-  pointer-events: none;
-}
-
-/* 长文本断行唯一写法 */
-.wrap-anywhere {
-  overflow-wrap: anywhere;
-}

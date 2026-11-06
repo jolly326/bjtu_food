@@ -18,6 +18,7 @@
 | `id` | number | 否 | 食堂 ID |
 | `name` | string | 否 | 食堂名称 |
 | `activate` | boolean | 否 | 食堂状态：`true` 正常 / `false` 已停用 |
+| `imageUrl` | string | **是** | 封面图绝对 URL（仅运营端管理；可为空） |
 | `stallCount` | number | 否 | 下属档口数（只读统计） |
 | `updatedAt` | string | 否 | 更新时间 |
 
@@ -25,7 +26,7 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `{ name, activate? }` —— `activate` 缺省 `true` |
+| 入参 | `{ name, activate?, imageUrl? }` —— `activate` 缺省 `true`；`imageUrl` 为 COS 绝对 URL 或 `null`（入库转相对路径） |
 | 出参 | `CanteenVO` |
 | 错误码 | `400` `name` 为空 / **同名已存在** / `activate` 非布尔值 |
 
@@ -33,7 +34,7 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `{ name, activate? }` |
+| 入参 | `{ name, activate?, imageUrl? }` |
 | 出参 | `CanteenVO` |
 | 错误码 | `400` 同名已存在 / 停用时存在启用中的档口 ｜ `4001` 食堂不存在 |
 

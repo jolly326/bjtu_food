@@ -3,12 +3,12 @@
  * 文档-代码一致性检查（产品设计评审 P2-13 门禁）。
  *
  * 两项检查：
- *  ① 零旧方案残留 —— 扫描 `docs/` 与三端手写源码中的回溯性表述：
+ *  ① 零旧方案残留 —— 扫描 `docs/`、三端手写源码、仓库根与三端 README 中的回溯性表述：
  *     默认档（低误报）：原为 / 此前 / 已作废 / 已下线 / 已于 / project_spec
  *     `--strict` 追加（高误报，需人工核实）：已删除 / 不再 / 改为
- *  ② 文档相对链接可解析 —— `docs/**\/*.md` 的内联链接指向的本地文件必须存在。
+ *  ② 文档相对链接可解析 —— 上述范围内所有 `.md` 的内联链接指向的本地文件必须存在。
  *
- * 退出码：默认「提示档」恒 0；`--strict` 命中即 1（供 CI 阻断）。
+ * 退出码：默认「提示档」恒 0；`--strict` 命中即 1（供 `npm run verify` 阻断）。
  *
  * 白名单：`scripts/doc-consistency-allow.txt`（可选，每行一个正则；命中该正则的行跳过）。
  */
@@ -38,6 +38,8 @@ const PATTERNS = STRICT ? [...RESIDUAL_BASE, /已删除/, /不再/, /改为/] : 
 
 // ⚠️ client/scripts **不自扫** —— 门禁脚本按定义含全部检索词，自指必然全命中。
 const SCAN_DIRS = ['docs', 'client/src', 'server/app', 'web/src']
+/** 不在上述目录内的说明文档：仓库根与三端根目录 README */
+const SCAN_ROOT_FILES = ['README.md', 'client/README.md', 'web/README.md', 'server/README.md']
 const SCAN_EXTS = new Set(['.md', '.ts', '.vue', '.py', '.mjs', '.scss', '.css'])
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'target', '.git', 'generated', 'logs', 'unpackage'])
 
@@ -70,20 +72,23 @@ function walk(dir, out = []) {
 const rel = (p) => p.slice(ROOT.length + 1).replace(/\\/g, '/')
 const hits = { residual: [], links: [] }
 
+const scanFiles = [
+  ...SCAN_DIRS.flatMap((dir) => walk(join(ROOT, dir))),
+  ...SCAN_ROOT_FILES.map((f) => join(ROOT, f)).filter(existsSync),
+]
+
 // ① 零旧方案残留
-for (const dir of SCAN_DIRS) {
-  for (const file of walk(join(ROOT, dir))) {
-    const lines = readFileSync(file, 'utf8').split('\n')
-    lines.forEach((line, i) => {
-      if (!PATTERNS.some((re) => re.test(line))) return
-      if (ALLOW.some((re) => re.test(line))) return
-      hits.residual.push(`${rel(file)}:${i + 1}: ${line.trim().slice(0, 120)}`)
-    })
-  }
+for (const file of scanFiles) {
+  const lines = readFileSync(file, 'utf8').split('\n')
+  lines.forEach((line, i) => {
+    if (!PATTERNS.some((re) => re.test(line))) return
+    if (ALLOW.some((re) => re.test(line))) return
+    hits.residual.push(`${rel(file)}:${i + 1}: ${line.trim().slice(0, 120)}`)
+  })
 }
 
 // ② 文档相对链接可解析
-for (const file of walk(join(ROOT, 'docs')).filter((f) => f.endsWith('.md'))) {
+for (const file of scanFiles.filter((f) => f.endsWith('.md'))) {
   const text = readFileSync(file, 'utf8')
   for (const m of text.matchAll(/\]\(([^)\s]+)\)/g)) {
     const target = m[1]

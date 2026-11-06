@@ -1,5 +1,5 @@
 /**
- * 统一请求层（口径见 docs/secur/S-01、docs/api/README.md）。
+ * 统一请求层（口径见 docs/secur/S-01、docs/api/CONVENTIONS.md）。
  *
  * 传输层双通道（构建期内联，由 env 决定）：
  * - **云调用（推荐，真机免域名白名单）**：配置 `VITE_TCB_ENV` ⇒ 走 `wx.cloud.callContainer`，
@@ -160,17 +160,28 @@ function transport(
   if (extraHeader) Object.assign(header, extraHeader)
 
   return new Promise<TransportResult>((resolve, reject) => {
-    const onSuccess = (r: TransportResult) => resolve(r)
-
-    const onFail = (err: TransportFail) => {
-      const message = err.errMsg ?? ''
-      if (/abort|cancel/i.test(message)) {
-        reject(abortedError())
-        return
-      }
-      logError('[request] 请求失败', method, path, message || err)
-      reject(new Error(`网络异常: ${message || 'unknown'}`))
+    /** 只落第一次结果：超时与真实响应竞争时不会重复 settle */
+    let settled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const settle = (fn: () => void) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      fn()
     }
+
+    const onSuccess = (r: TransportResult) => settle(() => resolve(r))
+
+    const onFail = (err: TransportFail) =>
+      settle(() => {
+        const message = err.errMsg ?? ''
+        if (/abort|cancel/i.test(message)) {
+          reject(abortedError())
+          return
+        }
+        logError('[request] 请求失败', method, path, message || err)
+        reject(new Error(`网络异常: ${message || 'unknown'}`))
+      })
 
     if (USE_CLOUD) {
       const cloud = getCloud()
@@ -183,6 +194,11 @@ function transport(
           cloud.init({ env: TCB_ENV, traceUser: true })
           cloudReady = true
         }
+        // 云调用本身不带 timeout 参数：挂一个与直连同档的兜底计时器，避免悬挂
+        timer = setTimeout(() => {
+          logError('[request] 云调用超时', method, path)
+          settle(() => reject(new Error(`请求超时（${REQUEST_TIMEOUT_MS}ms）`)))
+        }, REQUEST_TIMEOUT_MS)
         cloud.callContainer({
           config: { env: TCB_ENV },
           path,
@@ -195,7 +211,7 @@ function transport(
         })
       } catch (error) {
         logError('[request] 云调用初始化失败', error)
-        reject(new Error('云调用不可用：请确认小程序已开通云开发并绑定该云托管环境'))
+        settle(() => reject(new Error('云调用不可用：请确认小程序已开通云开发并绑定该云托管环境')))
       }
       return
     }

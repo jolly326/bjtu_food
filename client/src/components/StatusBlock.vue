@@ -2,7 +2,7 @@
 /**
  * 状态块骨架（加载中 / 加载失败 / 其它整块状态共用）。
  *
- * 统一口径（见 docs/ui/client/公共组件与形态基线.md §2.1.3 / §2.1.7）：
+ * 统一口径（见 docs/ui/client/菜品首页.md）：
  * - `flex: 1` 占满父级剩余高度并**居中**，背景透明、不整页覆盖；
  * - 图标 56rpx + 文案 `--font-h3` / `--text-title`，加载与失败**同一规格**；
  * - `spinning` 时仅图标本体以 `--duration-spin` 匀速旋转（无外围圆环）；
@@ -27,8 +27,6 @@ withDefaults(
     pressable?: boolean
     /** 无障碍标签（可点块的语义） */
     ariaLabel?: string
-    /** 主题标记（首屏状态块需要自带，避免夜间模式闪浅色） */
-    theme?: string
   }>(),
   {
     size: 56,
@@ -36,7 +34,6 @@ withDefaults(
     dim: false,
     pressable: false,
     ariaLabel: '',
-    theme: '',
   },
 )
 
@@ -46,7 +43,6 @@ const emit = defineEmits<{ (e: 'press'): void }>()
 <template>
   <view
     class="status"
-    :data-theme="theme || undefined"
     :hover-class="pressable ? 'status--pressed' : 'none'"
     :aria-role="pressable ? 'button' : undefined"
     :aria-label="ariaLabel || undefined"

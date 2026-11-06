@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.admin.auth import service
 from app.core.db import get_session
 from app.core.envelope import Envelope, ok
-from app.core.ratelimit import RULE_ADMIN_LOGIN, check, client_ip
+from app.core.runtime.ratelimit import RULE_ADMIN_LOGIN, check, client_ip
 from app.core.schemas import InModel, OutModel
 
 router = APIRouter(prefix="/admin", tags=["admin-auth"])

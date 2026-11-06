@@ -1,6 +1,6 @@
 """分页参数归一化。
 
-口径（docs/api/README.md）：
+口径（docs/api/CONVENTIONS.md）：
 
 * 学生端：``pageSize`` 上限 50，超限服务端截断
 * 运营端：默认 20，上限 50

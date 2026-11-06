@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// 根组件：路由出口 + 全局图片放大预览覆盖层（任意 <img v-zoomimg> 触发）
+// 根组件：路由出口 + 全局弹窗挂载点 + 图片放大预览覆盖层
 import ImageZoomOverlay from '@/components/ImageZoomOverlay.vue'
 </script>
 
 <template>
   <RouterView />
+  <div id="overlay-root"></div>
   <ImageZoomOverlay />
 </template>

@@ -6,5 +6,6 @@
  */
 
 export { dishApi } from './dish'
-export { issueApi } from './issue'
-export type { DishLikeOut, DishVO, IssueOptionOut } from './types'
+export { feedbackApi } from './feedback'
+export type { DishLocationVO, DishVO, RecommendOut } from './types'
+export type { FeedbackPayload, FeedbackType } from './feedback'

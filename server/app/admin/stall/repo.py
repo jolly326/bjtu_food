@@ -8,7 +8,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.formatters import format_dt
-from app.models import Canteen, Dish, Stall
+from app.core.storage import to_absolute
+from app.models import Canteen, DishLocation, Stall
 
 
 @dataclass(slots=True)
@@ -22,6 +23,7 @@ class StallRow:
     activate: bool
     floor: str | None
     window_no: str | None
+    image: str | None
     dish_count: int
     updated_at: str
 
@@ -35,6 +37,7 @@ def _to_row(stall: Stall, canteen_name: str, dish_count: int) -> StallRow:
         activate=stall.activate,
         floor=stall.floor,
         window_no=stall.window_no,
+        image=to_absolute(stall.image),
         dish_count=dish_count,
         updated_at=format_dt(stall.updated_at) or "",
     )
@@ -51,7 +54,7 @@ def find_row(session: Session, *, stall_id: int) -> StallRow | None:
         return None
     stall, canteen_name = found
     dish_count = session.scalar(
-        select(func.count()).select_from(Dish).where(Dish.stall_id == stall.id)
+        select(func.count()).select_from(DishLocation).where(DishLocation.stall_id == stall.id)
     )
     return _to_row(stall, canteen_name, int(dish_count or 0))
 
@@ -84,13 +87,15 @@ def list_page(
     ids = [stall.id for stall, _ in pairs]
     dish_counts: dict[int, int] = {}
     if ids:
-        dish_counts = dict(
-            session.execute(
-                select(Dish.stall_id, func.count())
-                .where(Dish.stall_id.in_(ids))
-                .group_by(Dish.stall_id)
+        dish_counts = {
+            int(stall_id): int(count)
+            for stall_id, count in session.execute(
+                select(DishLocation.stall_id, func.count())
+                .where(DishLocation.stall_id.in_(ids))
+                .group_by(DishLocation.stall_id)
             ).all()
-        )
+            if stall_id is not None
+        }
     return [
         _to_row(stall, canteen_name, int(dish_counts.get(stall.id, 0)))
         for stall, canteen_name in pairs

@@ -8,8 +8,6 @@ export const dishApi = {
   list: (params?: {
     stallId?: number
     canteenId?: number
-    /** 只看未指定档口的菜品 */
-    noStall?: boolean
     /** 上架状态过滤：true 在售 / false 已下架 */
     activate?: boolean
     /** 名称模糊匹配 */

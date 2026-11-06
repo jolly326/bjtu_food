@@ -1,15 +1,16 @@
 /**
- * 列表页分页状态机（口径见 docs/ui/web/公共组件与形态基线.md §2.3「分页」）。
+ * 列表页分页状态机（见 web/src/components/PaginationBar.vue）。
  *
- * <p>解耦点：视图只声明「取一页数据」的 fetcher，翻页 / 总数 / 加载态 / 下一页可用性 /
- * 末页删空回退 / 筛选回第 1 页 / 加载失败提示统一在此单点维护 —— 各列表视图共享同一份状态机。
+ * <p>解耦点：视图只声明「取一页数据」的 fetcher，翻页 / 总数 / 总页数 / 加载态 /
+ * 下一页可用性 / 末页删空回退 / 筛选回第 1 页 / 加载失败提示统一在此单点维护 ——
+ * 各列表视图共享同一份状态机。
  */
 import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { Page } from '@/api/types'
 
 /** 页大小（与服务端默认一致；「下一页」可用性据此计算，单点常量） */
-export const PAGE_SIZE = 20
+const PAGE_SIZE = 20
 
 export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
   const rows = ref<T[]>([])
@@ -20,12 +21,18 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
   const error = ref('')
   /** 还有下一页（`page * PAGE_SIZE < total`） */
   const hasNext = computed(() => page.value * PAGE_SIZE < total.value)
+  /** 总页数（分页器单点计算，页面不各自 `Math.ceil`） */
+  const totalPages = computed(() => Math.ceil(total.value / PAGE_SIZE))
+  /** 请求序号：只接受最后一次发出的响应，旧响应迟到即丢弃（连点翻页 / 筛选抖动） */
+  let seq = 0
 
   async function load(): Promise<void> {
+    const current = ++seq
     loading.value = true
     error.value = ''
     try {
       const res = await fetchPage(page.value)
+      if (current !== seq) return
       // 末页删空自动回退：本页查空且不在第 1 页 ⇒ 回退一页重查（每跳至少 -1，终止于第 1 页）
       if (!res.records.length && page.value > 1) {
         page.value -= 1
@@ -34,10 +41,11 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
       rows.value = res.records
       total.value = res.total
     } catch (e) {
+      if (current !== seq) return
       error.value = (e as Error).message
       ElMessage.error(error.value)
     } finally {
-      loading.value = false
+      if (current === seq) loading.value = false
     }
   }
 
@@ -53,5 +61,5 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
     return load()
   }
 
-  return { rows, total, page, loading, error, hasNext, load, go, reload }
+  return { rows, total, page, loading, error, hasNext, totalPages, load, go, reload }
 }

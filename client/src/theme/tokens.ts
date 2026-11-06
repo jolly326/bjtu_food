@@ -1,83 +1,45 @@
 /**
  * 颜色取值真源（唯一）。
  *
- * 真源口径：色值只改这里；改完必须同步 `generated-colors.css` 的**同键变量声明**
- * （变量名以 `generated-colors.css` 为准，逐键一致）。
- * 双主题：`COLOR_MAP` = 浅色组（默认，挂 `page`）；`DARK_COLOR_MAP` = 深色组
- * （挂页面根视图 `view[data-theme="dark"]`，级联整棵子树；机制见 docs/ui/client/设计变量.md §1.2）。
- *
- * 浅色组 = 动森风移动端规范：奶米纸色 `#FFFAF3`、深棕 `#44382E`、浅棕 `#8C7B6B`。
- * 可读性修正：`#8C7B6B` 在奶米底仅 3.92:1、浅杏胶囊上 3.43:1，故辅助正文压深到
- * `#75665A`（奶米底 5.31:1 / 浅杏底 4.65:1）；`#8C7B6B` 保留给图标硬编码填充、弱提示与装饰。
- * 深色组为**灰黑**（deepseek harness 风中性灰黑底 + 中性浅灰字）—— 🔴 不做纯黑，夜里是灰黑、非脏蓝。
- * 层级表达：仅用 `--shadow-soft` 极弱弥散阴影（卡片 / 弹层）营造轻微悬浮；前后关系主要靠底色（胶囊）、描边、圆角区分；置灰用暖灰棕 `#B8A99C`。
- * 双主题共用同一套形态语言（圆角 / 描边宽度 / 动效），只换色温与明度。
+ * 单一色相：中性灰阶承载底色 / 卡面 / 文字 / 描边，唯一彩色是主色 `brand`。
+ * 双主题共用**同一套语义键**：`COLOR_MAP` = 浅色，`DARK_COLOR_MAP` = 深色（灰黑基调，取色对齐运营端）。
+ * 改值只改这里，改完必须同步 `generated-colors.css` 的同键变量声明。
+ * 无半透明叠加 / 渐变 / 投影；层级靠描边与圆角区分。
  */
 
 export const COLOR_MAP = {
-  /* ===== 主色（暖橙保留给非 sheet 的品牌 CTA；🔴 品牌保留 token，不按「零消费即删」删除）===== */
-  primary: '#FF8A4C',
-
-  /* ===== 文字（规范深棕 / 可读浅棕阶）===== */
-  'text-title': '#44382E',
-  'text-body': '#75665A',
-  /* 置灰 / 禁用：暖灰棕（不是冷灰，避免破坏暖调） */
-  'text-disabled': '#B8A99C',
+  /* ===== 文字 ===== */
+  'text-title': '#1F2937',
+  'text-body': '#6B7280',
+  'text-disabled': '#9CA3AF',
 
   /* ===== 背景 / 边框 ===== */
-  /* 页面底色：奶米纸色 */
-  'bg-page': '#FFFAF3',
-  /* 卡片底色：奶白，比页面亮一档 */
-  'bg-card': '#FFFDF7',
-  'bg-placeholder': '#F3E7D3',
-  'border-color': '#E6D8C6',
-  /* 浅杏胶囊底：sheet 内软胶囊按钮（纠错 / 反馈 / 导航）的浅杏承载底 */
-  'pill-bg': '#F9E9D8',
+  'bg-page': '#FFFFFF',
+  'bg-card': '#FFFFFF',
+  'bg-placeholder': '#F3F4F6',
+  'border-color': '#E5E7EB',
 
-
-  /* ===== 遮罩 + 极弱弥散阴影 ===== */
-  'overlay-scrim': 'rgba(90,62,43,0.32)',
-  'overlay-panel-bg': '#FFFAF3',
-  'sheet-divider': '#D9C7B2',
-  /* 极弱弥散阴影（向下）：仅用于卡片 / 大图，营造轻微悬浮；🔴 禁用硬阴影 / 渐变 / 3D 堆叠 */
-  'shadow-soft': '0 2rpx 10rpx rgba(68, 56, 46, 0.08)',
-  /* 极弱弥散阴影（向上）：弹层自底部升起时于顶边上方提供悬浮；🔴 禁用硬阴影 / 渐变 */
-  'shadow-up': '0 -2rpx 12rpx rgba(68, 56, 46, 0.10)',
+  /* ===== 主色 ===== */
+  brand: '#EA580C',
 } as const
 
 /**
- * 深色组（**灰黑**：deepseek harness 风中性灰黑底 + 中性浅灰字；主色提亮为晚霞橙）。
- *
- * 取值映射：
- * 页面底 `#1E1E1E`（灰黑、非纯黑、非脏蓝）｜ 卡片 `#262626` ｜ 占位 `#2E2E2E`
- * 标题中性浅灰 `#EDEDED` ｜ 正文 `#C9C9C9` ｜ 次要 `#9A9A9A`
- * 主色晚霞橙 `#FFA76B`
- * 描边族 = 中性白半透明；卡片「微弱边缘」由描边承担，另可加 `--shadow-soft` 极弱弥散阴影。
+ * 深色主题取值：语义键与浅色一一对应。
+ * 底色压到近黑、卡面比底色抬一档（无投影，靠明度差分层），文字灰阶整体抬高，
+ * 描边取中间灰；主色提亮一档以保证在近黑底上的辨识度，反白色保持不变。
  */
-export const DARK_COLOR_MAP = {
-  /* ===== 主色（暗底提亮：晚霞橙）===== */
-  primary: '#FFA76B',
-
-  /* ===== 文字（中性浅灰阶）===== */
-  'text-title': '#EDEDED',
-  'text-body': '#C9C9C9',
-  'text-disabled': '#6B6B6B',
+export const DARK_COLOR_MAP: Record<keyof typeof COLOR_MAP, string> = {
+  /* ===== 文字 ===== */
+  'text-title': '#E8EAED',
+  'text-body': '#9CA2AC',
+  'text-disabled': '#6F747E',
 
   /* ===== 背景 / 边框 ===== */
-  'bg-page': '#1E1E1E',
-  'bg-card': '#262626',
-  'bg-placeholder': '#2E2E2E',
-  'border-color': 'rgba(255,255,255,0.14)',
-  /* 浅杏胶囊底（暗底提亮的暖调胶囊，比面板底略亮一档） */
-  'pill-bg': '#33302A',
+  'bg-page': '#17181B',
+  'bg-card': '#202228',
+  'bg-placeholder': '#262930',
+  'border-color': '#3A3E46',
 
-
-  /* ===== 遮罩 + 极弱弥散阴影 ===== */
-  'overlay-scrim': 'rgba(0,0,0,0.55)',
-  'overlay-panel-bg': '#262626',
-  'sheet-divider': 'rgba(255,255,255,0.14)',
-  /* 极弱弥散阴影（向下）：仅用于卡片 / 大图；暗底靠低透明度黑投影提供轻微悬浮 */
-  'shadow-soft': '0 2rpx 10rpx rgba(0, 0, 0, 0.30)',
-  /* 极弱弥散阴影（向上）：弹层自底部升起时于顶边上方提供悬浮 */
-  'shadow-up': '0 -2rpx 12rpx rgba(0, 0, 0, 0.35)',
-} as const
+  /* ===== 主色 ===== */
+  brand: '#F97316',
+}

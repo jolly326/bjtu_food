@@ -1,24 +1,18 @@
 <script setup lang="ts">
 /**
- * 图片占位（口径见 docs/ui/client/公共组件与形态基线.md §1.9）。
- * 场景：图片缺失 / 加载失败 / 破图；宿主自带底色时用 bare。
+ * 图片占位（口径见 docs/ui/client/菜品首页.md）。
+ * 场景：图片缺失 / 加载失败 / 破图。
  */
 import AppIcon from './AppIcon.vue'
 
 /** 宿主节点虚拟化：组件根直接参与宿主布局 */
 defineOptions({ options: { virtualHost: true } })
 
-withDefaults(
-  defineProps<{
-    size?: number
-    bare?: boolean
-  }>(),
-  { size: 64, bare: false },
-)
+withDefaults(defineProps<{ size?: number }>(), { size: 64 })
 </script>
 
 <template>
-  <view class="ph" :class="{ 'ph--bare': bare }">
+  <view class="ph">
     <AppIcon name="image" :size="size" />
   </view>
 </template>
@@ -31,9 +25,5 @@ withDefaults(
   width: 100%;
   height: 100%;
   background: var(--bg-placeholder);
-}
-
-.ph--bare {
-  background: transparent;
 }
 </style>

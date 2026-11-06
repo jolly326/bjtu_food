@@ -22,6 +22,7 @@
 | `activate` | boolean | 否 | 档口状态：`true` 正常 / `false` 已停用 |
 | `floor` | string | **是** | 楼层（受控字典） |
 | `windowNo` | string | **是** | 窗口号 |
+| `imageUrl` | string | **是** | 封面图绝对 URL（仅运营端管理；可为空） |
 | `dishCount` | number | 否 | 菜品数（只读统计） |
 | `updatedAt` | string | 否 | 更新时间 |
 
@@ -29,7 +30,7 @@
 
 | 项 | 口径 |
 |---|---|
-| 入参 | `{ canteenId, name, activate?, floor?, windowNo? }` —— `activate` 缺省 `true` |
+| 入参 | `{ canteenId, name, activate?, floor?, windowNo?, imageUrl? }` —— `activate` 缺省 `true`；`imageUrl` 为 COS 绝对 URL 或 `null`（入库转相对路径） |
 | 出参 | `StallVO` |
 | 错误码 | `400` `canteenId` / `name` 缺失 ｜ **同食堂下同名已存在** ｜ `4001` 食堂不存在 |
 

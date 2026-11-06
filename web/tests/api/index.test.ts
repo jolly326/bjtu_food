@@ -14,7 +14,7 @@ vi.mock('@/api/request', () => ({
   clearToken: vi.fn(),
 }))
 
-import { canteenApi, dishApi, issueApi, optionApi, stallApi } from '@/api'
+import { canteenApi, dishApi, feedbackApi, stallApi } from '@/api'
 import { http } from '@/api/request'
 
 describe('运营端 API 封装', () => {
@@ -28,23 +28,18 @@ describe('运营端 API 封装', () => {
     expect(http.get).toHaveBeenCalledWith('/admin/stalls?canteenId=3&page=1')
   })
 
-  it('dish list 带三重筛选', async () => {
-    await dishApi.list({ stallId: 5, status: 'on', page: 1 })
-    expect(http.get).toHaveBeenCalledWith('/admin/dishes?stallId=5&status=on&page=1')
+  it('dish list 带食堂 / 档口 / 状态筛选', async () => {
+    await dishApi.list({ canteenId: 2, stallId: 5, activate: true, page: 1 })
+    expect(http.get).toHaveBeenCalledWith('/admin/dishes?canteenId=2&stallId=5&activate=true&page=1')
   })
 
-  it('issue list 默认传 handled=false', async () => {
-    await issueApi.list({ handled: false })
-    expect(http.get).toHaveBeenCalledWith('/admin/dish-issues?handled=false')
+  it('feedback list 带类型与处理状态', async () => {
+    await feedbackApi.list({ type: 'product', handled: false, page: 1 })
+    expect(http.get).toHaveBeenCalledWith('/admin/feedback?type=product&handled=false&page=1')
   })
 
-  it('setHandled 走 PATCH', async () => {
-    await issueApi.setHandled(8, true)
-    expect(http.patch).toHaveBeenCalledWith('/admin/dish-issues/8', { handled: true })
-  })
-
-  it('option remove 指向字典端点', async () => {
-    await optionApi.remove(4)
-    expect(http.delete).toHaveBeenCalledWith('/admin/dish-issue-options/4')
+  it('markHandled 走 PATCH', async () => {
+    await feedbackApi.markHandled(8)
+    expect(http.patch).toHaveBeenCalledWith('/admin/feedback/8/handled')
   })
 })

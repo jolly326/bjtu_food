@@ -89,7 +89,7 @@ export default [
       /* 小程序具名插槽**必须**写 `slot="name"` 属性（端上语法），非 Vue2 遗留写法 */
       'vue/no-deprecated-slot-attribute': 'off',
       /* 表单模型一律走 `v-model`（`defineModel`）整值替换回抛 `update:model`、由父级合并真源，
-         子组件禁止就地改对象 prop（纠错 / 意见反馈两表单按此口径实现）。 */
+         子组件禁止就地改对象 prop（意见反馈表单按此口径实现）。 */
       'vue/no-mutating-props': 'error',
       /* 未使用参数 / 变量以 `_` 前缀显式表示「有意忽略」 */
       'no-unused-vars': 'off',

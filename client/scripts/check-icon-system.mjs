@@ -6,12 +6,12 @@
  *     图标字体（`@font-face` / `iconfont`）、emoji 图标、以 `content:'+'` 充当图标的写法。
  *  2. **图标键已登记**：`<AppIcon name="…">` 的**静态字面量**名必须在 `ICONS` 键表内
  *     （否则运行时会静默回退到 `question` 兜底图标，肉眼难发现）。
- *  3. **尺寸档位合规**：`size` 数值必须落在 `docs/ui/client/公共组件与形态基线.md` §1.8
+ *  3. **尺寸档位合规**：`size` 数值必须落在 `docs/ui/client/菜品首页.md`
  *     登记的档位表内，或落在「按宿主盒对齐」的例外档（`HOST_BOX_SIZES`）。
  *
  * 动态名（`:name="expr"`）无法静态判定，只做提示不失败；其合法性由对应数据源单测覆盖。
  *
- * 口径真源：docs/ui/client/公共组件与形态基线.md §1.8（图标）+ §1.9（图片占位）
+ * 口径真源：docs/ui/client/菜品首页.md（图标 + 图片占位）
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -53,7 +53,7 @@ function walk(dir, out = []) {
 
 const files = walk(SRC)
 
-// ---- 1. 提取图标键表（真源 = 下载的 SVG 资源目录，见 docs/ui/client/图标资源.md）----
+// ---- 1. 提取图标键表（真源 = 下载的 SVG 资源目录，见 client/src/theme/icons.ts）----
 const appIconPath = join(SRC, 'components', 'AppIcon.vue')
 const ICON_DIR = join(SRC, 'assets', 'icons')
 const iconKeys = new Set(

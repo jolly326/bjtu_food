@@ -1,82 +1,111 @@
-/* 运营端主题：**唯一**覆盖层（口径见 docs/ui/web/设计变量.md 与风格指南）。
-   与学生端同源的 **Q 版动森**：暖奶油页面底 + 奶白卡面、卡片无实线描边、
-   **贴纸式阴影**（实心错位 + 柔和外扩）、圆润厚实的大圆角、无衬线圆体、
-   Q 版暖橙主色 #FF8A4C、大面积留白。 */
+/* 运营端主题：**唯一**覆盖层（取值唯一真源）。
+   灰黑沉稳基调：近黑页面底 + 深灰卡面 + 浅灰文字，单一低饱和靛蓝作强调色；
+   层级靠明度差与 1px 描边建立，不做双层卡片、不做 3D 堆叠阴影；
+   圆角克制（控件 8px / 卡片 12px），状态色低饱和以免在深底上刺眼。 */
 
 /* 🔴 html:root（特异性 0-1-1）而非 :root（0-1-0）：即使按需引入的组件样式
    （如 element-plus base）在懒加载时晚于本文件注入 <head>，其自带的
    `:root { --el-color-primary: #409eff }` 也无法覆盖此处的品牌变量（主题变蓝防线） */
 html:root {
-  /* ===== 品牌主色（与学生端 --color-primary 逐字一致：Q 版暖橙） ===== */
-  --el-color-primary: #ff8a4c;
-  --el-color-primary-light-3: #ffa873;
-  --el-color-primary-light-5: #ffc09a;
-  --el-color-primary-light-7: #ffd8c0;
-  --el-color-primary-light-8: #ffe4d2;
-  --el-color-primary-light-9: #fff0e5;
-  --el-color-primary-dark-2: #e06a2e;
-  /* 🔴 light-3/5/7、dark-2 与下方 info / border-color-light 由 Element Plus 组件内部消费
+  /* ===== 品牌主色：低饱和靛蓝，仅用于主操作与选中态 ===== */
+  --el-color-primary: #6b7cf7;
+  --el-color-primary-light-3: #8d99fa;
+  --el-color-primary-light-5: #a9b2fb;
+  --el-color-primary-light-7: #c6ccfd;
+  --el-color-primary-light-8: #2f3552;
+  --el-color-primary-light-9: #232841;
+  --el-color-primary-dark-2: #5566e0;
+  /* 状态色：低饱和青绿（正常 / 在售 / 产品反馈） */
+  --el-color-mint: #5aa88a;
+  --el-color-mint-light-9: #1d2c27;
+  /* 🔴 light-3/5/7/8、dark-2 与下方各功能语义色由 Element Plus 组件内部消费
      （按钮 hover、弹层边框、MessageBox 图标等）—— 静态扫描不可见，check:tokens 列为
      「零引用」属预期，按「EP 内部消费」保留，🔴 不得零消费即删 */
 
-  /* 功能色：Q 版柔和语义色（叶绿 / 蜜黄 / 珊瑚红 / 天蓝） */
-  --el-color-success: #6bbf59;
-  --el-color-warning: #f0a93c;
-  --el-color-danger: #e8604c;
+  /* 功能色（深底适配的语义色） */
+  --el-color-success: #5aa87d;
+  --el-color-warning: #c99a4a;
+  --el-color-danger: #d9645c;
   --el-color-error: var(--el-color-danger);
-  --el-color-info: #7fb8d6;
-  /* 语义色浅底（标签 / 统计条） */
-  --el-color-success-light-9: #edf7ea;
-  --el-color-warning-light-9: #fdf3e3;
-  --el-color-danger-light-9: #fcedea;
+  --el-color-info: #7b899c;
+  /* 语义色浅底（标签 / 提示条） */
+  --el-color-success-light-9: #1d2b23;
+  --el-color-warning-light-9: #2b261c;
+  --el-color-danger-light-9: #2e2020;
 
-  /* ===== 页面 / 卡面（暖奶油底 + 奶白卡） ===== */
-  --el-bg-color-page: #fffaf3;
-  --el-bg-color: #ffffff;
-  --el-bg-color-overlay: #ffffff;
-  /* 卡面：奶白（卡片靠贴纸阴影浮起，不画描边） */
-  --web-bg-card: #ffffff;
-  --el-fill-color-light: #f6eee1;
-  --el-fill-color-lighter: #fbf6ee;
-  --el-fill-color: #f1e7d6;
+  /* ===== 页面 / 卡面（近黑页面底 + 深灰卡面） ===== */
+  --el-bg-color-page: #17181b;
+  --el-bg-color: #1f2126;
+  --el-bg-color-overlay: #23252b;
+  --web-bg-card: #202228;
+  --web-bg-topbar: #1b1d21;
+  --web-on-primary: #ffffff;
+  --el-fill-color-light: #2c2f36;
+  --el-fill-color-lighter: #262930;
+  --el-fill-color: #30333b;
+  --el-fill-color-blank: #1f2126;
 
-  /* ===== 文字层级（暖棕阶，与学生端同值） ===== */
-  --el-text-color-primary: #44382e;
-  --el-text-color-regular: #6b5140;
-  --el-text-color-secondary: #7a6049;
-  --el-text-color-placeholder: #8a7057;
+  /* ===== 文字层级（浅灰阶） ===== */
+  --el-text-color-primary: #e8eaed;
+  --el-text-color-regular: #c3c7cf;
+  --el-text-color-secondary: #959aa5;
+  --el-text-color-placeholder: #6f747e;
 
-  /* ===== 边框：仅用于**控件**（输入框 / 下拉 / 次级按钮），卡片不画描边 ===== */
-  --el-border-color: #efe0c8;
-  --el-border-color-light: #f4eada;
-  --el-border-color-lighter: #f8f2e9;
-  --el-border-color-extra-light: #fbf7f0;
+  /* ===== 边框：卡片 / 控件 / 分隔线共用同一灰阶 ===== */
+  --el-border-color: #3a3e46;
+  --el-border-color-light: #33363e;
+  --el-border-color-lighter: #2b2e35;
+  --el-border-color-extra-light: #282b32;
 
-  /* ===== 圆角（Q 版：整体加大，圆润厚实） ===== */
-  --el-border-radius-base: 16px;
-  --el-border-radius-large: 22px;
-  --web-radius-sm: 12px;
-  --web-radius-card: 22px;
+  /* ===== 圆角（克制：控件 8px / 卡片 12px，pill 仅留给状态标签） ===== */
+  --el-border-radius-base: 8px;
+  --el-border-radius-large: 12px;
+  --web-radius-sm: 6px;
+  --web-radius-card: 12px;
   --web-radius-pill: 999px;
 
-  /* ===== 阴影（贴纸式：实心错位 + 柔和外扩） ===== */
-  --el-box-shadow-light: 0 4px 0 rgba(214, 178, 128, 0.28), 0 8px 18px rgba(190, 150, 100, 0.14);
-  --el-box-shadow-elevated: 0 8px 0 rgba(214, 178, 128, 0.3), 0 16px 32px rgba(190, 150, 100, 0.18);
-  --web-shadow-card: 0 4px 0 rgba(214, 178, 128, 0.28), 0 8px 18px rgba(190, 150, 100, 0.14);
+  /* ===== 阴影：深底上只保留极弱暗影，分层主要靠明度与描边 ===== */
+  --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --el-box-shadow-elevated: 0 8px 28px rgba(0, 0, 0, 0.42);
+  --web-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24);
 
-  /* ===== 间距节奏（留白优先） ===== */
+  /* ===== 间距节奏 ===== */
   --web-gap-tight: 10px;
   --web-gap: 14px;
   --web-gap-loose: 22px;
+  /* 顶栏高与页面横向内距：顶栏、内容区滚动边界、内容卡片共用同一取值 */
+  --web-topbar-h: 56px;
   --web-page-pad: 24px;
 
-  /* ===== 字体（Q 版：一律系统无衬线圆体，不引入自定义字体） ===== */
+  /* ===== 字体（系统无衬线，不引入自定义字体） ===== */
   --web-font-sans:
     -apple-system, BlinkMacSystemFont, 'PingFang SC', 'HarmonyOS Sans SC', 'Helvetica Neue',
     'Microsoft YaHei', sans-serif;
+  --web-font-xs: 12px;
+  --web-font-sm: 13px;
+  --web-font-base: 14px;
+  --web-font-lg: 16px;
 
-  /* ===== 动效（Q 弹：带过冲的弹性缓动） ===== */
-  --web-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* ===== 控件与结构尺寸（组件一律引用，不写裸 px） ===== */
+  --web-control-h: 32px;
+  --web-control-h-touch: 44px;
+  --web-mask: rgba(0, 0, 0, 0.62);
+
+  /* ===== 动效 token 由 motion.css 单点声明，本文件只引用 ===== */
+}
+
+/* 断点：顶栏高与页面横向内距同步收档 —— 顶栏、内容区滚动边界、卡片边界始终落在同一条竖线上 */
+@media (max-width: 1024px) {
+  html:root {
+    --web-page-pad: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  html:root {
+    --web-topbar-h: 52px;
+    --web-page-pad: 14px;
+  }
 }
 
 body {
@@ -87,11 +116,38 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-#app {
-  min-height: 100vh;
+/* ===== 滚动条：全站收敛为 6px 低对比细条，隐藏原生宽条（主内容区 / 弹窗 / 下拉一致） ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--el-border-color) transparent;
 }
 
-/* ===== 标题统一走无衬线圆体（Q 版）：层级靠字号 + 颜色，字重不堆叠 ===== */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: var(--web-radius-pill);
+  background: var(--el-border-color);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--el-text-color-placeholder);
+}
+
+#app {
+  /* 与 AdminLayout 的 100dvh 同源：移动端浏览器工具栏收放时不留出页面级滚动余量 */
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ===== 标题：层级靠字号 + 颜色，字重不堆叠 ===== */
 h1,
 h2,
 h3 {
@@ -100,15 +156,11 @@ h3 {
   letter-spacing: 0.01em;
 }
 
-/* ===== 内容区 = 悬浮卡片（无描边，靠奶白卡面 + 贴纸阴影） ===== */
+/* ===== 页面容器：只做纵向排布，不套第二层卡片（视觉层级 = 顶栏 / 列表卡） ===== */
 #app .page {
   display: flex;
   flex-direction: column;
   gap: var(--web-gap-loose);
-  padding: var(--web-page-pad);
-  background: var(--web-bg-card);
-  border-radius: var(--web-radius-card);
-  box-shadow: var(--el-box-shadow-light);
 }
 
 /* 顶栏（标题 + 主操作）/ 筛选区 / 底部分页栏：全站同一形态 */
@@ -118,6 +170,12 @@ h3 {
   justify-content: space-between;
   gap: var(--web-gap);
   flex-wrap: wrap;
+}
+
+#app .page__titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 #app .page__title {
@@ -133,6 +191,11 @@ h3 {
   align-items: center;
   gap: var(--web-gap-tight);
   flex-wrap: wrap;
+}
+
+/* 顶栏内联筛选：占据标题与操作之间的剩余空间，避免筛选单独占一行 */
+#app .page__bar .filters {
+  flex: 1 1 auto;
 }
 
 #app .page__foot {
@@ -169,7 +232,7 @@ h3 {
 
 #app .pager__jumpInput {
   width: 56px;
-  height: 32px;
+  height: var(--web-control-h);
   padding: 0 10px;
   border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
@@ -205,7 +268,7 @@ h3 {
 
 /* 名称搜索框（原生 input，筛选区唯一非 EP 控件） */
 #app .filters__search {
-  height: 32px;
+  height: var(--web-control-h);
   width: 180px;
   padding: 0 10px;
   border: 1px solid var(--el-border-color-light);
@@ -214,7 +277,7 @@ h3 {
   color: var(--el-text-color-regular);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--web-duration-fast) var(--web-ease-out);
 }
 
 #app .filters__search:hover,
@@ -232,24 +295,24 @@ h3 {
   border-color: var(--el-color-primary-light-5);
 }
 
-/* ===== 按钮：胶囊（圆角 = 半高）+ 轻量底色 / 细描边，按压仅透明度变化 ===== */
+/* ===== 按钮：克制的 8px 圆角 + 细描边，主操作为唯一实底元素 ===== */
 #app .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 32px;
+  height: var(--web-control-h);
   padding: 0 16px;
   border: 1px solid var(--el-border-color-light);
-  border-radius: var(--web-radius-pill);
+  border-radius: var(--el-border-radius-base);
   background: var(--el-bg-color);
   color: var(--el-text-color-regular);
   font-size: 13px;
   cursor: pointer;
   transition:
-    opacity 0.15s ease,
-    border-color 0.15s ease,
-    background 0.15s ease;
+    opacity var(--web-duration-fast) var(--web-ease-out),
+    border-color var(--web-duration-fast) var(--web-ease-out),
+    background var(--web-duration-fast) var(--web-ease-out);
 }
 
 #app .btn:hover {
@@ -269,44 +332,80 @@ h3 {
 #app .btn--primary {
   border-color: var(--el-color-primary);
   background: var(--el-color-primary);
-  color: #fff;
+  color: var(--web-on-primary);
 }
 
 #app .btn--primary:hover {
   border-color: var(--el-color-primary-dark-2);
   background: var(--el-color-primary-dark-2);
-  color: #fff;
+  color: var(--web-on-primary);
 }
 
-/* ===== 弹窗：贴纸 + 柔和阴影 + 暖色遮罩（无描边） ===== */
+#app .btn--primary:active {
+  opacity: 0.85;
+}
+
+/* ===== 弹窗：深灰卡面 + 1px 描边 + 深色遮罩 ===== */
 #app .mask {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 300;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(46, 42, 36, 0.28);
+  background: var(--web-mask);
+  /* 遮罩层不把触摸滚动 / 滚轮滚动传给背景内容；弹窗自身仍可纵向滚动 */
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 #app .dialog {
+  --dialog-pad: 28px;
+  display: flex;
+  flex-direction: column;
   width: min(520px, 100%);
   box-sizing: border-box; /* 无全局重置：不定死则 padding 外溢，窄屏弹窗超出视口 */
+  /* dvh 随软键盘 / 浏览器工具栏收放，手机上提交行始终可见 */
   max-height: 86vh;
-  overflow: auto;
-  padding: 28px;
-  border-radius: 20px;
-  background: var(--el-bg-color);
+  max-height: 86dvh;
+  /* 弹窗自身不滚动：标题与操作区是常规流内的固定行，中间主体单独滚动，
+     操作区因此永远不可能盖住表单内容（含上传图片等按钮） */
+  overflow: hidden;
+  padding: 0 var(--dialog-pad) var(--dialog-pad);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--web-radius-card);
+  background: var(--el-bg-color-overlay);
   box-shadow: var(--el-box-shadow-elevated);
 }
 
-/* 弹窗内字段：标签在上 + 输入 34px，全站同一形态 */
+/* 位置行需要单行容纳食堂 / 楼层 / 档口 / 状态 / 删除，宽版弹窗压低整体高度 */
+#app .dialog--wide {
+  width: min(880px, 100%);
+}
+
+/* 标题与操作区常驻、主体滚动：三行由 flex 列布局分配高度 */
 #app .dialog__title {
-  margin: 0 0 var(--web-gap-loose);
+  flex-shrink: 0;
+  margin: 0 calc(-1 * var(--dialog-pad)) var(--web-gap-loose);
+  padding: 20px var(--dialog-pad) 14px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color-overlay);
   font-size: 17px;
   font-weight: 500;
   color: var(--el-text-color-primary);
+}
+
+/* 表单主体：唯一滚动区。横向负边距让滚动条贴卡片右缘，纵向内距由字段自身提供 */
+#app .dialog__body {
+  flex: 1;
+  min-height: 0;
+  margin: 0 calc(-1 * var(--dialog-pad));
+  padding: 0 var(--dialog-pad);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 #app .dialog__label {
@@ -318,20 +417,51 @@ h3 {
 
 #app .dialog__input {
   width: 100%;
-  height: 34px;
-  padding: 0 12px;
+  height: 44px;
+  padding: 0 14px;
   border: 1px solid var(--el-border-color-light);
   border-radius: var(--el-border-radius-base);
-  background: var(--el-bg-color);
+  background: var(--el-fill-color-blank);
   color: var(--el-text-color-primary);
   font-family: inherit;
   outline: none;
   box-sizing: border-box;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--web-duration-fast) var(--web-ease-out);
 }
 
 #app .dialog__input:focus {
   border-color: var(--el-color-primary-light-5);
+}
+
+/* 多行输入：统一收在全局，页面不各写一份 scoped 覆盖 */
+#app .dialog__textarea {
+  min-height: 72px;
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* ===== 编辑弹窗字段栅格（食堂 / 档口 / 菜品共用）=====
+   短字段两列并排，图片与售卖位置可跨列；纵向节奏由 gap 提供 */
+#app .edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--web-gap-tight) var(--web-gap-loose);
+}
+
+#app .edit-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+#app .edit-field--wide {
+  grid-column: 1 / -1;
+}
+
+#app .edit-field > .dialog__label {
+  margin-top: 0;
 }
 
 #app .dialog__hint {
@@ -340,11 +470,18 @@ h3 {
   color: var(--el-text-color-placeholder);
 }
 
+/* 操作区：常规流内的最后一行，恒填满卡片底缘，不参与滚动也不覆盖内容 */
 #app .dialog__foot {
+  flex-shrink: 0;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--web-gap-tight);
-  margin-top: var(--web-gap-loose);
+  margin: var(--web-gap-loose) calc(-1 * var(--dialog-pad)) calc(-1 * var(--dialog-pad));
+  padding: 14px var(--dialog-pad) calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color-overlay);
 }
 
 /* 编辑界面内的删除靠左、取消 / 保存靠右 */
@@ -352,66 +489,7 @@ h3 {
   flex: 1;
 }
 
-/* ===== 长按操作浮层（底部贴纸） ===== */
-#app .mask--sheet {
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 12px calc(12px + env(safe-area-inset-bottom));
-  z-index: 300;
-}
-
-#app .sheet {
-  display: flex;
-  flex-direction: column;
-  width: min(420px, 100%);
-  box-sizing: border-box;
-  padding: 10px;
-  border-radius: 20px;
-  background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-elevated);
-}
-
-#app .sheet__title {
-  margin: 0;
-  padding: 10px 12px 8px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  text-align: center;
-}
-
-#app .sheet__row {
-  height: 46px;
-  border: none;
-  border-radius: var(--el-border-radius-base);
-  background: transparent;
-  color: var(--el-text-color-primary);
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-#app .sheet__row:hover {
-  background: var(--el-fill-color-light);
-}
-
-#app .sheet__row:disabled {
-  color: var(--el-text-color-placeholder);
-  cursor: not-allowed;
-}
-
-#app .sheet__row--muted {
-  color: var(--el-text-color-secondary);
-}
-
-#app .sheet__hint {
-  margin: -4px 0 4px;
-  padding: 0 12px;
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-  text-align: center;
-}
-
-/* ===== 次要按钮：暖橙细描边 + 透明底（品牌标志性） ===== */
+/* ===== 次要按钮：主色细描边 + 透明底 ===== */
 #app .btn--outline {
   border-color: var(--el-color-primary);
   background: transparent;
@@ -448,22 +526,7 @@ h3 {
   font-size: 12px;
 }
 
-/* ===== 圆形图片（海报 / 美食图圆形裁切） ===== */
-#app .img--round {
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-/* ===== 登录页：纯白底 + 贴纸卡片 ===== */
-#app .login {
-  background: var(--el-bg-color-page);
-}
-
-#app .login__card {
-  box-shadow: var(--el-box-shadow-elevated);
-}
-
-/* ===== 列表卡片：响应式栅格（宽屏一行多卡，窄屏自然单列） ===== */
+/* ===== 列表卡片：单一卡层；结构只有「本体 → 内容区」两层 ===== */
 #app .list-card-wrap {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
@@ -471,63 +534,83 @@ h3 {
 }
 
 #app .list-card {
-  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: var(--web-radius-card);
-  background: var(--el-bg-color);
-  box-shadow: var(--el-box-shadow-light);
-  transition:
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
-  /* 点击手势面：防点按时误触发文本选中（见基线 §2.3） */
+  background: var(--web-bg-card);
+  box-shadow: var(--web-shadow-card);
+  /* 点击手势面：防点按时误触发文本选中 */
   -webkit-user-select: none;
   user-select: none;
+  transition: border-color var(--web-duration-fast) var(--web-ease-out);
 }
 
-#app .list-card:hover {
-  box-shadow: var(--el-box-shadow-elevated);
-  transform: translateY(-1px);
+#app .list-card--interactive {
+  cursor: pointer;
 }
 
-/* 键盘可达（tabindex=0 卡片）：聚焦时主色外环 */
-#app .list-card:focus-visible {
+#app .list-card--interactive:hover {
+  border-color: var(--el-color-primary-light-5);
+}
+
+#app .list-card--interactive:focus-visible {
   outline: 2px solid var(--el-color-primary);
   outline-offset: 2px;
 }
 
-#app .list-card__main {
+/* 已处理态整卡弱化（反馈处理页） */
+#app .list-card--dim {
+  opacity: 0.55;
+}
+
+/* 内容区：唯一包裹层，信息按 标题 / 状态 → 元信息 → 正文 → 操作 平铺 */
+#app .list-card__body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  /* 内边距收在信息区：图区满宽贴顶，由卡片圆角裁切 */
   padding: 14px 16px 16px;
 }
 
-#app .list-card__title {
+#app .list-card__head {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-#app .list-card__titleText {
+#app .list-card__title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
   font-size: 15px;
   font-weight: 500;
   color: var(--el-text-color-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-#app .list-card__empty {
+/* 元信息：价格 / 计数 / 归属合并为一行 */
+#app .list-card__meta {
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app .list-empty {
   grid-column: 1 / -1;
-  padding: 48px 16px;
+  padding: 48px 0;
   text-align: center;
-  color: var(--el-text-color-placeholder);
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
 }
 
-/* 图区（上）：满宽贴顶，16:9 —— 高度恒小于宽度；由卡片圆角裁切。无图数据不渲染本块 */
+/* 封面：满宽贴顶，16:9；无图同形占位 */
 #app .list-card__cover {
   display: block;
   width: 100%;
@@ -536,7 +619,6 @@ h3 {
   background: var(--el-fill-color-lighter);
 }
 
-/* 无图占位：与图区同形，占位图标居中（图标 stroke 为 currentColor，跟随本块 color） */
 #app .list-card__cover--ph {
   display: flex;
   align-items: center;
@@ -544,136 +626,21 @@ h3 {
   color: var(--el-text-color-placeholder);
 }
 
-/* 归属路径（三级弱化，体现 父 → 子 层级） */
-#app .list-card__path {
-  font-size: 12px;
-  color: var(--el-text-color-placeholder);
-}
-
-/* 指标行（价格 / 点赞数 / 计数 / 时间） */
-#app .list-card__stats {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-#app .list-card__statValue {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--el-text-color-primary);
-}
-
-#app .list-card__like {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* 已处理 / 失效态整卡弱化（纠错处理页） */
-#app .list-card--dim {
-  opacity: 0.55;
-}
-
-/* ===== 多选模式（菜品管理批量操作）===== */
-#app .list-card--selectable {
-  cursor: pointer;
-}
-
-#app .list-card--checked {
-  outline: 2px solid var(--el-color-primary);
-  outline-offset: 2px;
-}
-
-/* 批量勾选：卡片已纵排，勾选框浮在右上角，不占图区/信息区的纵向节奏 */
-#app .list-card__check {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 1;
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--el-color-primary);
-  cursor: pointer;
-}
-
-/* ===== 批量操作条（多选模式顶部）===== */
-#app .batch-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--web-gap);
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  border-radius: var(--web-radius-card);
-  background: var(--el-fill-color-lighter);
-}
-
-#app .batch-bar__all {
+/* ===== 状态标签（基础形态全站收口：pill 形） ===== */
+#app .tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-  cursor: pointer;
-}
-
-#app .batch-bar__count {
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-}
-
-#app .batch-bar__ops {
-  display: flex;
-  align-items: center;
-  gap: var(--web-gap-tight);
-  flex-wrap: wrap;
-  margin-left: auto;
-}
-
-/* ===== 页内分段切换（纠错处理页：待办 / 选项字典）===== */
-#app .seg {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--web-radius-pill);
-  background: var(--el-fill-color-lighter);
-}
-
-#app .seg__item {
-  height: 28px;
-  padding: 0 14px;
-  border: none;
-  border-radius: var(--web-radius-pill);
-  background: transparent;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-#app .seg__item--on {
-  background: var(--el-bg-color);
-  color: var(--el-color-primary);
-  box-shadow: var(--el-box-shadow-light);
-}
-
-/* ===== 状态标签（基础形态全站收口） ===== */
-#app .tag {
-  display: inline-block;
-  padding: 2px 10px;
+  padding: 4px 12px;
   border-radius: var(--web-radius-pill);
   font-size: 12px;
   line-height: 18px;
+  font-weight: 500;
 }
 
 #app .tag--on {
-  background: var(--el-color-success-light-9);
-  color: var(--el-color-success);
+  background: var(--el-color-mint-light-9);
+  color: var(--el-color-mint);
 }
 
 #app .tag--off {
@@ -681,14 +648,19 @@ h3 {
   color: var(--el-text-color-secondary);
 }
 
+/* 紧凑场景（卡片内售卖位置标签）复用同一套状态色，不另立体系 */
+#app .tag--sm {
+  padding: 0 6px;
+  font-size: var(--web-font-xs);
+}
+
 /* ===== 响应式：≥1200 宽松 / 900–1199 收紧 / ≤767 手机触控 / ≤640 窄屏纵排 =====
    手机档口径（收口 theme.css，页面不另写）：
-   - 触控尺寸：主按钮 40px、弹窗输入 44px、筛选下拉 40/44px、长按浮层行 46px（基础值已达标）
-   - 输入类字号 16px —— iOS 聚焦输入框 <16px 会强制缩放视口，此为移动端防跳关键
-   - ≤640：筛选区与页脚纵排整宽、弹窗贴底成「底部贴纸」（拇指可达 + 软键盘不遮挡提交行） */
+   - 触控目标取 --web-control-h-touch、相邻控件间距 ≥8px；输入类字号取 --web-font-lg
+   - 弹窗内距由 --dialog-pad 统一收档，高度取 dvh，标题与操作区常驻、主体单独滚动
+   - ≤640：筛选区与页脚纵排整宽、弹窗贴底成底部贴纸、位置表单单列 */
 @media (max-width: 1199px) {
   #app .page {
-    padding: 20px;
     gap: var(--web-gap);
   }
 
@@ -698,49 +670,54 @@ h3 {
 }
 
 @media (max-width: 767px) {
-  #app .page {
-    padding: 16px;
-    border-radius: var(--el-border-radius-base);
-  }
-
   #app .page__title {
-    font-size: 17px;
+    font-size: var(--web-font-lg);
   }
 
   #app .dialog {
-    padding: 20px;
-    border-radius: var(--el-border-radius-large);
+    --dialog-pad: 20px;
   }
 
-  #app .dialog__input {
-    height: 44px;
-    font-size: 16px;
+  /* 全部输入类控件同档收口，避免 iOS 聚焦缩放与触控区退化 */
+  #app .dialog__input,
+  #app .filters__select,
+  #app .filters__search,
+  #app .pager__jumpInput {
+    height: var(--web-control-h-touch);
+    font-size: var(--web-font-lg);
   }
 
   #app .dialog__foot .btn {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
-  #app .list-card__main {
-    padding: 12px 14px 14px;
+  /* 三页编辑弹窗统一收为单列；售卖位置的栅格由各页自行再收档 */
+  #app .edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #app .edit-field--wide {
+    grid-column: auto;
+  }
+
+  #app .list-card__body {
+    padding: var(--web-gap-tight) var(--web-gap) var(--web-gap);
   }
 
   #app .btn {
-    height: 40px;
+    height: var(--web-control-h-touch);
     padding: 0 16px;
-    font-size: 14px;
+    font-size: var(--web-font-base);
   }
 
-  /* .btn--sm 单类选择器权重高于 .btn，需同档单独收口（上传 / 移除 / 翻页小按钮） */
-  #app .btn--sm {
-    height: 34px;
+  /* .btn--sm 单类选择器权重高于 .btn，需同档单独收口；触控区不得退化 */
+  #app .btn--sm,
+  #app .dialog .btn--sm {
+    height: var(--web-control-h-touch);
+    min-height: var(--web-control-h-touch);
     padding: 0 14px;
-    font-size: 13px;
-  }
-
-  #app .filters__select {
-    height: 40px;
-    font-size: 16px;
+    font-size: var(--web-font-sm);
   }
 }
 
@@ -788,45 +765,65 @@ h3 {
     min-width: 96px;
   }
 
-  /* 弹窗 → 底部整宽贴纸：顶圆角、底留安全区，提交 / 取消落在拇指可达区。
-     长按浮层 .mask--sheet 本身已是贴底形态，排除在外不动其留白规格 */
-  #app .mask:not(.mask--sheet) {
+  /* 弹窗 → 底部整宽贴纸：标题与操作区常驻，表单在中间滚动，提交行落拇指可达区 */
+  #app .mask {
     align-items: flex-end;
     padding: 0;
   }
 
-  #app .mask:not(.mask--sheet) .dialog {
+  #app .mask .dialog {
+    --dialog-pad: 16px;
     width: 100%;
     max-height: 88vh;
-    border-radius: 20px 20px 0 0;
-    padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
-  }
-}
-
-/* ===== Element Plus 程序式提示覆盖（ElMessage / ElMessageBox 挂 body，不进 #app；
-   theme.css 在 element-plus/dist/index.css 之后加载，同权重即后写生效） ===== */
-.el-message-box {
-  border-radius: var(--el-border-radius-large);
-  box-shadow: var(--el-box-shadow-elevated);
-}
-
-@media (max-width: 640px) {
-  .el-overlay-message-box {
-    padding: 12px;
+    max-height: 88dvh;
+    border-radius: var(--web-radius-card) var(--web-radius-card) 0 0;
   }
 
-  /* 确认弹窗按钮纵排整宽：≥44px 触控，主操作（末位）落拇指区 */
-  .el-message-box__btns {
-    flex-direction: column;
+  #app .dialog__foot {
     gap: 8px;
   }
 
-  .el-message-box__btns .el-button {
-    width: 100%;
-    height: 44px;
-    font-size: 15px;
+  /* 窄屏按钮均分整行，占位弹性会把按钮挤到换行 */
+  #app .dialog__spacer {
+    display: none;
   }
+}
 
+/* ===== Element Plus 浮层深色适配（ElMessage / 下拉挂 body，不进 #app；
+   theme.css 在 EP 分片样式之后加载，同权重即后写生效） ===== */
+.el-message,
+.el-popper.is-light,
+.el-select__popper.el-popper {
+  border-color: var(--el-border-color);
+  background: var(--el-bg-color-overlay);
+  color: var(--el-text-color-regular);
+}
+
+.el-message__content,
+.el-select-dropdown__item {
+  color: var(--el-text-color-primary);
+}
+
+.el-select__wrapper {
+  background: var(--el-fill-color-blank);
+  box-shadow: 0 0 0 1px var(--el-border-color) inset;
+}
+
+.el-select-dropdown__item.is-hovering,
+.el-select-dropdown__item:hover {
+  background: var(--el-fill-color-light);
+}
+
+.el-select-dropdown__item.is-selected {
+  color: var(--el-color-primary);
+}
+
+.el-popper.is-light .el-popper__arrow::before {
+  border-color: var(--el-border-color);
+  background: var(--el-bg-color-overlay);
+}
+
+@media (max-width: 640px) {
   .el-message {
     max-width: calc(100% - 24px);
     font-size: 14px;
@@ -843,7 +840,7 @@ h3 {
   #app .btn--primary:hover {
     border-color: var(--el-color-primary);
     background: var(--el-color-primary);
-    color: #fff;
+    color: var(--web-on-primary);
   }
 
   #app .btn--outline:hover {
@@ -856,9 +853,8 @@ h3 {
     border-color: var(--el-border-color-light);
   }
 
-  #app .list-card:hover {
-    transform: none;
-    box-shadow: var(--el-box-shadow-light);
+  #app .list-card--interactive:hover {
+    border-color: var(--el-border-color-lighter);
   }
 
   #app a,

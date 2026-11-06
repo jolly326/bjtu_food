@@ -16,7 +16,7 @@
     "check:icon": "node scripts/check-icon-system.mjs",
     "check:doc": "node scripts/check-doc-consistency.mjs",
     "lint": "eslint .",
-    "verify": "npm run check:contract && npm run check:icon && npm run check:ui && npm run check:events && npm run check:doc && npm run lint && npm run type-check && npm run test && npm run build:mp-weixin",
+    "verify": "npm run check:contract && npm run check:icon && npm run check:ui && npm run check:events && npm run check:doc -- --strict && npm run lint && npm run type-check && npm run test && npm run build:mp-weixin",
     "gen:api": "openapi-typescript openapi.json -o src/types/generated/api.d.ts",
     "gen:api:fresh": "node scripts/fetch-openapi.mjs && npm run gen:api"
   },

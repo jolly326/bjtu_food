@@ -4,8 +4,8 @@ import { http } from './request'
 import { toQuery } from './query'
 import type { CanteenOut, Page } from './types'
 
-/** 食堂保存体（docs/api/web/canteens.md：`{ name, activate? }`） */
-export type CanteenBody = { name: string; activate?: boolean }
+/** 食堂保存体（docs/api/web/canteens.md：`{ name, activate?, imageUrl? }`） */
+export type CanteenBody = { name: string; activate?: boolean; imageUrl?: string | null }
 
 export const canteenApi = {
   list: (page = 1, pageSize = 20) =>

@@ -1,5 +1,5 @@
 {
-  "_doc": "UI Token 护栏允许项。策略见 docs/ui/client/设计变量.md §3：① 物理/渲染量（边框宽、H5 媒体查询）与设计标度无关；② 组件私有尺寸在未收敛标度前按文件登记并在 §3 登记理由。",
+  "_doc": "UI Token 护栏允许项。策略见 docs/ui/client/菜品首页.md：① 物理/渲染量（边框宽、H5 媒体查询）与设计标度无关；② 组件私有尺寸在未收敛标度前按文件登记并在页面稿登记理由。",
   "values": [
     "0px",
     "1rpx",
@@ -14,7 +14,5 @@
     "720px",
     "768px"
   ],
-  "files": {
-    "src/components/BaseSheet.vue": ["8rpx", "72rpx"]
-  }
+  "files": {}
 }

@@ -1,122 +1,63 @@
-"""dish 域数据访问。
-
-美食地图全量在售菜品 + 个人点赞态；点赞 toggle 与点赞数重算（docs/schema/dish.md、dish_rating.md）。
-"""
+"""dish 域数据访问：在售位置 → 菜品本体（docs/schema/dish.md、dish_location.md）。"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Canteen, Dish, DishRating, Stall
+from app.models import Canteen, Dish, DishEmbedding, DishLocation, Stall
 
 
 @dataclass(slots=True)
-class DishRow:
-    """在售菜品 + 位置链路（食堂 / 档口）+ 群体点赞数。
-
-    档口 / 楼层可缺失 ⇒ **用空串表达**（保持非空类型，端上无需判 null，展示占位「暂无」）。
-    """
-
-    id: int
+class LocationRow:
+    dish_id: int
+    location_id: int
     name: str
+    description: str
     image: str | None
-    like_count: int
+    price: int | None
+    embedding: list[float] | None
     canteen_name: str
-    stall_name: str
     floor: str
+    stall_name: str
 
 
-def list_on_sale(session: Session) -> list[DishRow]:
-    """全量在售菜品 + 位置 + 点赞数；不做食堂筛选 / 分页（卡片排布由端上完成）。
-
-    食堂必填走 INNER JOIN；**档口可空必须走 LEFT JOIN** —— 用 INNER JOIN 会让
-    无档口菜品直接被过滤掉，从美食地图上消失。
-    楼层优先取菜品自身 ``floor``，缺失时回落档口楼层。
-    """
-    stmt = (
+def list_on_sale(session: Session, *, model: str) -> list[LocationRow]:
+    """全部在售位置（一个位置一行；向量只取当前模型）。"""
+    rows = session.execute(
         select(
             Dish,
-            func.coalesce(Stall.name, ""),
+            DishLocation,
             Canteen.name,
-            func.coalesce(Dish.floor, Stall.floor, ""),
+            func.coalesce(Stall.floor, ""),
+            func.coalesce(Stall.name, ""),
+            DishEmbedding.vector,
         )
-        .join(Canteen, Canteen.id == Dish.canteen_id)
-        .outerjoin(Stall, Stall.id == Dish.stall_id)
-        .where(Dish.activate == True)
-    )
-    rows: list[DishRow] = []
-    for dish, stall_name, canteen_name, floor in session.execute(stmt):
-        rows.append(
-            DishRow(
-                id=dish.id,
-                name=dish.name,
-                image=dish.image,
-                like_count=dish.like_count,
-                canteen_name=canteen_name,
-                stall_name=stall_name,
-                floor=floor,
-            )
+        .join(DishLocation, DishLocation.dish_id == Dish.id)
+        .join(Canteen, Canteen.id == DishLocation.canteen_id)
+        .outerjoin(Stall, Stall.id == DishLocation.stall_id)
+        .outerjoin(
+            DishEmbedding,
+            (DishEmbedding.dish_id == Dish.id) & (DishEmbedding.model == model),
         )
-    return rows
+        .where(DishLocation.activate.is_(True))
+        .order_by(Dish.id, DishLocation.id)
+    ).all()
 
-
-def liked_dish_ids(session: Session, *, student_id: int) -> set[int]:
-    """当前用户已赞（liked = 1）的菜品 id。"""
-    stmt = select(DishRating.dish_id).where(
-        DishRating.user_id == student_id, DishRating.liked.is_(True)
-    )
-    return set(session.scalars(stmt))
-
-
-def toggle_like(session: Session, *, student_id: int, dish_id: int) -> tuple[bool, int]:
-    """两态点赞 toggle：已赞 ⇒ 取消，未赞 ⇒ 点赞；同事务重算 ``dish.like_count``。
-
-    并发下首次插入用 SAVEPOINT 隔离：命中唯一键冲突则回退读取既有行再取反，
-    避免并发请求抛 ``IntegrityError`` 变 500。返回 ``(liked, like_count)``。
-    """
-    rating = session.scalar(
-        select(DishRating).where(
-            DishRating.user_id == student_id, DishRating.dish_id == dish_id
+    return [
+        LocationRow(
+            dish_id=dish.id,
+            location_id=location.id,
+            name=dish.name,
+            description=dish.description or "",
+            image=dish.image,
+            price=dish.price,
+            embedding=vector,
+            canteen_name=canteen_name,
+            floor=floor,
+            stall_name=stall_name,
         )
-    )
-    if rating is None:
-        try:
-            with session.begin_nested():
-                session.add(DishRating(user_id=student_id, dish_id=dish_id, liked=True))
-            liked = True
-        except IntegrityError:
-            # 并发插入被唯一键拦下：回退读既有行并取反
-            rating = session.scalar(
-                select(DishRating).where(
-                    DishRating.user_id == student_id, DishRating.dish_id == dish_id
-                )
-            )
-            if rating is None:
-                raise
-            rating.liked = not rating.liked
-            rating.updated_at = func.now()
-            session.flush()
-            liked = bool(rating.liked)
-    else:
-        rating.liked = not rating.liked
-        rating.updated_at = func.now()
-        session.flush()
-        liked = bool(rating.liked)
-
-    like_count = int(
-        session.scalar(
-            select(func.count(DishRating.id)).where(
-                DishRating.dish_id == dish_id, DishRating.liked.is_(True)
-            )
-        )
-        or 0
-    )
-    dish = session.get(Dish, dish_id)
-    if dish is not None:
-        dish.like_count = like_count
-    session.flush()
-    return liked, like_count
+        for dish, location, canteen_name, floor, stall_name, vector in rows
+    ]

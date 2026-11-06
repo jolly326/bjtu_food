@@ -1,4 +1,4 @@
-"""运营端食堂管理（docs/func/web/A1-食堂管理.md、docs/api/web/canteens.md）。
+"""运营端食堂管理（docs/func/web/A-主数据维护/A1-食堂管理.md、docs/api/web/canteens.md）。
 
 端点：
     GET    /admin/canteens        分页
@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 from sqlalchemy.orm import Session
 
 from app.admin.canteen import service
@@ -23,14 +24,18 @@ router = APIRouter(prefix="/admin/canteens", tags=["admin-canteen"])
 
 
 class CanteenSaveIn(InModel):
-    name: str
+    """入参长度与库列定义对齐：越界在参数层即 `400`。"""
+
+    name: str = Field(min_length=1, max_length=32)
     activate: bool = True
+    image_url: str | None = Field(default=None, max_length=255)
 
 
 class AdminCanteenOut(OutModel):
     id: int
     name: str
     activate: bool
+    image_url: str | None = None
     stall_count: int
     updated_at: str
 
@@ -47,7 +52,12 @@ def list_canteens(
     return page_ok(
         [
             AdminCanteenOut(
-                id=r.id, name=r.name, activate=r.activate, stall_count=r.stall_count, updated_at=r.updated_at
+                id=r.id,
+                name=r.name,
+                activate=r.activate,
+                image_url=r.image,
+                stall_count=r.stall_count,
+                updated_at=r.updated_at,
             )
             for r in rows
         ],
@@ -61,7 +71,11 @@ def create_canteen(
     admin_id: int = Depends(current_admin_id),
     session: Session = Depends(get_session),
 ) -> Envelope[AdminCanteenOut]:
-    return ok(service.create(session, name=payload.name, activate=payload.activate))
+    return ok(
+        service.create(
+            session, name=payload.name, activate=payload.activate, image=payload.image_url
+        )
+    )
 
 
 @router.put("/{canteen_id}", response_model=Envelope[AdminCanteenOut], summary="修改食堂")
@@ -77,6 +91,7 @@ def update_canteen(
             canteen_id=canteen_id,
             name=payload.name,
             activate=payload.activate,
+            image=payload.image_url,
         )
     )
 

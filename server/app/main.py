@@ -32,10 +32,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.admin.auth.router import router as admin_auth_router
 from app.admin.canteen.router import router as admin_canteen_router
 from app.admin.dish.router import router as admin_dish_router
+from app.admin.feedback.router import router as admin_feedback_router
 from app.admin.image.router import router as admin_image_router
-from app.admin.issue.router import router as admin_issue_router
-from app.admin.option.router import router as admin_option_router
 from app.admin.stall.router import router as admin_stall_router
+from app.core import content_security
 from app.core.config import is_production, require_cos_domain, settings
 from app.core.db import engine
 from app.core.envelope import Envelope
@@ -46,31 +46,82 @@ from app.core.errors import (
     CODE_RATE_LIMITED,
     ApiError,
 )
-from app.core.ratelimit import RULE_READ_IP, client_ip, retry_after
+from app.core.runtime.ratelimit import RULE_READ_IP, client_ip, retry_after
+from app.core.search import rerank
+from app.core.search.embedding import current_model
 from app.student.auth import service as auth_service
 from app.student.auth.router import router as auth_router
-from app.student.canteen.router import router as canteen_router
 from app.student.dish.router import router as dish_router
-from app.student.issue.router import router as issue_router
+from app.student.feedback.router import router as feedback_router
 
 logger = logging.getLogger(__name__)
 
-# 请求体上限：图片 multipart 5MB（docs/secur/S-04）+ 1MB 边界开销预留
+# 请求体上限：图片 multipart 5MB + 1MB 边界开销预留（共 6MB）。
 MAX_REQUEST_BYTES = 6 * 1024 * 1024
 
 
 def _cors_origins() -> list[str]:
-    """跨域白名单：`*` 或逗号分隔的 Origin（口径见 docs/secur/S-04 §二）。"""
+    """跨域白名单：`*` 或逗号分隔的 Origin。"""
     raw = settings.cors_allow_origins.strip()
     if not raw or raw == "*":
         return ["*"]
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
+def _check_search_services() -> None:
+    """搜索依赖的向量 / 精排服务：配置不全直接拒绝启动（否则搜索必然 500）。"""
+    provider = settings.embedding_provider.strip().lower()
+    if provider not in {"local", "http"}:
+        raise RuntimeError(f"EMBEDDING_PROVIDER 取值非法（{provider}）：只支持 local / http")
+
+    if provider == "http":
+        missing = [
+            name
+            for name, value in (
+                ("EMBEDDING_BASE_URL", settings.embedding_base_url),
+                ("EMBEDDING_MODEL", settings.embedding_model),
+                ("EMBEDDING_API_KEY", settings.embedding_api_key),
+            )
+            if not value.strip()
+        ]
+        if missing:
+            raise RuntimeError(
+                f"EMBEDDING_PROVIDER=http 但缺少 {', '.join(missing)}（docs/secur/S-04 §一）"
+            )
+
+    if not settings.system1_enabled:
+        return
+    if settings.system1_role.strip().lower() != "rerank":
+        raise RuntimeError(f"SYSTEM1_ROLE 取值非法（{settings.system1_role}）：只支持 rerank")
+    missing = [
+        name
+        for name, value in (
+            ("SYSTEM1_BASE_URL", settings.system1_base_url),
+            ("SYSTEM1_MODEL", settings.system1_model),
+            ("SYSTEM1_API_KEY", settings.system1_api_key),
+        )
+        if not value.strip()
+    ]
+    if missing:
+        raise RuntimeError(
+            f"SYSTEM1_ENABLED=true 但缺少 {', '.join(missing)}（docs/secur/S-04 §一）"
+        )
+
+
 def _preflight() -> None:
     """启动预检（fail-fast）：凭证缺失 / 配置不一致 ⇒ 生产拒绝启动。"""
     # 图片出参恒绝对 URL，缺 COS_DOMAIN 直接拒绝启动
     require_cos_domain()
+    # 搜索依赖（向量 / 精排）配置不全 ⇒ 直接拒绝启动
+    _check_search_services()
+
+    # 打一行当前生效的搜索配置：避免「改了 .env 但没重启」时排查无据
+    logger.info(
+        "语义搜索：provider=%s｜model=%s｜精排=%s",
+        settings.embedding_provider.strip().lower() or "local",
+        current_model(),
+        "on" if rerank.enabled() else "off",
+    )
 
     missing = [
         name
@@ -132,26 +183,27 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         # 只告警不阻断：探活端点须保持可用，便于平台侧观测
         logger.exception("数据库连通性探测失败——数据端点将不可用，请核对 DATABASE_URL 等环境变量")
     yield
+    # 关闭两处进程级 httpx 连接池（微信登录 / 内容安全各一个）
     auth_service.close_http_client()
+    content_security.close_http_client()
 
 
 def create_app() -> FastAPI:
     _preflight()
 
-    # 生产不暴露接口文档与契约（docs/secur/S-04 §二）
+    # 生产不暴露接口文档与契约
     docs_enabled = not is_production()
 
     app = FastAPI(
         title="知行食记",
         version="1.0.0",
         docs_url="/docs" if docs_enabled else None,
-        # 契约快照路径与 docs/api/README.md「契约同步」一致
+        # 契约快照路径与 docs/api/CONVENTIONS.md「契约同步」一致
         openapi_url="/openapi.json" if docs_enabled else None,
         lifespan=lifespan,
     )
 
-    # 横切防护（内 → 外）：限频与请求闸门 → 跨域 → 压缩。
-    # 后注册者居外层：跨域预检（OPTIONS）最外层即返回、不计入限频；压缩最外层，兜底响应一并压缩。
+    # 横切防护：限频 → 跨域 → 压缩（后注册者居外层；跨域预检最外层即返回、不计入限频）。
     @app.middleware("http")
     async def _edge_guards(
         request: Request,
@@ -235,20 +287,18 @@ def create_app() -> FastAPI:
             content=Envelope[None](code=CODE_INTERNAL, message="服务开小差了，请稍后再试").model_dump(),
         )
 
-    # ---- 学生端 ----
-    app.include_router(auth_router)
-    app.include_router(canteen_router)
-    app.include_router(dish_router)
-    app.include_router(issue_router)
-
-    # ---- 运营端 ----
-    app.include_router(admin_auth_router)
-    app.include_router(admin_canteen_router)
-    app.include_router(admin_dish_router)
-    app.include_router(admin_image_router)
-    app.include_router(admin_issue_router)
-    app.include_router(admin_option_router)
-    app.include_router(admin_stall_router)
+    # 路由按端分组注册（学生端 / 运营端互不导入，路由独立）：
+    for router in (auth_router, dish_router, feedback_router):
+        app.include_router(router)
+    for router in (
+        admin_auth_router,
+        admin_canteen_router,
+        admin_dish_router,
+        admin_feedback_router,
+        admin_image_router,
+        admin_stall_router,
+    ):
+        app.include_router(router)
 
     @app.get("/healthz", summary="探活")
     async def healthz() -> dict[str, str]:
@@ -261,14 +311,14 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    # 脚本方式直接启动（等价 `uvicorn app.main:app`）：单 worker —— 限频计数在进程内（docs/secur/S-03）。
+    # 脚本方式直接启动（等价 `uvicorn app.main:app`），单 worker。
     import os
 
     import uvicorn
 
     uvicorn.run(
         app,
-        # 脚本形态面向本地开发：默认只监听回环；容器形态的 0.0.0.0 由 Dockerfile 的 CMD 显式给出
+        # 本地开发默认只监听回环；容器形态的 0.0.0.0 由 Dockerfile 的 CMD 显式给出
         host=os.environ.get("HOST", "127.0.0.1"),
         # 本地统一 8000（与 client/.env.development、docs 的本地启动命令一致）；容器由 CMD 传 $PORT
         port=int(os.environ.get("PORT", "8000")),
