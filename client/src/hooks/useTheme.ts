@@ -14,12 +14,14 @@ export type ThemeMode = 'light' | 'dark'
 /** 页面根容器在深色主题下挂的类名，与 `theme/generated-colors.css` 的取值块对应 */
 const DARK_CLASS = 'theme-dark'
 
-/** 自定义导航下状态栏文字随主题取反（平台 API 只接受 #FFFFFF / #000000） */
+/** 自定义导航下状态栏文字随主题取反（平台 API 只接受 hex；backgroundColor 必填） */
 function applyStatusBar(next: ThemeMode): void {
   try {
     if (typeof uni.setNavigationBarColor !== 'function') return
+    const dark = next === 'dark'
     uni.setNavigationBarColor({
-      frontColor: next === 'dark' ? NAV.STATUS_BAR_FRONT_DARK : NAV.STATUS_BAR_FRONT_LIGHT,
+      frontColor: dark ? NAV.STATUS_BAR_FRONT_DARK : NAV.STATUS_BAR_FRONT_LIGHT,
+      backgroundColor: dark ? NAV.STATUS_BAR_BG_DARK : NAV.STATUS_BAR_BG_LIGHT,
     })
   } catch {
     // 平台不支持时只影响状态栏配色，不阻断主题切换
@@ -37,7 +39,10 @@ function readSavedMode(): ThemeMode | null {
 
 function readSystemMode(): ThemeMode {
   try {
-    const info = uni.getSystemInfoSync() as { theme?: string }
+    // 优先新接口（getSystemInfoSync 在基础库 3.x 已弃用，调用会刷弃用告警）
+    const baseApi = (uni as unknown as { getAppBaseInfo?: () => { theme?: string } })
+      .getAppBaseInfo
+    const info = baseApi ? baseApi.call(uni) : (uni.getSystemInfoSync() as { theme?: string })
     return info.theme === 'dark' ? 'dark' : 'light'
   } catch {
     return 'light'

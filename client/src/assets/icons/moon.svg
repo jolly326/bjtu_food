@@ -2,7 +2,7 @@
   <desc>
     Moon Streamline Icon: https://streamlinehq.com
   </desc>
-  <g id="moon--night-dark-crescent-sleep-weather" transform="translate(24 24) scale(1.14) translate(-24 -24)">
-    <path id="Crescent" fill="#6B7280" fill-rule="evenodd" d="M40.35 27.71c0.61 1.9 -1.28 3.52 -3.27 3.13A16.04 16.04 0 0 1 17.16 10.92c0.39 -1.99 -1.23 -3.88 -3.13 -3.27A18.5 18.5 0 1 0 40.35 27.71Z" clip-rule="evenodd"></path>
+  <g id="moon--night-dark-crater-weather">
+    <path id="Disc" fill="#6B7280" fill-rule="evenodd" d="M24 2.5a21.5 21.5 0 1 0 0 43a21.5 21.5 0 1 0 0-43ZM16.5 12a5 5 0 1 0 0 10a5 5 0 1 0 0-10ZM29.2 21.8a4.2 4.2 0 1 0 0 8.4a4.2 4.2 0 1 0 0-8.4ZM16 31.4a2.6 2.6 0 1 0 0 5.2a2.6 2.6 0 1 0 0-5.2Z" clip-rule="evenodd"></path>
   </g>
 </svg>

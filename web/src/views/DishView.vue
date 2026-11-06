@@ -156,6 +156,7 @@ onMounted(async () => {
         :image-url="row.imageUrl"
         :meta="`${row.locations.length} 处售卖 · ${priceText(row.price ?? null)}`"
         cover
+        cover-icon="food"
         interactive
         :aria-label="`编辑 ${row.name}`"
         @activate="onEdit(row)"
