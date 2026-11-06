@@ -53,4 +53,7 @@ export const NAV = {
   /** 状态栏前景色：自定义导航下由平台 API 取反，仅接受 #FFFFFF / #000000 */
   STATUS_BAR_FRONT_LIGHT: '#000000',
   STATUS_BAR_FRONT_DARK: '#FFFFFF',
+  /** 状态栏背景色：平台 API 必填（自定义导航下不渲染，但缺省即报 parameter error），与 --bg-page 同值 */
+  STATUS_BAR_BG_LIGHT: '#FFFFFF',
+  STATUS_BAR_BG_DARK: '#17181B',
 } as const

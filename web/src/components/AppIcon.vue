@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * 运营端图标：**Streamline Plump Solid 实心 SVG**（`assets/icons`，5 枚，CC BY 4.0；
+ * 运营端图标：**Streamline Plump Solid 实心 SVG**（`assets/icons`，6 枚，CC BY 4.0；
  * 🔴「零消费即删」—— 新增前先全仓查引用，无消费的不入库，口径见各页面稿）。
  * SVG 一律 `fill="currentColor"`（实心、挖孔靠 evenodd，无描边）⇒ 图标跟随宿主 `color`
  * （主文字色 / 次级文字色 / 主操作色均由 theme.css 的语义 token 决定）。
+ * 封面占位：菜品卡 `food` · 档口卡 `store` · 无指定时回退 `image`（通用图库）。
  *
- * 实现：Plump 资源以 `?raw` **eager 全量内联**（图标体积极小，5 枚合计 < 4KB），
+ * 实现：Plump 资源以 `?raw` **eager 全量内联**（图标体积极小，6 枚合计 < 5KB），
  * 同步取值 ⇒ 首屏零闪烁、无按需 chunk、**渲染结果与资源文件绝对一致**
  * （渲染结果与资源文件同源）。
  */
