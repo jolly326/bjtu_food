@@ -526,16 +526,6 @@ h3 {
   font-size: 12px;
 }
 
-/* ===== 登录页：近黑底 + 居中卡片 ===== */
-#app .login {
-  background: var(--el-bg-color-page);
-}
-
-#app .login__card {
-  border: 1px solid var(--el-border-color);
-  box-shadow: var(--el-box-shadow-elevated);
-}
-
 /* ===== 列表卡片：单一卡层；结构只有「本体 → 内容区」两层 ===== */
 #app .list-card-wrap {
   display: grid;
@@ -799,10 +789,9 @@ h3 {
   }
 }
 
-/* ===== Element Plus 浮层深色适配（ElMessage / ElMessageBox / 下拉挂 body，不进 #app；
+/* ===== Element Plus 浮层深色适配（ElMessage / 下拉挂 body，不进 #app；
    theme.css 在 EP 分片样式之后加载，同权重即后写生效） ===== */
 .el-message,
-.el-message-box,
 .el-popper.is-light,
 .el-select__popper.el-popper {
   border-color: var(--el-border-color);
@@ -811,15 +800,8 @@ h3 {
 }
 
 .el-message__content,
-.el-message-box__title,
-.el-message-box__message,
 .el-select-dropdown__item {
   color: var(--el-text-color-primary);
-}
-
-.el-message-box {
-  border-radius: var(--web-radius-card);
-  box-shadow: var(--el-box-shadow-elevated);
 }
 
 .el-select__wrapper {
@@ -842,22 +824,6 @@ h3 {
 }
 
 @media (max-width: 640px) {
-  .el-overlay-message-box {
-    padding: 12px;
-  }
-
-  /* 确认弹窗按钮纵排整宽：≥44px 触控，主操作（末位）落拇指区 */
-  .el-message-box__btns {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .el-message-box__btns .el-button {
-    width: 100%;
-    height: 44px;
-    font-size: 15px;
-  }
-
   .el-message {
     max-width: calc(100% - 24px);
     font-size: 14px;

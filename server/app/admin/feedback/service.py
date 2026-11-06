@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.admin.feedback import repo
@@ -29,14 +29,18 @@ def list_page(
 
 
 def set_handled(session: Session, *, feedback_id: int) -> FeedbackRow:
-    feedback = session.get(Feedback, feedback_id)
-    if feedback is None:
+    exists = session.scalar(select(Feedback.id).where(Feedback.id == feedback_id))
+    if exists is None:
         raise NotFound("反馈不存在")
 
-    # 幂等：已处理则保持原时间；时间戳取数据库时钟
-    if feedback.handled_at is None:
-        feedback.handled_at = session.scalar(select(func.now()))
-        session.flush()
+    # 幂等 + 并发安全：条件更新只有「未处理」的行会被写入，
+    # 两名管理员同时标记也只会落一次时间戳（时间取数据库时钟）
+    session.execute(
+        update(Feedback)
+        .where(Feedback.id == feedback_id, Feedback.handled_at.is_(None))
+        .values(handled_at=func.now())
+    )
+    session.commit()
 
     row = repo.find_row(session, feedback_id=feedback_id)
     if row is None:

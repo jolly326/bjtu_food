@@ -5,7 +5,7 @@ export { canteenApi } from './canteen'
 export { stallApi } from './stall'
 export { dishApi } from './dish'
 export { feedbackApi } from './feedback'
-export { upload } from './request'
+export { upload } from './images'
 export type {
   CanteenOut,
   DishBody,

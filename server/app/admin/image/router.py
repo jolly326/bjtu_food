@@ -10,18 +10,31 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, UploadFile
-from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.admin.image import service
-from app.core.db import get_session
 from app.core.deps import current_admin_id
 from app.core.envelope import Envelope, ok
+from app.core.errors import BadRequest
 from app.core.schemas import OutModel
 
 router = APIRouter(prefix="/admin", tags=["admin-image"])
 
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5MB
+_CHUNK_BYTES = 64 * 1024
+
+
+async def _read_limited(file: UploadFile, limit: int) -> bytes:
+    """分块读取并在超限时立即拒绝，避免整包进内存（无 Content-Length 的分块上传同样受限）。"""
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_CHUNK_BYTES)
+        if not chunk:
+            return b"".join(chunks)
+        total += len(chunk)
+        if total > limit:
+            raise BadRequest("图片大小不能超过 5MB")
+        chunks.append(chunk)
 
 
 class ImageOut(OutModel):
@@ -32,14 +45,8 @@ class ImageOut(OutModel):
 async def upload_image(
     file: UploadFile = File(...),
     admin_id: int = Depends(current_admin_id),
-    session: Session = Depends(get_session),
 ) -> Envelope[ImageOut]:
-    content = await file.read()
+    content = await _read_limited(file, service.MAX_BYTES)
     # COS 上传是同步网络调用：丢线程池执行，避免阻塞整个事件循环
-    url = await run_in_threadpool(
-        service.store,
-        filename=file.filename or "",
-        content_type=file.content_type or "",
-        content=content,
-    )
+    url = await run_in_threadpool(service.store, content=content)
     return ok(ImageOut(url=url))

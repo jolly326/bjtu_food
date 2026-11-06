@@ -173,6 +173,8 @@ async function onSave(): Promise<void> {
     emit('update:modelValue', false)
     emit('saved')
   } catch (e) {
+    // 失败回滚到编辑前的图片：否则下次保存会把本地 blob 串当成服务端 URL 提交
+    dialog.imageUrl = originalImageUrl.value
     ElMessage.error((e as Error).message)
   } finally {
     saving.value = false

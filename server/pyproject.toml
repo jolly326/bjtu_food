@@ -18,6 +18,8 @@ no_implicit_optional = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# integration：需外部 MySQL 的用例（默认跳过，见 tests/integration/test_mysql_schema.py）
+markers = ["integration: 需要外部 MySQL 测试库（TEST_MYSQL_URL）"]
 
 # 分层护栏：禁跨层调用
 # core 为横切层（配置 / 信封 / 安全 / 限频），被所有层消费，故不列入 layers

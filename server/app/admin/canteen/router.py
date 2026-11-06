@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 from sqlalchemy.orm import Session
 
 from app.admin.canteen import service
@@ -23,9 +24,11 @@ router = APIRouter(prefix="/admin/canteens", tags=["admin-canteen"])
 
 
 class CanteenSaveIn(InModel):
-    name: str
+    """入参长度与库列定义对齐：越界在参数层即 `400`。"""
+
+    name: str = Field(min_length=1, max_length=32)
     activate: bool = True
-    image_url: str | None = None
+    image_url: str | None = Field(default=None, max_length=255)
 
 
 class AdminCanteenOut(OutModel):

@@ -8,11 +8,11 @@ import re
 from sqlalchemy.orm import Session
 
 from app.core.config import embedding_is_remote, settings
+from app.core.errors import BadRequest
 from app.core.runtime.cache import ttl_cached
+from app.core.schemas import OutModel
 from app.core.search import rerank
 from app.core.search.embedding import cosine, current_model, embed
-from app.core.errors import BadRequest
-from app.core.schemas import OutModel
 from app.core.storage import to_absolute
 from app.student.dish import repo
 

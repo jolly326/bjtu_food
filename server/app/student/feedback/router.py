@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from pydantic import Field
 from sqlalchemy.orm import Session
 
 from app.core.db import get_session
@@ -19,9 +20,11 @@ router = APIRouter(tags=["feedback"])
 
 
 class FeedbackIn(InModel):
-    type: str
+    """正文上限与业务规则（1–500 字）一致：超长在参数层即 `400`，不把整包读进内存。"""
+
+    type: str = Field(min_length=1, max_length=8)
     dish_id: int | None = None
-    content: str
+    content: str = Field(min_length=1, max_length=500)
 
 
 @router.post("/feedback", response_model=Envelope[None], summary="提交文本反馈")

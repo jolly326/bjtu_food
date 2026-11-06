@@ -46,6 +46,7 @@ def _access_token() -> str:
             "secret": settings.wechat_secret,
         },
     )
+    resp.raise_for_status()
     data = resp.json()
     token = data.get("access_token")
     if not token:
@@ -69,6 +70,7 @@ def check_text(content: str) -> None:
             params={"access_token": token},
             json={"content": content, "version": 2, "scene": 2},
         )
+        resp.raise_for_status()
         data = resp.json()
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("msgSecCheck 调用失败：%s", exc)

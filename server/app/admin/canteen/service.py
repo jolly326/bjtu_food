@@ -15,9 +15,8 @@ from app.admin.canteen import repo
 from app.core.errors import BadRequest, NotFound
 from app.core.formatters import format_dt
 from app.core.runtime.cache import invalidate
-from app.core.runtime.ratelimit import RULE_ADMIN_LOGIN, check, client_ip
 from app.core.storage import to_absolute, to_relative
-from app.models import Canteen, Dish, DishLocation, Stall
+from app.models import Canteen, DishLocation, Stall
 
 
 @dataclass(slots=True)
@@ -69,7 +68,8 @@ def create(
 
     canteen = Canteen(name=name, activate=activate, image=to_relative(image))
     session.add(canteen)
-    session.flush()
+    # 事务边界在 service：先落库再失效缓存，避免并发读用旧数据重建缓存
+    session.commit()
     invalidate("student:dishes")
     return _to_row(canteen, 0)
 
@@ -102,14 +102,14 @@ def update(
             # RESTRICT：停用食堂前，子级须无启用中的档口
             active_stall_count = session.scalar(
                 select(func.count()).select_from(Stall).where(
-                    Stall.canteen_id == canteen.id, Stall.activate == True
+                    Stall.canteen_id == canteen.id, Stall.activate.is_(True)
                 )
             )
             if active_stall_count:
                 raise BadRequest("该食堂下仍有启用中的档口，请先停用档口")
         canteen.activate = activate
 
-    session.flush()
+    session.commit()
     invalidate("student:dishes")
     stall_count = session.scalar(
         select(func.count()).select_from(Stall).where(Stall.canteen_id == canteen.id)
@@ -135,5 +135,5 @@ def delete(session: Session, *, canteen_id: int) -> None:
         raise BadRequest("该食堂下仍有位置，请先清空位置")
 
     session.delete(canteen)
-    session.flush()
+    session.commit()
     invalidate("student:dishes")

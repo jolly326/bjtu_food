@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -44,7 +45,8 @@ def find_row(session: Session, *, feedback_id: int) -> FeedbackRow | None:
     found = session.execute(_base().where(Feedback.id == feedback_id)).first()
     if found is None:
         return None
-    feedback, dish_name = found
+    feedback = cast(Feedback, found[0])
+    dish_name = cast(str, found[1])
     return _to_row(feedback, dish_name)
 
 
@@ -72,4 +74,6 @@ def list_page(
 
     total = session.scalar(count_stmt)
     rows = session.execute(stmt.offset((page - 1) * size).limit(size)).all()
-    return [_to_row(fb, dish_name) for fb, dish_name in rows], int(total or 0)
+    return [
+        _to_row(cast(Feedback, fb), cast(str, dish_name)) for fb, dish_name in rows
+    ], int(total or 0)

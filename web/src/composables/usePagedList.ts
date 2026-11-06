@@ -10,7 +10,7 @@ import { ElMessage } from 'element-plus'
 import type { Page } from '@/api/types'
 
 /** 页大小（与服务端默认一致；「下一页」可用性据此计算，单点常量） */
-export const PAGE_SIZE = 20
+const PAGE_SIZE = 20
 
 export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
   const rows = ref<T[]>([])
@@ -23,12 +23,16 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
   const hasNext = computed(() => page.value * PAGE_SIZE < total.value)
   /** 总页数（分页器单点计算，页面不各自 `Math.ceil`） */
   const totalPages = computed(() => Math.ceil(total.value / PAGE_SIZE))
+  /** 请求序号：只接受最后一次发出的响应，旧响应迟到即丢弃（连点翻页 / 筛选抖动） */
+  let seq = 0
 
   async function load(): Promise<void> {
+    const current = ++seq
     loading.value = true
     error.value = ''
     try {
       const res = await fetchPage(page.value)
+      if (current !== seq) return
       // 末页删空自动回退：本页查空且不在第 1 页 ⇒ 回退一页重查（每跳至少 -1，终止于第 1 页）
       if (!res.records.length && page.value > 1) {
         page.value -= 1
@@ -37,10 +41,11 @@ export function usePagedList<T>(fetchPage: (page: number) => Promise<Page<T>>) {
       rows.value = res.records
       total.value = res.total
     } catch (e) {
+      if (current !== seq) return
       error.value = (e as Error).message
       ElMessage.error(error.value)
     } finally {
-      loading.value = false
+      if (current === seq) loading.value = false
     }
   }
 

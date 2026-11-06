@@ -22,8 +22,6 @@ const emit = defineEmits<{
   pending: [file: File | null]
 }>()
 
-/** 进入组件前的原始服务器 URL，用于回滚 */
-const originalValue = ref(props.modelValue || '')
 /** 本地预览 blob URL（仅当本次选了新图时存在） */
 const objectUrl = ref('')
 
@@ -59,13 +57,9 @@ function onClear() {
 // 外部把值清空（如打开编辑重置）或改回服务器 URL（取消 / 保存失败回滚）时，
 // 一并丢弃本地预览、释放 blob 并清空待上传文件；
 // modelValue 为 blob 时是本地预览自身回填，不作处理。
-// 当 modelValue 为非 blob 的服务器 URL 时，持续刷新 originalValue，保证回滚到当前编辑对象的原图。
 watch(
   () => props.modelValue,
   (value) => {
-    if (value && !value.startsWith('blob:')) {
-      originalValue.value = value
-    }
     if (objectUrl.value && (!value || !value.startsWith('blob:'))) {
       revoke()
       emit('pending', null)

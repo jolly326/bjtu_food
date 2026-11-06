@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from app.core.search import embedding
 from app.core.config import settings
 from app.core.errors import InternalError
+from app.core.search import embedding
 
 
 def test_本地模型_标识与归一化(monkeypatch: pytest.MonkeyPatch) -> None:

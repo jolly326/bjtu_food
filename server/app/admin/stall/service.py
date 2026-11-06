@@ -8,14 +8,15 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
 from app.admin.stall import repo
 from app.admin.stall.repo import StallRow
-from app.core.runtime.cache import invalidate
 from app.core.errors import BadRequest, NotFound
+from app.core.runtime.cache import invalidate
 from app.core.storage import to_relative
-from app.models import Canteen, Dish, DishLocation, Stall
+from app.models import Canteen, DishLocation, Stall
 
 # 与前端常量、库内取值逐字一致（docs/schema/stall.md）
 FLOOR_VALUES = frozenset({"负一层", "一层", "二层", "三层", "四层"})
@@ -26,8 +27,6 @@ def _validate(payload) -> None:
         raise BadRequest("档口名称不能为空")
     if payload.floor and payload.floor not in FLOOR_VALUES:
         raise BadRequest("楼层取值不合法")
-    if not isinstance(payload.activate, bool):
-        raise BadRequest("activate 必须为布尔值")
 
 
 def _ensure_name_unique(
@@ -61,7 +60,7 @@ def create(session: Session, *, payload) -> StallRow:
         image=to_relative(payload.image_url),
     )
     session.add(stall)
-    session.flush()
+    session.commit()
     invalidate("student:dishes")
     return _reload(session, stall.id)
 
@@ -77,6 +76,15 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
         session, canteen_id=payload.canteen_id, name=payload.name, exclude_stall_id=stall_id
     )
 
+    if stall.canteen_id != payload.canteen_id:
+        # 位置行的 canteen_id 是与档口保持一致的反范式列：换食堂时一并迁移，
+        # 否则学生端按 DishLocation.canteen_id 出参展示旧食堂名
+        session.execute(
+            sa_update(DishLocation)
+            .where(DishLocation.stall_id == stall.id)
+            .values(canteen_id=payload.canteen_id)
+        )
+
     stall.canteen_id = payload.canteen_id
     stall.name = payload.name.strip()
 
@@ -84,7 +92,7 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
         # RESTRICT：停用档口前，子级须无启用中的菜品
         active_dish_count = session.scalar(
             select(func.count()).select_from(DishLocation).where(
-                DishLocation.stall_id == stall.id, DishLocation.activate == True
+                DishLocation.stall_id == stall.id, DishLocation.activate.is_(True)
             )
         )
         if active_dish_count:
@@ -94,7 +102,7 @@ def update(session: Session, *, stall_id: int, payload) -> StallRow:
     stall.floor = payload.floor
     stall.window_no = payload.window_no
     stall.image = to_relative(payload.image_url)
-    session.flush()
+    session.commit()
     invalidate("student:dishes")
     return _reload(session, stall.id)
 
@@ -111,7 +119,7 @@ def delete(session: Session, *, stall_id: int) -> None:
         raise BadRequest("该档口下仍有菜品，请先清空菜品")
 
     session.delete(stall)
-    session.flush()
+    session.commit()
     invalidate("student:dishes")
 
 

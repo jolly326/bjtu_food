@@ -94,22 +94,21 @@ async function onSave() {
     return
   }
 
-  let imageUrl: string | null = dialog.imageUrl || null
-  if (pendingFile.value) {
-    imageUrl = await upload(pendingFile.value)
-    pendingFile.value = null
-  }
-  const body: StallBody = {
-    canteenId: dialog.canteenId,
-    name: dialog.name.trim(),
-    activate: dialog.activate,
-    floor: dialog.floor || null,
-    windowNo: dialog.windowNo.trim() || null,
-    imageUrl,
-  }
-
   saving.value = true
   try {
+    let imageUrl: string | null = dialog.imageUrl || null
+    if (pendingFile.value) {
+      imageUrl = await upload(pendingFile.value)
+      pendingFile.value = null
+    }
+    const body: StallBody = {
+      canteenId: dialog.canteenId,
+      name: dialog.name.trim(),
+      activate: dialog.activate,
+      floor: dialog.floor || null,
+      windowNo: dialog.windowNo.trim() || null,
+      imageUrl,
+    }
     if (dialog.id) await stallApi.update(dialog.id, body)
     else await stallApi.create(body)
     ElMessage.success('已保存')

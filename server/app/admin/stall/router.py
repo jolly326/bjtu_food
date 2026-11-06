@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 from sqlalchemy.orm import Session
 
 from app.admin.stall import service
@@ -23,12 +24,14 @@ router = APIRouter(prefix="/admin/stalls", tags=["admin-stall"])
 
 
 class StallSaveIn(InModel):
+    """入参长度与库列定义对齐：越界在参数层即 `400`。"""
+
     canteen_id: int
-    name: str
+    name: str = Field(min_length=1, max_length=32)
     activate: bool = True
-    floor: str | None = None
-    window_no: str | None = None
-    image_url: str | None = None
+    floor: str | None = Field(default=None, max_length=8)
+    window_no: str | None = Field(default=None, max_length=16)
+    image_url: str | None = Field(default=None, max_length=255)
 
 
 class StallOut(OutModel):

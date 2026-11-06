@@ -40,11 +40,26 @@ export function clearUsername(): void {
   sessionStorage.removeItem(USERNAME_KEY)
 }
 
-function toLogin() {
-  clearToken()
+/** 401 的落地动作：默认清凭证 + 跳登录；应用入口可注册自己的处理器（清 store 态 + 走 router） */
+type UnauthorizedHandler = () => void
+
+const defaultUnauthorized: UnauthorizedHandler = () => {
   if (location.hash !== '#/login') {
     location.hash = '#/login'
   }
+}
+
+let onUnauthorized: UnauthorizedHandler = defaultUnauthorized
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
+  onUnauthorized = handler
+}
+
+function toLogin() {
+  // 凭证与账号名同生命周期：失效时一起清，避免顶栏残留上一账号
+  clearToken()
+  clearUsername()
+  onUnauthorized()
 }
 
 /** 🔴 登录端点不参与「401 即跳登录」：口令错误时的服务端文案要原样回到登录页 */
@@ -117,32 +132,26 @@ async function raw<T>(method: string, path: string, body?: unknown): Promise<T> 
   return unwrap<T>(payload, isLogin)
 }
 
+/** multipart 提交：不设 Content-Type（交给浏览器带 boundary） */
+async function form<T>(path: string, body: FormData): Promise<T> {
+  const token = readToken()
+  const payload = await send(
+    path,
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body,
+    },
+    false,
+  )
+  return unwrap<T>(payload, false)
+}
+
 export const http = {
   get: <T>(path: string) => raw<T>('GET', path),
   post: <T>(path: string, body?: unknown) => raw<T>('POST', path, body),
   put: <T>(path: string, body?: unknown) => raw<T>('PUT', path, body),
   patch: <T>(path: string, body?: unknown) => raw<T>('PATCH', path, body),
   delete: <T>(path: string) => raw<T>('DELETE', path),
-}
-
-/** multipart 上传（图片）。 */
-export async function upload(file: File): Promise<string> {
-  const token = readToken()
-  const form = new FormData()
-  form.append('file', file)
-
-  const payload = await send(
-    '/admin/images',
-    {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    },
-    false,
-  )
-  const data = unwrap<{ url: string } | null>(payload, false)
-  if (!data?.url) {
-    throw new Error('上传失败')
-  }
-  return data.url
+  form,
 }

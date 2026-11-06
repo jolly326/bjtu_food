@@ -19,9 +19,8 @@ export const COLOR_MAP = {
   'bg-placeholder': '#F3F4F6',
   'border-color': '#E5E7EB',
 
-  /* ===== 主色与反白色 ===== */
+  /* ===== 主色 ===== */
   brand: '#EA580C',
-  'on-brand': '#FFFFFF',
 } as const
 
 /**
@@ -41,7 +40,6 @@ export const DARK_COLOR_MAP: Record<keyof typeof COLOR_MAP, string> = {
   'bg-placeholder': '#262930',
   'border-color': '#3A3E46',
 
-  /* ===== 主色与反白色 ===== */
+  /* ===== 主色 ===== */
   brand: '#F97316',
-  'on-brand': '#FFFFFF',
 }

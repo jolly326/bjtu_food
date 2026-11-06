@@ -43,7 +43,7 @@
 - 查询免一次 join；
 - 能表达「食堂级位置」（`stall_id = NULL`）。
 
-代价是必须在应用层保证：`stall_id` 非空时 `stall.canteen_id = canteen_id`，否则 `400`。
+代价是必须在应用层保证：`stall_id` 非空时 `stall.canteen_id = canteen_id`，否则 `400`。运营端改档口所属食堂时，该档口下全部位置行的 `canteen_id` 同批迁移，保持这一不变式。
 
 ## 关联
 

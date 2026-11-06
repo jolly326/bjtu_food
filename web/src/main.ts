@@ -3,7 +3,9 @@ import { createPinia } from 'pinia'
 import { ElOption, ElSelect } from 'element-plus'
 import App from './App.vue'
 import router from './router'
+import { setUnauthorizedHandler } from './api/request'
 import { vZoomImg } from './directives/zoomImg'
+import { useSessionStore } from './stores/session'
 // Element Plus 仅消费 el-select（筛选下拉）与 ElMessage（轻提示）：只引「基础变量 + 这几个组件样式」，
 // 不整包引入 index.css（首屏体积）；base.css 提供 --el-* 变量，theme.css 用 html:root 覆盖品牌色。
 // el-select 内部还依赖 popper（浮层定位）/ scrollbar（下拉滚动）/ input（选择器输入框）/
@@ -26,5 +28,14 @@ app.component('ElSelect', ElSelect)
 app.component('ElOption', ElOption)
 // 全局指令：任意 <img v-zoomimg> 即获得「点击放大预览」
 app.directive('zoomimg', vZoomImg)
+
+// 401 单一出口：请求层只负责发现失效，会话状态与路由由应用入口收口
+// （否则 sessionStorage 已清而 store 仍认为已登录，登录页自动跳回首页形成循环）
+setUnauthorizedHandler(() => {
+  useSessionStore().logout()
+  if (router.currentRoute.value.name !== 'login') {
+    void router.replace({ name: 'login' })
+  }
+})
 
 app.mount('#app')

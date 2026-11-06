@@ -11,8 +11,8 @@ import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
-from app.core.runtime.cache import invalidate
 from app.core.errors import BadRequest
+from app.core.runtime.cache import invalidate
 from app.models import Base, Canteen, Dish, DishEmbedding, DishLocation, Stall
 from app.student.dish.service import recommend
 

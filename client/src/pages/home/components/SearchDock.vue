@@ -10,6 +10,7 @@ import { onMounted, ref, watch } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { SEARCH_DOCK } from '@/constants'
 import { useTimers } from '@/hooks'
+import { useCooldown } from '@/utils/backoff'
 
 defineOptions({ options: { virtualHost: true } })
 
@@ -24,6 +25,8 @@ const emit = defineEmits<{
   (e: 'clear'): void
 }>()
 
+/** 命中限频后的退避态（与提交方共用同一 key，倒计时结束自动恢复） */
+const { locked, left } = useCooldown('search')
 /** 待机态：长时间无点击 / 输入 ⇒ 搜索胶囊降低透明度，任意交互立即恢复 */
 const idle = ref(false)
 const { setTimer, clearTimer } = useTimers()
@@ -49,6 +52,10 @@ function onInput(event: Event): void {
 
 function submit(): void {
   wake()
+  if (locked.value) {
+    uni.showToast({ title: `操作过于频繁，请 ${left.value} 秒后再试`, icon: 'none' })
+    return
+  }
   if (props.searching) return
   emit('search', props.modelValue)
 }
@@ -90,10 +97,10 @@ onMounted(sleep)
       </view>
       <view
         class="dock__btn"
-        :class="{ 'dock__btn--busy': searching }"
+        :class="{ 'dock__btn--busy': searching || locked }"
         hover-class="dock__btn--press"
         aria-role="button"
-        aria-label="搜索菜品"
+        :aria-label="locked ? `搜索已限频，${left} 秒后可重试` : '搜索菜品'"
         @tap="submit"
       >
         <view v-if="searching" class="dock__spinner">

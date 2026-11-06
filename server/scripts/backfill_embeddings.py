@@ -6,8 +6,10 @@
     python scripts/backfill_embeddings.py --limit 50     # 先小批量试
     python scripts/backfill_embeddings.py                # 全量
 
+向量落在 ``dish_embedding``（``(dish_id, model)`` 联合主键，可并存多模型）；
+回填期间检索端只信任与当前模型一致的行（口径见 docs/schema/dish_embedding.md），建议低峰执行。
+
 🔴 执行前确认向量服务配置已就绪（``EMBEDDING_*``）。
-回填期间检索端会**跳过**模型不符的行（口径见 docs/schema/dish.md），建议低峰执行。
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from sqlalchemy import select
 from app.core.db import session_scope
 from app.core.runtime.cache import invalidate
 from app.core.search.embedding import current_model, embed
-from app.models import Dish
+from app.models import Dish, DishEmbedding
 
 _BATCH = 20
 
@@ -36,7 +38,7 @@ def main() -> int:
     parser.add_argument(
         "--only-missing",
         action="store_true",
-        help="只处理向量缺失或模型与当前模型不符的行",
+        help="只处理当前模型尚无向量的菜品",
     )
     args = parser.parse_args()
 
@@ -54,12 +56,16 @@ def main() -> int:
             if not text:
                 skipped += 1
                 continue
-            if args.only_missing and dish.embedding and dish.embedding_model == model:
+            row = session.get(DishEmbedding, (dish.id, model))
+            if args.only_missing and row is not None:
                 skipped += 1
                 continue
             if not args.dry_run:
-                dish.embedding = embed(text)
-                dish.embedding_model = model
+                vector = embed(text)
+                if row is None:
+                    session.add(DishEmbedding(dish_id=dish.id, model=model, vector=vector))
+                else:
+                    row.vector = vector
             done += 1
             if not args.dry_run and done % _BATCH == 0:
                 session.flush()

@@ -9,6 +9,7 @@ import { computed, ref } from 'vue'
 
 import { feedbackApi } from '@/api'
 import { FEEDBACK } from '@/constants'
+import { cooldownFrom, useCooldown } from '@/utils/backoff'
 
 defineOptions({ options: { virtualHost: true } })
 
@@ -27,7 +28,14 @@ const emit = defineEmits<{
 
 const content = ref('')
 const submitting = ref(false)
+/** 命中限频后的退避态：按钮文案切倒计时并禁用，到点自动恢复 */
+const { locked, left } = useCooldown('feedback')
 const title = computed(() => (props.type === 'product' ? '产品反馈' : '对这道菜的反馈'))
+const submitText = computed(() => {
+  if (submitting.value) return '提交中'
+  if (locked.value) return `${left.value} 秒后重试`
+  return '提交'
+})
 /** 占位文案按类型引导：产品反馈问使用问题，菜品反馈问信息错误 */
 const placeholder = computed(() =>
   props.type === 'product'
@@ -41,6 +49,12 @@ function onInput(event: Event): void {
 }
 
 async function submit(): Promise<void> {
+  // 提交中重复点击直接忽略（连点会重复落库）
+  if (submitting.value) return
+  if (locked.value) {
+    uni.showToast({ title: `操作过于频繁，请 ${left.value} 秒后再试`, icon: 'none' })
+    return
+  }
   const text = content.value.trim()
   if (!text) {
     uni.showToast({ title: '请填写反馈内容', icon: 'none' })
@@ -57,6 +71,8 @@ async function submit(): Promise<void> {
     content.value = ''
     emit('close')
   } catch (error) {
+    // 命中限频：登记退避，按钮切倒计时（服务端文案里带等待秒数）
+    cooldownFrom('feedback', error)
     uni.showToast({ title: (error as Error).message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
@@ -85,11 +101,11 @@ async function submit(): Promise<void> {
     <view
       class="feedback-form__submit"
       hover-class="feedback-form__submit--press"
-      :class="{ 'feedback-form__submit--busy': submitting }"
+      :class="{ 'feedback-form__submit--busy': submitting || locked }"
       aria-role="button"
-      aria-label="提交反馈"
+      :aria-label="locked ? `提交已限频，${left} 秒后可重试` : '提交反馈'"
       @tap="submit"
-    >{{ submitting ? '提交中' : '提交' }}</view>
+    >{{ submitText }}</view>
   </view>
 </template>
 

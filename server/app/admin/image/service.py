@@ -7,13 +7,15 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from app.core.config import settings
 from app.core.errors import BadRequest, InternalError
 from app.core.storage import to_absolute
 
-ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+logger = logging.getLogger(__name__)
+
 MAX_BYTES = 5 * 1024 * 1024
 
 # 魔数 -> 规范化 Content-Type（防止扩展名 / 头伪装）
@@ -33,14 +35,12 @@ def _sniff(content: bytes) -> str | None:
     return None
 
 
-def store(*, filename: str, content_type: str, content: bytes) -> str:
+def store(*, content: bytes) -> str:
     if not content:
         raise BadRequest("文件内容为空")
 
     sniffed = _sniff(content)
     if sniffed is None:
-        raise BadRequest("只支持 jpg / png / webp 格式的图片")
-    if sniffed not in ALLOWED_CONTENT_TYPES:
         raise BadRequest("只支持 jpg / png / webp 格式的图片")
     if len(content) > MAX_BYTES:
         raise BadRequest("图片大小不能超过 5MB")
@@ -68,6 +68,7 @@ def store(*, filename: str, content_type: str, content: bytes) -> str:
             ContentType=sniffed,
         )
     except Exception as exc:
+        logger.exception("COS 上传失败：key=%s", key)
         raise InternalError("图片上传失败，请稍后重试") from exc
 
     return to_absolute(key) or ""

@@ -48,7 +48,7 @@
 | `description` | string? | 否 | 变更时重算当前模型向量 |
 | `imageUrl` | string? | 否 | 绝对 URL；`null` = 清除 |
 | `price` | number? | 否 | 售价（分）；`null` = 价格待定 |
-| `locations` | `DishLocationIn[]` | 否 | 位置列表；**整表替换** |
+| `locations` | `DishLocationIn[]` | 否 | 位置列表；**整表替换**（带 `id` 保留该 `id`，未出现的位置删除） |
 
 **`DishLocationIn`**
 

@@ -35,6 +35,7 @@ from app.admin.dish.router import router as admin_dish_router
 from app.admin.feedback.router import router as admin_feedback_router
 from app.admin.image.router import router as admin_image_router
 from app.admin.stall.router import router as admin_stall_router
+from app.core import content_security
 from app.core.config import is_production, require_cos_domain, settings
 from app.core.db import engine
 from app.core.envelope import Envelope
@@ -182,7 +183,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         # 只告警不阻断：探活端点须保持可用，便于平台侧观测
         logger.exception("数据库连通性探测失败——数据端点将不可用，请核对 DATABASE_URL 等环境变量")
     yield
+    # 关闭两处进程级 httpx 连接池（微信登录 / 内容安全各一个）
     auth_service.close_http_client()
+    content_security.close_http_client()
 
 
 def create_app() -> FastAPI:

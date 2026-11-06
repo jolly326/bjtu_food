@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.errors import BadRequest
 from app.core.runtime.security import STUDENT, create_token
 from app.models import User
+from app.student.auth import repo
 
 logger = logging.getLogger(__name__)
 
@@ -71,14 +72,26 @@ def exchange_code_for_openid(code: str) -> str:
 
 
 def get_or_create_user(session: Session, openid: str) -> int:
-    """按 openid 建 / 取用户行（uk_user_openid 唯一）。"""
-    existing = session.scalar(select(User.id).where(User.openid == openid))
+    """按 openid 建 / 取用户行（uk_user_openid 唯一）。
+
+    并发首登（同一 openid 两条请求同时插入）时唯一键会冲突：回滚本次插入后
+    取已存在行，返回同一 ``user_id``，对端表现为幂等成功而不是 500。
+    """
+    existing = repo.find_id_by_openid(session, openid)
     if existing is not None:
         return int(existing)
 
     user = User(openid=openid)
     session.add(user)
-    session.flush()  # 取到自增 id，事务由上层提交
+    try:
+        # 事务边界在 service：用户行落库后再签发 token
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        existing = repo.find_id_by_openid(session, openid)
+        if existing is None:
+            raise
+        return int(existing)
     return int(user.id)
 
 

@@ -13,6 +13,7 @@ import type { DishVO } from '@/api'
 import PageLoading from '@/components/PageLoading.vue'
 import RetryBlock from '@/components/RetryBlock.vue'
 import { useTheme } from '@/hooks'
+import { cooldownFrom } from '@/utils/backoff'
 import { abortAllRequests, isAbortedRequest } from '@/utils/request'
 import { NAV } from '@/constants'
 import DishGrid from './components/DishGrid.vue'
@@ -65,6 +66,9 @@ async function load(): Promise<void> {
   }
 }
 
+/** 搜索序号：只接受最后一次提交的结果，连点 / 清空期间的迟到响应直接丢弃 */
+let searchSeq = 0
+
 /** 提交一句 query：请求 → 结果集整体替换；失败保持当前结果集 */
 async function submit(text: string): Promise<void> {
   const keyword = text.trim()
@@ -74,20 +78,31 @@ async function submit(text: string): Promise<void> {
     clearSearch()
     return
   }
+  const current = ++searchSeq
   searching.value = true
   try {
     const result = await dishApi.recommend(keyword)
+    if (current !== searchSeq) return
     query.value = keyword
     resultDishes.value = result.dishes
     conditioned.value = true
-  } catch {
-    uni.showToast({ title: '搜索失败，请重试', icon: 'none' })
+  } catch (error) {
+    if (current !== searchSeq) return
+    // 命中限频：按服务端文案登记退避（搜索按钮据此禁用并显示剩余秒数）
+    const wait = cooldownFrom('search', error)
+    uni.showToast({
+      title: wait > 0 ? (error as Error).message : '搜索失败，请重试',
+      icon: 'none',
+    })
   } finally {
-    searching.value = false
+    if (current === searchSeq) searching.value = false
   }
 }
 
 function clearSearch(): void {
+  // 清空即作废在途搜索：否则迟到响应会把结果集又填回来
+  searchSeq += 1
+  searching.value = false
   query.value = ''
   resultDishes.value = []
   conditioned.value = false

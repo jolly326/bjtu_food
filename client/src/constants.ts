@@ -25,6 +25,10 @@ export const SEARCH_DOCK = {
 export const IMAGE = {
   /** 结果卡封面缩略图限宽（px）：1 列 16:9 满宽封面在 3x 屏约 1000px */
   RESULT_THUMB_WIDTH: 1000,
+  /** 缩略图兜底限宽（px）：宿主未指定宽度时使用 */
+  THUMB_WIDTH: 400,
+  /** 缩略图 webp 质量档（数据万象 quality 参数） */
+  THUMB_QUALITY: 80,
 } as const
 
 export const RESULT = {

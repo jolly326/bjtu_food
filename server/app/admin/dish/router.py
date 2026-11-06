@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 from sqlalchemy.orm import Session
 
 from app.admin.dish import service
@@ -29,11 +30,13 @@ class DishLocationIn(InModel):
 
 
 class DishSaveIn(InModel):
-    name: str
-    description: str | None = None
-    image_url: str | None = None
-    price: int | None = None
-    locations: list[DishLocationIn] = []
+    """入参长度 / 数值上下界与库列定义对齐：越界在参数层即 `400`，不落到 MySQL 报错。"""
+
+    name: str = Field(min_length=1, max_length=64)
+    description: str | None = Field(default=None, max_length=500)
+    image_url: str | None = Field(default=None, max_length=255)
+    price: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    locations: list[DishLocationIn] = Field(default_factory=list)
 
 
 class DishLocationOut(OutModel):
@@ -91,7 +94,7 @@ def list_dishes(
     session: Session = Depends(get_session),
 ) -> Envelope[AdminPageResult[DishOut]]:
     paging = normalize_page(page, page_size)
-    rows, total = service.repo.list_page(
+    rows, total = service.list_page(
         session,
         canteen_id=canteen_id,
         stall_id=stall_id,

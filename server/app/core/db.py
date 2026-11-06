@@ -31,20 +31,21 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 
 def get_session(request: Request) -> Iterator[Session]:
-    """FastAPI 依赖：请求级会话——写请求提交，读请求不提交。
+    """FastAPI 依赖：只负责会话生命周期（归还连接），**不提交**。
 
-    写端点（POST / PUT / PATCH / DELETE）依赖本语义落库；GET 为只读，
-    跳过空事务提交（``close()`` 会回滚未提交的只读事务）。
+    事务边界在写操作的 service 层：写服务在返回前显式 ``commit()``，
+    因此「响应已发出但事务未落库」不会发生；异常路径由本依赖回滚。
     """
     session = SessionLocal()
     try:
         yield session
-        if request.method != "GET":
-            session.commit()
     except Exception:
         session.rollback()
         raise
     finally:
+        # 兜底：未显式提交的剩余事务（只读请求 / 中途返回）在此回滚，避免脏连接回到池里
+        if session.in_transaction():
+            session.rollback()
         session.close()
 
 

@@ -11,8 +11,8 @@ import pytest
 from sqlalchemy import BigInteger
 from sqlalchemy.ext.compiler import compiles
 
-from app.core.runtime.cache import invalidate
 from app.core.config import settings
+from app.core.runtime.cache import invalidate
 
 
 @compiles(BigInteger, "sqlite")

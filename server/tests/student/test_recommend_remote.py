@@ -8,9 +8,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from app.core.search import rerank as rerank_mod
-from app.core.runtime.cache import invalidate
 from app.core.config import settings
+from app.core.runtime.cache import invalidate
+from app.core.search import rerank as rerank_mod
 from app.models import Base, Canteen, Dish, DishEmbedding, DishLocation, Stall
 from app.student.dish import service
 

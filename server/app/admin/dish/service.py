@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -47,14 +49,38 @@ def _set_embedding(session: Session, dish: Dish) -> None:
         row.vector = embed(text)
 
 
+def list_page(
+    session: Session,
+    *,
+    canteen_id: int | None,
+    stall_id: int | None,
+    activate: bool | None,
+    name: str | None,
+    page: int,
+    size: int,
+) -> tuple[list[DishRow], int]:
+    return repo.list_page(
+        session,
+        canteen_id=canteen_id,
+        stall_id=stall_id,
+        activate=activate,
+        name=name,
+        page=page,
+        size=size,
+    )
+
+
 def _replace_locations(session: Session, dish: Dish, items: list) -> None:
-    existing = {
-        loc.id: loc
-        for loc in session.scalars(
-            select(DishLocation).where(DishLocation.dish_id == dish.id)
-        )
-    }
-    kept: set[int] = set()
+    """位置整表替换：先清空既有行，再按入参重建（保留传入 ``id``）。
+
+    重建而不是「原地改 + 追加」是为了避开唯一键 ``uk_location_dish_canteen_stall``：
+    同一 (食堂, 档口) 在本轮先删后建、或两条位置互换食堂 / 档口时，
+    「先增后删」会在 ``flush`` 时撞唯一索引。
+    """
+    existing_ids = set(
+        session.scalars(select(DishLocation.id).where(DishLocation.dish_id == dish.id))
+    )
+    resolved: list[tuple[int | None, Any]] = []
     seen: set[tuple[int, int | None]] = set()
     for item in items:
         _check_location(session, item)
@@ -63,24 +89,27 @@ def _replace_locations(session: Session, dish: Dish, items: list) -> None:
             raise BadRequest("同一食堂 / 档口的位置重复")
         seen.add(key)
         item_id = getattr(item, "id", None)
-        if item_id is not None and item_id in existing:
-            loc = existing[item_id]
-            kept.add(loc.id)
-            loc.canteen_id = item.canteen_id
-            loc.stall_id = item.stall_id
-            loc.activate = item.activate
-        else:
-            session.add(
-                DishLocation(
-                    dish_id=dish.id,
-                    canteen_id=item.canteen_id,
-                    stall_id=item.stall_id,
-                    activate=item.activate,
-                )
+        if item_id is not None and item_id not in existing_ids:
+            raise BadRequest("位置 id 不属于该菜品")
+        resolved.append((item_id, item))
+
+    for location in session.scalars(
+        select(DishLocation).where(DishLocation.dish_id == dish.id)
+    ):
+        session.delete(location)
+    session.flush()
+
+    # 先落带 id 的行（保留既有位置标识），再落新增行，避免自增 id 抢占待复用 id
+    for item_id, item in sorted(resolved, key=lambda pair: pair[0] is None):
+        session.add(
+            DishLocation(
+                id=item_id,
+                dish_id=dish.id,
+                canteen_id=item.canteen_id,
+                stall_id=item.stall_id,
+                activate=item.activate,
             )
-    for location_id, location in existing.items():
-        if location_id not in kept:
-            session.delete(location)
+        )
 
 
 def create(session: Session, *, payload) -> DishRow:
@@ -95,7 +124,8 @@ def create(session: Session, *, payload) -> DishRow:
     session.flush()
     _replace_locations(session, dish, payload.locations or [])
     _set_embedding(session, dish)
-    session.flush()
+    # 事务边界在 service：先落库再失效缓存，避免并发读用旧数据重建缓存
+    session.commit()
     invalidate("student:dishes")
     return _reload(session, dish.id)
 
@@ -112,7 +142,8 @@ def update(session: Session, *, dish_id: int, payload) -> DishRow:
     dish.price = payload.price
     _replace_locations(session, dish, payload.locations or [])
     _set_embedding(session, dish)
-    session.flush()
+    # 事务边界在 service：先落库再失效缓存，避免并发读用旧数据重建缓存
+    session.commit()
     invalidate("student:dishes")
     return _reload(session, dish.id)
 
@@ -122,7 +153,7 @@ def delete(session: Session, *, dish_id: int) -> None:
     if dish is None:
         raise NotFound("菜品不存在")
     session.delete(dish)
-    session.flush()
+    session.commit()
     invalidate("student:dishes")
 
 

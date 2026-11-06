@@ -11,7 +11,7 @@ import { defineConfig } from 'vitest/config'
  * 用例内一律用 `@/` 别名引用被测模块，不写与源码的相对路径。
  *
  * <p>**默认 node 环境、不挂 vue 插件**：当前覆盖的是纯逻辑与「以 DOM 为载体的状态机」，
- * 后者在用例内以最小 `window` / `document` 存根承载（见 `tests/support/dom-stub.ts`）。
+ * 后者由用例自身按需声明最小 `window` / `document` 存根。
  * ⚠️ 不挂 `@vitejs/plugin-vue` 除省开销外还有一个硬原因：vitest 自带一份嵌套 vite，
  * 与本仓 vite 的插件类型（rolldown / rollup 两套 `Plugin` 声明）不兼容，挂上会让 `vue-tsc` 报
  * `Plugin<Api> is not assignable to PluginOption`。

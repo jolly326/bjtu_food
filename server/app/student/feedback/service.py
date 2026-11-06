@@ -42,7 +42,7 @@ def submit(
             session.scalar(
                 select(func.count())
                 .select_from(DishLocation)
-                .where(DishLocation.dish_id == dish_id, DishLocation.activate == True)
+                .where(DishLocation.dish_id == dish_id, DishLocation.activate.is_(True))
             )
         )
         if not on_sale:
@@ -54,3 +54,5 @@ def submit(
 
     check_text(body)
     repo.add(session, type_=kind, dish_id=dish_id, user_id=student_id, content=body)
+    # 事务边界在 service：返回响应前落库，避免「提示已收到但未入库」
+    session.commit()

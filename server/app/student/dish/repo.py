@@ -42,7 +42,7 @@ def list_on_sale(session: Session, *, model: str) -> list[LocationRow]:
             DishEmbedding,
             (DishEmbedding.dish_id == Dish.id) & (DishEmbedding.model == model),
         )
-        .where(DishLocation.activate == True)
+        .where(DishLocation.activate.is_(True))
         .order_by(Dish.id, DishLocation.id)
     ).all()
 

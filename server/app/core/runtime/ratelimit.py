@@ -15,6 +15,7 @@ import threading
 import time
 from dataclasses import dataclass
 
+from app.core.config import settings
 from app.core.errors import RateLimited
 
 PRUNE_INTERVAL = 300  # 秒：过期桶的清理周期
@@ -91,11 +92,19 @@ def check(key: str, rule: Rule) -> None:
 
 
 def client_ip(request: object) -> str:
-    """取请求来源 IP（取不到时用占位，保证限频键稳定）。"""
-    headers = getattr(request, "headers", {}) or {}
-    forwarded = headers.get("x-forwarded-for") if hasattr(headers, "get") else None
-    if forwarded:
-        return str(forwarded).split(",", 1)[0].strip()
+    """取请求来源 IP（取不到时用占位，保证限频键稳定）。
+
+    ``X-Forwarded-For`` 的左侧地址段由客户端自填、可伪造，因此只从右边取受信跳
+    （``settings.forwarded_hops``，默认 1 = 紧邻的一层反代）；``0`` 时不看 XFF。
+    """
+    hops = settings.forwarded_hops
+    if hops > 0:
+        headers = getattr(request, "headers", {}) or {}
+        forwarded = headers.get("x-forwarded-for") if hasattr(headers, "get") else None
+        if forwarded:
+            chain = [part.strip() for part in str(forwarded).split(",") if part.strip()]
+            if chain:
+                return chain[max(0, len(chain) - hops)]
     client = getattr(request, "client", None)
     host = getattr(client, "host", None) if client else None
     return host or "unknown"
